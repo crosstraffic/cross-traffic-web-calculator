@@ -1,6 +1,5 @@
-<h1 class="text-3xl font-bold underline">Hello world!</h1>
-<div class="mockup-code">
-  <pre data-prefix="$"><code>npm i daisyui</code></pre>
-  <pre data-prefix=">" class="text-warning"><code>installing...</code></pre>
-  <pre data-prefix=">" class="text-success"><code>Done!</code></pre>
-</div>
+<svelte:head>
+  <title>HCM Auto Calculator</title>
+</svelte:head>
+<h1>HCM Calculator</h1>
+<a href="/hcm15">Go to HCM Chap 15</a>
