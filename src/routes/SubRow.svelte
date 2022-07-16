@@ -1,7 +1,7 @@
 <script>
-    export let subseg_num;
-
+  export let subseg_num;
 </script>
+
 <tr class={subseg_num}>
     <th>
         <p>{subseg_num}</p> <!-- Increment -->

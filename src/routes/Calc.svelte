@@ -183,25 +183,28 @@ import { append_dev } from "svelte/internal";
                     error_str = "Failed determining demand flow rates and capacity.";
                 }
             } else {
-                error_flg = 1;
-                error_str = "No passing type selected";
+              error_flg = 1;
+              error_str = 'Missing posted speed limit.';
             }
 
-            if (error_flg == 1) {
-                // Must return error message
-                out = error_str;
-            }
         }
         
         // Aggregated Calculation
-        if (error_flg != 1){
+        if (error_flg == 1) {
+            // Must return error message
+            out = error_str;
+        } else if (error_flg != 1){
             for (let i=0;i<rows_len;i++){
                 seg_length = document.getElementById("seg_length"+(i+1)).value;
                 is_hc = document.getElementById("is_hc"+(i+1)).checked;
                 pass_type = document.getElementById("passing_type"+(i+1)).value;
+
                 var min_dist = 0;
                 var cur_dist = 0;
                 var LPL = 0;
+                console.log(sub_S);
+                console.log(subSeg_len);
+                console.log(tot_len);
 
                 if (is_hc == true && subrows_len > 0){
                     for (let j=0;j<subrows_len;j++){
@@ -295,361 +298,283 @@ import { append_dev } from "svelte/internal";
 
     }
 
-    function identifyVerticalClass(PT, vc){
-        // Identify Facility Study Boundaries and Corresponding Segmentation
-        
-        var _min = 0;
-        var _max = 0;
 
-        if(vc == 1 && PT == 'Passing Constrained'){
-            _min = 0.25;
-            _max = 3.0;
-        } else if(vc == 1 && PT == 'Passing Zone'){
-            _min = 0.25;
-            _max = 2.0;
-        } else if(vc == 1 && PT == 'Passing Lane'){
-            _min = 0.5;
-            _max = 3.0;
-        } else if(vc == 2 && PT == 'Passing Constrained'){
-            _min = 0.25;
-            _max = 3.0;
-        } else if(vc == 2 && PT == 'Passing Zone'){
-            _min = 0.25;
-            _max = 2.0;
-        } else if(vc == 2 && PT == 'Passing Lane'){
-            _min = 0.5;
-            _max = 3.0;
-        } else if(vc == 3 && PT == 'Passing Constrained'){
-            _min = 0.25;
-            _max = 1.1;
-        } else if(vc == 3 && PT == 'Passing Zone'){
-            _min = 0.25;
-            _max = 1.1;
-        } else if(vc == 3 && PT == 'Passing Lane'){
-            _min = 0.5;
-            _max = 1.1;
-        } else if(vc == 4 && PT == 'Passing Constrained'){
-            _min = 0.5;
-            _max = 3.0;
-        } else if(vc == 4 && PT == 'Passing Zone'){
-            _min = 0.5;
-            _max = 2.0;
-        } else if(vc == 4 && PT == 'Passing Lane'){
-            _min = 0.5;
-            _max = 3.0;
-        } else if(vc == 5 && PT == 'Passing Constrained'){
-            _min = 0.5;
-            _max = 3.0;
-        } else if(vc == 5 && PT == 'Passing Zone'){
-            _min = 0.5;
-            _max = 2.0;
-        } else if(vc == 5 && PT == 'Passing Lane'){
-            _min = 0.5;
-            _max = 3.0;
-        }
+  function identifyVerticalClass(PT, vc) {
+    // Identify Facility Study Boundaries and Corresponding Segmentation
 
-        return [_min, _max];
+    var _min = 0;
+    var _max = 0;
+
+    if (vc == 1 && PT == 'Passing Constrained') {
+      _min = 0.25;
+      _max = 3.0;
+    } else if (vc == 1 && PT == 'Passing Zone') {
+      _min = 0.25;
+      _max = 2.0;
+    } else if (vc == 1 && PT == 'Passing Lane') {
+      _min = 0.5;
+      _max = 3.0;
+    } else if (vc == 2 && PT == 'Passing Constrained') {
+      _min = 0.25;
+      _max = 3.0;
+    } else if (vc == 2 && PT == 'Passing Zone') {
+      _min = 0.25;
+      _max = 2.0;
+    } else if (vc == 2 && PT == 'Passing Lane') {
+      _min = 0.5;
+      _max = 3.0;
+    } else if (vc == 3 && PT == 'Passing Constrained') {
+      _min = 0.25;
+      _max = 1.1;
+    } else if (vc == 3 && PT == 'Passing Zone') {
+      _min = 0.25;
+      _max = 1.1;
+    } else if (vc == 3 && PT == 'Passing Lane') {
+      _min = 0.5;
+      _max = 1.1;
+    } else if (vc == 4 && PT == 'Passing Constrained') {
+      _min = 0.5;
+      _max = 3.0;
+    } else if (vc == 4 && PT == 'Passing Zone') {
+      _min = 0.5;
+      _max = 2.0;
+    } else if (vc == 4 && PT == 'Passing Lane') {
+      _min = 0.5;
+      _max = 3.0;
+    } else if (vc == 5 && PT == 'Passing Constrained') {
+      _min = 0.5;
+      _max = 3.0;
+    } else if (vc == 5 && PT == 'Passing Zone') {
+      _min = 0.5;
+      _max = 2.0;
+    } else if (vc == 5 && PT == 'Passing Lane') {
+      _min = 0.5;
+      _max = 3.0;
     }
 
-    function determineDemandFlow(PT, Vi, Vo, vc, PHF, HV){
+    return [_min, _max];
+  }
 
-        var demandFlow_i = Vi/PHF
-        var demandFlow_o = 0
-        var capacity = 0
+  function determineDemandFlow(PT, Vi, Vo, vc, PHF, HV) {
+    var demandFlow_i = Vi / PHF;
+    var demandFlow_o = 0;
+    var capacity = 0;
 
-        if (PT == 'Passing Zone' && Vo == ''){
-            console.log("Vo must be given for PZ segments");
-            capacity = 1700;
-        } else if (PT == 'Passing Zone'){
-            demandFlow_o = Vo/PHF;
-            capacity = 1700;
-        }else if (PT == 'Passing Constrained'){
-            demandFlow_o = 1500;
-            capacity = 1700;
-        } else if (PT == 'Passing Lane'){
-            if (HV < 5){
-                capacity = 1500;
-            } else if (HV >= 5 && HV < 10){
-                if (vc == 5){
-                    capacity = 1400;
-                } else {
-                    capacity = 1500;
-                }
-            } else if (HV >= 10 && HV < 15){
-                if (vc == 1 || vc == 2 || vc == 3){
-                    capacity = 1400;
-                } else {
-                    capacity = 1300;
-                }
-            } else if (HV >= 15 && HV < 20){
-                if (vc == 1 || vc == 2 || vc == 3 || vc == 4){
-                    capacity = 1300;
-                } else {
-                    capacity = 1200;
-                }
-            } else if (HV >= 20 && HV < 25){
-                if (vc == 1 || vc == 2 || vc == 3){
-                    capacity = 1300;
-                } else if (vc == 4) {
-                    capacity = 1200;
-                } else{
-                    capacity = 1100;
-                }
-            } else if (HV >= 25 ){
-                capacity = 1100;
-            }
-        }
-
-        return [demandFlow_i, demandFlow_o, capacity]
-    }
-
-    function determineVerticalAlignment(seg_length, seg_grade){
-        var ver_align = 0;
-        if (seg_grade >= 0){
-            if (seg_length <= 0.1){
-                if (seg_grade <= 7)
-                    ver_align = 1;
-                else
-                    ver_align = 2;
-            } else if (seg_length > 0.1 && seg_length <= 0.2){
-                if (seg_grade <= 4)
-                    ver_align = 1;
-                else if (seg_grade <= 7)
-                    ver_align = 2;
-                else
-                    ver_align = 3;
-            } else if (seg_length > 0.2 && seg_length <= 0.3){
-                if (seg_grade <= 3)
-                    ver_align = 1;
-                else if (seg_grade <= 5)
-                    ver_align = 2;
-                else if (seg_grade <= 7)
-                    ver_align = 3;
-                else if (seg_grade <= 7)
-                    ver_align = 4;
-                else
-                    ver_align = 5;
-            } else if (seg_length > 0.3 && seg_length <= 0.4){
-                if (seg_grade <= 2)
-                    ver_align = 1;
-                else if (seg_grade <= 4)
-                    ver_align = 2;
-                else if (seg_grade <= 6)
-                    ver_align = 3;
-                else if (seg_grade <= 7)
-                    ver_align = 4;
-                else
-                    ver_align = 5;
-            } else if (seg_length > 0.4 && seg_length <= 0.5){
-                if (seg_grade <= 2)
-                    ver_align = 1;
-                else if (seg_grade <= 4)
-                    ver_align = 2;
-                else if (seg_grade <= 5)
-                    ver_align = 3;
-                else if (seg_grade <= 6)
-                    ver_align = 4;
-                else
-                    ver_align = 5;
-            } else if (seg_length > 0.5 && seg_length <= 0.6){
-                if (seg_grade <= 2)
-                    ver_align = 1;
-                else if (seg_grade <= 3)
-                    ver_align = 2;
-                else if (seg_grade <= 5)
-                    ver_align = 3;
-                else if (seg_grade <= 6)
-                    ver_align = 4;
-                else
-                    ver_align = 5;
-            } else if (seg_length > 0.6 && seg_length <= 0.7){
-                if (seg_grade <= 2)
-                    ver_align = 1;
-                else if (seg_grade <= 3)
-                    ver_align = 2;
-                else if (seg_grade <= 4)
-                    ver_align = 3;
-                else if (seg_grade <= 6)
-                    ver_align = 4;
-                else
-                    ver_align = 5;
-            } else if (seg_length > 0.8 && seg_length <= 1.1){
-                if (seg_grade <= 2)
-                    ver_align = 1;
-                else if (seg_grade <= 3)
-                    ver_align = 2;
-                else if (seg_grade <= 4)
-                    ver_align = 3;
-                else if (seg_grade <= 5)
-                    ver_align = 4;
-                else
-                    ver_align = 5;
-            } else {
-                if (seg_grade <= 2)
-                    ver_align = 1;
-                else if (seg_grade <= 3)
-                    ver_align = 2;
-                else if (seg_grade <= 5)
-                    ver_align = 4;
-                else
-                    ver_align = 5;
-            }
+    if (PT == 'Passing Zone' && Vo == '') {
+      console.log('Vo must be given for PZ segments');
+      capacity = 1700;
+    } else if (PT == 'Passing Zone') {
+      demandFlow_o = Vo / PHF;
+      capacity = 1700;
+    } else if (PT == 'Passing Constrained') {
+      demandFlow_o = 1500;
+      capacity = 1700;
+    } else if (PT == 'Passing Lane') {
+      if (HV < 5) {
+        capacity = 1500;
+      } else if (HV >= 5 && HV < 10) {
+        if (vc == 5) {
+          capacity = 1400;
         } else {
-            seg_length = -1 * seg_length;
-            if (seg_length <= 0.1){
-                if (seg_grade <= 8)
-                    ver_align = 1;
-                else
-                    ver_align = 2;
-            } else if (seg_length > 0.1 && seg_length <= 0.2){
-                if (seg_grade <= 5)
-                    ver_align = 1;
-                else if (seg_grade <= 8)
-                    ver_align = 2;
-                else
-                    ver_align = 3;
-            } else if (seg_length > 0.2 && seg_length <= 0.3){
-                if (seg_grade <= 4)
-                    ver_align = 1;
-                else if (seg_grade <= 6)
-                    ver_align = 2;
-                else if (seg_grade <= 8)
-                    ver_align = 3;
-                else if (seg_grade <= 9)
-                    ver_align = 4;
-                else
-                    ver_align = 5;
-            } else if (seg_length > 0.3 && seg_length <= 0.4){
-                if (seg_grade <= 2)
-                    ver_align = 1;
-                else if (seg_grade <= 5)
-                    ver_align = 2;
-                else if (seg_grade <= 6)
-                    ver_align = 3;
-                else if (seg_grade <= 8)
-                    ver_align = 4;
-                else
-                    ver_align = 5;
-            } else if (seg_length > 0.4 && seg_length <= 0.5){
-                if (seg_grade <= 3)
-                    ver_align = 1;
-                else if (seg_grade <= 4)
-                    ver_align = 2;
-                else if (seg_grade <= 6)
-                    ver_align = 3;
-                else if (seg_grade <= 7)
-                    ver_align = 4;
-                else
-                    ver_align = 5;
-            } else if (seg_length > 0.5 && seg_length <= 0.7){
-                if (seg_grade <= 3)
-                    ver_align = 1;
-                else if (seg_grade <= 4)
-                    ver_align = 2;
-                else if (seg_grade <= 5)
-                    ver_align = 3;
-                else if (seg_grade <= 6)
-                    ver_align = 4;
-                else
-                    ver_align = 5;
-            } else if (seg_length > 0.7 && seg_length <= 0.8){
-                if (seg_grade <= 3)
-                    ver_align = 1;
-                else if (seg_grade <= 4)
-                    ver_align = 3;
-                else if (seg_grade <= 6)
-                    ver_align = 4;
-                else
-                    ver_align = 5;
-            } else if (seg_length > 0.8 && seg_length <= 0.9){
-                if (seg_grade <= 3)
-                    ver_align = 1;
-                else if (seg_grade <= 4)
-                    ver_align = 3;
-                else if (seg_grade <= 5)
-                    ver_align = 4;
-                else
-                    ver_align = 5;
-            } else if (seg_length > 0.9 && seg_length <= 1.1){
-                if (seg_grade <= 2)
-                    ver_align = 1;
-                else if (seg_grade <= 3)
-                    ver_align = 2;
-                else if (seg_grade <= 4)
-                    ver_align = 3;
-                else if (seg_grade <= 5)
-                    ver_align = 4;
-                else
-                    ver_align = 5;
-            } else {
-                if (seg_grade <= 2)
-                    ver_align = 1;
-                else if (seg_grade <= 3)
-                    ver_align = 2;
-                else if (seg_grade <= 5)
-                    ver_align = 4;
-                else
-                    ver_align = 5;
-            }
+          capacity = 1500;
         }
-
-        return ver_align;
+      } else if (HV >= 10 && HV < 15) {
+        if (vc == 1 || vc == 2 || vc == 3) {
+          capacity = 1400;
+        } else {
+          capacity = 1300;
+        }
+      } else if (hv >= 15 && hv < 20) {
+        if (vc == 1 || vc == 2 || vc == 3 || vc == 4) {
+          capacity = 1300;
+        } else {
+          capacity = 1200;
+        }
+      } else if (HV >= 20 && HV < 25) {
+        if (vc == 1 || vc == 2 || vc == 3) {
+          capacity = 1300;
+        } else if (vc == 4) {
+          capacity = 1200;
+        } else {
+          capacity = 1100;
+        }
+      } else if (HV >= 25) {
+        capacity = 1100;
+      }
     }
 
-    function determineFreeFlowSpeed(Spl, ver_cls, seg_length, vo, LW, SW, APD, PHV){
-        var bffs = 1.14 * Spl;
-        var a0 = 0.00000;
-        var a1 = 0.00000;
-        var a2 = 0.00000;
-        var a3 = 0.00000;
-        var a4 = 0.00000;
-        var a5 = 0.00000;
+    return [demandFlow_i, demandFlow_o, capacity];
+  }
 
-        if (ver_cls == 1){
-            a0 = 0.00000;
-            a1 = 0.00000;
-            a2 = 0.00000;
-            a3 = 0.00000;
-            a4 = 0.00000;
-            a5 = 0.00000;
-        } else if (ver_cls == 2){
-            a0 = -0.45036;
-            a1 = 0.00814;
-            a2 = 0.01543;
-            a3 = 0.01358;
-            a4 = 0.00000;
-            a5 = 0.00000;
-        } else if (ver_cls == 3){
-            a0 = -0.29591;
-            a1 = 0.00743;
-            a2 = 0.00000;
-            a3 = 0.01246;
-            a4 = 0.00000;
-            a5 = 0.00000;
-        } else if (ver_cls == 4){
-            a0 = -0.40902;
-            a1 = 0.00975;
-            a2 = 0.00767;
-            a3 = -0.18363;
-            a4 = 0.00423;
-            a5 = 0.00000;
-        } else if (ver_cls == 5){
-            a0 = -0.38360;
-            a1 = 0.01074;
-            a2 = 0.01945;
-            a3 = -0.69848;
-            a4 = 0.01069;
-            a5 = 0.12700;
-        }
-
-        var a = Math.max(0.0333, a0 + a1 * bffs + a2 * seg_length + Math.max(0, a3 + a4 * bffs + a5 * seg_length) * vo / 1000);
-        var fLS = 0.6 * (12 - LW) + 0.7 * (6 - SW);
-        var fA = Math.min(APD/4, 10);
-
-        var ffs = bffs - a * PHV - fLS - fA;
-        
-        return ffs;
+  function determineVerticalAlignment(seg_length, seg_grade) {
+    var ver_align = 0;
+    if (seg_grade >= 0) {
+      if (seg_length <= 0.1) {
+        if (seg_grade <= 7) ver_align = 1;
+        else ver_align = 2;
+      } else if (seg_length > 0.1 && seg_length <= 0.2) {
+        if (seg_grade <= 4) ver_align = 1;
+        else if (seg_grade <= 7) ver_align = 2;
+        else ver_align = 3;
+      } else if (seg_length > 0.2 && seg_length <= 0.3) {
+        if (seg_grade <= 3) ver_align = 1;
+        else if (seg_grade <= 5) ver_align = 2;
+        else if (seg_grade <= 7) ver_align = 3;
+        else if (seg_grade <= 7) ver_align = 4;
+        else ver_align = 5;
+      } else if (seg_length > 0.3 && seg_length <= 0.4) {
+        if (seg_grade <= 2) ver_align = 1;
+        else if (seg_grade <= 4) ver_align = 2;
+        else if (seg_grade <= 6) ver_align = 3;
+        else if (seg_grade <= 7) ver_align = 4;
+        else ver_align = 5;
+      } else if (seg_length > 0.4 && seg_length <= 0.5) {
+        if (seg_grade <= 2) ver_align = 1;
+        else if (seg_grade <= 4) ver_align = 2;
+        else if (seg_grade <= 5) ver_align = 3;
+        else if (seg_grade <= 6) ver_align = 4;
+        else ver_align = 5;
+      } else if (seg_length > 0.5 && seg_length <= 0.6) {
+        if (seg_grade <= 2) ver_align = 1;
+        else if (seg_grade <= 3) ver_align = 2;
+        else if (seg_grade <= 5) ver_align = 3;
+        else if (seg_grade <= 6) ver_align = 4;
+        else ver_align = 5;
+      } else if (seg_length > 0.6 && seg_length <= 0.7) {
+        if (seg_grade <= 2) ver_align = 1;
+        else if (seg_grade <= 3) ver_align = 2;
+        else if (seg_grade <= 4) ver_align = 3;
+        else if (seg_grade <= 6) ver_align = 4;
+        else ver_align = 5;
+      } else if (seg_length > 0.8 && seg_length <= 1.1) {
+        if (seg_grade <= 2) ver_align = 1;
+        else if (seg_grade <= 3) ver_align = 2;
+        else if (seg_grade <= 4) ver_align = 3;
+        else if (seg_grade <= 5) ver_align = 4;
+        else ver_align = 5;
+      } else {
+        if (seg_grade <= 2) ver_align = 1;
+        else if (seg_grade <= 3) ver_align = 2;
+        else if (seg_grade <= 5) ver_align = 4;
+        else ver_align = 5;
+      }
+    } else {
+      seg_length = -1 * seg_length;
+      if (seg_length <= 0.1) {
+        if (seg_grade <= 8) ver_align = 1;
+        else ver_align = 2;
+      } else if (seg_length > 0.1 && seg_length <= 0.2) {
+        if (seg_grade <= 5) ver_align = 1;
+        else if (seg_grade <= 8) ver_align = 2;
+        else ver_align = 3;
+      } else if (seg_length > 0.2 && seg_length <= 0.3) {
+        if (seg_grade <= 4) ver_align = 1;
+        else if (seg_grade <= 6) ver_align = 2;
+        else if (seg_grade <= 8) ver_align = 3;
+        else if (seg_grade <= 9) ver_align = 4;
+        else ver_align = 5;
+      } else if (seg_length > 0.3 && seg_length <= 0.4) {
+        if (seg_grade <= 2) ver_align = 1;
+        else if (seg_grade <= 5) ver_align = 2;
+        else if (seg_grade <= 6) ver_align = 3;
+        else if (seg_grade <= 8) ver_align = 4;
+        else ver_align = 5;
+      } else if (seg_length > 0.4 && seg_length <= 0.5) {
+        if (seg_grade <= 3) ver_align = 1;
+        else if (seg_grade <= 4) ver_align = 2;
+        else if (seg_grade <= 6) ver_align = 3;
+        else if (seg_grade <= 7) ver_align = 4;
+        else ver_align = 5;
+      } else if (seg_length > 0.5 && seg_length <= 0.7) {
+        if (seg_grade <= 3) ver_align = 1;
+        else if (seg_grade <= 4) ver_align = 2;
+        else if (seg_grade <= 5) ver_align = 3;
+        else if (seg_grade <= 6) ver_align = 4;
+        else ver_align = 5;
+      } else if (seg_length > 0.7 && seg_length <= 0.8) {
+        if (seg_grade <= 3) ver_align = 1;
+        else if (seg_grade <= 4) ver_align = 3;
+        else if (seg_grade <= 6) ver_align = 4;
+        else ver_align = 5;
+      } else if (seg_length > 0.8 && seg_length <= 0.9) {
+        if (seg_grade <= 3) ver_align = 1;
+        else if (seg_grade <= 4) ver_align = 3;
+        else if (seg_grade <= 5) ver_align = 4;
+        else ver_align = 5;
+      } else if (seg_length > 0.9 && seg_length <= 1.1) {
+        if (seg_grade <= 2) ver_align = 1;
+        else if (seg_grade <= 3) ver_align = 2;
+        else if (seg_grade <= 4) ver_align = 3;
+        else if (seg_grade <= 5) ver_align = 4;
+        else ver_align = 5;
+      } else {
+        if (seg_grade <= 2) ver_align = 1;
+        else if (seg_grade <= 3) ver_align = 2;
+        else if (seg_grade <= 5) ver_align = 4;
+        else ver_align = 5;
+      }
     }
+
+    return ver_align;
+  }
+
+  function determineFreeFlowSpeed(Spl, ver_cls, seg_length, vo, LW, SW, APD, PHV) {
+    var bffs = 1.14 * Spl;
+    var a0 = 0.0;
+    var a1 = 0.0;
+    var a2 = 0.0;
+    var a3 = 0.0;
+    var a4 = 0.0;
+    var a5 = 0.0;
+
+    if (ver_cls == 1) {
+      a0 = 0.0;
+      a1 = 0.0;
+      a2 = 0.0;
+      a3 = 0.0;
+      a4 = 0.0;
+      a5 = 0.0;
+    } else if (ver_cls == 2) {
+      a0 = -0.45036;
+      a1 = 0.00814;
+      a2 = 0.01543;
+      a3 = 0.01358;
+      a4 = 0.0;
+      a5 = 0.0;
+    } else if (ver_cls == 3) {
+      a0 = -0.29591;
+      a1 = 0.00743;
+      a2 = 0.0;
+      a3 = 0.01246;
+      a4 = 0.0;
+      a5 = 0.0;
+    } else if (ver_cls == 4) {
+      a0 = -0.40902;
+      a1 = 0.00975;
+      a2 = 0.00767;
+      a3 = -0.18363;
+      a4 = 0.00423;
+      a5 = 0.0;
+    } else if (ver_cls == 5) {
+      a0 = -0.3836;
+      a1 = 0.01074;
+      a2 = 0.01945;
+      a3 = -0.69848;
+      a4 = 0.01069;
+      a5 = 0.127;
+    }
+
+    var a = Math.max(
+      0.0333,
+      a0 + a1 * bffs + a2 * seg_length + (Math.max(0, a3 + a4 * bffs + a5 * seg_length) * vo) / 1000,
+    );
+    var fLS = 0.6 * (12 - LW) + 0.7 * (6 - SW);
+    var fA = Math.min(APD / 4, 10);
+
+    var ffs = bffs - a * PHV - fLS - fA;
+
+    return ffs;
+  }
 
     function estimateAverageSpeed(Spl, pass_type, ver_cls, seg_length, ffs, vd, vo, PHV, is_hc, rad, sup_ele){
         var bffs = 1.14 * Spl;
@@ -837,83 +762,99 @@ import { append_dev } from "svelte/internal";
                 f7 = -0.01053;
             }
         }
-
-        // slope coefficient for average speed calculation
-        var ms = Math.max(b5, b0 + b1 * ffs + b2 * Math.sqrt(vo/1000) + Math.max(0, b3) * Math.sqrt(seg_length) + Math.max(0, b4) * Math.sqrt(PHV));
-        // power coefficient for average speed calculation
-        var ps = Math.max(f8, f0 + f1 * ffs + f2 * seg_length + f3 * vo/1000 + f4 * Math.sqrt(vo/1000) + f5 * PHV + f6 * Math.sqrt(PHV) + f7 * seg_length * PHV);
-
-        if (vd <= 100){
-            var ST = ffs;
-            S = ST;
-        } else {
-            var ST = ffs - ms * (vd/1000 - 0.1) ^ ps;
-            S = ST;
-        }
-
-        // Determine horizontal class
-        if (rad < 300){
-            hor_cls = 5;
-        } else if (rad >= 300 && rad < 450){
-            hor_cls = 4;
-        } else if (rad >= 450 && rad < 600){
-            if (sup_ele < 1) hor_cls = 4;
-            else hor_cls = 3;
-        } else if (rad >= 600 && rad < 750){
-            if (sup_ele < 6) hor_cls = 3;
-            else hor_cls = 2;
-        } else if (rad >= 750 && rad < 900){
-            hor_cls = 2;
-        } else if (rad >= 900 && rad < 1050){
-            if(sup_ele < 8) hor_cls = 2;
-            else hor_cls = 1;
-        } else if (rad >= 1050 && rad < 1200){
-            if(sup_ele < 4) hor_cls = 2;
-            else hor_cls = 1;
-        } else if (rad >= 1200 && rad < 1350){
-            if(sup_ele < 2) hor_cls = 2;
-            else hor_cls = 1;
-        } else if (rad >= 1350 && rad < 1500){
-            hor_cls = 1;
-        } else if (rad >= 1500 && rad < 1750){
-            if (sup_ele < 8) hor_cls = 1;
-            else hor_cls = 0;
-        } else if (rad >= 1750 && rad < 1800){
-            if (sup_ele < 6) hor_cls = 1;
-            else hor_cls = 0;
-        } else if (rad >= 1800 && rad < 1950){
-            if (sup_ele < 5) hor_cls = 1;
-            else hor_cls = 0;
-        } else if (rad >= 1950 && rad < 2100){
-            if (sup_ele < 4) hor_cls = 1;
-            else hor_cls = 0;
-        } else if (rad >= 2100 && rad < 2250){
-            if (sup_ele < 3) hor_cls = 1;
-            else hor_cls = 0;
-        } else if (rad >= 2250 && rad < 2400){
-            if (sup_ele < 2) hor_cls = 1;
-            else hor_cls = 0;
-        } else if (rad >= 2400 && rad < 2550){
-            if (sup_ele < 1) hor_cls = 1;
-            else hor_cls = 0;
-        } else if (rad >= 2550){
-            hor_cls = 0;
-        }
-        if (hor_cls = 0) is_hc = false; // treat curve as tanget section
-
-        if (is_hc == true){
-            // Calculate horizontal class
-            var bffsHC = Math.min(bffs, 44.32 + 0.3728 * bffs - 6.868 * hor_cls);
-            var ffsHC = bffsHC - 2.55 * PHV
-            var mHC = Math.max(0.277, -25.8993 - 0.7756 * ffsHC + 10.6294 * Math.sqrt(ffsHC) + 2.4766 * hor_cls - 9.8238 * Math.sqrt(hor_cls));
-            var SHC = Math.min(ST, ffsHC - mHC * Math.sqrt(vd/1000 - 0.1));
-            S = SHC;
-        }
-
-        return [S, hor_cls];
+    // slope coefficient for average speed calculation
+    var ms = Math.max(
+      b5,
+      b0 +
+        b1 * ffs +
+        b2 * Math.sqrt(vo / 1000) +
+        Math.max(0, b3) * Math.sqrt(seg_length) +
+        Math.max(0, b4) * Math.sqrt(PHV),
+    );
+    // power coefficient for average speed calculation
+    var ps = Math.max(
+      f8,
+      f0 +
+        f1 * ffs +
+        f2 * seg_length +
+        (f3 * vo) / 1000 +
+        f4 * Math.sqrt(vo / 1000) +
+        f5 * PHV +
+        f6 * Math.sqrt(PHV) +
+        f7 * seg_length * PHV,
+    );
+    // determine horizontal class
+    if (rad < 300){
+        hor_cls = 5;
+    } else if (rad >= 300 && rad < 450){
+        hor_cls = 4;
+    } else if (rad >= 450 && rad < 600){
+        if (sup_ele < 1) hor_cls = 4;
+        else hor_cls = 3;
+    } else if (rad >= 600 && rad < 750){
+        if (sup_ele < 6) hor_cls = 3;
+        else hor_cls = 2;
+    } else if (rad >= 750 && rad < 900){
+        hor_cls = 2;
+    } else if (rad >= 900 && rad < 1050){
+        if(sup_ele < 8) hor_cls = 2;
+        else hor_cls = 1;
+    } else if (rad >= 1050 && rad < 1200){
+        if(sup_ele < 4) hor_cls = 2;
+        else hor_cls = 1;
+    } else if (rad >= 1200 && rad < 1350){
+        if(sup_ele < 2) hor_cls = 2;
+        else hor_cls = 1;
+    } else if (rad >= 1350 && rad < 1500){
+        hor_cls = 1;
+    } else if (rad >= 1500 && rad < 1750){
+        if (sup_ele < 8) hor_cls = 1;
+        else hor_cls = 0;
+    } else if (rad >= 1750 && rad < 1800){
+        if (sup_ele < 6) hor_cls = 1;
+        else hor_cls = 0;
+    } else if (rad >= 1800 && rad < 1950){
+        if (sup_ele < 5) hor_cls = 1;
+        else hor_cls = 0;
+    } else if (rad >= 1950 && rad < 2100){
+        if (sup_ele < 4) hor_cls = 1;
+        else hor_cls = 0;
+    } else if (rad >= 2100 && rad < 2250){
+        if (sup_ele < 3) hor_cls = 1;
+        else hor_cls = 0;
+    } else if (rad >= 2250 && rad < 2400){
+        if (sup_ele < 2) hor_cls = 1;
+        else hor_cls = 0;
+    } else if (rad >= 2400 && rad < 2550){
+        if (sup_ele < 1) hor_cls = 1;
+        else hor_cls = 0;
+    } else if (rad >= 2550){
+        hor_cls = 0;
     }
 
-    function estimatePercentFollowers(pass_type, ver_cls, seg_length, ffs, PHV, vd, vo, cap){
+    if (vd <= 100) {
+      var ST = ffs;
+      S = ST;
+    } else {
+      var ST = (ffs - ms * (vd / 1000 - 0.1)) ^ ps;
+      S = ST;
+    }
+
+    if (hor_cls = 0) is_hc = false; // treat curve as tanget section
+
+    if (is_hc == true){
+        // calculate horizontal class
+        var bffshc = Math.min(bffs, 44.32 + 0.3728 * bffs - 6.868 * hor_cls);
+        var ffshc = bffshc - 2.55 * PHV
+        var mhc = Math.max(0.277, -25.8993 - 0.7756 * ffshc + 10.6294 * Math.sqrt(ffshc) + 2.4766 * hor_cls - 9.8238 * Math.sqrt(hor_cls));
+        var shc = Math.min(ST, ffshc - mhc * Math.sqrt(vd/1000 - 0.1));
+        S = shc;
+    }
+
+    return [S, hor_cls];
+  }
+
+    function estimatePercentFollowers(pass_type, ver_cls, seg_length, ffs, phv, vd, vo, cap){
         var b0 = 0.00000;
         var b1 = 0.00000;
         var b2 = 0.00000;
@@ -1036,8 +977,8 @@ import { append_dev } from "svelte/internal";
             e3 = -2.11289;
             e4 = 2.41146;
 
-            PFcap = b0 + b1 * seg_length + b2 * Math.sqrt(seg_length) + b3 * ffs + b4 * Math.sqrt(ffs) + b5 * PHV + b6 * ffs * vo / 1000 + b7 * Math.sqrt(vo/1000);
-            PF25cap = c0 + c1 * seg_length + c2 * Math.sqrt(seg_length) + c3 * ffs + c4 * Math.sqrt(ffs) + c5 * PHV + c6 * ffs * vo / 1000 + c7 * Math.sqrt(vo/1000);
+            PFcap = b0 + b1 * seg_length + b2 * Math.sqrt(seg_length) + b3 * ffs + b4 * Math.sqrt(ffs) + b5 * phv + b6 * ffs * vo / 1000 + b7 * Math.sqrt(vo/1000);
+            PF25cap = c0 + c1 * seg_length + c2 * Math.sqrt(seg_length) + c3 * ffs + c4 * Math.sqrt(ffs) + c5 * phv + c6 * ffs * vo / 1000 + c7 * Math.sqrt(vo/1000);
         } else if (pass_type == 'Passing Lane'){
             if (ver_cls == 1){
                 b0 = 61.73075;
@@ -1133,27 +1074,27 @@ import { append_dev } from "svelte/internal";
             e3 = -4.89119;
             e4 = 10.33057;
 
-            PFcap = b0 + b1 * seg_length + b2 * Math.sqrt(seg_length) + b3 * ffs + b4 * Math.sqrt(ffs) + b5 * PHV + b6 * Math.sqrt(PHV) + b7 * ffs * PHV;
-            PF25cap = c0 + c1 * seg_length + c2 * Math.sqrt(seg_length) + c3 * ffs + c4 * Math.sqrt(ffs) + c5 * PHV + c6 * Math.sqrt(PHV) + c7 * ffs * PHV;
+            PFcap = b0 + b1 * seg_length + b2 * Math.sqrt(seg_length) + b3 * ffs + b4 * Math.sqrt(ffs) + b5 * phv + b6 * Math.sqrt(phv) + b7 * ffs * phv;
+            PF25cap = c0 + c1 * seg_length + c2 * Math.sqrt(seg_length) + c3 * ffs + c4 * Math.sqrt(ffs) + c5 * phv + c6 * Math.sqrt(phv) + c7 * ffs * phv;
         }
 
-        var zcap = (0 - Math.log(1 - PFcap / 100)) / (cap / 1000)
-        var z25cap = (0 - Math.log(1 - PF25cap / 100)) / (0.25 * cap / 1000)
+    var zcap = (0 - Math.log(1 - PFcap / 100)) / (cap / 1000);
+    var z25cap = (0 - Math.log(1 - PF25cap / 100)) / ((0.25 * cap) / 1000);
 
-        var mPF = d1 * z25cap + d2 * zcap;
-        var pPF = e0 + e1 * z25cap + e2 * zcap + e3 * Math.sqrt(z25cap) + e4 * Math.sqrt(zcap);
+    var mPF = d1 * z25cap + d2 * zcap;
+    var pPF = e0 + e1 * z25cap + e2 * zcap + e3 * Math.sqrt(z25cap) + e4 * Math.sqrt(zcap);
 
-        var PF = 100 * (1 - Math.exp(mPF * (vd / 1000) ^ pPF));
+    var PF = 100 * (1 - Math.exp((mPF * (vd / 1000)) ^ pPF));
 
-        return PF;
-    }
-
+    return PF;
+  }
     function determineFollowerDensityPL(pass_type, vd, PHV, PMHVFL, Spl, ver_cls, hc, seg_length, ffs, vo, is_hc, capacity, rad, sup_ele){
 
         var SinitFL = 0;
         var pfFL = 0;
         var SinitSL = 0;
         var pfSL = 0;
+        var hor_cls = 0;
         
         // Calculate passing lane parameters
         var NHV = vd * PHV / 100;
@@ -1163,10 +1104,10 @@ import { append_dev } from "svelte/internal";
         var PHVFL = PHV * PMHVFL;
         var NHVSL = NHV - (vdFL * PHVFL)
         var PHVSL = NHVSL / vdSL;
-        SinitFL = estimateAverageSpeed(Spl, pass_type, ver_cls, seg_length, ffs, vdFL, vo, PHVFL, is_hc, rad, sup_ele);
+        [SinitFL, hor_cls] = estimateAverageSpeed(Spl, pass_type, ver_cls, seg_length, ffs, vdFL, vo, PHVFL, is_hc, rad, sup_ele);
         pfFL = estimatePercentFollowers(pass_type, ver_cls, seg_length, ffs, PHVFL, vdFL, vo, capacity);
 
-        SinitSL = estimateAverageSpeed(Spl, pass_type, ver_cls, seg_length, ffs, vdSL, vo, PHVSL, is_hc, rad, sup_ele);
+        [SinitSL, hor_cls] = estimateAverageSpeed(Spl, pass_type, ver_cls, seg_length, ffs, vdSL, vo, PHVSL, is_hc, rad, sup_ele);
         pfSL = estimatePercentFollowers(pass_type, ver_cls, seg_length, ffs, PHVSL, vdSL, vo, capacity);
 
         var SDA = 2.750 + 0.00056 * vd + 3.8521 * PHV;
@@ -1179,32 +1120,31 @@ import { append_dev } from "svelte/internal";
         return FDmid;
     }
 
-    function determineFollowerDensityPCPZ(PF, vd, S){
-        var FD = PF * vd / (100 * S);
-        return FD;
-    }
-    
-    function determineSegmentLOS(FD, Spl, vd, cap){
-        var LOS = '';
-        if (Spl >= 50){
-            if (FD <= 2.0) LOS = 'A';
-            else if (FD > 2.0 && FD <= 4.0) LOS = 'B';
-            else if (FD > 4.0 && FD <= 8.0) LOS = 'C';
-            else if (FD > 8.0 && FD <= 12.0) LOS = 'D';
-            else if (FD > 12) LOS = 'E';
-            if (vd > cap) LOS = 'F';
-        } else {
-            if (FD <= 2.5) LOS = 'A';
-            else if (FD > 2.5 && FD <= 5.0) LOS = 'B';
-            else if (FD > 5.0 && FD <= 10.0) LOS = 'C';
-            else if (FD > 10.0 && FD <= 15.0) LOS = 'D';
-            else if (FD > 15) LOS = 'E';
-            if (vd > cap) LOS = 'F';
-        }
+  function determineFollowerDensityPCPZ(PF, vd, S) {
+    var FD = (PF * vd) / (100 * S);
+    return FD;
+  }
 
-        return LOS;
+  function determineSegmentLOS(FD, Spl, vd, cap) {
+    var LOS = '';
+    if (Spl >= 50) {
+      if (FD <= 2.0) LOS = 'A';
+      else if (FD > 2.0 && FD <= 4.0) LOS = 'B';
+      else if (FD > 4.0 && FD <= 8.0) LOS = 'C';
+      else if (FD > 8.0 && FD <= 12.0) LOS = 'D';
+      else if (FD > 12) LOS = 'E';
+      if (vd > cap) LOS = 'F';
+    } else {
+      if (FD <= 2.5) LOS = 'A';
+      else if (FD > 2.5 && FD <= 5.0) LOS = 'B';
+      else if (FD > 5.0 && FD <= 10.0) LOS = 'C';
+      else if (FD > 10.0 && FD <= 15.0) LOS = 'D';
+      else if (FD > 15) LOS = 'E';
+      if (vd > cap) LOS = 'F';
     }
 
+    return LOS;
+  }
 </script>
 
 <button class="btn" on:click={() => calculate(rows_len, rows)}>Calculate</button>
