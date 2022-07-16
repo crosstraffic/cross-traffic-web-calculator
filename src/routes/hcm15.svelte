@@ -3,7 +3,6 @@ import Row from "./Row.svelte";
 import SubRow from "./SubRow.svelte";
 import Calc from "./Calc.svelte";
 
-// Horizontal popup
 // Output should be LOS, speed or others
 // 
 
@@ -107,6 +106,29 @@ import Calc from "./Calc.svelte";
     }
   }
 
+  function changeHC(seg_num){
+    var is_hc = document.getElementById("is_hc" + (seg_num));
+    var toggler = document.getElementById("hc_param" + (seg_num));
+    var hc_table = document.getElementById("hc_table" + (seg_num));
+
+    // Only shows one sub table
+    if (is_hc.checked){
+      // if (toggle_seg == -1){
+      //   hc_table.style.display = 'block';
+      //   toggle_seg = seg_num;
+      // } else {
+      //   console.log("Cannot out more than one");
+      // }
+    } else {
+      if (toggle_seg == seg_num){
+        hc_table.style.display = 'none';
+        toggle_seg = -1;
+        toggler.checked = false;
+      }
+    }
+
+  }
+
   function addSubSegment(_seg_num) {
     var temp_subrows = [...rows[_seg_num-1].subrows, {subseg_num: rows[_seg_num-1].subrows.length + 1}];
     rows[_seg_num-1] = {seg_num: _seg_num, subrows: temp_subrows};
@@ -139,7 +161,7 @@ import Calc from "./Calc.svelte";
     </thead>
     <tbody>
       {#each rows as row}
-        <Row seg_num={row.seg_num} changeSegment={changeSegment} toggleHCParams={toggleHCParams}/>
+        <Row seg_num={row.seg_num} changeSegment={changeSegment} changeHC={changeHC} toggleHCParams={toggleHCParams}/>
       {/each}
     </tbody>
   </table>
@@ -201,6 +223,7 @@ import Calc from "./Calc.svelte";
         <caption class="flex justify-start"><b>Segment {row.seg_num}</b></caption>
         <tr>
           <th>Subsegment</th>
+          <th>Length</th>
           <th>Design Radius</th>
           <th>Superelevation</th>
         </tr>
@@ -226,10 +249,15 @@ import Calc from "./Calc.svelte";
   </tbody>
 </table>
 <div class="flex justify-end">
-  <Calc rows_len={rows.length} subrows_len={subrows.length}/>
+  <!-- <p>{rows[0].subrows.length}</p> -->
+  <!-- {#each rows as row}
+    <Calc rows_len={rows.length} subrows_len={rows}/>
+  {/each} -->
+  <Calc rows_len={rows.length} rows={rows}/>
   <button class="btn" on:click={addSegment}>Add Segment</button>
   <button class="btn" on:click={removeSegment}>Remove Segment</button>
 </div>
 <div class="los">
   <p id="los">LOS: </p>
+  <p id="error">Error Message: </p>
 </div>

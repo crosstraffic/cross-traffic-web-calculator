@@ -1,9 +1,10 @@
 <script>
     export let seg_num;
     export let changeSegment;
+    export let changeHC;
     export let toggleHCParams;
 </script>
-<tr class={seg_num}>
+<tr class=subseg{seg_num}>
     <th>
         <label>
         <input type="checkbox" class="checkbox" checked />
@@ -36,7 +37,7 @@
     </td>
     <td>
         <label>
-        <input type="checkbox" class="checkbox" id="is_hc{seg_num}"/>
+        <input type="checkbox" class="checkbox" id="is_hc{seg_num}" on:change={changeHC(seg_num)}/>
         </label>
     </td>
     <td>
