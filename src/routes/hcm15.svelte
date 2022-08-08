@@ -349,16 +349,21 @@
   </tbody>
 </table>
 <div class="flex justify-end">
-  <!-- <p>{rows[0].subrows.length}</p> -->
-  <!-- {#each rows as row}
-    <Calc rows_len={rows.length} subrows_len={rows}/>
-  {/each} -->
   <Calc rows_len={rows.length} rows={rows}/>
   <button class="btn" on:click={addSegment}>Add Segment</button>
   <button class="btn" on:click={removeSegment}>Remove Segment</button>
 </div>
 </form>
 <div class="los">
-  <p id="los">LOS: </p>
+  <h3>Outputs</h3>
+  {#each rows as row}
+    <h3>Segment {row.seg_num}</h3>
+    <p id="ffs{row.seg_num}">Free-flow Speed: </p>
+    <p id="avgspd{row.seg_num}">Average Speed: </p>
+    <p id="pf{row.seg_num}">Percent followers in the analysis direction: </p>
+    <p id="fd{row.seg_num}">Followers Density: </p>
+    <p id="seglos{row.seg_num}">LOS: </p>
+  {/each}
+  <p id="los">Entire LOS: </p>
   <p id="error">Error Message: </p>
 </div>
