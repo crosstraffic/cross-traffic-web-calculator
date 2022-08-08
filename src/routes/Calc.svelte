@@ -6,6 +6,10 @@ import { append_dev } from "svelte/internal";
     export let rows_len;
     export let rows;
 
+    function callingFunc(){
+        calculate(rows_len, rows);
+    }
+
     // Main calculation function
     function calculate(rows_len, rows){
         // Initial input variable settings
@@ -185,7 +189,6 @@ import { append_dev } from "svelte/internal";
               error_flg = 1;
               error_str = 'Missing posted speed limit.';
             }
-
         }
         
         // Aggregated Calculation
@@ -1158,5 +1161,5 @@ import { append_dev } from "svelte/internal";
   }
 </script>
 
-<button class="btn" on:click={() => calculate(rows_len, rows)}>Calculate</button>
+<button class="btn" on:click={() => callingFunc()}>Calculate</button>
  <!-- on:click={() => submitted = true} -->

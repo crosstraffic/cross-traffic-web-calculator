@@ -1,4 +1,5 @@
 <script>
+  import {fly, fade} from 'svelte/transition';
   import Row from './Row.svelte';
   import SubRow from './SubRow.svelte';
   import Calc from './Calc.svelte';
@@ -7,6 +8,7 @@
 // 
 
 
+  let values = {};
   let count = 0;
   let columns = [
     'Active',
@@ -20,6 +22,7 @@
     'Demand Volumns (O)',
     'Vertical Class',
   ];
+
   let toggle_seg = -1;
 
   let subrows = [{ subseg_num: 1 }];
@@ -74,6 +77,7 @@
     var cap_row = table.rows[1];
     var cap = 'undefined';
 
+    // console.log(values.vd);
     var Vi = document.getElementById('vi_input' + seg_num);
     var Vo = document.getElementById('vo_input' + seg_num);
     var PT = document.getElementById('passing_type' + seg_num).value;
@@ -93,6 +97,7 @@
     }
   }
 
+  // Toggle HC param slider
   function toggleHCParams(seg_num) {
     var toggler = document.getElementById('hc_param' + seg_num);
     var hc_table = document.getElementById('hc_table' + seg_num);
@@ -113,27 +118,33 @@
     }
   }
 
-  function changeHC(seg_num){
+  // If check horizontal curves button
+  function changeHC(seg_num, subseg_num){
     var is_hc = document.getElementById("is_hc" + (seg_num));
     var toggler = document.getElementById("hc_param" + (seg_num));
     var hc_table = document.getElementById("hc_table" + (seg_num));
 
+    var subdesign_radius = document.getElementsByClassName("design_radius" + (subseg_num));
+
     // Only shows one sub table
     if (is_hc.checked){
+      // add required attribute to subsegment
+      // subdesign_radius.required = true;
+      // console.log(subdesign_radius.required);
+    }
       // if (toggle_seg == -1){
       //   hc_table.style.display = 'block';
       //   toggle_seg = seg_num;
       // } else {
       //   console.log("Cannot out more than one");
       // }
-    } else {
+    if (!is_hc.checked){
       if (toggle_seg == seg_num){
         hc_table.style.display = 'none';
         toggle_seg = -1;
         toggler.checked = false;
       }
     }
-
   }
 
   function addSubSegment(_seg_num) {
@@ -146,11 +157,32 @@
       //   subrows = subrows.slice(0, subrows.length-1);
       rows[_seg_num - 1].subrows = rows[_seg_num - 1].subrows.slice(0, rows[_seg_num - 1].subrows.length - 1);
   }
+
+  let hasError = false;
+  let isSuccessVisible = false;
+  let submitted = false;
+  const errMessage = "Here is the error";
+  function handleSubmit(e){
+      isSuccessVisible = true;
+
+      setTimeout(function(){
+          isSuccessVisible = false;
+      }, 4000);
+  }
 </script>
 
 <a href="/">Back to Home</a>
 <h1 class="text-3xl font-bold underline">HCM Calulator Chap15</h1>
 
+{#if hasError == true}
+  <p class="error-alert">{errMessage}</p>
+<!-- {:else}
+	{#if isSuccessVisible}	
+		<p class="error-alert" transition:fade={{duration:150}}>Data updated successfully</p>
+	{/if} -->
+{/if}
+
+<form id="hcm15" class="mt-4" class:submitted on:submit|preventDefault={handleSubmit}>
 <div class="w-full overflow-x-auto">
   <table class="table w-full">
     <thead>
@@ -169,7 +201,7 @@
     </thead>
     <tbody>
       {#each rows as row}
-        <Row seg_num={row.seg_num} changeSegment={changeSegment} changeHC={changeHC} toggleHCParams={toggleHCParams}/>
+        <Row seg_num={row.seg_num} subseg_num={row.subrows.length} changeSegment={changeSegment} changeHC={changeHC} toggleHCParams={toggleHCParams} values={values}/>
       {/each}
     </tbody>
   </table>
@@ -187,6 +219,9 @@
               placeholder="Type here"
               class="input-label input w-full max-w-xs"
               value="0.95"
+              pattern="[+]?([0-9]*([.][0-9]*))$"
+              autocomplete="off"
+              required
             />
           </td>
         </tr>
@@ -199,6 +234,9 @@
               placeholder="Type here"
               class="input-label input w-full max-w-xs"
               value="5"
+              pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+              autocomplete="off"
+              required
             />
           </td>
         </tr>
@@ -211,6 +249,7 @@
               placeholder="Type here"
               class="input-label input w-full max-w-xs"
               value="50"
+              pattern="[+]?([1-9]|[1-9][0-9]|[1-9][0-9][0-9])$"
             />
           </td>
         </tr>
@@ -223,6 +262,9 @@
               placeholder="Type here"
               class="input-label input w-full max-w-xs"
               value="3.6"
+              pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+              autocomplete="off"
+              required
             />
           </td>
         </tr>
@@ -235,6 +277,9 @@
               placeholder="Type here"
               class="input-label input w-full max-w-xs"
               value="0.2"
+              pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+              autocomplete="off"
+              required
             />
           </td>
         </tr>
@@ -247,6 +292,9 @@
               placeholder="Type here"
               class="input-label input w-full max-w-xs"
               value="2"
+              pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+              autocomplete="off"
+              required
             />
           </td>
         </tr>
@@ -259,6 +307,9 @@
               placeholder="Type here"
               class="input-label input w-full max-w-xs"
               value="0.4"
+              pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+              autocomplete="off"
+              required
             />
           </td>
         </tr>
@@ -306,6 +357,7 @@
   <button class="btn" on:click={addSegment}>Add Segment</button>
   <button class="btn" on:click={removeSegment}>Remove Segment</button>
 </div>
+</form>
 <div class="los">
   <p id="los">LOS: </p>
   <p id="error">Error Message: </p>

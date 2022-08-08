@@ -1,35 +1,92 @@
 <script>
     export let seg_num;
+    export let subseg_num;
     export let changeSegment;
     export let changeHC;
     export let toggleHCParams;
+
+    export let values = {
+        active: true,
+        pass_type: "",
+        seg_len: "",
+        grade: "",
+        hor_cur: false,
+        hc_param: "",
+        vd: "",
+        vo: "",
+        ver_cls: ""
+    };
+
+    // const schema = yup.object().shape({
+    //     pass_type: yup.string().required("Passing Type is required")
+    // });
+
+    // let errors = {};
+
+    // export const handleSubmit = async () => {
+    //     console.log("called");
+    //     try {
+    //         await schema.validate(values, { abortEarly: false });
+    //         alert(JSON.stringify(values, null, 2));
+    //         errors = {};
+    //     } catch (err) {
+    //         errors = err.inner.reduce((acc, err) => {
+    //             return { ...acc, [err.path]: err.message };
+    //     }, {});
+    //     }
+    // };
 </script>
 <tr class=subseg{seg_num}>
     <th>
         <label>
-        <input type="checkbox" class="checkbox" checked />
+        <input type="checkbox" class="checkbox" name="active" bind:value={values.active} checked />
         </label>
     </th>
     <td>
         <p>{seg_num}</p> <!-- Increment -->
     </td>
     <td>
-        <select class="select w-full max-w-xs" id="passing_type{seg_num}" on:change={changeSegment(seg_num)}>
+        <select class="select w-full max-w-xs" id="passing_type{seg_num}" name="pass_type" on:change={changeSegment(seg_num)} required>
+        <!-- <select class="select w-full max-w-xs" id="passing_type{seg_num}" name="pass_type" bind:value={values.pass_type} on:change={changeSegment(seg_num)} required> -->
         <option disabled selected>TYPE</option>
         <option>Passing Constrained</option>
         <option>Passing Zone</option>
         <option>Passing Lane</option>
         </select>
+        <!-- {#if errors.pass_type} -->
+        <!-- {#if hasError == true}
+            <!-- <span class="error">{errors.pass_type}</span> -->
+            <!-- <p class="error-alert">{errMessage}</p> -->
+        <!-- {/if} -->
     </td>
     <td>
-        <input type="text" id="seg_length{seg_num}" placeholder="Type here" class="input input-label w-full max-w-xs" />
+        <!-- <input type="text" id="seg_length{seg_num}" name="seg_len" bind:value={values.seg_len} placeholder="Type here" class="input input-label w-full max-w-xs" required/> -->
+            <!-- pattern="^([1-9]+|[1-9][0-9]+)$" -->
+        <input 
+            type="text" 
+            id="seg_length{seg_num}" 
+            name="seg_len" 
+            placeholder="Type here" 
+            class="input input-label w-full max-w-xs" 
+            pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+            autocomplete="off" 
+            required/>
         <label for="label">
         <span class="label-text-alt"></span>
         <span class="label-text-alt">mi.</span>
         </label>
     </td>
     <td>
-        <input type="text" id="seg_grade{seg_num}" placeholder="Type here" class="input input-label w-full max-w-xs" />
+        <!-- <input type="text" id="seg_grade{seg_num}" name="grade" bind:value={values.grade} placeholder="Type here" class="input input-label w-full max-w-xs" required/> -->
+        <input 
+            type="text"
+            id="seg_grade{seg_num}" 
+            name="grade" 
+            placeholder="Type here" 
+            class="input input-label w-full max-w-xs" 
+            pattern="[+-]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+            autocomplete="off" 
+            required/>
         <label for="label">
         <span class="label-text-alt"></span>
         <span class="label-text-alt">%</span>
@@ -37,31 +94,52 @@
     </td>
     <td>
         <label>
-        <input type="checkbox" class="checkbox" id="is_hc{seg_num}" on:change={changeHC(seg_num)}/>
+        <!-- <input type="checkbox" class="checkbox" id="is_hc{seg_num}" name="hor_cur" bind:value={values.hor_cur} on:change={changeHC(seg_num)}/> -->
+        <input type="checkbox" class="checkbox" id="is_hc{seg_num}" name="hor_cur" on:change={changeHC(seg_num, subseg_num)}/>
         </label>
     </td>
     <td>
         <!-- Lookup table -->
         <label>
-            <input type="checkbox" class="toggle" id="hc_param{seg_num}" on:change={toggleHCParams(seg_num)}/>
+            <!-- <input type="checkbox" class="toggle" id="hc_param{seg_num}" name="hc_param" bind:value={values.hc_param} on:change={toggleHCParams(seg_num)}/> -->
+            <input type="checkbox" class="toggle" id="hc_param{seg_num}" name="hc_param" on:change={toggleHCParams(seg_num)}/>
         </label>
     </td>
     <td>
-        <input type="text" id="vi_input{seg_num}" placeholder="Type here" class="input input-label w-full max-w-xs" />
+        <!-- <input type="text" id="vi_input{seg_num}" name="vd" bind:value={values.vd} placeholder="Type here" class="input input-label w-full max-w-xs" required/> -->
+        <input
+            type="text"
+            id="vi_input{seg_num}"
+            name="vd"
+            placeholder="Type here"
+            class="input input-label w-full max-w-xs" 
+            pattern="[+]?([1-9]*|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
+            autocomplete="off" 
+            required/>
         <label for="label">
         <span class="label-text-alt"></span>
         <span class="label-text-alt">veh/hr</span>
         </label>
     </td>
     <td>
-        <input type="text" id="vo_input{seg_num}" placeholder="Type here" class="input input-label w-full max-w-xs" />
+        <!-- <input type="text" id="vo_input{seg_num}" name="vo" bind:value={values.vo} placeholder="Type here" class="input input-label w-full max-w-xs" required/> -->
+        <input 
+            type="text" 
+            id="vo_input{seg_num}" 
+            name="vo" 
+            placeholder="Type here" 
+            class="input input-label w-full max-w-xs" 
+            pattern="[+]?([1-9]*|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
+            autocomplete="off" 
+            required/>
         <label for="label">
         <span class="label-text-alt"></span>
         <span class="label-text-alt">veh/hr</span>
         </label>
     </td>
     <td>
-        <select class="select w-full max-w-xs" id="vc_select{seg_num}">
+        <!-- <select class="select w-full max-w-xs" id="vc_select{seg_num}" name="ver_cls" bind:value={values.ver_cls} required> -->
+        <select class="select w-full max-w-xs" id="vc_select{seg_num}" name="ver_cls" required>
             <option>1</option>
             <option>2</option>
             <option>3</option>
