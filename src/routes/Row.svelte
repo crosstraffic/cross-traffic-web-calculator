@@ -48,20 +48,14 @@
     <td>
         <select class="select w-full max-w-xs" id="passing_type{seg_num}" name="pass_type" on:change={changeSegment(seg_num)} required>
         <!-- <select class="select w-full max-w-xs" id="passing_type{seg_num}" name="pass_type" bind:value={values.pass_type} on:change={changeSegment(seg_num)} required> -->
-        <option disabled selected>TYPE</option>
-        <option>Passing Constrained</option>
-        <option>Passing Zone</option>
-        <option>Passing Lane</option>
+            <option value="" disabled selected>TYPE</option>
+            <option>Passing Constrained</option>
+            <option>Passing Zone</option>
+            <option>Passing Lane</option>
         </select>
-        <!-- {#if errors.pass_type} -->
-        <!-- {#if hasError == true}
-            <!-- <span class="error">{errors.pass_type}</span> -->
-            <!-- <p class="error-alert">{errMessage}</p> -->
-        <!-- {/if} -->
     </td>
     <td>
         <!-- <input type="text" id="seg_length{seg_num}" name="seg_len" bind:value={values.seg_len} placeholder="Type here" class="input input-label w-full max-w-xs" required/> -->
-            <!-- pattern="^([1-9]+|[1-9][0-9]+)$" -->
         <input 
             type="text" 
             id="seg_length{seg_num}" 
@@ -129,7 +123,7 @@
             name="vo" 
             placeholder="Type here" 
             class="input input-label w-full max-w-xs" 
-            pattern="[+]?([1-9]*|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
+            pattern="[+]?([0-9]*|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
             autocomplete="off" 
             required/>
         <label for="label">
