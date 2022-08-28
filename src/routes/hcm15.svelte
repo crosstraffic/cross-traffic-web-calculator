@@ -171,7 +171,6 @@
   }
 </script>
 
-<a href="/">Back to Home</a>
 <h1 class="text-3xl font-bold underline">HCM Calulator Chap15</h1>
 
 {#if hasError == true}
