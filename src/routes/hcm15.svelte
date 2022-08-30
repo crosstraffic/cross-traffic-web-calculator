@@ -1,5 +1,4 @@
 <script>
-  import {fly, fade} from 'svelte/transition';
   import Row from './Row.svelte';
   import SubRow from './SubRow.svelte';
   import Calc from './Calc.svelte';
@@ -76,26 +75,56 @@
     var table = document.getElementById('seg_imgs');
     var cap_row = table.rows[1];
     var cap = 'undefined';
+    var img = document.getElementById('seg_img' + seg_num);
 
     // console.log(values.vd);
     var Vi = document.getElementById('vi_input' + seg_num);
     var Vo = document.getElementById('vo_input' + seg_num);
     var PT = document.getElementById('passing_type' + seg_num).value;
 
-    if (document.getElementById('passing_type' + seg_num) != null) {
-      cap = document.getElementById('passing_type' + seg_num).value;
+    // if (document.getElementById('passing_type' + seg_num) != null) {
+    //   cap = document.getElementById('passing_type' + seg_num).value;
+    //   console.log(cap);
+    // }
+
+
+    if (PT == 'Passing Zone') {
+      Vi.value = '1000';
+      Vo.value = '0';
+      img.src = 'PassingZone.png';
+      img.height = 100;
+      img.width = 100;
+      img.parentNode.width = 100;
+      cap = 'Passing Zone';
+    } else if (PT == 'Passing Constrained') {
+      img.src = 'PassingConstrained.png';
+      Vi.value = '1000';
+      Vo.value = '0';
+      img.height = 100;
+      img.width = 100;
+      img.parentNode.width = 100;
+      cap = 'Passing Constrained';
+    } else if (PT == 'Passing Lane') {
+      img.src = 'PassingLane.png';
+      Vi.value = '1000';
+      Vo.value = '0';
+      img.height = 100;
+      img.width = 150;
+      img.parentNode.width = 150;
+      cap = "Passing Lane";
     }
 
     cap_row.cells[seg_num - 1].innerHTML = cap;
-
-    if (PT == 'Passing Zone' || PT == 'Passing Constrained') {
-      Vi.value = '1000';
-      Vo.value = '0';
-    } else if (PT == 'Passing Lane') {
-      Vi.value = '1000';
-      Vo.value = '0';
-    }
   }
+
+  // function toggleActive(seg_num) {
+  //   var table = document.getElementById('seg_imgs');
+  //   var img = document.getElementById('seg_img' + rows.length);
+  //   var img_row = table.rows[0];
+  //   var cap_row = table.rows[1];
+  //   var active = document.getElementById('active' + seg_num);
+
+  // }
 
   // Toggle HC param slider
   function toggleHCParams(seg_num) {
@@ -186,7 +215,7 @@
   <table class="table w-full">
     <thead>
       <tr>
-        <th>Active</th>
+        <!-- <th>Active</th> -->
         <th>Segment</th>
         <th>Passing Type</th>
         <th>Length</th>
@@ -343,8 +372,8 @@
 </div>
 <table class="flex justify-start" id="seg_imgs">
   <tbody>
-    <tr><td><img src="segment.jpg" alt="segment" id="seg_img1" height="100" width="100" /></td></tr>
-    <tr><td>undefined</td></tr>
+    <tr class="table_img"><td><img src="segment.jpg" alt="segment" id="seg_img1" height="100" width="100" /></td></tr>
+    <tr class="table_p"><td>undefined</td></tr>
   </tbody>
 </table>
 <div class="flex justify-end">

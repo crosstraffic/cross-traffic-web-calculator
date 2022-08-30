@@ -37,11 +37,11 @@
     // };
 </script>
 <tr class=subseg{seg_num}>
-    <th>
+    <!-- <th>
         <label>
-        <input type="checkbox" class="checkbox" name="active" bind:value={values.active} checked />
+        <input type="checkbox" class="checkbox" id="active{seg_num}" name="active" bind:value={values.active} checked />
         </label>
-    </th>
+    </th> -->
     <td>
         <p>{seg_num}</p> <!-- Increment -->
     </td>

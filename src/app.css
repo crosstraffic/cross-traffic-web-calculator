@@ -7,8 +7,23 @@ html {
 }
 
 body {
-    height: 100%;
     background-color: #F8F8FF;
+}
+
+.table_p td {
+    width: 100px;
+}
+
+.table_img td {
+    position: relative;
+    height: 80px;
+    word-wrap: break-word;
+}
+
+.table_img td img {
+    position: absolute;
+    max-width: none;
+    top: 0;
 }
 
 .navbar {
