@@ -141,4 +141,31 @@
             <option>5</option>
         </select>
     </td>
+    <td>
+        <input
+            type="text"
+            id="PHF_input{seg_num}"
+            placeholder="Type here"
+            class="input-label input w-full max-w-xs"
+            value="0.95"
+            pattern="[+]?([0-9]*([.][0-9]*))$"
+            autocomplete="off"
+            required
+        />
+    </td>
+    <td>
+        <input
+            type="text"
+            id="PHV_input{seg_num}"
+            placeholder="Type here"
+            class="input-label input w-full max-w-xs"
+            value="5"
+            pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+            autocomplete="off"
+            required
+        />
+        <label for="label">
+        <span class="label-text-alt"></span>
+        <span class="label-text-alt">%</span>
+    </td>
 </tr>

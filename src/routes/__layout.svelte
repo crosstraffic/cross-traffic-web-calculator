@@ -3,7 +3,7 @@
 </script>
 
 <header>
-<div class="navbar bg-base-300">
+<div class="navbar bg-base-200">
   <div class="navbar-start">
     <div class="dropdown">
       <label tabindex="0" class="btn btn-ghost lg:hidden">
@@ -17,7 +17,7 @@
             Chapters
             <svg class="fill-current" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/></svg>
           </div>
-          <ul class="p-2 bg-base-300">
+          <ul class="p-2 bg-base-200">
             <li><a href="/hcm15">Chapter 15</a></li>
           </ul>
         </li>
@@ -35,7 +35,7 @@
           Chapters
           <svg class="fill-current" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/></svg>
         </div>
-        <ul class="p-2 bg-base-300 chap_button">
+        <ul class="p-2 bg-base-200 chap_button">
           <li><a href="/hcm15">Chapter 15</a></li>
         </ul>
       </li>
@@ -50,7 +50,3 @@
 <main>
 <slot />
 </main>
-
-<footer>
-  <!-- add contact c to footer -->
-</footer>

@@ -68,8 +68,6 @@ import { append_dev } from "svelte/internal";
         }
 
         // Fixed values for the entire segments
-        PHF = document.getElementById("PHF_input").value;
-        PHV = document.getElementById("PHV_input").value;
         Spl = document.getElementById("Spl_input").value;
         LW = document.getElementById("LW_input").value;
         SW = document.getElementById("SW_input").value;
@@ -94,6 +92,8 @@ import { append_dev } from "svelte/internal";
             Vo = document.getElementById("vo_input"+(i+1)).value;
             seg_length = document.getElementById("seg_length"+(i+1)).value;
             seg_grade = document.getElementById("seg_grade"+(i+1)).value;
+            PHF = document.getElementById("PHF_input"+(i+1)).value;
+            PHV = document.getElementById("PHV_input"+(i+1)).value;
 
             if(pass_type != "" && pass_type != 'TYPE'){
                 passing_type[i] = pass_type;

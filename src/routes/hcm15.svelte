@@ -225,6 +225,8 @@
         <th>Demand Volume</th>
         <th>Demand Volume (O)</th>
         <th>Vertical Class</th>
+        <th>Peak Hour Factor</th>
+        <th>Heavy Vehicle Per.</th>
       </tr>
     </thead>
     <tbody>
@@ -238,36 +240,6 @@
   <div class="parameters flex justify-start">
     <table>
       <tbody>
-        <tr>
-          <td>Peak Hour Factor: </td>
-          <td>
-            <input
-              type="text"
-              id="PHF_input"
-              placeholder="Type here"
-              class="input-label input w-full max-w-xs"
-              value="0.95"
-              pattern="[+]?([0-9]*([.][0-9]*))$"
-              autocomplete="off"
-              required
-            />
-          </td>
-        </tr>
-        <tr>
-          <td>Heavy Vehicle Percentage (%): </td>
-          <td>
-            <input
-              type="text"
-              id="PHV_input"
-              placeholder="Type here"
-              class="input-label input w-full max-w-xs"
-              value="5"
-              pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-              autocomplete="off"
-              required
-            />
-          </td>
-        </tr>
         <tr>
           <td>Posted Speed Limit (mi/hr): </td>
           <td>
@@ -395,3 +367,13 @@
   <p id="los">Entire LOS: </p>
   <p id="error">Error Message: </p>
 </div>
+
+<footer class="hcm15-footer footer footer-center p-10 bg-base-200 text-base-content rounded">
+  <div class="grid grid-flow-col gap-4">
+    <a class="link link-hover">About us</a> 
+    <a class="link link-hover">Contact</a> 
+  </div> 
+  <div>
+    <p>Copyright © 2022 - All right reserved by Rei Tamaru and Jonathan Riel</p>
+  </div>
+</footer>
