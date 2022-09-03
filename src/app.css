@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+/* __layout.svelte */
+
 html {
     height: 100%;
 }
@@ -10,24 +12,8 @@ body {
     background-color: #F8F8FF;
 }
 
-.table_p td {
-    width: 100px;
-}
-
-.table_img td {
-    position: relative;
-    height: 80px;
-    word-wrap: break-word;
-}
-
-.table_img td img {
-    position: absolute;
-    max-width: none;
-    top: 0;
-}
-
 .navbar {
-    background-color: #E5E6E6;
+    /* background-color: #E5E6E6; */
     width: 80%;
     margin: 0px auto;
     margin-bottom: 20px;
@@ -45,4 +31,38 @@ body {
 
 .chap_button {
     margin-left: 20px;
+}
+
+/* index.svelte */
+
+.home {
+    height: 100%;
+}
+
+.home-footer {
+    position: absolute;
+    bottom: 0;
+}
+
+/* hcm15.svelte */
+
+.table_p td {
+    width: 100px;
+}
+
+.table_img td {
+    position: relative;
+    height: 80px;
+    word-wrap: break-word;
+}
+
+.table_img td img {
+    position: absolute;
+    max-width: none;
+    top: 0;
+}
+
+.hcm15-footer {
+    position: absolute;
+    bottom: -50;
 }
