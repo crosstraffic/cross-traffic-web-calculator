@@ -289,7 +289,7 @@
               id="LW_input"
               placeholder="Type here"
               class="input-label input w-full max-w-xs"
-              value="3.6"
+              value="12"
               pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
               autocomplete="off"
               required
@@ -304,7 +304,7 @@
               id="SW_input"
               placeholder="Type here"
               class="input-label input w-full max-w-xs"
-              value="0.2"
+              value="6"
               pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
               autocomplete="off"
               required
@@ -320,7 +320,7 @@
               placeholder="Type here"
               class="input-label input w-full max-w-xs"
               value="2"
-              pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+              pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
               autocomplete="off"
               required
             />
