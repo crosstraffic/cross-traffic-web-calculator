@@ -55,16 +55,21 @@ import { append_dev } from "svelte/internal";
         var LOS = '';
         var out = '';
         var tot_len = 0;
+        var LPL = 0; // length of passing lane
+        var cnt = 0; // to avoid undefined element in the array
 
-        // 2D array
+        // 1D array
         var sub_S = new Array(rows_len); // subsegment speed // --> Causes problem
         var HC = new Array(rows_len); // horizontal class list
         var subSeg_len = new Array(rows_len);
+        var subseg = new Array(rows_len); // subsegment length for store values, thus tangent is counted as one subsegment
 
+        // 2D array
         for (var i=0;i<sub_S.length;i++){
             sub_S[i] = new Array(rows[i].subrows.length+1);
             HC[i] = new Array(rows[i].subrows.length+1);
             subSeg_len[i] = new Array(rows[i].subrows.length+1);
+            subseg[i] = new Array(rows[i].subrows.length+1); 
         }
 
         // Fixed values for the entire segments
@@ -94,6 +99,8 @@ import { append_dev } from "svelte/internal";
             seg_grade = document.getElementById("seg_grade"+(i+1)).value;
             PHF = document.getElementById("PHF_input"+(i+1)).value;
             PHV = document.getElementById("PHV_input"+(i+1)).value;
+            seg_len[i] = seg_length;
+            if (is_hc == false) subrows_len = 0;
 
             if(pass_type != "" && pass_type != 'TYPE'){
                 passing_type[i] = pass_type;
@@ -117,26 +124,36 @@ import { append_dev } from "svelte/internal";
 
                             // Step 5: Estimate average speed
                             // For each subsegment
+                            var tot_sublen = 0;
                             if (is_hc == true && subrows_len > 0){
                                 for (let j=0;j<subrows_len;j++){
-                                    subSeg_len[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("subseg_len"+(j+1))[0].value;
+                                    subSeg_len[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("subseg_len"+(j+1))[0].value / 5280; // foot to mile
                                     rad[j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("design_radius"+(j+1))[0].value;
                                     sup_ele[j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("superelevation"+(j+1))[0].value;
-                                    [sub_s, hc] = estimateAverageSpeed(Spl, pass_type, ver_cls, seg_length, ffs, demandFlow_v[i], demandFlow_o, PHV, is_hc, rad[j], sup_ele[j]);
-                                    sub_S[i][j] = sub_s;
-                                    HC[i][j] = hc;
+                                    // horizontal curve
+                                    if (rad[j] > 0){
+                                        [sub_s, hc] = estimateAverageSpeed(Spl, pass_type, ver_cls, subSeg_len[i][j], ffs, demandFlow_v[i], demandFlow_o, PHV, is_hc, rad[j], sup_ele[j]);
+                                        tot_sublen += subSeg_len[i][j];
+                                        subseg[i][cnt] = subSeg_len[i][j];
+                                        sub_S[i][cnt] = sub_s;
+                                        HC[i][cnt] = hc;
+                                        cnt += 1;
+                                    }
                                 }
-                                var tot_sublen = subSeg_len[i].reduce((a, b) => parseFloat(a) + parseFloat(b), 0);
-                                // Tangent part (should not be chosen as subsegment)
-                                if (tot_sublen < seg_length){
-                                    subSeg_len[i][subrows_len] = seg_length - tot_sublen;
+                                // var tot_sublen = subSeg_len[i].reduce((a, b) => parseFloat(a) + parseFloat(b), 0);
+                                // tangent: rad=0, sup_ele=0, is_hc=false, always last in array
+                                if (seg_length > tot_sublen){
                                     is_hc = false;
-                                    [sub_s, hc] = estimateAverageSpeed(Spl, pass_type, ver_cls, seg_length, ffs, demandFlow_v[i], demandFlow_o, PHV, is_hc, rad, sup_ele);
-                                    sub_S[i][subrows_len] = sub_s;
-                                    HC[i][subrows_len] = hc;
+                                    [sub_s, hc] = estimateAverageSpeed(Spl, pass_type, ver_cls, seg_length-tot_sublen, ffs, demandFlow_v[i], demandFlow_o, PHV, is_hc, rad, sup_ele);
+                                    subseg[i][cnt] = seg_length-tot_sublen;
+                                    sub_S[i][cnt] = sub_s;
+                                    HC[i][cnt] = hc;
+                                    cnt += 1;
                                 }
                             } else {
+                                // No horizontal curve section is treated as one subsection of tangent
                                 [sub_s, hc] = estimateAverageSpeed(Spl, pass_type, ver_cls, seg_length, ffs, demandFlow_v[i], demandFlow_o, PHV, is_hc, rad, sup_ele);
+                                subseg[i][0] = seg_length;
                                 sub_S[i][0] = sub_s;
                                 HC[i][0] = hc;
                             }
@@ -146,32 +163,34 @@ import { append_dev } from "svelte/internal";
 
                             is_hc = document.getElementById("is_hc"+(i+1)).checked;
 
-                            // Step 7: Calculate passing lane parameters --> HC?
+                            // Step 7: Calculate passing lane parameters
                             // Step 8: Determine follower density
-                            if (is_hc == true && subrows_len > 0){ // if nothing inside of subrows, it returns error
-                                for (let j=0;j<subrows_len;j++){
-                                    subSeg_len[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("subseg_len"+(j+1))[0].value;
-                                    rad[j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("design_radius"+(j+1))[0].value;
-                                    sup_ele[j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("superelevation"+(j+1))[0].value;
-                                }
+
+                            // It might not need
+                            // if (is_hc == true && subrows_len > 0){ // if nothing inside of subrows, it returns error
+                            //     for (let j=0;j<subrows_len;j++){
+                            //         subSeg_len[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("subseg_len"+(j+1))[0].value / 5280; // foot to mile
+                            //         rad[j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("design_radius"+(j+1))[0].value;
+                            //         sup_ele[j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("superelevation"+(j+1))[0].value;
+                            //     }
+                            //     if (pass_type == 'Passing Lane'){
+                            //         fd[i] = determineFollowerDensityPL(pass_type, demandFlow_v[i], PHV, PMHVFL, Spl, ver_cls, seg_length, ffs, demandFlow_o, is_hc, capacity, rad, sup_ele, subSeg_len[i], subrows_len);
+                            //         PL_idx.push(i);
+                            //     }
+                            //     var tot_sublen = subSeg_len[i].reduce((a, b) => parseFloat(a) + parseFloat(b), 0);
+                            //     // Tangent part (should not be chosen as subsegment)
+                            //     if (tot_sublen < seg_length){
+                            //         subSeg_len[i][subrows_len] = seg_length - tot_sublen;
+                            //         is_hc = false;
+                            //         var fd_tan = determineFollowerDensityPL(pass_type, demandFlow_v[i], PHV, PMHVFL, Spl, ver_cls, seg_length, ffs, demandFlow_o, is_hc, capacity, rad, sup_ele, subSeg_len[i], subrows_len);
+                            //         fd[i] = fd[i] + fd_tan;
+                            //     }
+                            // } else {
                                 if (pass_type == 'Passing Lane'){
                                     fd[i] = determineFollowerDensityPL(pass_type, demandFlow_v[i], PHV, PMHVFL, Spl, ver_cls, seg_length, ffs, demandFlow_o, is_hc, capacity, rad, sup_ele, subSeg_len[i], subrows_len);
-                                    PL_idx[i] = i;
+                                    PL_idx.push(i);
+                                    LPL += parseFloat(seg_length);
                                 }
-                                var tot_sublen = subSeg_len[i].reduce((a, b) => parseFloat(a) + parseFloat(b), 0);
-                                // Tangent part (should not be chosen as subsegment)
-                                if (tot_sublen < seg_length){
-                                    subSeg_len[i][subrows_len] = seg_length - tot_sublen;
-                                    is_hc = false;
-                                    var fd_tan = determineFollowerDensityPL(pass_type, demandFlow_v[i], PHV, PMHVFL, Spl, ver_cls, seg_length, ffs, demandFlow_o, is_hc, capacity, rad, sup_ele, subSeg_len[i], subrows_len);
-                                    fd[i] = fd[i] + fd_tan;
-                                }
-                            } else {
-                                if (pass_type == 'Passing Lane'){
-                                    fd[i] = determineFollowerDensityPL(pass_type, demandFlow_v[i], PHV, PMHVFL, Spl, ver_cls, seg_length, ffs, demandFlow_o, is_hc, capacity, rad, sup_ele, subSeg_len[i], subrows_len);
-                                    PL_idx[i] = i;
-                                }
-                            }
 
                             // Segment output
                             document.getElementById("ffs" + (i+1)).innerHTML = "Free-flow speed: " + Math.round(ffs*1000)/1000 + " mi/hr";
@@ -205,16 +224,18 @@ import { append_dev } from "svelte/internal";
                 is_hc = document.getElementById("is_hc"+(i+1)).checked;
                 pass_type = document.getElementById("passing_type"+(i+1)).value;
 
-                var min_dist = 0;
+                var min_dist = 100;
                 var cur_dist = 0;
-                var LPL = 0;
 
                 if (is_hc == true && subrows_len > 0){
-                    for (let j=0;j<subrows_len;j++){
-                        avg_S += sub_S[i][j] * parseFloat(subSeg_len[i][j]) / tot_len;
+                    for (let j=0;j<cnt;j++){
+                        console.log(sub_S[i][j]);
+                        console.log(subseg[i][j]);
+                        avg_S += sub_S[i][j] * parseFloat(subseg[i][j]) / tot_len;
                     }
                 } else {
-                    avg_S += sub_S[i][0] * seg_length / tot_len;
+                    // avg_S += sub_S[i][0] * seg_length / tot_len;
+                    avg_S = sub_S[i][0];
                 }
                 // The end of subsegment calculation
                 if ((pass_type == 'Passing Constrained') || (pass_type == 'Passing Zone')){
@@ -225,44 +246,47 @@ import { append_dev } from "svelte/internal";
                     // Step 8.5: Determine effective distance of PL
                     if (i > 0){
                         // Solve for intermediate values
-                        var x2 = 0.1 * Math.max(0, pf[i-1] - 30);
-                        var x3a = 3.5 * Math.log(Math.max(0.3, seg_length));
+                        var x2 = 0.1 * Math.max(0, pf[i] - 30);
+                        var x3a = 3.5 * Math.log(Math.max(0.3, LPL));
                         var x3b = 0.75 * seg_length;
-                        var x4a = 0.01 * demandFlow_v[i-1];
-                        var x4b = 0.005 * demandFlow_v[i-1];
+                        var x4a = 0.01 * demandFlow_v[i];
+                        var x4b = 0.005 * demandFlow_v[i];
                         var y1a = 27 + x2 + x3a - x4a;
                         var y2a = 3 + x2 + x3b - x4b;
-                        var y3 = 95 * fd[i-1] * avg_S / (pf[i-1] * demandFlow_v[i-1]);
+                        var y3 = 95 * fd[i-1] * avg_S / (pf[i] * demandFlow_v[i]);
 
                         // Solve for downstream effective length of passing lane from start of PL (LDE)
                         var LDE = Math.exp(y1a / 8.75);
-                        var PFimprove = Math.max(0, y1a - 8.75 * Math.log(Math.max(0.1, LDE)));
-                        var Simprove = Math.max(0, y2a - 0.8 * LDE);
-                        var y3 = (100 - PFimprove) / (100 + Simprove);
+                        if (pass_type == 'Passing Lane'){
+                          var PFimprove = Math.max(0, y1a - 8.75 * Math.log(Math.max(0.1, LDE)));
+                          var Simprove = Math.max(0, y2a - 0.8 * LDE);
+                          var y3 = (100 - PFimprove) / (100 + Simprove);
+                        } else {
+                          // Step 9: Determine adjustment to follower density
+                          for(let j=0;j<PL_idx.length;j++){
+                              var pl_idx = PL_idx[j];
 
-                        // Step 9: Determine adjustment to follower density
-                        for(let j=0;j<PL_idx.length;j++){
-                            var pl_idx = PL_idx[j];
+                              if(pl_idx < i && cur_dist <= LDE){ // passing lane is at upstream and within effective length
+                                  for(let m=pl_idx;m<i-pl_idx+2;m++) cur_dist += parseFloat(seg_len[m]);
+                              }
+                              if(cur_dist < min_dist) min_dist = cur_dist; // Update closest passing lane
 
-                            if(pl_idx > i && cur_dist <= LDE){ // passing lane is at downstream and within effective length
-                                for(let m=i;m<pl_idx-i;m++) cur_dist += seg_len[m];
-                            }
-                            if(cur_dist < min_dist) min_dist = cur_dist; // Update closest passing lane
+                              // LPL = seg_len[pl_idx]; // Should be LPL[i]
+                          }
 
-                            LPL = seg_len[pl_idx]; // Should be LPL[i]
+                          var LD = min_dist; // downstream distance from start of passing lane
+                          var x1a = 8.75 * Math.log(Math.max(0.1, LD));
+                          var x1b = 0.8 * LD;
+                          var x4c = 0.01 * demandFlow_v[i];
+                          var x4d = 0.005 * demandFlow_v[i];
+                          var y1b = 27 - x1a + x2 + x3a - x4c;
+                          var y2b = 3 - x1b + x2 + x3b - x4d;
+
+                          // Solve for FDadj
+                          var PFimprove = Math.max(0, y1b);
+                          var Simprove = Math.max(0, y2b);
                         }
 
-                        var LD = min_dist; // downstream distance from start of passing lane
-                        var x1a = 8.75 * Math.log(Math.max(0.1, LD));
-                        var x1b = 0.8 * LD;
-                        var x4c = 0.01 * demandFlow_v[i];
-                        var x4d = 0.005 * demandFlow_v[i];
-                        var y1b = 27 - x1a + x2 + x3a - x4c;
-                        var y2b = 3 - x1b + x2 + x3b - x4d;
-
-                        // Solve for FDadj
-                        PFimprove = Math.max(0, y1b);
-                        Simprove = Math.max(0, y2b);
                         FDadj[i] = pf[i]/100 * (1 - PFimprove/100) * vd / (avg_S * (1 + Simprove/100));
                     } else {
                         FDadj[i] = 0;
@@ -271,7 +295,8 @@ import { append_dev } from "svelte/internal";
                     FDadj[i] = 0;
                 }
 
-                if (FDadj[i] == 0){
+                // Passing Lane does not consider adjusted follower density
+                if (FDadj[i] == 0 || pass_type == 'Passing Lane'){
                     calc_fd[i] = fd[i];
                 } else {
                     calc_fd[i] = FDadj[i];
@@ -286,10 +311,11 @@ import { append_dev } from "svelte/internal";
 
                 // Segment Output
                 document.getElementById("avgspd" + (i+1)).innerHTML = "Average Speed: " + Math.round(avg_S*1000)/1000 + " mi/hr";
-                document.getElementById("fd" + (i+1)).innerHTML = "Followers density: " + Math.round(fd[i]*1000)/1000 + " followers/mi";
+                document.getElementById("fd" + (i+1)).innerHTML = "Followers density: " + Math.round(calc_fd[i]*1000)/1000 + " followers/mi";
                 document.getElementById("seglos" + (i+1)).innerHTML = "Each Segment LOS: " + segLOS[i];
             }
             var fdF = fdF_num / tot_len;
+            
             var tot_demand = demandFlow_v.reduce((a,b) => parseInt(a) + parseInt(b), 0);
             var tot_cap = cap.reduce((a,b) => a + b, 0);
             LOS = determineSegmentLOS(fdF, Spl, tot_demand, tot_cap);
@@ -388,7 +414,7 @@ import { append_dev } from "svelte/internal";
         } else {
           capacity = 1300;
         }
-      } else if (hv >= 15 && hv < 20) {
+      } else if (HV >= 15 && HV < 20) {
         if (vc == 1 || vc == 2 || vc == 3 || vc == 4) {
           capacity = 1300;
         } else {
@@ -576,6 +602,8 @@ import { append_dev } from "svelte/internal";
     var fA = Math.min(APD / 4, 10);
 
     var ffs = bffs - a * PHV - fLS - fA;
+    console.log(bffs);
+    console.log(ffs);
 
     return ffs;
   }
@@ -787,6 +815,7 @@ import { append_dev } from "svelte/internal";
         f6 * Math.sqrt(PHV) +
         f7 * seg_length * PHV,
     );
+    // Length of horizontal curves = radius x central angle x pi/180
     // determine horizontal class
     if (rad < 300){
         hor_cls = 5;
@@ -839,23 +868,24 @@ import { append_dev } from "svelte/internal";
     }
 
     if (vd <= 100) {
-      var ST = ffs;
+      let ST = ffs;
       S = ST;
     } else {
-      var ST = (ffs - ms * (vd / 1000 - 0.1)) ^ ps;
+      let ST = ffs - ms * Math.pow((vd / 1000 - 0.1), ps);
       S = ST;
     }
 
-    if (hor_cls = 0) is_hc = false; // treat curve as tanget section
+    if (hor_cls == 0) is_hc = false; // treat curve as tanget section
 
     if (is_hc == true){
         // calculate horizontal class
         var bffshc = Math.min(bffs, 44.32 + 0.3728 * bffs - 6.868 * hor_cls);
-        var ffshc = bffshc - 2.55 * PHV
+        var ffshc = bffshc - 0.0255 * PHV
         var mhc = Math.max(0.277, -25.8993 - 0.7756 * ffshc + 10.6294 * Math.sqrt(ffshc) + 2.4766 * hor_cls - 9.8238 * Math.sqrt(hor_cls));
-        var shc = Math.min(ST, ffshc - mhc * Math.sqrt(vd/1000 - 0.1));
+        var shc = Math.min(S, ffshc - mhc * Math.sqrt(vd/1000 - 0.1)); // Should be ST instead of S?
         S = shc;
     }
+    console.log(S);
 
     return [S, hor_cls];
   }
@@ -894,7 +924,7 @@ import { append_dev } from "svelte/internal";
                 b1 = 3.05089;
                 b2 = -7.90866;
                 b3 = -0.94321;
-                b4 = 13.53266;
+                b4 = 13.64266;
                 b5 = -0.00050;
                 b6 = -0.05500;
                 b7 = 7.13758;
@@ -1087,10 +1117,12 @@ import { append_dev } from "svelte/internal";
     var zcap = (0 - Math.log(1 - PFcap / 100)) / (cap / 1000);
     var z25cap = (0 - Math.log(1 - PF25cap / 100)) / ((0.25 * cap) / 1000);
 
+    // Slope Coefficient
     var mPF = d1 * z25cap + d2 * zcap;
+    // Power Coefficient
     var pPF = e0 + e1 * z25cap + e2 * zcap + e3 * Math.sqrt(z25cap) + e4 * Math.sqrt(zcap);
 
-    var PF = 100 * (1 - Math.exp((mPF * (vd / 1000)) ^ pPF));
+    var PF = 100 * (1 - Math.exp(mPF * Math.pow((vd / 1000), pPF)));
 
     return PF;
   }
@@ -1103,19 +1135,19 @@ import { append_dev } from "svelte/internal";
         var hor_cls = 0;
         
         // Calculate passing lane parameters
-        var NHV = vd * PHV / 100;
+        var NHV = Math.ceil(vd * PHV / 100);
         var PvFL = 0.92183 - 0.05022 * Math.log(vd) - 0.00030 * NHV;
-        var vdFL = vd * PvFL;
-        var vdSL = vd * (1 - PvFL);
+        var vdFL = Math.ceil(vd * PvFL);
+        var vdSL = Math.ceil(vd * (1 - PvFL));
         var PHVFL = PHV * PMHVFL;
-        var NHVSL = NHV - (vdFL * PHVFL);
-        var PHVSL = NHVSL / vdSL;
+        var NHVSL = Math.ceil(NHV - (vdFL * PHVFL / 100));
+        var PHVSL = NHVSL / vdSL * 100;
         var FL_tot = 0;
         var SL_tot = 0;
 
+        // Subsection
         if(subrows_len > 0){
             for(var j=0;j<subrows_len;j++){
-                // Subsection
                 [SinitFL, hor_cls] = estimateAverageSpeed(Spl, pass_type, ver_cls, subSeg_len[j], ffs, vdFL, vo, PHVFL, is_hc, rad[j], sup_ele[j]);
                 [SinitSL, hor_cls] = estimateAverageSpeed(Spl, pass_type, ver_cls, subSeg_len[j], ffs, vdSL, vo, PHVSL, is_hc, rad[j], sup_ele[j]);
 
@@ -1125,19 +1157,20 @@ import { append_dev } from "svelte/internal";
             SinitFL = SinitFL / seg_length;
             SinitSL = SinitFL / seg_length;
         } else {
-            [SinitFL, hor_cls] = estimateAverageSpeed(Spl, pass_type, ver_cls, subSeg_len[j], ffs, vdFL, vo, PHVFL, is_hc, rad[j], sup_ele[j]);
-            [SinitSL, hor_cls] = estimateAverageSpeed(Spl, pass_type, ver_cls, subSeg_len[j], ffs, vdSL, vo, PHVSL, is_hc, rad[j], sup_ele[j]);
+            [SinitFL, hor_cls] = estimateAverageSpeed(Spl, pass_type, ver_cls, seg_length, ffs, vdFL, vo, PHVFL, is_hc, rad, sup_ele);
+            [SinitSL, hor_cls] = estimateAverageSpeed(Spl, pass_type, ver_cls, seg_length, ffs, vdSL, vo, PHVSL, is_hc, rad, sup_ele);
         }
 
-        pfFL= estimatePercentFollowers(pass_type, ver_cls, subSeg_len[j], ffs, PHVFL, vdFL, vo, capacity);
-        pfSL = estimatePercentFollowers(pass_type, ver_cls, subSeg_len[j], ffs, PHVSL, vdSL, vo, capacity);
+        pfFL= estimatePercentFollowers(pass_type, ver_cls, seg_length, ffs, PHVFL, vdFL, vo, capacity);
+        pfSL = estimatePercentFollowers(pass_type, ver_cls, seg_length, ffs, PHVSL, vdSL, vo, capacity);
 
-        var SDA = 2.750 + 0.00056 * vd + 3.8521 * PHV;
+        var SDA = 2.750 + 0.00056 * vd + 3.8521 * PHV / 100;
         var SmidFL = SinitFL + SDA / 2;
         var SmidSL = SinitSL - SDA / 2;
 
         // it's acutually fd at the midpoint of the PL segment but used for LOS calculation
         var FDmid = (pfFL * vdFL / SmidFL + pfSL * vdSL / SmidSL) / 200 ;
+
 
         return FDmid;
     }

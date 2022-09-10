@@ -62,7 +62,7 @@
             name="seg_len" 
             placeholder="Type here" 
             class="input input-label w-full max-w-xs" 
-            pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+            pattern="[+]?([0-9]|[0-9]*([.][0-9][0-9]*)|[1-9]|[1-9][0-9])$"
             autocomplete="off" 
             required/>
         <label for="label">
