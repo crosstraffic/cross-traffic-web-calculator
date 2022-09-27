@@ -9,7 +9,8 @@ html {
 }
 
 body {
-    background-color: #F8F8FF;
+    /* background-color: #F8F8FF; */
+    font-family: serif;
 }
 
 .navbar {
@@ -17,31 +18,110 @@ body {
     width: 80%;
     margin: 0px auto;
     margin-bottom: 20px;
-    padding: 10px;
+    padding: 25px;
     border-radius: 10px; 
+    border-color: orange;
+    border-width: 0px 2px 2px 2px;
+    font-size: 24px;
+}
+
+.navbar-start {
+    width: 600px;
 }
 
 .logo {
     margin-left: 30px;
 }
 
+.logo img {
+    height: 70px;
+    width: 230px;
+}
+
 .home_button {
-   margin-right: 20px; 
+   margin-right: 50px; 
 }
 
 .chap_button {
     margin-left: 20px;
 }
 
+
 /* index.svelte */
 
 .home {
     height: 100%;
+    font-size: 20px;
+}
+
+.home_div p {
+    margin-bottom: 40px;
+}
+
+.home_div a:link {
+  color: blue;
+  background-color: transparent;
+  text-decoration: none;
+}
+
+.home_div a:visited {
+  color: blue;
+  background-color: transparent;
+  text-decoration: none;
+}
+
+.home_div a:hover {
+  color: skyblue;
+  background-color: transparent;
+  text-decoration: underline;
+}
+
+.home_div a:active {
+  color: red;
+  background-color: transparent;
+  text-decoration: underline;
 }
 
 .home-footer {
     position: absolute;
     bottom: 0;
+}
+
+.hcmimg {
+    position: relative;
+}
+
+.hcmimg:hover img {
+    opacity: 0.3;
+}
+
+.hcmimg:hover .middle {
+    opacity: 1;
+}
+
+.middle {
+    background-color: #F2F2F2;
+    transition: .5s ease;
+    opacity: 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    -ms-transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.text {
+  background-color: gray;
+  color: white;
+  font-size: 16px;
+  padding: 8px 8px;
+}
+
+.text a:hover {
+  color: skyblue;
+  background-color: transparent;
+  text-decoration: none;
 }
 
 /* hcm15.svelte */
