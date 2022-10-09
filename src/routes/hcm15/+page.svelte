@@ -1,11 +1,7 @@
 <script>
-  import Row from './Row.svelte';
-  import SubRow from './SubRow.svelte';
-  import Calc from './Calc.svelte';
-
-// Output should be LOS, speed or others
-// 
-
+  import Row from '../Row.svelte';
+  import SubRow from '../SubRow.svelte';
+  import Calc from '../Calc.svelte';
 
   let values = {};
   let count = 0;

@@ -1,16 +1,19 @@
 <script>
-  export let subseg_num;
+//   throw new Error("@migration task: Add data prop (https://github.com/sveltejs/kit/discussions/5774#discussioncomment-3292707)");
+
+//   export let subseg_num;
+  export let data;
 </script>
 
-<tr class={subseg_num}>
+<tr class={data.subseg_num}>
     <th>
-        <p>{subseg_num}</p> <!-- Increment -->
+        <p>{data.subseg_num}</p> <!-- Increment -->
     </th>
     <td>
         <input 
             type="text" 
             placeholder="Type here" 
-            class="subseg_len{subseg_num} input input-label w-2/3 max-w-xs" 
+            class="subseg_len{data.subseg_num} input input-label w-2/3 max-w-xs" 
             pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
             value=0
             autocomplete="off" />
@@ -23,7 +26,7 @@
         <input 
             type="text" 
             placeholder="Type here" 
-            class="design_radius{subseg_num} input input-label w-2/3 max-w-xs" 
+            class="design_radius{data.subseg_num} input input-label w-2/3 max-w-xs" 
             pattern="[+]?([0-9]*([.][0-9]*)|[0-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
             value=0
             autocomplete="off" />
@@ -36,7 +39,7 @@
         <input 
             type="text" 
             placeholder="Type here" 
-            class="superelevation{subseg_num} input input-label w-2/3 max-w-xs" 
+            class="superelevation{data.subseg_num} input input-label w-2/3 max-w-xs" 
             pattern="[+-]?([0-9]*([.][0-9]*)|[0-9]|[1-9][0-9])$"
             value=0
             autocomplete="off" />

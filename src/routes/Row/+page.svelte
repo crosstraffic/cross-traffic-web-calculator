@@ -1,21 +1,25 @@
 <script>
-    export let seg_num;
-    export let subseg_num;
-    export let changeSegment;
-    export let changeHC;
-    export let toggleHCParams;
+    // throw new Error("@migration task: Add data prop (https://github.com/sveltejs/kit/discussions/5774#discussioncomment-3292707)");
 
-    export let values = {
-        active: true,
-        pass_type: "",
-        seg_len: "",
-        grade: "",
-        hor_cur: false,
-        hc_param: "",
-        vd: "",
-        vo: "",
-        ver_cls: ""
-    };
+    // export let seg_num;
+    // export let subseg_num;
+    // export let changeSegment;
+    // export let changeHC;
+    // export let toggleHCParams;
+
+    // export let values = {
+    //     active: true,
+    //     pass_type: "",
+    //     seg_len: "",
+    //     grade: "",
+    //     hor_cur: false,
+    //     hc_param: "",
+    //     vd: "",
+    //     vo: "",
+    //     ver_cls: ""
+    // };
+    export let data;
+    let { seg_num, subseg_num, changeSegment, changeHC, toggleHCParams} = data;
 
     // const schema = yup.object().shape({
     //     pass_type: yup.string().required("Passing Type is required")
