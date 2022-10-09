@@ -142,7 +142,23 @@ body {
     top: 0;
 }
 
+.los {
+    width: 80%;
+    margin: 0 auto;
+}
+
 .hcm15-footer {
     position: absolute;
     bottom: -50;
+}
+
+/* term */
+.term {
+    width: 60%;
+    margin: 0 auto;
+}
+
+.term ul {
+    margin-left: 20px;
+    list-style-type: square;
 }
