@@ -1,9 +1,8 @@
 <script>
-  import Row from '../Row.svelte';
-  import SubRow from '../SubRow.svelte';
-  import Calc from '../Calc.svelte';
+  import Row from '../Row/+page.svelte';
+  import SubRow from '../SubRow/+page.svelte';
+  import Calc from '../Calc/+page.svelte';
 
-  let values = {};
   let count = 0;
   let columns = [
     'Active',
@@ -18,10 +17,14 @@
     'Vertical Class',
   ];
 
+  // export let data;
+  // let { rows, subrows } = data;
+  export let rows;
+  export let subrows;
   let toggle_seg = -1;
 
-  let subrows = [{ subseg_num: 1 }];
-  let rows = [{ seg_num: 1, subrows }];
+  subrows = [{ subseg_num: 1 }];
+  rows = [{ seg_num: 1, subrows }];
 
   function addSegment() {
     rows = [...rows, { seg_num: rows.length + 1, subrows }];
@@ -227,7 +230,7 @@
     </thead>
     <tbody>
       {#each rows as row}
-        <Row seg_num={row.seg_num} subseg_num={row.subrows.length} changeSegment={changeSegment} changeHC={changeHC} toggleHCParams={toggleHCParams} values={values}/>
+        <Row seg_num={row.seg_num} subseg_num={row.subrows.length} changeSegment={changeSegment} changeHC={changeHC} toggleHCParams={toggleHCParams} />
       {/each}
     </tbody>
   </table>

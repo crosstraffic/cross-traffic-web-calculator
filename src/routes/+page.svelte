@@ -12,7 +12,7 @@
 
     <div class="w-48 carousel rounded-box hcmimg" style="float:right">
       <div class="carousel-item w-full">
-        <img src="hcm7th.jpg" class="w-full" alt="Image of HCM 7th edition" />
+        <img src="hcm7th.jpg" class="w-full" alt="HCM 7th edition" />
         <div class="middle">
           <div class="text"><a href="https://nap.nationalacademies.org/catalog/26432/highway-capacity-manual-7th-edition-a-guide-for-multimodal-mobility" target="_blank">+ Buy</a></div>
         </div>

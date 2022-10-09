@@ -5,10 +5,10 @@ import { prefetch } from "$app/navigation";
 import { append_dev } from "svelte/internal";
 
     // Export variables
-    // export let rows_len;
-    // export let rows;
-    export let data;
-    let { rows_len, rows } = data;
+    export let rows_len;
+    export let rows;
+    // export let data;
+    // let { rows_len, rows } = data;
 
     function callingFunc(){
         calculate(rows_len, rows);
