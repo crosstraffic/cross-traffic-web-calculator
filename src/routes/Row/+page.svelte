@@ -39,7 +39,7 @@
         <p>{seg_num}</p> <!-- Increment -->
     </td>
     <td>
-        <select class="select w-full max-w-xs" id="passing_type{seg_num}" name="pass_type" on:change={changeSegment(seg_num)} required>
+        <select class="select w-full max-w-xs passing_type" id="passing_type{seg_num}" name="pass_type" on:change={changeSegment(seg_num)} required>
         <!-- <select class="select w-full max-w-xs" id="passing_type{seg_num}" name="pass_type" bind:value={values.pass_type} on:change={changeSegment(seg_num)} required> -->
             <option value="" disabled selected>TYPE</option>
             <option>Passing Constrained</option>
@@ -54,7 +54,7 @@
             id="seg_length{seg_num}" 
             name="seg_len" 
             placeholder="Type here" 
-            class="input input-label w-full max-w-xs" 
+            class="input input-label w-full max-w-xs seg_length" 
             pattern="[+]?([0-9]|[0-9]*([.][0-9][0-9]*)|[1-9]|[1-9][0-9])$"
             autocomplete="off" 
             required/>
@@ -70,7 +70,7 @@
             id="seg_grade{seg_num}" 
             name="grade" 
             placeholder="Type here" 
-            class="input input-label w-full max-w-xs" 
+            class="input input-label w-full max-w-xs seg_grade" 
             pattern="[+-]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
             autocomplete="off" 
             required/>
@@ -82,14 +82,14 @@
     <td>
         <label>
         <!-- <input type="checkbox" class="checkbox" id="is_hc{seg_num}" name="hor_cur" bind:value={values.hor_cur} on:change={changeHC(seg_num)}/> -->
-        <input type="checkbox" class="checkbox" id="is_hc{seg_num}" name="hor_cur" on:change={changeHC(seg_num, subseg_num)}/>
+        <input type="checkbox" class="checkbox is_hc" id="is_hc{seg_num}" name="hor_cur" on:change={changeHC(seg_num, subseg_num)}/>
         </label>
     </td>
     <td>
         <!-- Lookup table -->
         <label>
             <!-- <input type="checkbox" class="toggle" id="hc_param{seg_num}" name="hc_param" bind:value={values.hc_param} on:change={toggleHCParams(seg_num)}/> -->
-            <input type="checkbox" class="toggle" id="hc_param{seg_num}" name="hc_param" on:change={toggleHCParams(seg_num)}/>
+            <input type="checkbox" class="toggle hc_param" id="hc_param{seg_num}" name="hc_param" on:change={toggleHCParams(seg_num)}/>
         </label>
     </td>
     <td>
@@ -99,7 +99,7 @@
             id="vi_input{seg_num}"
             name="vd"
             placeholder="Type here"
-            class="input input-label w-full max-w-xs" 
+            class="input input-label w-full max-w-xs vi_input" 
             pattern="[+]?([0-9]*|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
             autocomplete="off" 
             required/>
@@ -115,7 +115,7 @@
             id="vo_input{seg_num}" 
             name="vo" 
             placeholder="Type here" 
-            class="input input-label w-full max-w-xs" 
+            class="input input-label w-full max-w-xs vo_input" 
             pattern="[+]?([0-9]*|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
             autocomplete="off" 
             required/>
@@ -139,7 +139,7 @@
             type="text"
             id="PHF_input{seg_num}"
             placeholder="Type here"
-            class="input-label input w-full max-w-xs"
+            class="input-label input w-full max-w-xs PHF_input"
             value="0.95"
             pattern="[+]?([0-9]*([.][0-9]*))$"
             autocomplete="off"
@@ -151,7 +151,7 @@
             type="text"
             id="PHV_input{seg_num}"
             placeholder="Type here"
-            class="input-label input w-full max-w-xs"
+            class="input-label input w-full max-w-xs PHV_input"
             value="5"
             pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
             autocomplete="off"

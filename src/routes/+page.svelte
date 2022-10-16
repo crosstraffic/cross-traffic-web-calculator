@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>HCM Auto Calculator</title>
+  <title>HCM Calculator</title>
 </svelte:head>
 
 <div class="home grid h-screen place-items-center mt-20">
@@ -30,9 +30,9 @@
 <footer class="home-footer footer footer-center p-10 bg-base-200 text-base-content rounded">
   <div class="grid grid-flow-col gap-4">
     <a href="/" class="link link-hover">Home</a> 
-    <a href="term" class="link link-hover">Terms & Conditions</a> 
+    <a href="terms" class="link link-hover">Terms & Conditions</a> 
   </div> 
   <div>
-    <p>Copyright © 2022 - All right reserved by Rei Tamaru and Jonathan Riel</p>
+    <p>Copyright © 2022 - All right reserved by Rei Tamaru and Jonathan Riehl</p>
   </div>
 </footer>
