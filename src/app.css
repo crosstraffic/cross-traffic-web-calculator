@@ -48,9 +48,10 @@ body {
 
 
 /* app.svelte */
-
 .home {
     height: 100%;
+    width: 80%;
+    margin: 4% auto;
     font-size: 20px;
 }
 
@@ -125,7 +126,6 @@ body {
 }
 
 /* hcm15.svelte */
-
 .table_p td {
     width: 100px;
 }
