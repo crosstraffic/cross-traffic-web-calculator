@@ -5,6 +5,7 @@ on: push
 jobs:
   format:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js
@@ -17,10 +18,11 @@ jobs:
       - name: format code
         run: |
           npm run format
+      - name: Prettify
       - name: push formatted code
         run: |
-          git config --global user.name raynbowy23
-          git config --global user.email lov.us.basketball@gmail.com
+          git config --global user.name 'raynbowy23'
+          git config --global user.email 'raynbowy23@users.noreply.github.com'
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git add --all
           git diff-index --quiet HEAD || git commit -m "Format Code"
