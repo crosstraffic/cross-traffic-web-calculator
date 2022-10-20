@@ -6,7 +6,7 @@ on:
     - main
 
 jobs:
-  e2e-tests:
+  test:
     runs-on: ubuntu-latest # or macos-latest, windows-latest
 
     steps:
