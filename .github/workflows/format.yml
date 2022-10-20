@@ -18,7 +18,6 @@ jobs:
       - name: format code
         run: |
           npm run format
-      - name: Prettify
       - name: push formatted code
         run: |
           git config --global user.name 'raynbowy23'
