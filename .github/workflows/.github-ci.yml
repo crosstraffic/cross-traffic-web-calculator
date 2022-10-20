@@ -25,8 +25,5 @@ jobs:
           npx playwright install-deps
           npx playwright install
       - name: Run Playwright Tests
-        continue-on-error: false
-        working-directory: tests
         run: |
-          set -X
-          npm test
+          npm install && npm test
