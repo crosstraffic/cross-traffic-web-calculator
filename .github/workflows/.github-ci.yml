@@ -28,4 +28,5 @@ jobs:
         continue-on-error: false
         working-directory: tests
         run: |
+          set -X
           npm test
