@@ -92,9 +92,6 @@ test.describe("navigation", () => {
 
         await page.goto('http://localhost:5173/terms');
 
-        // Expect a title "to contain" a substring
-        await expect(page).toHaveTitle(/HCM Calculator/);
-
     });
 
 });
