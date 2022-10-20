@@ -1,22 +1,25 @@
 name: Build
 
-pages:
-  stage: deploy
-  cache:
-    key:
-      files:
-        - package-lock.json
-      prefix: npm
-    paths:
-      - node_modules/
-  script:
-    - npm install
-    - npm ci
-    - npm run build --if-present
-    - cp -a dist/. public/
-    - npm run test
-  artifacts:
-    paths:
-      - public
-  rules:
-    - if: $CI_COMMI_BRANCH == $CI_DEFAULT_BRANCH
+image: node:17.x
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+  strategy:
+    matrix:
+      node-version: 17.x
+  steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
+      with:
+        node-version: ${{ matrix.node-version }}
+    - run: npm ci
+    - run: npm run build --if-present
+    - run: npm test
