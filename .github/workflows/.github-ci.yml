@@ -1,22 +1,29 @@
 name: Build
 
-pages:
-  stage: deploy
-  cache:
-    key:
-      files:
-        - package-lock.json
-      prefix: npm
-    paths:
-      - node_modules/
-  script:
-    - npm install
-    - npm ci
-    - npm run build --if-present
-    - cp -a dist/. public/
-    - npm run test
-  artifacts:
-    paths:
-      - public
-  rules:
-    - if: $CI_COMMI_BRANCH == $CI_DEFAULT_BRANCH
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '17.x'
+      - name: Use playwright
+        uses: microsoft/playwright-github-action@v1
+      - name: run CI
+        run: |
+          npm ci
+          npm run build --if-present
+          npx playwright install-deps
+          npx playwright install
+      # - name: Run Playwright Tests
+      #   run: |
+      #     npm install && npm test

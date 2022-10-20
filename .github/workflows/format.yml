@@ -7,9 +7,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Use Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
           node-version: 17.x
       - name: npm install
@@ -18,12 +18,11 @@ jobs:
       - name: format code
         run: |
           npm run format
-      - name: Prettify
       - name: push formatted code
         run: |
           git config --global user.name 'raynbowy23'
           git config --global user.email 'raynbowy23@users.noreply.github.com'
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ secrets.github_repository }}
           git add --all
           git diff-index --quiet HEAD || git commit -m "Format Code"
           git pull
