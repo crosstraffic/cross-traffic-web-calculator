@@ -24,6 +24,6 @@ jobs:
           npm run build --if-present
           npx playwright install-deps
           npx playwright install
-      - name: Run Playwright Tests
-        run: |
-          npm install && npm test
+      # - name: Run Playwright Tests
+      #   run: |
+      #     npm install && npm test
