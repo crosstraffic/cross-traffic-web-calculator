@@ -22,4 +22,10 @@ jobs:
         run: |
           npm ci
           npm run build --if-present
+          npx playwright install-deps
+          npx playwright install
+      - name: Run Playwright Tests
+        continue-on-error: false
+        working-directory: tests
+        run: |
           npm test
