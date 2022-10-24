@@ -1,3 +1,9 @@
-# Sveltekit + Tailwind + DaisyUI
+# HCM Calculator
+This is the web calculation tool for Highway Capacity Manual (HCM).
 
-Clone this repository and run `npm install` to install dependencies!
+# Accosiated Chapters
+- Chapter 15 (Two-lane Highways)
+
+
+# Author
+Rei Tamaru (raynbowy23). Website: https://reis-portfolio.vercel.app/
