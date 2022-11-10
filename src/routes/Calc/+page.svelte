@@ -197,8 +197,8 @@ import { append_dev } from "svelte/internal";
                                 }
 
                             // Segment output
-                            document.getElementById("ffs" + (i+1)).innerHTML = "Free-flow speed: " + Math.round(ffs*1000)/1000 + " mi/hr";
-                            document.getElementById("pf" + (i+1)).innerHTML = "Percent followers in the analysis direction: " + Math.round(pf[i]*1000)/1000 + " %";
+                            document.getElementById("ffs" + (i+1)).innerHTML = "" + Math.round(ffs*1000)/1000;
+                            document.getElementById("pf" + (i+1)).innerHTML = "" + Math.round(pf[i]*1000)/1000;
 
                         } else {
                             error_flg = 1;
@@ -313,10 +313,10 @@ import { append_dev } from "svelte/internal";
                 // fdF_num += calc_fd[i] * seg_len[i];
                 fdF_num += calc_fd[i] * seg_length;
 
-                // Segment Output
-                document.getElementById("avgspd" + (i+1)).innerHTML = "Average Speed: " + Math.round(avg_S*1000)/1000 + " mi/hr";
-                document.getElementById("fd" + (i+1)).innerHTML = "Followers density: " + Math.round(calc_fd[i]*1000)/1000 + " followers/mi";
-                document.getElementById("seglos" + (i+1)).innerHTML = "Each Segment LOS: " + segLOS[i];
+                // Segment Output -> add table cell
+                document.getElementById("avgspd" + (i+1)).innerHTML = "" + Math.round(avg_S*1000)/1000;
+                document.getElementById("fd" + (i+1)).innerHTML = "" + Math.round(calc_fd[i]*1000)/1000;
+                document.getElementById("seglos" + (i+1)).innerHTML = "" + segLOS[i];
             }
             var fdF = fdF_num / tot_len;
             

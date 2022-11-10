@@ -199,180 +199,212 @@
   }
 </script>
 
-<h1 class="text-3xl font-bold underline">HCM Calulator Chap15</h1>
+<div id="hcm15-container">
 
-{#if hasError == true}
-  <p class="error-alert">{errMessage}</p>
-<!-- {:else}
-	{#if isSuccessVisible}	
-		<p class="error-alert" transition:fade={{duration:150}}>Data updated successfully</p>
-	{/if} -->
-{/if}
+  <h1 class="text-3xl font-bold underline">HCM Calulator Chap15</h1>
 
-<form id="hcm15" class="mt-4" class:submitted on:submit|preventDefault={handleSubmit}>
-<div class="w-full overflow-x-auto">
-  <table class="table w-full">
-    <thead>
-      <tr>
-        <!-- <th>Active</th> -->
-        <th>Segment</th>
-        <th>Passing Type</th>
-        <th>Length</th>
-        <th>Grade</th>
-        <th>Horizontal Curves</th>
-        <th>Horizontal Params</th>
-        <th>Demand Volume</th>
-        <th>Demand Volume (O)</th>
-        <th>Vertical Class</th>
-        <th>Peak Hour Factor</th>
-        <th>Heavy Vehicle Per.</th>
-      </tr>
-    </thead>
-    <tbody>
-      {#each rows as row}
-        <Row seg_num={row.seg_num} subseg_num={row.subrows.length} changeSegment={changeSegment} changeHC={changeHC} toggleHCParams={toggleHCParams} />
-      {/each}
-    </tbody>
-  </table>
-</div>
-<div class="grid auto-cols-max grid-flow-col">
-  <div class="parameters flex justify-start">
-    <table>
-      <tbody>
-        <tr>
-          <td>Posted Speed Limit (mi/hr): </td>
-          <td>
-            <input
-              type="text"
-              id="Spl_input"
-              placeholder="Type here"
-              class="input-label input w-full max-w-xs"
-              value="50"
-              pattern="[+]?([1-9]|[1-9][0-9]|[1-9][0-9][0-9])$"
-            />
-          </td>
-        </tr>
-        <tr>
-          <td>Lane Width (ft): </td>
-          <td>
-            <input
-              type="text"
-              id="LW_input"
-              placeholder="Type here"
-              class="input-label input w-full max-w-xs"
-              value="12"
-              pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-              autocomplete="off"
-              required
-            />
-          </td>
-        </tr>
-        <tr>
-          <td>Shoulder Width (ft): </td>
-          <td>
-            <input
-              type="text"
-              id="SW_input"
-              placeholder="Type here"
-              class="input-label input w-full max-w-xs"
-              value="6"
-              pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-              autocomplete="off"
-              required
-            />
-          </td>
-        </tr>
-        <tr>
-          <td>Access Point Density (access points/mi): </td>
-          <td>
-            <input
-              type="text"
-              id="APD_input"
-              placeholder="Type here"
-              class="input-label input w-full max-w-xs"
-              value="2"
-              pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-              autocomplete="off"
-              required
-            />
-          </td>
-        </tr>
-        <tr>
-          <td>Percentage Multiplier for Heavy Vehicles in the Faster / Passing Lane: </td>
-          <td>
-            <input
-              type="text"
-              id="PMHVFL_input"
-              placeholder="Type here"
-              class="input-label input w-full max-w-xs"
-              value="0.4"
-              pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-              autocomplete="off"
-              required
-            />
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  {#each rows as row}
-  <div class="overflow-x-auto card card-compact w-full bg-base-100 shadow-xl" id="hc_table{row.seg_num}" style="display:none">
-    <div class="card-body">
-    <table class="table table-compact">
+  {#if hasError == true}
+    <p class="error-alert">{errMessage}</p>
+  <!-- {:else}
+    {#if isSuccessVisible}	
+      <p class="error-alert" transition:fade={{duration:150}}>Data updated successfully</p>
+    {/if} -->
+  {/if}
+
+  <form id="hcm15" class="mt-4" class:submitted on:submit|preventDefault={handleSubmit}>
+  <div class="w-full overflow-x-auto">
+    <table class="table w-full">
       <thead>
-        <caption class="flex justify-start"><b>Segment {row.seg_num}</b></caption>
         <tr>
-          <th>Subsegment</th>
+          <!-- <th>Active</th> -->
+          <th>Segment</th>
+          <th>Passing Type</th>
           <th>Length</th>
-          <th>Design Radius</th>
-          <th>Superelevation</th>
+          <th>Grade</th>
+          <th>Horizontal Curves</th>
+          <th>Horizontal Params</th>
+          <th>Demand Volume</th>
+          <th>Demand Volume (O)</th>
+          <th>Vertical Class</th>
+          <th>Peak Hour Factor</th>
+          <th>Heavy Vehicle Per.</th>
         </tr>
       </thead>
       <tbody>
-        {#each row.subrows as subrow}
-          <SubRow subseg_num={subrow.subseg_num}/>
+        {#each rows as row}
+          <Row seg_num={row.seg_num} subseg_num={row.subrows.length} changeSegment={changeSegment} changeHC={changeHC} toggleHCParams={toggleHCParams} />
         {/each}
       </tbody>
-      <div class="flex justify-end">
-        <button class="btn btn-outline btn-sm" on:click={addSubSegment(row.seg_num)}>Add</button>
-        <button class="btn btn-outline btn-sm" on:click={removeSubSegment(row.seg_num)}>Remove</button>
-      </div>
-    </div>
-    </div>
-  {/each}
-</div>
-<table class="flex justify-start" id="seg_imgs">
-  <tbody>
-    <tr class="table_img"><td><img src="segment.jpg" alt="segment" id="seg_img1" height="100" width="100" /></td></tr>
-    <tr class="table_p"><td>undefined</td></tr>
-  </tbody>
-</table>
-<div class="flex justify-end">
-  <Calc rows_len={rows.length} rows={rows}/>
-  <button class="btn" on:click={addSegment}>Add Segment</button>
-  <button class="btn" on:click={removeSegment}>Remove Segment</button>
-</div>
-</form>
-<div class="los">
-  <h3>Outputs</h3>
-  {#each rows as row}
-    <h3>Segment {row.seg_num}</h3>
-    <p id="ffs{row.seg_num}">Free-flow Speed: </p>
-    <p id="avgspd{row.seg_num}">Average Speed: </p>
-    <p id="pf{row.seg_num}">Percent followers in the analysis direction: </p>
-    <p id="fd{row.seg_num}">Followers Density: </p>
-    <p id="seglos{row.seg_num}">LOS: </p>
-  {/each}
-  <p id="los">Entire LOS: </p>
-  <p id="error">Error Message: </p>
-</div>
-
-<footer class="hcm15-footer footer footer-center p-10 bg-base-200 text-base-content rounded">
-  <div class="grid grid-flow-col gap-4">
-    <a href="/" class="link link-hover">Home</a> 
-    <a href="terms" class="link link-hover">Terms & Conditions</a> 
-  </div> 
-  <div>
-    <p>Copyright © 2022 - All right reserved by Rei Tamaru and Jonathan Riel</p>
+    </table>
   </div>
-</footer>
+  <div class="grid auto-cols-max grid-flow-col md:grid-cols-2 sm:grid-cols-1 grid-cols-1">
+    <div class="parameters flex justify-start overflow-x-auto">
+      <table class="table w-full">
+        <tbody>
+          <tr>
+            <td style="display: inline-block;">Posted Speed Limit (mi/hr): </td>
+            <td>
+              <input
+                type="text"
+                id="Spl_input"
+                placeholder="Type here"
+                class="input-label input w-full max-w-xs"
+                value="50"
+                pattern="[+]?([1-9]|[1-9][0-9]|[1-9][0-9][0-9])$"
+              />
+            </td>
+          </tr>
+          <tr>
+            <td style="display: inline-block;">Lane Width (ft): </td>
+            <td>
+              <input
+                type="text"
+                id="LW_input"
+                placeholder="Type here"
+                class="input-label input w-full max-w-xs"
+                value="12"
+                pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+                autocomplete="off"
+                required
+              />
+            </td>
+          </tr>
+          <tr>
+            <td style="display: inline-block;">Shoulder Width (ft): </td>
+            <td>
+              <input
+                type="text"
+                id="SW_input"
+                placeholder="Type here"
+                class="input-label input w-full max-w-xs"
+                value="6"
+                pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+                autocomplete="off"
+                required
+              />
+            </td>
+          </tr>
+          <tr>
+            <td style="display: inline-block;">Access Point Density (access points/mi): </td>
+            <td>
+              <input
+                type="text"
+                id="APD_input"
+                placeholder="Type here"
+                class="input-label input w-full max-w-xs"
+                value="2"
+                pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+                autocomplete="off"
+                required
+              />
+            </td>
+          </tr>
+          <tr>
+            <td style="display: inline-block;">Percentage Multiplier for <br> Heavy Vehicles in the Faster / Passing Lane: </td>
+            <td>
+              <input
+                type="text"
+                id="PMHVFL_input"
+                placeholder="Type here"
+                class="input-label input w-full max-w-xs"
+                value="0.4"
+                pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+                autocomplete="off"
+                required
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    {#each rows as row}
+    <div class="hc_table overflow-x-auto card card-compact w-full bg-base-100 shadow-xl" id="hc_table{row.seg_num}" style="display:none;">
+      <div class="card-body">
+      <table class="table table-compact">
+        <thead>
+          <caption class="flex justify-start"><b>Segment {row.seg_num}</b></caption>
+          <tr>
+            <th>Subsegment</th>
+            <th>Length</th>
+            <th>Design Radius</th>
+            <th>Superelevation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each row.subrows as subrow}
+            <SubRow subseg_num={subrow.subseg_num}/>
+          {/each}
+        </tbody>
+        <div class="flex justify-end">
+          <button class="btn btn-outline btn-sm" on:click={addSubSegment(row.seg_num)} type="button">Add</button>
+          <button class="btn btn-outline btn-sm" on:click={removeSubSegment(row.seg_num)} type="button">Remove</button>
+        </div>
+    </div>
+    </div>
+    {/each}
+  </div>
+  <div class="overflow-x-auto">
+    <table class="flex justify-start" id="seg_imgs">
+      <tbody>
+        <tr class="table_img"><td><img src="segment.jpg" alt="segment" id="seg_img1" height="100" width="100" /></td></tr>
+        <tr class="table_p"><td>undefined</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="flex justify-end">
+    <Calc rows_len={rows.length} rows={rows}/>
+    <button class="btn" on:click={addSegment} type="button">Add Segment</button>
+    <button class="btn" on:click={removeSegment} type="button">Remove Segment</button>
+  </div>
+  </form>
+  <div class="los overflow-x-auto">
+    <h3>Outputs</h3>
+    <table class="table w-full">
+      <thead>
+        <tr>
+          <th></th>
+          {#each rows as row}
+            <th>Segment {row.seg_num}</th>
+          {/each}
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr>
+          <th id="ffs">Free-flow Speed (mi/hr): </th>
+          {#each rows as row}
+            <td id="ffs{row.seg_num}"></td>
+          {/each}
+        </tr>
+        <tr>
+          <th id="avgspd">Average Speed (mi/hr): </th>
+          {#each rows as row}
+            <td id="avgspd{row.seg_num}"></td>
+          {/each}
+        </tr>
+        <tr>
+          <th id="pf">Percent followers in the <br> analysis direction (%): </th>
+          {#each rows as row}
+            <td id="pf{row.seg_num}"></td>
+          {/each}
+        </tr>
+        <tr>
+          <th id="fd">Followers Density (followers/mi): </th>
+          {#each rows as row}
+            <td id="fd{row.seg_num}"></td>
+          {/each}
+        </tr>
+        <tr>
+          <th id="seglos">Segment LOS: </th>
+          {#each rows as row}
+            <td id="seglos{row.seg_num}"></td>
+          {/each}
+        </tr>
+      </tbody>
+    </table>
+    <p id="los">Entire LOS: </p>
+    <p id="error">Error Message: </p>
+  </div>
+
+
+</div>
