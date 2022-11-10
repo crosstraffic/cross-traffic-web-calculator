@@ -150,12 +150,3 @@
 <br/>
 
 </div>
-<footer class="term-footer footer footer-center p-10 bg-base-200 text-base-content rounded">
-  <div class="grid grid-flow-col gap-4">
-    <a href="/" class="link link-hover">Home</a> 
-    <a href="term" class="link link-hover">Terms & Conditions</a> 
-  </div> 
-  <div>
-    <p>Copyright © 2022 - All right reserved by Rei Tamaru and Jonathan Riel</p>
-  </div>
-</footer>
