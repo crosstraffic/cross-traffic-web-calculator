@@ -22,7 +22,7 @@ jobs:
         run: |
           git config --global user.name 'raynbowy23'
           git config --global user.email 'raynbowy23@users.noreply.github.com'
-          git remote set-url origin https://x-access-token:$TOKEN@github.com/$REPO
+          git remote set-url origin https://x-access-token:$TOKEN@github.com/raynbowy23/$REPO
           git add --all
           git diff-index --quiet HEAD || git commit -m "Format Code"
           git pull
