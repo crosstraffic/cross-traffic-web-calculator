@@ -28,5 +28,5 @@ jobs:
           git pull
           git push
         env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
-          GITHUB_REPO: ${{ secrets.REPO }}
+          TOKEN: ${{ secrets.TOKEN }}
+          REPO: ${{ secrets.REPO }}
