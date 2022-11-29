@@ -29,4 +29,3 @@ jobs:
           git push
         env:
           TOKEN: ${{ secrets.TOKEN }}
-          REPO: ${{ secrets.REPO }}
