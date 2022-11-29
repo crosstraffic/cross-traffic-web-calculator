@@ -31,8 +31,8 @@ test.describe("navigation", () => {
         // const calculate = page.getByText('CALCULATE SEGMENT');
 
         // Click the add segment
-        await addSegment.click();
-        await removeSegment.click();
+        // await addSegment.click();
+        // await removeSegment.click();
         // await calculate.click();
 
         // Expects the URL to contain hcm15
