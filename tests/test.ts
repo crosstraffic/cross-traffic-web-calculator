@@ -8,7 +8,6 @@ test.describe("navigation", () => {
     });
 
     // Will Turn on when it's deployed
-    /*
     test('homepage has HCM Calculator in title and get started link linking to the intro page', async ({ page }) => {
         // Block png and jpeg images.
         await page.route(/(png|jpeg)$/, route => route.abort());
@@ -82,8 +81,8 @@ test.describe("navigation", () => {
         await page.locator('#superelevation').type('0');
         await page.locator('#superelevation').type('1.5');
 
-        // // Expect input value
-        // await expect(page.locator("input#Spl_input").)
+        // Expect input value
+        // await expect(page.locator("input#Spl_input");
 
     });
 
@@ -95,6 +94,5 @@ test.describe("navigation", () => {
         // await page.goto('http://localhost:5173/terms');
 
     });
-    */
 
 });
