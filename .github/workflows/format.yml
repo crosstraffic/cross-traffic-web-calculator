@@ -24,6 +24,6 @@ jobs:
           SECRET_TOKEN: ${{ secrets.CREDENTIALS_TOKEN }}
           SECRET_REPO: ${{ secrets.CREDENTIALS_REPO }}
         with:
-          repository: raynbowy23/${{ secrets.SECRET_REPO }}
+          repository: raynbowy23/${{ secrets.CREDENTIALS_REPO }}
           token: ${{ secrets.CREDENTIALS_TOKEN }}
-          path: ${{ secrets.SECRET_REPO}}
+          path: ${{ secrets.CREDENTIALS_REPO}}
