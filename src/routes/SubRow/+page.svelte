@@ -17,7 +17,7 @@
             id="subseg_len"
             class="subseg_len{subseg_num} input input-label w-2/3 max-w-xs" 
             pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
-            value=0
+            value="0"
             autocomplete="off" />
         <label for="label">
         <span class="label-text-alt"></span>
@@ -31,7 +31,7 @@
             id="design_radius"
             class="design_radius{subseg_num} input input-label w-2/3 max-w-xs" 
             pattern="[+]?([0-9]*([.][0-9]*)|[0-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
-            value=0
+            value="0"
             autocomplete="off" />
         <label for="label">
         <span class="label-text-alt"></span>
@@ -45,7 +45,7 @@
             id="superelevation"
             class="superelevation{subseg_num} input input-label w-2/3 max-w-xs" 
             pattern="[+-]?([0-9]*([.][0-9]*)|[0-9]|[1-9][0-9])$"
-            value=0
+            value="0"
             autocomplete="off" />
         <label for="label">
         <span class="label-text-alt"></span>
