@@ -1,7 +1,3 @@
-<script>
-  import { MetaTags, JsonLd } from 'svelte-meta-tags';
-</script>
-
 <svelte:head>
   <title>HCM Calculator</title>
 </svelte:head>
@@ -35,24 +31,3 @@
   </div>
 
 </div>
-
-<MetaTags
-  title="HCM-calculator"
-	titleTemplate = '%s'
-  description="The simple web calculator of Highway Capacity Manual for the transportation engineers."
-  canonical="https://hcm-calculator.vercel.app/"
-  openGraph={{
-    url: 'https://hcm-calculator.vercel.app/',
-    title: 'HCM-calculator',
-    description: 'The simple web calculator of Highway Capacity Manual for the transportation engineers.',
-    images: [
-      {
-        url: 'hcmcalc_logo.png',
-        width: 600,
-        height: 400,
-        alt: 'hcm calculator logo'
-      },
-    ],
-    site_name: 'HCM-calculator'
-  }}
-/>
