@@ -13,12 +13,13 @@
 
 html {
   font-size: calc(60% + 0.8vmin);
+  background: #FFFFFF;
 }
 main {
   /* max-width: 20rem; */
   max-width: 100%;
   margin: 0 auto;
-  background-color: #FFFFFF;
+  background: #FFFFFF;
 }
 * {
   font-size: 1rem;
