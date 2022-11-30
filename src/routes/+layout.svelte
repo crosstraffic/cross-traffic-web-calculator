@@ -3,6 +3,15 @@
 </script>
 
 <header>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LMH583TV33"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-LMH583TV33');
+</script>
 <div class="navbar bg-base-200">
   <div class="navbar-start">
     <div class="dropdown">
