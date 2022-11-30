@@ -35,8 +35,5 @@
     "typescript": "^4.7.4",
     "vite": "^3.0.0"
   },
-  "type": "module",
-  "dependencies": {
-    "svelte-meta-tags": "^2.6.4"
-  }
+  "type": "module"
 }
