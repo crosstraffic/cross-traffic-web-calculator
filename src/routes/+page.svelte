@@ -1,3 +1,7 @@
+<script>
+  import { MetaTags, JsonLd } from 'svelte-meta-tags';
+</script>
+
 <svelte:head>
   <title>HCM Calculator</title>
 </svelte:head>
@@ -21,7 +25,9 @@
         </div> 
       </div>
 
-      <p>The latest HCM (7th Edition) can be found <a href="https://nap.nationalacademies.org/catalog/26432/highway-capacity-manual-7th-edition-a-guide-for-multimodal-mobility" target="_blank">here (National Academics)</a>.</p>
+      <p>The latest HCM (7th Edition) can be found <a href="https://nap.nationalacademies.org/catalog/26432/highway-capacity-manual-7th-edition-a-guide-for-multimodal-mobility" target="_blank">here (National Academics)</a>.<br>
+      Or you can find it on <a href="https://amzn.to/3ipmRXN" target="_blank">Amazon</a>.
+      </p>
 
       <p>For the website inquires, please email <a href="mailto:tamaru@wisc.edu">to me</a>.</p>
     </div>
@@ -29,3 +35,24 @@
   </div>
 
 </div>
+
+<MetaTags
+  title="HCM-calculator"
+	titleTemplate = '%s'
+  description="The simple web calculator of Highway Capacity Manual for the transportation engineers."
+  canonical="https://hcm-calculator.vercel.app/"
+  openGraph={{
+    url: 'https://hcm-calculator.vercel.app/',
+    title: 'HCM-calculator',
+    description: 'The simple web calculator of Highway Capacity Manual for the transportation engineers.',
+    images: [
+      {
+        url: 'hcmcalc_logo.png',
+        width: 600,
+        height: 400,
+        alt: 'hcm calculator logo'
+      },
+    ],
+    site_name: 'HCM-calculator'
+  }}
+/>
