@@ -7,7 +7,13 @@ module.exports = {
     extend: {},
   },
   daisyui: {
+    styled: true,
+    themes: true,
+    base: false,
+    utils: true,
     logs: false,
+    rtl: false,
+    prefix: "",
   },
   plugins: [require('daisyui')],
 };
