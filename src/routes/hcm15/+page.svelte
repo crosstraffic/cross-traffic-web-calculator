@@ -98,7 +98,7 @@
     } else if (PT == 'Passing Constrained') {
       img.src = 'PassingConstrained.png';
       Vi.value = '1000';
-      Vo.value = '0';
+      Vo.value = '1500';
       img.height = 100;
       img.width = 100;
       img.parentNode.width = 100;
@@ -159,6 +159,8 @@
       // add required attribute to subsegment
       // subdesign_radius.required = true;
       // console.log(subdesign_radius.required);
+      toggler.checked = true;
+      toggleHCParams(seg_num);
     }
       // if (toggle_seg == -1){
       //   hc_table.style.display = 'block';
@@ -221,6 +223,7 @@
           <th>Passing Type</th>
           <th>Length</th>
           <th>Grade</th>
+          <th>Posted Speed Limit</th>
           <th>Horizontal Curves</th>
           <th>Horizontal Params</th>
           <th>Demand Volume</th>
@@ -241,19 +244,6 @@
     <div class="parameters flex justify-start overflow-x-auto">
       <table class="table w-full">
         <tbody>
-          <tr>
-            <td style="display: inline-block;">Posted Speed Limit (mi/hr): </td>
-            <td>
-              <input
-                type="text"
-                id="Spl_input"
-                placeholder="Type here"
-                class="input-label input w-full max-w-xs"
-                value="50"
-                pattern="[+]?([1-9]|[1-9][0-9]|[1-9][0-9][0-9])$"
-              />
-            </td>
-          </tr>
           <tr>
             <td style="display: inline-block;">Lane Width (ft): </td>
             <td>
@@ -300,15 +290,15 @@
             </td>
           </tr>
           <tr>
-            <td style="display: inline-block;">Percentage Multiplier for <br> Heavy Vehicles in the Faster / Passing Lane: </td>
+            <td style="display: inline-block;">Percentage Multiplier for <br> Heavy Vehicles in the Faster / Passing Lane: <br>*Used only when Passing Lane included</td>
             <td>
               <input
                 type="text"
                 id="PMHVFL_input"
                 placeholder="Type here"
                 class="input-label input w-full max-w-xs"
-                value="0.4"
-                pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+                value="0"
+                pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
                 autocomplete="off"
                 required
               />
@@ -402,7 +392,8 @@
         </tr>
       </tbody>
     </table>
-    <p id="los">Entire LOS: </p>
+    <p id="los">Facility LOS: </p>
+    <p id="fdF">Facility Follower Density: </p>
     <p id="error">Error Message: </p>
   </div>
 

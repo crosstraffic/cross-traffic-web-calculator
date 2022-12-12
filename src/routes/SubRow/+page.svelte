@@ -15,6 +15,7 @@
             type="text" 
             placeholder="Type here" 
             id="subseg_len"
+            name="subseg_len"
             class="subseg_len{subseg_num} input input-label w-2/3 max-w-xs" 
             pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
             value="0"

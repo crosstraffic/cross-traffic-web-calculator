@@ -56,7 +56,7 @@
             placeholder="Type here" 
             class="input input-label w-full max-w-xs seg_length" 
             pattern="[+]?([0-9]|[0-9]*([.][0-9][0-9]*)|[1-9]|[1-9][0-9])$"
-            autocomplete="off" 
+            autocomplete="off"
             required/>
         <label for="label">
         <span class="label-text-alt"></span>
@@ -77,6 +77,22 @@
         <label for="label">
         <span class="label-text-alt"></span>
         <span class="label-text-alt">%</span>
+        </label>
+    </td>
+    <td>
+        <!-- <input type="text" id="seg_grade{seg_num}" name="grade" bind:value={values.grade} placeholder="Type here" class="input input-label w-full max-w-xs" required/> -->
+        <input 
+            type="text"
+            id="seg_Spl{seg_num}" 
+            name="posted speed" 
+            placeholder="Type here" 
+            class="input input-label w-full max-w-xs seg_spl" 
+            pattern="[+]?([1-9]|[1-9][0-9]|[1-9][0-9][0-9])$"
+            autocomplete="off" 
+            required/>
+        <label for="label">
+        <span class="label-text-alt"></span>
+        <span class="label-text-alt">mph.</span>
         </label>
     </td>
     <td>
