@@ -33,7 +33,7 @@
       </ul>
     </div>
     <!-- Gonna be LOGO -->
-    <a href="/" class="normal-case text-xl logo"><img src="hcmcalc_logo.png" alt="logo" width="180" height="400" /></a>
+    <a href="/" class="normal-case text-xl logo"><img src="hcm_calculator_logo.png" alt="logo" style="max-width:110px;height:100%"/></a>
   </div>
   <div class="navbar-center hidden lg:flex">
     <ul class="menu menu-horizontal p-0">
@@ -50,9 +50,9 @@
       </li>
     </ul>
   </div>
-  <!-- <div class="navbar-end">
-    <a class="btn">Login</a>
-  </div> -->
+  <div class="navbar-end">
+    <!-- <a class="btn">Login</a> -->
+  </div>
 </div>
 
 </header>
