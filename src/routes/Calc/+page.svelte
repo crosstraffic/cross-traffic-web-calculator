@@ -1,8 +1,6 @@
 <script>
   // throw new Error("@migration task: Add data prop (https://github.com/sveltejs/kit/discussions/5774#discussioncomment-3292707)");
 
-import { prefetch } from "$app/navigation";
-import { append_dev } from "svelte/internal";
 
     // Export variables
     export let rows_len;
