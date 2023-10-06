@@ -2,9 +2,19 @@
   <title>HCM Calculator</title>
 </svelte:head>
 
+<script lang="ts">
+  import init, { greet } from "HCM-middleware";
+  import { onMount } from "svelte";
+
+  onMount(async() => {
+    await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
+  })
+</script>
+
 <div id="routes-container">
   <div class="home grid h-screen place-items-center mt-20">
     <div class="home_div">
+
       <p>Welcome to <b>HCM Calculator</b>! This site is the third-party web site to support calculation along with Highway Capacity Manual (HCM).</p>
       <p>The HCM Calculator is to provide quick solutions for all of the calculations in HCM.</p>
       <p>It also illustrates the simple figures for full complement of the understandings.</p>

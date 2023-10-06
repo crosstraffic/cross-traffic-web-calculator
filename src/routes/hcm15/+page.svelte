@@ -2,6 +2,7 @@
   import Row from '../Row/+page.svelte';
   import SubRow from '../SubRow/+page.svelte';
   import Calc from '../Calc/+page.svelte';
+  import { visualize_results } from "HCM-middleware";
 
   let count = 0;
   let columns = [
@@ -342,6 +343,7 @@
     </table>
   </div>
   <div class="flex justify-end">
+    <button class="btn" on:click={visualize_results} type="button">Visualize</button>
     <Calc rows_len={rows.length} rows={rows}/>
     <button class="btn" on:click={addSegment} type="button">Add Segment</button>
     <button class="btn" on:click={removeSegment} type="button">Remove Segment</button>
