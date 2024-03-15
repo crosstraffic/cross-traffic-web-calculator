@@ -3,12 +3,13 @@
 </svelte:head>
 
 <script lang="ts">
-  import init, { greet } from "HCM-middleware";
   import { onMount } from "svelte";
+  import init from "HCM-middleware";
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
   })
+
 </script>
 
 <div id="routes-container">

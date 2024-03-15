@@ -20,9 +20,9 @@
             pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
             value="0"
             autocomplete="off" />
-        <label for="label">
-        <span class="label-text-alt"></span>
-        <span class="label-text-alt">ft.</span>
+        <label for="subseg_len">
+            <span class="label-text-alt"></span>
+            <span class="label-text-alt">ft.</span>
         </label>
     </td>
     <td>
@@ -34,9 +34,9 @@
             pattern="[+]?([0-9]*([.][0-9]*)|[0-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
             value="0"
             autocomplete="off" />
-        <label for="label">
-        <span class="label-text-alt"></span>
-        <span class="label-text-alt">ft.</span>
+        <label for="design_radius">
+            <span class="label-text-alt"></span>
+            <span class="label-text-alt">ft.</span>
         </label>
     </td>
     <td>
@@ -45,12 +45,12 @@
             placeholder="Type here" 
             id="superelevation"
             class="superelevation{subseg_num} input input-label w-2/3 max-w-xs" 
-            pattern="[+-]?([0-9]*([.][0-9]*)|[0-9]|[1-9][0-9])$"
+            pattern="[+\-]?([0-9]*([.][0-9]*)|[0-9]|[1-9][0-9])$"
             value="0"
             autocomplete="off" />
-        <label for="label">
-        <span class="label-text-alt"></span>
-        <span class="label-text-alt">%</span>
+        <label for="superelevation">
+            <span class="label-text-alt"></span>
+            <span class="label-text-alt">%</span>
         </label>
     </td>
 </tr>

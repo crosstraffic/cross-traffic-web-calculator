@@ -1,8 +1,16 @@
-<script>
+<script type="text/javascript">
   import Row from '../Row/+page.svelte';
   import SubRow from '../SubRow/+page.svelte';
   import Calc from '../Calc/+page.svelte';
-  import { visualize_results } from "HCM-middleware";
+  import init, { WasmSegment, WasmSubSegment, WasmTwoLaneHighways } from "HCM-middleware";
+  import { onMount } from "svelte";
+
+
+  onMount(async() => {
+    await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
+  });
+
+
 
   let count = 0;
   let columns = [
@@ -26,6 +34,24 @@
 
   subrows = [{ subseg_num: 1 }];
   rows = [{ seg_num: 1, subrows }];
+
+
+  // Show microsimulation
+  function simResults() {
+
+    var wasmSubSegment = [WasmSubSegment.new(0.0, 0.0, 0, 0.0, 0.0)];
+    console.log(wasmSubSegment);
+    console.log(wasmSubSegment[0].get_avg_speed());
+    var wasmSegment = [WasmSegment.new(0, 0.75, 0.0, 50.0, false, 752.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0, 1, wasmSubSegment, 0.94, 5.0, 0.0, 0.0, 0)];
+    console.log(wasmSegment);
+    console.log(wasmSegment[0].get_length());
+    var wasmTwoLaneHighways = WasmTwoLaneHighways.new(wasmSegment, 12.0, 6.0, 0.0, 0.4, 0.0, 0.0);
+    console.log(wasmTwoLaneHighways)
+    console.log(wasmTwoLaneHighways.identify_vertical_class(0));
+    console.log(wasmTwoLaneHighways.determine_demand_flow(0));
+
+  }
+
 
   function addSegment() {
     rows = [...rows, { seg_num: rows.length + 1, subrows }];
@@ -202,6 +228,7 @@
   }
 </script>
 
+
 <div id="hcm15-container">
 
   <h1 class="text-3xl font-bold underline">HCM Calulator Chap15</h1>
@@ -343,12 +370,16 @@
     </table>
   </div>
   <div class="flex justify-end">
-    <button class="btn" on:click={visualize_results} type="button">Visualize</button>
+    <button class="btn" on:click={simResults} type="button">Visualize</button>
     <Calc rows_len={rows.length} rows={rows}/>
     <button class="btn" on:click={addSegment} type="button">Add Segment</button>
     <button class="btn" on:click={removeSegment} type="button">Remove Segment</button>
   </div>
   </form>
+
+  <!-- <canvas id="simulation-canvas"></canvas> -->
+  <pre id="simulation-canvas"></pre>
+
   <div class="los overflow-x-auto">
     <h3>Outputs</h3>
     <table class="table w-full">
@@ -398,6 +429,5 @@
     <p id="fdF">Facility Follower Density: </p>
     <p id="error">Error Message: </p>
   </div>
-
 
 </div>
