@@ -14,7 +14,7 @@
         <input 
             type="text" 
             placeholder="Type here" 
-            id="subseg_len"
+            id="subseg_len{subseg_num}"
             name="subseg_len"
             class="subseg_len{subseg_num} input input-label w-2/3 max-w-xs" 
             pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
@@ -29,7 +29,7 @@
         <input 
             type="text" 
             placeholder="Type here" 
-            id="design_radius"
+            id="design_radius{subseg_num}"
             class="design_radius{subseg_num} input input-label w-2/3 max-w-xs" 
             pattern="[+]?([0-9]*([.][0-9]*)|[0-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
             value="0"
@@ -43,7 +43,7 @@
         <input 
             type="text" 
             placeholder="Type here" 
-            id="superelevation"
+            id="superelevation{subseg_num}"
             class="superelevation{subseg_num} input input-label w-2/3 max-w-xs" 
             pattern="[+\-]?([0-9]*([.][0-9]*)|[0-9]|[1-9][0-9])$"
             value="0"
