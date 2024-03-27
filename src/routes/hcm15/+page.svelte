@@ -1,8 +1,14 @@
-<script>
+<script type="text/javascript">
   import Row from '../Row/+page.svelte';
   import SubRow from '../SubRow/+page.svelte';
   import Calc from '../Calc/+page.svelte';
-  import { visualize_results } from "HCM-middleware";
+  import init, { WasmSegment, WasmSubSegment, WasmTwoLaneHighways } from "HCM-middleware";
+  import { onMount } from "svelte";
+
+
+  onMount(async() => {
+    await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
+  });
 
   let count = 0;
   let columns = [
@@ -26,6 +32,24 @@
 
   subrows = [{ subseg_num: 1 }];
   rows = [{ seg_num: 1, subrows }];
+
+
+  // Show microsimulation
+  // function simResults() {
+
+  //   var wasmSubSegment = [WasmSubSegment.new(0.0, 0.0, 0, 0.0, 0.0)];
+  //   console.log(wasmSubSegment);
+  //   console.log(wasmSubSegment[0].get_avg_speed());
+  //   var wasmSegment = [WasmSegment.new(0, 0.75, 0.0, 50.0, false, 752.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0, 1, wasmSubSegment, 0.94, 5.0, 0.0, 0.0, 0)];
+  //   console.log(wasmSegment);
+  //   console.log(wasmSegment[0].get_length());
+  //   var wasmTwoLaneHighways = WasmTwoLaneHighways.new(wasmSegment, 12.0, 6.0, 0.0, 0.4, 0.0, 0.0);
+  //   console.log(wasmTwoLaneHighways)
+  //   console.log(wasmTwoLaneHighways.identify_vertical_class(0));
+  //   console.log(wasmTwoLaneHighways.determine_demand_flow(0));
+
+  // }
+
 
   function addSegment() {
     rows = [...rows, { seg_num: rows.length + 1, subrows }];
@@ -73,8 +97,8 @@
 
   function changeSegment(seg_num) {
     var table = document.getElementById('seg_imgs');
-    var cap_row = table.rows[1];
-    var cap = 'undefined';
+    var img_cap_row = table.rows[1];
+    var img_cap = 'undefined';
     var img = document.getElementById('seg_img' + seg_num);
 
     // console.log(values.vd);
@@ -95,7 +119,7 @@
       img.height = 100;
       img.width = 100;
       img.parentNode.width = 100;
-      cap = 'Passing Zone';
+      img_cap = 'Passing Zone';
     } else if (PT == 'Passing Constrained') {
       img.src = 'PassingConstrained.png';
       Vi.value = '1000';
@@ -103,7 +127,7 @@
       img.height = 100;
       img.width = 100;
       img.parentNode.width = 100;
-      cap = 'Passing Constrained';
+      img_cap = 'Passing Constrained';
     } else if (PT == 'Passing Lane') {
       img.src = 'PassingLane.png';
       Vi.value = '1000';
@@ -111,10 +135,10 @@
       img.height = 100;
       img.width = 150;
       img.parentNode.width = 150;
-      cap = "Passing Lane";
+      img_cap = "Passing Lane";
     }
 
-    cap_row.cells[seg_num - 1].innerHTML = cap;
+    img_cap_row.cells[seg_num - 1].innerHTML = img_cap;
   }
 
   // function toggleActive(seg_num) {
@@ -137,7 +161,7 @@
         hc_table.style.display = 'block';
         toggle_seg = seg_num;
       } else {
-        console.log('Cannot out more than one');
+        console.log('Cannot toggle more than one');
       }
     } else {
       if (toggle_seg == seg_num) {
@@ -200,18 +224,187 @@
           isSuccessVisible = false;
       }, 4000);
   }
+
+  let json;
+	
+	async function jsonInputHandler(e) {
+		const file = e.target.files[0];
+		if (file == null) {
+			json = null;
+			return;
+		}
+		
+		json = await readJsonFile(file);
+
+    fillInJsonValue(json);
+	}
+
+	function readJsonFile(file) {
+		const reader = new FileReader();
+		return new Promise((resolve, reject) => {
+			reader.onload = () => resolve(JSON.parse(reader.result));
+			reader.onerror = reject;
+			reader.readAsText(file);
+		});
+	}
+
+  async function fillInJsonValue(json) {
+
+    let lw = json.lane_width;
+    let sw = json.shoulder_width;
+    let apd = json.apd;
+    let pmhvfl = json.pmhvfl;
+
+    // Two lane highway
+    document.getElementById('LW_input').value = lw;
+    document.getElementById('SW_input').value = sw;
+    document.getElementById('APD_input').value = apd;
+    document.getElementById('PMHVFL_input').value = pmhvfl;
+
+    // Segments
+    for (let i=0; i<json.segments.length; i++) {
+      if (i != 0) {
+        addSegment();
+      }
+      setTimeout(function() {
+        const pass_type = document.getElementById('passing_type'+(i+1))
+        pass_type.options.item(json.segments[i].passing_type+1).selected = true;
+        // Fire segment change
+        changeSegment(i+1);
+        document.getElementById('seg_length'+(i+1)).value = json.segments[i].length;
+        document.getElementById('seg_grade'+(i+1)).value = json.segments[i].grade;
+        document.getElementById('seg_Spl'+(i+1)).value = json.segments[i].spl;
+        document.getElementById('is_hc'+(i+1)).checked = json.segments[i].is_hc;
+        // document.getElementById('hc_param'+(i+1)).checked = json.segments[i].is_hc;
+        document.getElementById('vi_input'+(i+1)).value = json.segments[i].volume;
+        document.getElementById('vo_input'+(i+1)).value = json.segments[i].volume_op;
+        document.getElementById('vc_select'+(i+1)).options.item(json.segments[i].vertical_class-1).selected = true;
+        document.getElementById('PHF_input'+(i+1)).value = json.segments[i].phf;
+        document.getElementById('PHV_input'+(i+1)).value = json.segments[i].phv;
+
+
+        var hc_table = document.getElementById("hc_table"+(i+1));
+        hc_table.style.display = 'none';
+        toggle_seg = -1;
+
+        // if (json.segments[i].is_hc) toggleHCParams(i+1);
+
+        // SubSegments
+        for (let j=0; j<json.segments[i].subsegments.length; j++) {
+          if (j != 0) addSubSegment(i+1); 
+          setTimeout(function() {
+            document.getElementById("hc_table"+(i+1)).getElementsByClassName("subseg_len"+(j+1))[0].value = json.segments[i].subsegments[j].length;
+            document.getElementById("hc_table"+(i+1)).getElementsByClassName("design_radius"+(j+1))[0].value = json.segments[i].subsegments[j].design_rad;
+            document.getElementById("hc_table"+(i+1)).getElementsByClassName("superelevation"+(j+1))[0].value = json.segments[i].subsegments[j].sup_ele;
+          }, 10);
+        }
+      }, 10);
+    }
+
+  }
+
+  function jsonOutputHandler() {
+
+    const jsonData = { "segments": [],
+                      "lane_width": 0.0,
+                      "shoulder_width": 0.0,
+                      "apd": 0.0,
+                      "pmhvfl": 0.0,
+                      "l_de": 0.0
+                    };
+    jsonData["lane_width"] = document.getElementById('LW_input').value;
+    jsonData["shoulder_width"] = document.getElementById('SW_input').value;
+    jsonData["apd"] = document.getElementById('APD_input').value;
+    jsonData["pmhvfl"] = document.getElementById('PMHVFL_input').value;
+
+    let seg_num = rows.length;
+    for (let i=0; i < seg_num; i++) {
+      const segments_dict = {
+        "passing_type": 0,
+        "length": 0.0,
+        "grade": 0.0,
+        "spl": 0.0,
+        "is_hc": false,
+        "volume": 0.0,
+        "volume_op": 0.0,
+        "flow_rate": 0.0,
+        "flow_rate_o": 0.0,
+        "capacity": 0,
+        "ffs": 0.0,
+        "avg_speed": 0.0,
+        "vertical_class": 1,
+        "subsegments": [],
+        "phf": 0.0,
+        "phv": 0,
+        "pf": 0.0,
+        "fd": 0.0,
+        "fd_mid": 0.0,
+        "hor_class": 0
+      }
+
+      let subseg_num = rows[i].subrows.length;
+      var pass_type = document.getElementById("passing_type"+(i+1));
+      var p_type = pass_type.options[pass_type.selectedIndex].text;
+      if (p_type == "Passing Constrained") pass_type = 0;
+      else if (p_type == "Passing Zone") pass_type = 1;
+      else if (p_type == "Passing Lane") pass_type = 2;
+      var ver_cls = document.getElementById("vc_select"+(i+1));
+
+      jsonData.segments.push(segments_dict);
+      jsonData.segments[i].passing_type = pass_type;
+      jsonData.segments[i]["length"] = document.getElementById('seg_length'+(i+1)).value;
+      jsonData.segments[i]["grade"] = document.getElementById('seg_grade'+(i+1)).value;
+      jsonData.segments[i]["spl"] = document.getElementById('seg_Spl'+(i+1)).value;
+      jsonData.segments[i]["is_hc"] = document.getElementById('is_hc'+(i+1)).checked;
+      jsonData.segments[i]["volume"] = document.getElementById('vi_input'+(i+1)).value;
+      jsonData.segments[i]["volume_op"] = document.getElementById('vo_input'+(i+1)).value;
+      jsonData.segments[i]["vertical_class"] = ver_cls.options[ver_cls.selectedIndex].text;
+      jsonData.segments[i]["phf"] = document.getElementById('PHF_input'+(i+1)).value;
+      jsonData.segments[i]["phv"] = document.getElementById('PHV_input'+(i+1)).value;
+      
+      console.log(subseg_num);
+      for (let j=0; j < subseg_num; j++) {
+        const subsegments_dict = {
+          "length": 0.0,
+          "avg_speed": 0.0,
+          "hor_class": 0,
+          "design_rad": 0.0,
+          "sup_ele": 0.0
+        }
+
+        jsonData.segments[i]["subsegments"].push(subsegments_dict);
+        jsonData.segments[i]["subsegments"][j]["length"] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("subseg_len"+(j+1))[0].value;
+        jsonData.segments[i]["subsegments"][j]["design_rad"] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("design_radius"+(j+1))[0].value;
+        jsonData.segments[i]["subsegments"][j]["sup_ele"] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("superelevation"+(j+1))[0].value;
+      }
+
+    }
+
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(jsonData));
+    const jOut = document.getElementById('jsonOutput');
+    jOut.setAttribute('href', dataStr);
+    jOut.setAttribute('download', 'hcm15_output.json');
+  }
+
+  function resetParams() {
+    window.location.reload();
+  }
+
 </script>
+
 
 <div id="hcm15-container">
 
   <h1 class="text-3xl font-bold underline">HCM Calulator Chap15</h1>
 
-  {#if hasError == true}
-    <p class="error-alert">{errMessage}</p>
+  <label>JSON Input</label> <input type="file" id="jsonInput" on:change={jsonInputHandler} accept=".json">
   <!-- {:else}
     {#if isSuccessVisible}	
       <p class="error-alert" transition:fade={{duration:150}}>Data updated successfully</p>
     {/if} -->
+
+  {#if hasError == true}
+    <p class="error-alert">{errMessage}</p>
   {/if}
 
   <form id="hcm15" class="mt-4" class:submitted on:submit|preventDefault={handleSubmit}>
@@ -343,12 +536,17 @@
     </table>
   </div>
   <div class="flex justify-end">
-    <button class="btn" on:click={visualize_results} type="button">Visualize</button>
+    <a class="btn" on:click={jsonOutputHandler} type="submit" id="jsonOutput" on:change={jsonOutputHandler}>Export as JSON</a>
+    <button class="btn" on:click={resetParams} type="button">Reset Params</button>
     <Calc rows_len={rows.length} rows={rows}/>
     <button class="btn" on:click={addSegment} type="button">Add Segment</button>
     <button class="btn" on:click={removeSegment} type="button">Remove Segment</button>
   </div>
   </form>
+
+  <!-- <canvas id="simulation-canvas"></canvas> -->
+  <pre id="simulation-canvas"></pre>
+
   <div class="los overflow-x-auto">
     <h3>Outputs</h3>
     <table class="table w-full">
@@ -398,6 +596,5 @@
     <p id="fdF">Facility Follower Density: </p>
     <p id="error">Error Message: </p>
   </div>
-
 
 </div>

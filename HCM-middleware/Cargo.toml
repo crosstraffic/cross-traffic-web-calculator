@@ -3,11 +3,12 @@ name = "HCM-middleware"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 wasm-bindgen = "0.2.87"
 traffic-sim = "0.1.1"
 getrandom = { version = "0.2", features = ["js"] }
+js-sys = "0.3.64"
+crosstraffic_middleware = { path = "../../cross-traffic-middleware" }
