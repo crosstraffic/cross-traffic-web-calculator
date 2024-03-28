@@ -1,0 +1,3 @@
+[submodule "cross-traffic-middleware"]
+	path = cross-traffic-middleware
+	url = https://github.com/crosstraffic/cross-traffic-middleware
