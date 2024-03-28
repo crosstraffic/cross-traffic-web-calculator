@@ -1,6 +1,6 @@
-/home/raynbowy23/main/Development/CrossTraffic/CrossTrafficWebCalculator/HCM-middleware/target/debug/build/proc-macro2-c7364b7dd7efc7ac/out/libproc_macro2.rmeta: build/probe.rs
+/home/raynbowy23/main/Development/CrossTraffic/cross-traffic-web-calculator/HCM-middleware/target/debug/build/proc-macro2-c7364b7dd7efc7ac/out/libproc_macro2.rmeta: build/probe.rs
 
-/home/raynbowy23/main/Development/CrossTraffic/CrossTrafficWebCalculator/HCM-middleware/target/debug/build/proc-macro2-c7364b7dd7efc7ac/out/proc_macro2.d: build/probe.rs
+/home/raynbowy23/main/Development/CrossTraffic/cross-traffic-web-calculator/HCM-middleware/target/debug/build/proc-macro2-c7364b7dd7efc7ac/out/proc_macro2.d: build/probe.rs
 
 build/probe.rs:
 

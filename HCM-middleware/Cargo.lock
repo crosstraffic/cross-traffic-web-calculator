@@ -60,6 +60,8 @@ dependencies = [
 [[package]]
 name = "crosstraffic_middleware"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a58bf2d36e85e7572e9feccdfa7390b1d05612f82f10dcb544e3e464b962938f"
 dependencies = [
  "js-sys",
  "serde",
@@ -297,6 +299,8 @@ dependencies = [
 [[package]]
 name = "transportations_library"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e6d2dd9b4113d3cd2bb4badbf96669adac3d88d1f1f564135af79319936dce8"
 dependencies = [
  "assert_approx_eq",
  "round",

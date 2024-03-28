@@ -11,4 +11,4 @@ wasm-bindgen = "0.2.87"
 traffic-sim = "0.1.1"
 getrandom = { version = "0.2", features = ["js"] }
 js-sys = "0.3.64"
-crosstraffic_middleware = { path = "../../cross-traffic-middleware" }
+crosstraffic_middleware = "0.1.0"
