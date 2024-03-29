@@ -5,7 +5,7 @@
     "modulize-wasm": "node ./HCM-middleware/modulize.js",
     "wasm": "wasm-pack build ./HCM-middleware --target web && npm run modulize-wasm",
     "dev": "npm run wasm && vite dev",
-    "build": "vite build",
+    "build": "npm run wasm && vite build",
     "package": "svelte-kit package",
     "preview": "vite preview",
     "test": "playwright test",
