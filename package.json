@@ -2,10 +2,10 @@
   "name": "cross-traffic-web-calculator",
   "version": "1.0.0",
   "scripts": {
-    "modulize-wasm": "node ./HCM-middleware/modulize.js",
-    "wasm": "wasm-pack build ./HCM-middleware --target web && npm run modulize-wasm",
+    "modulize-wasm": "node HCM-middleware/modulize.js",
+    "wasm": "wasm-pack build HCM-middleware --target web && npm run modulize-wasm",
     "dev": "npm run wasm && vite dev",
-    "build": "pwd && which rustc && which cargo && which wasm-pack && npm run wasm && vite build",
+    "build": "which wasm-pack && npm run wasm && vite build",
     "package": "svelte-kit package",
     "preview": "vite preview",
     "test": "playwright test",
