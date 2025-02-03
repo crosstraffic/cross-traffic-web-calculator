@@ -35,20 +35,13 @@
 
 
   // Show microsimulation
-  // function simResults() {
+  async function startSimulation() {
+    await fetch('/startSimulation', { method: 'POST' });
+  }
 
-  //   var wasmSubSegment = [WasmSubSegment.new(0.0, 0.0, 0, 0.0, 0.0)];
-  //   console.log(wasmSubSegment);
-  //   console.log(wasmSubSegment[0].get_avg_speed());
-  //   var wasmSegment = [WasmSegment.new(0, 0.75, 0.0, 50.0, false, 752.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0, 1, wasmSubSegment, 0.94, 5.0, 0.0, 0.0, 0)];
-  //   console.log(wasmSegment);
-  //   console.log(wasmSegment[0].get_length());
-  //   var wasmTwoLaneHighways = WasmTwoLaneHighways.new(wasmSegment, 12.0, 6.0, 0.0, 0.4, 0.0, 0.0);
-  //   console.log(wasmTwoLaneHighways)
-  //   console.log(wasmTwoLaneHighways.identify_vertical_class(0));
-  //   console.log(wasmTwoLaneHighways.determine_demand_flow(0));
-
-  // }
+  async function stopSimulation() {
+    await fetch('/stopSimulation', { method: 'POST' });
+  }
 
 
   function addSegment() {
@@ -536,6 +529,8 @@
     </table>
   </div>
   <div class="flex justify-end">
+    <!-- TODO: make it communicate with local sumo if user has one -->
+    <!-- <button class="btn" on:click={startSimulation} type="button">Launch SUMO</button> -->
     <a class="btn" on:click={jsonOutputHandler} type="submit" id="jsonOutput" on:change={jsonOutputHandler}>Export as JSON</a>
     <button class="btn" on:click={resetParams} type="button">Reset Params</button>
     <Calc rows_len={rows.length} rows={rows}/>

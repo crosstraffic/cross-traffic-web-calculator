@@ -1,0 +1,23 @@
+-- Run this SQL against your database to create a `notes` table.
+
+create table notes (
+  id bigint primary key generated always as identity,
+  created_at timestamp with time zone not null default now(),
+  user_id uuid references auth.users on delete cascade not null default auth.uid(),
+  note text not null
+);
+
+alter table notes enable row level security;
+
+revoke all on table notes from authenticated;
+revoke all on table notes from anon;
+
+grant all (note) on table notes to authenticated;
+grant select (id) on table notes to authenticated;
+grant delete on table notes to authenticated;
+
+create policy "Users can access and modify their own notes"
+on notes
+for all
+to authenticated
+using ((select auth.uid()) = user_id);
