@@ -12,3 +12,4 @@ db_create.sql
 /HCM-middleware/pkg
 /vectorstore.db/index.faiss
 /vectorstore.db/index.pkl
+supabase_db_create.sql
