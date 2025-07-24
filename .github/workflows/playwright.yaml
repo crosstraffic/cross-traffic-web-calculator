@@ -23,12 +23,21 @@ jobs:
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
+      
+      - name: Build Vite app
+        run: npm run build
+      
+      - name: Start Vite preview server
+        run: npm run preview &
+      
+      - name: Wait for server to be ready
+        run: npx wait-on http://localhost:5173
 
       - name: Run Playwright tests
-        run: npx playwright test
+        run: npx playwright test --reporter=html
 
       - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+        if: ${{ always() }}
         with:
           name: playwright-report
           path: playwright-report/

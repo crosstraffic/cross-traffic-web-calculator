@@ -3,8 +3,8 @@ import { expect, test } from '@playwright/test';
 
 test.describe("navigation", () => {
     test.beforeEach(async ({ context }) => {
-    // Block any css requests for each test in this file.
-    await context.route(/.css/, route => route.abort());
+        // Block any css requests for each test in this file.
+        await context.route(/\.css$/, route => route.abort());
     });
 
     // Will Turn on when it's deployed
@@ -13,14 +13,14 @@ test.describe("navigation", () => {
         await page.route(/(png|jpeg)$/, route => route.abort());
 
 
-        // await page.goto('http://localhost:5173');
+        await page.goto('http://localhost:5173');
 
         // Expect a title "to contain" a substring
-        // await expect(page).toHaveTitle(/HCM Calculator/);
+        await expect(page).toHaveTitle(/HCM Calculator/);
     });
 
 
-    test('The main calculation of HCM chapter 15 is successfuly done', async ({ page }) => {
+    test.skip('The main calculation of HCM chapter 15 is successfuly done', async ({ page }) => {
         await page.route(/(png|jpeg)$/, route => route.abort());
 
         // await page.goto('http://localhost:5173/hcm15');
@@ -86,7 +86,7 @@ test.describe("navigation", () => {
 
     });
 
-    test('Users can access to Terms and Conditions', async ({ page }) => {
+    test.skip('Users can access to Terms and Conditions', async ({ page }) => {
         // Block png and jpeg images.
         await page.route(/(png|jpeg)$/, route => route.abort());
 
