@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/mcp/(.*)",
-      "destionation": "https://highway-capacity-manual-mcp.onrender.com/$1"
+      "destination": "https://highway-capacity-manual-mcp.onrender.com/$1"
     }
   ]
 }
