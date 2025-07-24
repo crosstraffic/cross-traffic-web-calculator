@@ -30,9 +30,6 @@ jobs:
       - name: Start Vite preview server
         run: npm run preview &
       
-      - name: Wait for server to be ready
-        run: npx wait-on http://localhost:5173
-
       - name: Run Playwright tests
         run: npx playwright test --reporter=html
 
