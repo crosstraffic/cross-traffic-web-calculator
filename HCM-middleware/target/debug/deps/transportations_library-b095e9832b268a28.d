@@ -1,8 +1,0 @@
-/home/raynbowy23/main/Development/CrossTraffic/cross-traffic-web-calculator/HCM-middleware/target/debug/deps/libtransportations_library-b095e9832b268a28.rmeta: /home/raynbowy23/.cargo/registry/src/index.crates.io-6f17d22bba15001f/transportations_library-0.1.0/src/lib.rs /home/raynbowy23/.cargo/registry/src/index.crates.io-6f17d22bba15001f/transportations_library-0.1.0/src/utils.rs /home/raynbowy23/.cargo/registry/src/index.crates.io-6f17d22bba15001f/transportations_library-0.1.0/src/hcm.rs /home/raynbowy23/.cargo/registry/src/index.crates.io-6f17d22bba15001f/transportations_library-0.1.0/src/hcm/twolanehighways.rs
-
-/home/raynbowy23/main/Development/CrossTraffic/cross-traffic-web-calculator/HCM-middleware/target/debug/deps/transportations_library-b095e9832b268a28.d: /home/raynbowy23/.cargo/registry/src/index.crates.io-6f17d22bba15001f/transportations_library-0.1.0/src/lib.rs /home/raynbowy23/.cargo/registry/src/index.crates.io-6f17d22bba15001f/transportations_library-0.1.0/src/utils.rs /home/raynbowy23/.cargo/registry/src/index.crates.io-6f17d22bba15001f/transportations_library-0.1.0/src/hcm.rs /home/raynbowy23/.cargo/registry/src/index.crates.io-6f17d22bba15001f/transportations_library-0.1.0/src/hcm/twolanehighways.rs
-
-/home/raynbowy23/.cargo/registry/src/index.crates.io-6f17d22bba15001f/transportations_library-0.1.0/src/lib.rs:
-/home/raynbowy23/.cargo/registry/src/index.crates.io-6f17d22bba15001f/transportations_library-0.1.0/src/utils.rs:
-/home/raynbowy23/.cargo/registry/src/index.crates.io-6f17d22bba15001f/transportations_library-0.1.0/src/hcm.rs:
-/home/raynbowy23/.cargo/registry/src/index.crates.io-6f17d22bba15001f/transportations_library-0.1.0/src/hcm/twolanehighways.rs:

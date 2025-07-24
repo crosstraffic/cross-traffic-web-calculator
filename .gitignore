@@ -1,8 +1,15 @@
+.gitignore
 .DS_Store
 node_modules
-/build
-/.svelte-kit
+build
+.svelte-kit
 .env
 .env.*
 !.env.example
 .vercel
+db_create.sql
+HCM-middleware/target/*
+HCM-middleware/pkg
+vectorstore.db/index.faiss
+vectorstore.db/index.pkl
+supabase_db_create.sql
