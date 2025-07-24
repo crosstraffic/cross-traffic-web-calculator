@@ -6,4 +6,9 @@ export default {
   plugins: [ sveltekit(),
             wasmPack("./HCM-middleware")
           ],
+  server: {
+    host: 'localhost',
+    port: 3001,
+    open: 'http://localhost:3001'
+  }
 };
