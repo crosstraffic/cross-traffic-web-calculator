@@ -4,5 +4,6 @@
       "source": "/mcp/(.*)",
       "destination": "https://highway-capacity-manual-mcp.onrender.com/mcp/$1"
     }
-  ]
+  ],
+  "ssoProtection": null
 }
