@@ -21,16 +21,18 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </div>
-        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-300 rounded-box w-52">
+        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-200 rounded-box w-52">
           <li><a href="/">Home</a></li>
           <li>
-            <div class="justify-between">
-              Chapters
-              <svg class="fill-current" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/></svg>
-            </div>
-            <ul class="p-2 bg-base-200">
-              <li><a href="/hcm15">Chapter 15</a></li>
-            </ul>
+            <details>
+              <summary class="justify-between">
+                Chapters
+                <!-- <svg class="fill-current" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/></svg> -->
+              </summary>
+              <ul class="p-2 bg-base-200">
+                <li><a href="/hcm15">Chapter 15</a></li>
+              </ul>
+            </details>
           </li>
         </ul>
       </div>
@@ -42,13 +44,15 @@
         <li><a class="home_button" href="/">Home</a></li>
         <!-- <li><a href="/about">About</a></li> -->
         <li>
-          <div class="chap_button">
-            Chapters
-            <svg class="fill-current" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/></svg>
-          </div>
-          <ul class="p-2 bg-base-200 chap_button">
-            <li><a href="/hcm15">Chapter 15</a></li>
-          </ul>
+          <details>
+            <summary class="chap_button">
+              Chapters
+              <!-- <svg class="fill-current" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/></svg> -->
+            </summary>
+            <ul class="p-2 bg-base-200">
+              <li><a href="/hcm15">Chapter 15</a></li>
+            </ul>
+          </details>
         </li>
       </ul>
     </div>
@@ -63,7 +67,7 @@
   <slot />
 </main>
 
-<footer class="footer footer-center p-10 bg-base-200 text-base-content">
+<footer class="footer footer-horizontal footer-center bg-base-200 text-base-content p-10">
   <div class="grid grid-flow-col gap-4">
     <a href="/" class="link link-hover">Home</a> 
     <a href="terms" class="link link-hover">Terms & Conditions</a> 

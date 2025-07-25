@@ -1,13 +1,9 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* app.html */
-.container {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-}
 
 /* __layout.svelte */
 
@@ -200,10 +196,6 @@ footer {
 }
 
 /* hcm15.svelte */
-
-#hcm15-container {
-    width: 100%;
-}
 
 .table_p td {
     width: 100px;

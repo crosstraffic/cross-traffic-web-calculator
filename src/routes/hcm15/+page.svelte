@@ -1,38 +1,41 @@
-<script type="text/javascript">
+<script>
   import Row from '../Row/+page.svelte';
   import SubRow from '../SubRow/+page.svelte';
   import Calc from '../Calc/+page.svelte';
   import init, { WasmSegment, WasmSubSegment, WasmTwoLaneHighways } from "HCM-middleware";
   import { onMount } from "svelte";
 
+  let lane_width = 12;
+  let shoulder_width = 6;
+  let apd = 2;
+  let pmhvfl = 0;
+  let localRows = [];
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
+    localRows = [{
+      seg_num: 1,
+      passing_type: '',
+      seg_length: '',
+      seg_grade: '0',
+      seg_spl: '',
+      is_hc: false,
+      vi: '0',
+      vo: '0',
+      vertical_class: '1',
+      phf: '0.95',
+      phv: '5',
+      img_src: 'segment.jpg',
+      subrows: [{
+        subseg_num: 1,
+        subseg_length: '0',
+        design_radius: '0',
+        superelevation: '0'
+      }]
+    }];
   });
 
-  let count = 0;
-  let columns = [
-    'Active',
-    'Segment',
-    'Passing Type',
-    'Length',
-    'Grade',
-    'Horizontal Curves',
-    'HC Params',
-    'Demand Volums',
-    'Demand Volumns (O)',
-    'Vertical Class',
-  ];
-
-  // export let data;
-  // let { rows, subrows } = data;
-  export let rows;
-  export let subrows;
   let toggle_seg = -1;
-
-  subrows = [{ subseg_num: 1 }];
-  rows = [{ seg_num: 1, subrows }];
-
 
   // Show microsimulation
   // function simResults() {
@@ -52,496 +55,517 @@
 
 
   function addSegment() {
-    rows = [...rows, { seg_num: rows.length + 1, subrows }];
+    const newSubrows = [{
+        subseg_num: 1,
+        subseg_length: '0',
+        design_radius: '0',
+        superelevation: '0'
+    }];
+    const newSegNum = localRows.length + 1;
 
-    // also add image and caption
-    var table = document.getElementById('seg_imgs');
-    var img_row = table.rows[0];
-    var cap_row = table.rows[1];
-
-    var img = document.createElement('img');
-    img.src = 'segment.jpg';
-    img.height = 100;
-    img.width = 100;
-    img.setAttribute('id', 'seg_img' + rows.length);
-
-    if (document.getElementById('passing_type' + rows.length) != null) {
-      var cap = document.getElementById('passing_type' + rows.length).value;
-    }
-
-    // document.getElementById("seg_imgs").appendChild(img);
-    img_row.insertCell(-1).appendChild(img);
-    cap_row.insertCell(-1).innerHTML = cap;
+    localRows = [
+      ...localRows,
+      { 
+        seg_num: newSegNum,
+        subrows: newSubrows,
+        passing_type: '',
+        img_src: 'segment.jpg',
+        passing_type: '',
+        seg_length: '',
+        seg_grade: '0',
+        seg_spl: '',
+        is_hc: false,
+        vi: '0',
+        vo: '0',
+        vertical_class: '1',
+        is_hc: false,
+        phf: '0.95',
+        phv: '5',
+      }
+    ];
   }
 
   function removeSegment() {
-    var table = document.getElementById('seg_imgs');
-    var img = document.getElementById('seg_img' + rows.length);
-    var img_row = table.rows[0];
-    var cap_row = table.rows[1];
-
-    if (rows.length > 1) {
-      if (img != null) {
-        // img.parentNode.removeChild(img);
-        img_row.deleteCell(-1);
-      }
-
-      if (cap_row.length == img_row.length) {
-        // cap_row.innerHTML = '';
-        cap_row.deleteCell(-1);
-      }
-
-      rows = rows.slice(0, rows.length - 1);
+    if (localRows.length > 1) {
+      localRows = localRows.slice(0, localRows.length - 1);
     }
   }
 
   function changeSegment(seg_num) {
-    var table = document.getElementById('seg_imgs');
-    var img_cap_row = table.rows[1];
-    var img_cap = 'undefined';
-    var img = document.getElementById('seg_img' + seg_num);
+    localRows = localRows.map(row => {
+      if (row.seg_num !== seg_num) return row;
 
-    // console.log(values.vd);
-    var Vi = document.getElementById('vi_input' + seg_num);
-    var Vo = document.getElementById('vo_input' + seg_num);
-    var PT = document.getElementById('passing_type' + seg_num).value;
+      // logic based on passing type
+      let img_src = 'segment.jpg';
+      let vi = '1000';
+      let vo = '0';
+      let caption = 'Undefined';
+      let img_width = 100;
+      let img_height = 100;
 
-    // if (document.getElementById('passing_type' + seg_num) != null) {
-    //   cap = document.getElementById('passing_type' + seg_num).value;
-    //   console.log(cap);
-    // }
+      switch (row.passing_type) {
+        case 'Passing Zone':
+          img_src = 'PassingZone.png';
+          img_height = 100;
+          img_width = 100;
+          caption = 'Passing Zone';
+          break;
+        case 'Passing Constrained':
+          img_src = 'PassingConstrained.png';
+          vo = '1500';
+          img_height = 100;
+          img_width = 100;
+          caption = 'Passing Constrained';
+          break;
+        case 'Passing Lane':
+          img_src = 'PassingLane.png';
+          img_height = 100;
+          img_width = 150;
+          caption = 'Passing Lane';
+          break;
+      }
 
-
-    if (PT == 'Passing Zone') {
-      Vi.value = '1000';
-      Vo.value = '0';
-      img.src = 'PassingZone.png';
-      img.height = 100;
-      img.width = 100;
-      img.parentNode.width = 100;
-      img_cap = 'Passing Zone';
-    } else if (PT == 'Passing Constrained') {
-      img.src = 'PassingConstrained.png';
-      Vi.value = '1000';
-      Vo.value = '1500';
-      img.height = 100;
-      img.width = 100;
-      img.parentNode.width = 100;
-      img_cap = 'Passing Constrained';
-    } else if (PT == 'Passing Lane') {
-      img.src = 'PassingLane.png';
-      Vi.value = '1000';
-      Vo.value = '0';
-      img.height = 100;
-      img.width = 150;
-      img.parentNode.width = 150;
-      img_cap = "Passing Lane";
-    }
-
-    img_cap_row.cells[seg_num - 1].innerHTML = img_cap;
+      return {
+        ...row,
+        vi,
+        vo,
+        img_src,
+        img_caption: caption,
+        img_height,
+        img_width
+      };
+    });
   }
 
-  // function toggleActive(seg_num) {
-  //   var table = document.getElementById('seg_imgs');
-  //   var img = document.getElementById('seg_img' + rows.length);
-  //   var img_row = table.rows[0];
-  //   var cap_row = table.rows[1];
-  //   var active = document.getElementById('active' + seg_num);
-
-  // }
-
   // Toggle HC param slider
-  function toggleHCParams(seg_num) {
-    var toggler = document.getElementById('hc_param' + seg_num);
-    var hc_table = document.getElementById('hc_table' + seg_num);
-
-    // Only shows one sub table
-    if (toggler.checked) {
-      if (toggle_seg == -1) {
-        hc_table.style.display = 'block';
+  function toggleHCParams(seg_num, checked) {
+    
+    if (checked) {
+      if (toggle_seg == -1 || toggle_seg == seg_num) {
         toggle_seg = seg_num;
       } else {
         console.log('Cannot toggle more than one');
       }
     } else {
       if (toggle_seg == seg_num) {
-        hc_table.style.display = 'none';
         toggle_seg = -1;
       }
     }
   }
 
   // If check horizontal curves button
-  function changeHC(seg_num, subseg_num){
-    var is_hc = document.getElementById("is_hc" + (seg_num));
-    var toggler = document.getElementById("hc_param" + (seg_num));
-    var hc_table = document.getElementById("hc_table" + (seg_num));
-
-    var subdesign_radius = document.getElementsByClassName("design_radius" + (subseg_num));
-
-    // Only shows one sub table
-    if (is_hc.checked){
-      // add required attribute to subsegment
-      // subdesign_radius.required = true;
-      // console.log(subdesign_radius.required);
-      toggler.checked = true;
-      toggleHCParams(seg_num);
+  function changeHC(seg_num, checked){
+    if (checked) {
+      toggle_seg = seg_num;
+      toggleHCParams(seg_num, checked);
     }
-      // if (toggle_seg == -1){
-      //   hc_table.style.display = 'block';
-      //   toggle_seg = seg_num;
-      // } else {
-      //   console.log("Cannot out more than one");
-      // }
-    if (!is_hc.checked){
-      if (toggle_seg == seg_num){
-        hc_table.style.display = 'none';
-        toggle_seg = -1;
-        toggler.checked = false;
-      }
+
+    if (!checked && (toggle_seg === seg_num)) {
+      toggle_seg = -1;
     }
   }
 
   function addSubSegment(_seg_num) {
-    var temp_subrows = [...rows[_seg_num - 1].subrows, { subseg_num: rows[_seg_num - 1].subrows.length + 1 }];
-    rows[_seg_num - 1] = { seg_num: _seg_num, subrows: temp_subrows };
+    localRows = localRows.map(row => {
+      if (row.seg_num !== _seg_num) return row;
+
+      const newSubrows = [
+        ...row.subrows,
+        {
+          subseg_num: row.subrows.length + 1,
+          subseg_length: '0',
+          design_radius: '0',
+          superelevation: '0'
+        }
+      ];
+
+      return { ...row, subrows: newSubrows };
+    });
   }
 
   function removeSubSegment(_seg_num) {
-    if (rows[_seg_num - 1].subrows.length > 1)
-      //   subrows = subrows.slice(0, subrows.length-1);
-      rows[_seg_num - 1].subrows = rows[_seg_num - 1].subrows.slice(0, rows[_seg_num - 1].subrows.length - 1);
+      localRows = localRows.map(row => {
+      if (row.seg_num !== _seg_num) return row;
+
+      if (row.subrows.length > 1) {
+        return {
+          ...row,
+          subrows: row.subrows.slice(0, row.subrows.length - 1)
+        };
+      }
+      return row;
+    });
   }
 
   let hasError = false;
   let isSuccessVisible = false;
   let submitted = false;
-  const errMessage = "Here is the error";
-  function handleSubmit(e){
-      isSuccessVisible = true;
+  let errMessage = "Here is the error";
 
-      setTimeout(function(){
-          isSuccessVisible = false;
-      }, 4000);
+  function handleSubmit(){
+    submitted = true;
+    isSuccessVisible = true;
+
+    setTimeout(function(){
+        isSuccessVisible = false;
+    }, 4000);
   }
 
   let json;
 	
 	async function jsonInputHandler(e) {
-		const file = e.target.files[0];
-		if (file == null) {
+		const file = e.target.files?.[0];
+		if (!file) {
 			json = null;
 			return;
 		}
 		
-		json = await readJsonFile(file);
+    try {
 
-    fillInJsonValue(json);
+      const result = await readJsonFile(file);
+      json = result;
+      fillInJsonValue(json);
+    } catch (err) {
+      console.error("Error reading JSON file:", err);
+      json = null;
+      hasError = true;
+      errMessage = "Invalid JSON file. Please upload a valid file.";
+    }
 	}
 
 	function readJsonFile(file) {
-		const reader = new FileReader();
-		return new Promise((resolve, reject) => {
-			reader.onload = () => resolve(JSON.parse(reader.result));
-			reader.onerror = reject;
-			reader.readAsText(file);
-		});
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          resolve(parsed);
+        } catch (err) {
+          reject(new Error("Invalid JSON structure."));
+        }
+      };
+
+      reader.onerror = () => reject(new Error("File reading error."));
+      reader.readAsText(file);
+    });
 	}
 
   async function fillInJsonValue(json) {
 
-    let lw = json.lane_width;
-    let sw = json.shoulder_width;
-    let apd = json.apd;
-    let pmhvfl = json.pmhvfl;
+    lane_width = json.lane_width;
+    shoulder_width = json.shoulder_width;
+    apd = json.apd;
+    pmhvfl = json.pmhvfl;
+    const passTypes = ["Passing Constrained", "Passing Zone", "Passing Lane"];
 
-    // Two lane highway
-    document.getElementById('LW_input').value = lw;
-    document.getElementById('SW_input').value = sw;
-    document.getElementById('APD_input').value = apd;
-    document.getElementById('PMHVFL_input').value = pmhvfl;
+    localRows = json.segments.map((segment, index) => {
 
-    // Segments
-    for (let i=0; i<json.segments.length; i++) {
-      if (i != 0) {
-        addSegment();
-      }
-      setTimeout(function() {
-        const pass_type = document.getElementById('passing_type'+(i+1))
-        pass_type.options.item(json.segments[i].passing_type+1).selected = true;
-        // Fire segment change
-        changeSegment(i+1);
-        document.getElementById('seg_length'+(i+1)).value = json.segments[i].length;
-        document.getElementById('seg_grade'+(i+1)).value = json.segments[i].grade;
-        document.getElementById('seg_Spl'+(i+1)).value = json.segments[i].spl;
-        document.getElementById('is_hc'+(i+1)).checked = json.segments[i].is_hc;
-        // document.getElementById('hc_param'+(i+1)).checked = json.segments[i].is_hc;
-        document.getElementById('vi_input'+(i+1)).value = json.segments[i].volume;
-        document.getElementById('vo_input'+(i+1)).value = json.segments[i].volume_op;
-        document.getElementById('vc_select'+(i+1)).options.item(json.segments[i].vertical_class-1).selected = true;
-        document.getElementById('PHF_input'+(i+1)).value = json.segments[i].phf;
-        document.getElementById('PHV_input'+(i+1)).value = json.segments[i].phv;
+      const passTypeText = passTypes[segment.passing_type] ?? "";
 
-
-        var hc_table = document.getElementById("hc_table"+(i+1));
-        hc_table.style.display = 'none';
-        toggle_seg = -1;
-
-        // if (json.segments[i].is_hc) toggleHCParams(i+1);
-
-        // SubSegments
-        for (let j=0; j<json.segments[i].subsegments.length; j++) {
-          if (j != 0) addSubSegment(i+1); 
-          setTimeout(function() {
-            document.getElementById("hc_table"+(i+1)).getElementsByClassName("subseg_len"+(j+1))[0].value = json.segments[i].subsegments[j].length;
-            document.getElementById("hc_table"+(i+1)).getElementsByClassName("design_radius"+(j+1))[0].value = json.segments[i].subsegments[j].design_rad;
-            document.getElementById("hc_table"+(i+1)).getElementsByClassName("superelevation"+(j+1))[0].value = json.segments[i].subsegments[j].sup_ele;
-          }, 10);
-        }
-      }, 10);
-    }
-
+      return {
+        seg_num: index + 1,
+        seg_length: segment.length,
+        seg_grade: segment.grade,
+        seg_spl: segment.spl,
+        is_hc: segment.is_hc,
+        vi: segment.volume,
+        vo: segment.volume_op,
+        vertical_class: segment.vertical_class,
+        phf: segment.phf,
+        phv: segment.phv,
+        passing_type: passTypeText,
+        img_src:
+          passTypeText === "Passing Constrained" ? "PassingConstrained.png" :
+          passTypeText === "Passing Zone" ? "PassingZone.png" :
+          passTypeText === "Passing Lane" ? "PassingLane.png" :
+          "segment.jpg",
+        img_caption: passTypeText || "Segment",
+        subrows: segment.subsegments.map((subseg, j) => ({
+          subseg_num: j + 1,
+          subseg_length: subseg.length,
+          design_radius: subseg.design_radius,
+          superelevation: subseg.superelevation
+        }))
+      };
+    });
   }
 
   function jsonOutputHandler() {
-
-    const jsonData = { "segments": [],
-                      "lane_width": 0.0,
-                      "shoulder_width": 0.0,
-                      "apd": 0.0,
-                      "pmhvfl": 0.0,
-                      "l_de": 0.0
-                    };
-    jsonData["lane_width"] = document.getElementById('LW_input').value;
-    jsonData["shoulder_width"] = document.getElementById('SW_input').value;
-    jsonData["apd"] = document.getElementById('APD_input').value;
-    jsonData["pmhvfl"] = document.getElementById('PMHVFL_input').value;
-
-    let seg_num = rows.length;
-    for (let i=0; i < seg_num; i++) {
-      const segments_dict = {
-        "passing_type": 0,
-        "length": 0.0,
-        "grade": 0.0,
-        "spl": 0.0,
-        "is_hc": false,
-        "volume": 0.0,
-        "volume_op": 0.0,
-        "flow_rate": 0.0,
-        "flow_rate_o": 0.0,
-        "capacity": 0,
-        "ffs": 0.0,
-        "avg_speed": 0.0,
-        "vertical_class": 1,
-        "subsegments": [],
-        "phf": 0.0,
-        "phv": 0,
-        "pf": 0.0,
-        "fd": 0.0,
-        "fd_mid": 0.0,
-        "hor_class": 0
-      }
-
-      let subseg_num = rows[i].subrows.length;
-      var pass_type = document.getElementById("passing_type"+(i+1));
-      var p_type = pass_type.options[pass_type.selectedIndex].text;
-      if (p_type == "Passing Constrained") pass_type = 0;
-      else if (p_type == "Passing Zone") pass_type = 1;
-      else if (p_type == "Passing Lane") pass_type = 2;
-      var ver_cls = document.getElementById("vc_select"+(i+1));
-
-      jsonData.segments.push(segments_dict);
-      jsonData.segments[i].passing_type = pass_type;
-      jsonData.segments[i]["length"] = document.getElementById('seg_length'+(i+1)).value;
-      jsonData.segments[i]["grade"] = document.getElementById('seg_grade'+(i+1)).value;
-      jsonData.segments[i]["spl"] = document.getElementById('seg_Spl'+(i+1)).value;
-      jsonData.segments[i]["is_hc"] = document.getElementById('is_hc'+(i+1)).checked;
-      jsonData.segments[i]["volume"] = document.getElementById('vi_input'+(i+1)).value;
-      jsonData.segments[i]["volume_op"] = document.getElementById('vo_input'+(i+1)).value;
-      jsonData.segments[i]["vertical_class"] = ver_cls.options[ver_cls.selectedIndex].text;
-      jsonData.segments[i]["phf"] = document.getElementById('PHF_input'+(i+1)).value;
-      jsonData.segments[i]["phv"] = document.getElementById('PHV_input'+(i+1)).value;
-      
-      console.log(subseg_num);
-      for (let j=0; j < subseg_num; j++) {
-        const subsegments_dict = {
-          "length": 0.0,
-          "avg_speed": 0.0,
-          "hor_class": 0,
-          "design_rad": 0.0,
-          "sup_ele": 0.0
-        }
-
-        jsonData.segments[i]["subsegments"].push(subsegments_dict);
-        jsonData.segments[i]["subsegments"][j]["length"] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("subseg_len"+(j+1))[0].value;
-        jsonData.segments[i]["subsegments"][j]["design_rad"] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("design_radius"+(j+1))[0].value;
-        jsonData.segments[i]["subsegments"][j]["sup_ele"] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("superelevation"+(j+1))[0].value;
-      }
-
-    }
+    const jsonData = {
+      lane_width,
+      shoulder_width,
+      apd,
+      pmhvfl,
+      l_de: 0.0,
+      segments: localRows.map((row) => ({
+        passing_type: ["Passing Constrained", "Passing Zone", "Passing Lane"].indexOf(row.passing_type),
+        length: row.seg_length,
+        grade: row.seg_grade,
+        spl: row.seg_spl,
+        is_hc: row.is_hc,
+        volume: row.vi,
+        volume_op: row.vo,
+        vertical_class: row.vertical_class,
+        phf: row.phf,
+        phv: row.phv,
+        flow_rate: 0.0,
+        flow_rate_o: 0.0,
+        capacity: 0,
+        ffs: 0.0,
+        avg_speed: 0.0,
+        pf: 0.0,
+        fd: 0.0,
+        fd_mid: 0.0,
+        hor_class: 0,
+        subsegments: row.subrows.map((subrow) => ({
+          length: subrow.subseg_length,
+          design_radius: subrow.design_radius,
+          superelevation: subrow.superelevation,
+          avg_speed: 0.0,
+          hor_class: 0
+        }))
+      }))
+    };
 
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(jsonData));
-    const jOut = document.getElementById('jsonOutput');
-    jOut.setAttribute('href', dataStr);
-    jOut.setAttribute('download', 'hcm15_output.json');
+    const a = document.createElement('a');
+    a.href = dataStr;
+    a.download = 'hcm15_output.json';
+    a.click();
   }
 
   function resetParams() {
-    window.location.reload();
+    lane_width = 12;
+    shoulder_width = 6;
+    apd = 2;
+    pmhvfl = 0;
+
+    localRows = [{
+      seg_num: 1,
+      passing_type: "",
+      seg_length: "",
+      seg_grade: "0",
+      seg_spl: "",
+      is_hc: false,
+      vi: "0",
+      vo: "0",
+      vertical_class: "1",
+      phf: "0.95",
+      phv: "5",
+      img_src: "segment.jpg",
+      subrows: [{
+        subseg_num: 1,
+        subseg_length: 0,
+        design_radius: 0,
+        superelevation: 0
+      }]
+    }];
+
+
+    // Reset result fields
+    const resultKeys = ["ffs", "avgspd", "pf", "fd", "seglos"];
+    resultKeys.forEach((key) => {
+      for (let i = 1; i <= localRows.length; i++) {
+        const el = document.getElementById(`${key}${i}`);
+        if (el) el.innerText = "";
+      }
+    });
+    const los = document.getElementById("los");
+    const fdF = document.getElementById("fdF");
+    if (los) los.innerHTML = "Facility LOS: ";
+    if (fdF) fdF.innerHTML = "Facility Follower Density: ";
   }
+
 
 </script>
 
 
-<div id="hcm15-container">
+<div class="mb-6">
+  <h1 class="text-3xl font-bold underline">HCM Calulator - Chapter 15</h1>
+</div>
 
-  <h1 class="text-3xl font-bold underline">HCM Calulator Chap15</h1>
+<div class="mb-4">
 
-  <label>JSON Input</label> <input type="file" id="jsonInput" on:change={jsonInputHandler} accept=".json">
-  <!-- {:else}
-    {#if isSuccessVisible}	
-      <p class="error-alert" transition:fade={{duration:150}}>Data updated successfully</p>
-    {/if} -->
+  <label for="jsonInput" class="block text-sm font-medium mb-1">JSON Input</label>
+  <input 
+    type="file"
+    id="jsonInput"
+    on:change={jsonInputHandler}
+    class="file-input file-input-bordered w-full max-w-xs"
+    accept=".json"
+  />
 
-  {#if hasError == true}
-    <p class="error-alert">{errMessage}</p>
+  {#if hasError}
+    <div class="alert alert-error shadow-sm mb-4">
+      <span>{errMessage}</span>
+    </div>
   {/if}
 
-  <form id="hcm15" class="mt-4" class:submitted on:submit|preventDefault={handleSubmit}>
-  <div class="w-full overflow-x-auto">
-    <table class="table w-full">
-      <thead>
-        <tr>
-          <!-- <th>Active</th> -->
-          <th>Segment</th>
-          <th>Passing Type</th>
-          <th>Length</th>
-          <th>Grade</th>
-          <th>Posted Speed Limit</th>
-          <th>Horizontal Curves</th>
-          <th>Horizontal Params</th>
-          <th>Demand Volume</th>
-          <th>Demand Volume (O)</th>
-          <th>Vertical Class</th>
-          <th>Peak Hour Factor</th>
-          <th>Heavy Vehicle Per.</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each rows as row}
-          <Row seg_num={row.seg_num} subseg_num={row.subrows.length} changeSegment={changeSegment} changeHC={changeHC} toggleHCParams={toggleHCParams} />
+  <form
+    id="hcm15" 
+    class="submitted:opacity-50 transition-opacity duration-300"
+    on:submit|preventDefault={handleSubmit}
+  >
+    <div class="w-full overflow-x-auto">
+      <table class="table table-zebra w-full">
+        <thead>
+          <tr>
+            <!-- <th>Active</th> -->
+            <th>Segment</th>
+            <th>Passing Type</th>
+            <th>Length</th>
+            <th>Grade</th>
+            <th>Posted Speed Limit</th>
+            <th>Horizontal Curves</th>
+            <th>Horizontal Params</th>
+            <th>Demand Volume</th>
+            <th>Demand Volume (O)</th>
+            <th>Vertical Class</th>
+            <th>Peak Hour Factor</th>
+            <th>Heavy Vehicle Per.</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each localRows as row, i (row.seg_num)}
+            <Row bind:row={localRows[i]} seg_num={row.seg_num} changeSegment={changeSegment} changeHC={changeHC} toggleHCParams={toggleHCParams} />
+          {/each}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid md:grid-cols-2 sm:grid-cols-1 gap-6 mb-8">
+      <!-- Parameter Inputs -->
+      <div class="space-y-4">
+        <div>
+          <label for="LW_input" class="block text-sm font-medium mb-1">Lane Width (ft)</label>
+          <input
+            id="LW_input"
+            type="text"
+            class="input input-bordered w-full max-w-xs"
+            bind:value={lane_width}
+            placeholder="e.g. 12"
+            pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="SW_input" class="block text-sm font-medium mb-1">Shoulder Width (ft)</label>
+          <input
+            id="SW_input"
+            type="text"
+            class="input input-bordered w-full max-w-xs"
+            placeholder="e.g. 6"
+            bind:value={shoulder_width}
+            pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="APD_input" class="block text-sm font-medium mb-1">Access Point Density (per mi)</label>
+          <input
+            id="APD_input"
+            type="text"
+            class="input input-bordered w-full max-w-xs"
+            placeholder="e.g. 2"
+            bind:value={apd}
+            pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+            required
+          />
+        </div>
+
+        <div>
+          <label for="PMHVFL_input" class="block text-sm font-medium mb-1">
+            % Multiplier for Heavy Vehicles in Passing Lane<br />
+            <span class="text-xs text-gray-500">*Only used when Passing Lane is included</span>
+          </label>
+          <input
+            id="PMHVFL_input"
+            type="text"
+            class="input input-bordered w-full max-w-xs"
+            placeholder="e.g. 0"
+            bind:value={pmhvfl}
+            pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+            required
+          />
+        </div>
+      </div>
+
+      <!-- Segment Subtables -->
+      <div class="space-y-6">
+        {#each localRows as row}
+          {#if row.is_hc}
+            <div class="card card-compact bg-base-100 shadow-xl overflow-x-auto" id="hc_table{row.seg_num}">
+              <div class="card-body">
+                <div class="flex justify-between items-center mb-2">
+                  <h2 class="text-lg font-semibold">Segment {row.seg_num}</h2>
+                  <div class="flex gap-2">
+                    <button class="btn btn-outline btn-sm" on:click={() => addSubSegment(row.seg_num)} type="button">Add</button>
+                    <button class="btn btn-outline btn-sm" on:click={() => removeSubSegment(row.seg_num)} type="button">Remove</button>
+                  </div>
+                </div>
+
+                <table class="table table-compact w-full">
+                  <thead>
+                    <tr>
+                      <th>Subsegment</th>
+                      <th>Length</th>
+                      <th>Design Radius</th>
+                      <th>Superelevation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each row.subrows as subrow}
+                      <SubRow bind:subrow={subrow} subseg_num={subrow.subseg_num} />
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {/if}
         {/each}
-      </tbody>
-    </table>
-  </div>
-  <div class="grid auto-cols-max grid-flow-col md:grid-cols-2 sm:grid-cols-1 grid-cols-1">
-    <div class="parameters flex justify-start overflow-x-auto">
-      <table class="table w-full">
+      </div>
+    </div>
+
+    <!-- Segment Image -->
+    <div class="overflow-x-auto mt-6">
+      <table class="table-auto w-fit" id="seg_imgs">
         <tbody>
           <tr>
-            <td style="display: inline-block;">Lane Width (ft): </td>
-            <td>
-              <input
-                type="text"
-                id="LW_input"
-                placeholder="Type here"
-                class="input-label input w-full max-w-xs"
-                value="12"
-                pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-                autocomplete="off"
-                required
-              />
-            </td>
+            {#each localRows as row}
+              <td style="width: {row.img_width || 100}px; padding: 0; vertical-align: top;">
+                <img
+                  src={row.img_src}
+                  alt="segment"
+                  id={"seg_img" + row.seg_num}
+                  width={row.img_width || 100}
+                  height={row.img_height || 100}
+                />
+              </td>
+            {/each}
           </tr>
           <tr>
-            <td style="display: inline-block;">Shoulder Width (ft): </td>
-            <td>
-              <input
-                type="text"
-                id="SW_input"
-                placeholder="Type here"
-                class="input-label input w-full max-w-xs"
-                value="6"
-                pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-                autocomplete="off"
-                required
-              />
-            </td>
-          </tr>
-          <tr>
-            <td style="display: inline-block;">Access Point Density (access points/mi): </td>
-            <td>
-              <input
-                type="text"
-                id="APD_input"
-                placeholder="Type here"
-                class="input-label input w-full max-w-xs"
-                value="2"
-                pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-                autocomplete="off"
-                required
-              />
-            </td>
-          </tr>
-          <tr>
-            <td style="display: inline-block;">Percentage Multiplier for <br> Heavy Vehicles in the Faster / Passing Lane: <br>*Used only when Passing Lane included</td>
-            <td>
-              <input
-                type="text"
-                id="PMHVFL_input"
-                placeholder="Type here"
-                class="input-label input w-full max-w-xs"
-                value="0"
-                pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-                autocomplete="off"
-                required
-              />
-            </td>
+            {#each localRows as row}
+              <td class="text-center text-sm text-gray-600">
+                {row.img_caption || '-'}
+              </td>
+            {/each}
           </tr>
         </tbody>
       </table>
     </div>
-    {#each rows as row}
-    <div class="hc_table overflow-x-auto card card-compact w-full bg-base-100 shadow-xl" id="hc_table{row.seg_num}" style="display:none;">
-      <div class="card-body">
-      <table class="table table-compact">
-        <thead>
-          <caption class="flex justify-start"><b>Segment {row.seg_num}</b></caption>
-          <tr>
-            <th>Subsegment</th>
-            <th>Length</th>
-            <th>Design Radius</th>
-            <th>Superelevation</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each row.subrows as subrow}
-            <SubRow subseg_num={subrow.subseg_num}/>
-          {/each}
-        </tbody>
-        <div class="flex justify-end">
-          <button class="btn btn-outline btn-sm" on:click={addSubSegment(row.seg_num)} type="button">Add</button>
-          <button class="btn btn-outline btn-sm" on:click={removeSubSegment(row.seg_num)} type="button">Remove</button>
-        </div>
+
+    <!-- Form Actions -->
+    <div class="flex flex-wrap justify-end gap-2 mt-4">
+      <button class="btn btn-outline" on:click={jsonOutputHandler} id="jsonOutput" type="button">Export as JSON</button>
+      <button class="btn btn-outline" on:click={resetParams} type="button">Reset Params</button>
+      <Calc {lane_width} {shoulder_width} {apd} {pmhvfl} rows_len={localRows.length} rows={localRows}/>
+      <button class="btn btn-outline" on:click={addSegment} type="button">Add Segment</button>
+      <button class="btn btn-outline" on:click={removeSegment} type="button">Remove Segment</button>
     </div>
-    </div>
-    {/each}
-  </div>
-  <div class="overflow-x-auto">
-    <table class="flex justify-start" id="seg_imgs">
-      <tbody>
-        <tr class="table_img"><td><img src="segment.jpg" alt="segment" id="seg_img1" height="100" width="100" /></td></tr>
-        <tr class="table_p"><td>undefined</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="flex justify-end">
-    <a class="btn" on:click={jsonOutputHandler} type="submit" id="jsonOutput" on:change={jsonOutputHandler}>Export as JSON</a>
-    <button class="btn" on:click={resetParams} type="button">Reset Params</button>
-    <Calc rows_len={rows.length} rows={rows}/>
-    <button class="btn" on:click={addSegment} type="button">Add Segment</button>
-    <button class="btn" on:click={removeSegment} type="button">Remove Segment</button>
-  </div>
+
   </form>
 
   <!-- <canvas id="simulation-canvas"></canvas> -->
@@ -553,7 +577,7 @@
       <thead>
         <tr>
           <th></th>
-          {#each rows as row}
+          {#each localRows as row}
             <th>Segment {row.seg_num}</th>
           {/each}
         </tr>
@@ -562,31 +586,31 @@
       <tbody>
         <tr>
           <th id="ffs">Free-flow Speed (mi/hr): </th>
-          {#each rows as row}
+          {#each localRows as row}
             <td id="ffs{row.seg_num}"></td>
           {/each}
         </tr>
         <tr>
           <th id="avgspd">Average Speed (mi/hr): </th>
-          {#each rows as row}
+          {#each localRows as row}
             <td id="avgspd{row.seg_num}"></td>
           {/each}
         </tr>
         <tr>
           <th id="pf">Percent followers in the <br> analysis direction (%): </th>
-          {#each rows as row}
+          {#each localRows as row}
             <td id="pf{row.seg_num}"></td>
           {/each}
         </tr>
         <tr>
           <th id="fd">Followers Density (followers/mi): </th>
-          {#each rows as row}
+          {#each localRows as row}
             <td id="fd{row.seg_num}"></td>
           {/each}
         </tr>
         <tr>
           <th id="seglos">Segment LOS: </th>
-          {#each rows as row}
+          {#each localRows as row}
             <td id="seglos{row.seg_num}"></td>
           {/each}
         </tr>

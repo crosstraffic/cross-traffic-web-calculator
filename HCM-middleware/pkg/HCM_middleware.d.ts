@@ -9,24 +9,24 @@ export class WasmSegment {
 * @param {number} length
 * @param {number} grade
 * @param {number} spl
-* @param {boolean} is_hc
-* @param {number} volume
-* @param {number} volume_op
-* @param {number} flow_rate
-* @param {number} flow_rate_o
-* @param {number} capacity
-* @param {number} ffs
-* @param {number} avg_speed
-* @param {number} vertical_class
+* @param {boolean | undefined} is_hc
+* @param {number | undefined} volume
+* @param {number | undefined} volume_op
+* @param {number | undefined} flow_rate
+* @param {number | undefined} flow_rate_o
+* @param {number | undefined} capacity
+* @param {number | undefined} ffs
+* @param {number | undefined} avg_speed
+* @param {number | undefined} vertical_class
 * @param {(WasmSubSegment)[]} wasm_subsegments
-* @param {number} phf
-* @param {number} phv
-* @param {number} pf
-* @param {number} fd
-* @param {number} fd_mid
-* @param {number} hor_class
+* @param {number | undefined} [phf]
+* @param {number | undefined} [phv]
+* @param {number | undefined} [pf]
+* @param {number | undefined} [fd]
+* @param {number | undefined} [fd_mid]
+* @param {number | undefined} [hor_class]
 */
-  constructor(passing_type: number, length: number, grade: number, spl: number, is_hc: boolean, volume: number, volume_op: number, flow_rate: number, flow_rate_o: number, capacity: number, ffs: number, avg_speed: number, vertical_class: number, wasm_subsegments: (WasmSubSegment)[], phf: number, phv: number, pf: number, fd: number, fd_mid: number, hor_class: number);
+  constructor(passing_type: number, length: number, grade: number, spl: number, is_hc: boolean | undefined, volume: number | undefined, volume_op: number | undefined, flow_rate: number | undefined, flow_rate_o: number | undefined, capacity: number | undefined, ffs: number | undefined, avg_speed: number | undefined, vertical_class: number | undefined, wasm_subsegments: (WasmSubSegment)[], phf?: number, phv?: number, pf?: number, fd?: number, fd_mid?: number, hor_class?: number);
 /**
 * @returns {any}
 */
@@ -121,13 +121,14 @@ export class WasmSegment {
 export class WasmSubSegment {
   free(): void;
 /**
-* @param {number} length
-* @param {number} avg_speed
-* @param {number} hor_class
-* @param {number} design_rad
-* @param {number} sup_ele
+* @param {number | undefined} [length]
+* @param {number | undefined} [avg_speed]
+* @param {number | undefined} [design_rad]
+* @param {number | undefined} [central_angle]
+* @param {number | undefined} [hor_class]
+* @param {number | undefined} [sup_ele]
 */
-  constructor(length: number, avg_speed: number, hor_class: number, design_rad: number, sup_ele: number);
+  constructor(length?: number, avg_speed?: number, design_rad?: number, central_angle?: number, hor_class?: number, sup_ele?: number);
 /**
 * @returns {any}
 */
@@ -151,6 +152,10 @@ export class WasmSubSegment {
 /**
 * @returns {number}
 */
+  get_central_angle(): number;
+/**
+* @returns {number}
+*/
   get_sup_ele(): number;
 }
 /**
@@ -159,13 +164,13 @@ export class WasmTwoLaneHighways {
   free(): void;
 /**
 * @param {(WasmSegment)[]} wasm_segments
-* @param {number} lane_width
-* @param {number} shoulder_width
-* @param {number} apd
-* @param {number} pmhvfl
-* @param {number} l_de
+* @param {number | undefined} [lane_width]
+* @param {number | undefined} [shoulder_width]
+* @param {number | undefined} [apd]
+* @param {number | undefined} [pmhvfl]
+* @param {number | undefined} [l_de]
 */
-  constructor(wasm_segments: (WasmSegment)[], lane_width: number, shoulder_width: number, apd: number, pmhvfl: number, l_de: number);
+  constructor(wasm_segments: (WasmSegment)[], lane_width?: number, shoulder_width?: number, apd?: number, pmhvfl?: number, l_de?: number);
 /**
 * @returns {any}
 */
@@ -256,11 +261,13 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly __wbg_wasmsubsegment_free: (a: number) => void;
-  readonly wasmsubsegment_new: (a: number, b: number, c: number, d: number, e: number) => number;
+  readonly wasmsubsegment_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => number;
   readonly wasmsubsegment_to_js_value: (a: number) => number;
+  readonly wasmsubsegment_get_length: (a: number) => number;
+  readonly wasmsubsegment_get_avg_speed: (a: number) => number;
   readonly wasmsubsegment_get_hor_class: (a: number) => number;
   readonly __wbg_wasmsegment_free: (a: number) => void;
-  readonly wasmsegment_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number) => number;
+  readonly wasmsegment_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number) => number;
   readonly wasmsegment_to_js_value: (a: number) => number;
   readonly wasmsegment_get_passing_type: (a: number) => number;
   readonly wasmsegment_get_length: (a: number) => number;
@@ -283,7 +290,7 @@ export interface InitOutput {
   readonly wasmsegment_get_followers_density_mid: (a: number) => number;
   readonly wasmsegment_get_hor_class: (a: number) => number;
   readonly __wbg_wasmtwolanehighways_free: (a: number) => void;
-  readonly wasmtwolanehighways_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
+  readonly wasmtwolanehighways_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => number;
   readonly wasmtwolanehighways_get_segments: (a: number) => number;
   readonly wasmtwolanehighways_identify_vertical_class: (a: number, b: number, c: number) => void;
   readonly wasmtwolanehighways_determine_demand_flow: (a: number, b: number, c: number) => void;
@@ -298,12 +305,11 @@ export interface InitOutput {
   readonly wasmtwolanehighways_determine_adjustment_to_follower_density: (a: number, b: number) => number;
   readonly wasmtwolanehighways_determine_segment_los: (a: number, b: number, c: number, d: number) => number;
   readonly wasmtwolanehighways_determine_facility_los: (a: number, b: number, c: number) => number;
+  readonly wasmsubsegment_get_design_rad: (a: number) => number;
+  readonly wasmsubsegment_get_central_angle: (a: number) => number;
+  readonly wasmsubsegment_get_sup_ele: (a: number) => number;
   readonly wasmsegment_subsegs_to_js_value: (a: number) => number;
   readonly wasmtwolanehighways_segs_to_js_value: (a: number) => number;
-  readonly wasmsubsegment_get_length: (a: number) => number;
-  readonly wasmsubsegment_get_avg_speed: (a: number) => number;
-  readonly wasmsubsegment_get_design_rad: (a: number) => number;
-  readonly wasmsubsegment_get_sup_ele: (a: number) => number;
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_exn_store: (a: number) => void;

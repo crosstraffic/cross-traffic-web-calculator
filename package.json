@@ -1,6 +1,6 @@
 {
   "name": "cross-traffic-web-calculator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "modulize-wasm": "node HCM-middleware/modulize.js",
     "wasm": "wasm-pack build HCM-middleware --target web && npm run modulize-wasm",
@@ -16,32 +16,34 @@
     "format": "prettier --write --plugin-search-dir=. ."
   },
   "devDependencies": {
-    "@playwright/test": "^1.22.0",
-    "@sveltejs/adapter-auto": "3.1.1",
-    "@sveltejs/kit": "^2.5.4",
-    "@typescript-eslint/eslint-plugin": "^5.27.0",
-    "@typescript-eslint/parser": "^5.27.0",
-    "autoprefixer": "^10.4.8",
-    "cssnano": "^5.1.12",
-    "daisyui": "^2.20.0",
-    "eslint": "^8.16.0",
-    "eslint-config-prettier": "^8.3.0",
-    "eslint-plugin-svelte": "^2.35.1",
-    "postcss": "^8.4.14",
-    "prettier": "^2.6.2",
-    "prettier-plugin-svelte": "^2.7.0",
-    "svelte": "^4.2.1",
-    "svelte-check": "^3.5.2",
-    "svelte-preprocess": "^5.0.4",
-    "tailwindcss": "^3.1.7",
-    "tslib": "^2.3.1",
-    "typescript": "^5.4.3",
-    "vite": "^5.2.6",
+    "@playwright/test": "^1.54.1",
+    "@sveltejs/adapter-auto": "^6.0.1",
+    "@sveltejs/kit": "^2.25.2",
+    "@tailwindcss/postcss": "^4.1.11",
+    "@tailwindcss/vite": "^4.1.11",
+    "@typescript-eslint/eslint-plugin": "^8.38.0",
+    "@typescript-eslint/parser": "^8.38.0",
+    "autoprefixer": "^10.4.21",
+    "cssnano": "^7.1.0",
+    "daisyui": "^5.0.46",
+    "eslint": "^9.31.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-svelte": "^3.11.0",
+    "postcss": "^8.5.6",
+    "prettier": "^3.6.2",
+    "prettier-plugin-svelte": "^3.4.0",
+    "svelte": "^5.36.16",
+    "svelte-check": "^4.3.0",
+    "svelte-preprocess": "^6.0.3",
+    "tailwindcss": "^4.1.11",
+    "tslib": "^2.8.1",
+    "typescript": "^5.8.3",
+    "vite": "^6.0.0",
     "vite-plugin-wasm-pack": "^0.1.12",
-    "wasm-pack": "^0.12.1"
+    "wasm-pack": "^0.13.1"
   },
   "type": "module",
   "dependencies": {
-    "@wasm-tool/rollup-plugin-rust": "^2.4.4"
+    "@wasm-tool/rollup-plugin-rust": "^3.0.5"
   }
 }

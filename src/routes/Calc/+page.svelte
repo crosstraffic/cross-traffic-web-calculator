@@ -1,12 +1,14 @@
-<script type="text/javascript">
+<script>
   import init, { WasmSegment, WasmSubSegment, WasmTwoLaneHighways } from "HCM-middleware";
   import Error from "../+error.svelte";
 
     // Export variables
+    export let lane_width;
+    export let shoulder_width;
+    export let apd;
+    export let pmhvfl;
     export let rows_len;
     export let rows;
-    // export let data;
-    // let { rows_len, rows } = data;
 
     function callingFunc(){
         calculate(rows_len, rows);
@@ -78,51 +80,50 @@
 
         // Fixed values for the entire segments
         // Spl = document.getElementById("Spl_input").value;
-        LW = document.getElementById("LW_input").value;
-        SW = document.getElementById("SW_input").value;
-        APD = document.getElementById("APD_input").value;
-        PMHVFL = document.getElementById("PMHVFL_input").value;
+        LW = lane_width;
+        SW = shoulder_width;
+        APD = apd;
+        PMHVFL = pmhvfl;
 
         // Error variables
         var error_str = "";
         var error_flg = 0;
 
-        for(let i=0; i < rows_len; i++){
-            tot_len += parseFloat(document.getElementById("seg_length"+(i+1)).value);
-        }
+        tot_len = rows.reduce((sum, row) => sum + parseFloat(row.seg_length || 0), 0);
         
         var wasmSegment = [];
 
         // Initialization
         for(let i=0; i < rows_len; i++) {
-            var subrows_len = rows[i].subrows.length;
-            var pass_type = document.getElementById("passing_type"+(i+1));
-            pass_type = pass_type.options[pass_type.selectedIndex].text;
-            if (pass_type == "Passing Constrained") passing_type[i] = 0
-            else if (pass_type == "Passing Zone") passing_type[i] = 1
-            else if (pass_type == "Passing Lane") passing_type[i] = 2
+            const row = rows[i];
+            const subrows_len = row.subrows.length;
 
-            Spl = document.getElementById("seg_Spl"+(i+1)).value;
-            vc = document.getElementById("vc_select"+(i+1)).value;
-            is_hc = document.getElementById("is_hc"+(i+1)).checked;
-            Vi = document.getElementById("vi_input"+(i+1)).value;
-            Vo = document.getElementById("vo_input"+(i+1)).value;
-            seg_length = document.getElementById("seg_length"+(i+1)).value;
-            seg_grade = document.getElementById("seg_grade"+(i+1)).value;
-            PHF = document.getElementById("PHF_input"+(i+1)).value;
-            PHV = document.getElementById("PHV_input"+(i+1)).value;
-            ver_class = document.getElementById("vc_select"+(i+1)).value;
+            const pass_type = row.passing_type;
+            if (pass_type === "Passing Constrained") passing_type[i] = 0;
+            else if (pass_type === "Passing Zone") passing_type[i] = 1;
+            else if (pass_type === "Passing Lane") passing_type[i] = 2;
 
-            var wasmSubSegment = [];
-            wasmSubSegment[0] = new WasmSubSegment(0.0, 0.0, 0, 0.0, 0.0);
 
-            if (is_hc == true && subrows_len > 0){
-                for (let j=0; j < subrows_len; j++){
-                    subSeg_len[i][j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("subseg_len"+(j+1))[0].value; // foot to mile
-                    rad[j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("design_radius"+(j+1))[0].value;
-                    sup_ele[j] = document.getElementById("hc_table"+(i+1)).getElementsByClassName("superelevation"+(j+1))[0].value;
+            Spl = row.seg_spl;
+            vc = row.vertical_class;
+            is_hc = row.is_hc;
+            Vi = row.vi;
+            Vo = row.vo;
+            seg_length = row.seg_length;
+            seg_grade = row.seg_grade;
+            PHF = row.phf;
+            PHV = row.phv;
+            ver_class = row.vertical_class;
+
+            let wasmSubSegment = [new WasmSubSegment(0.0, 0.0, 0, 0.0, 0.0)];
+
+            if (is_hc && subrows_len > 0) {
+                wasmSubSegment = row.subrows.map((subrow, j) => {
+                    subSeg_len[i][j] = subrow.subseg_length;
+                    rad[j] = subrow.design_radius;
+                    sup_ele[j] = subrow.superelevation;
                     wasmSubSegment[j] = new WasmSubSegment(subSeg_len[i][j], 0.0, 0, rad[j], sup_ele[j]);
-                }
+                });
             }
 
             const inst_wasmSegment = new WasmSegment(parseInt(passing_type[i]), seg_length, seg_grade, Spl, is_hc, Vi, Vo, 0.0, 0.0, 0, 0.0,
@@ -136,9 +137,7 @@
         
 
         var fd_f = 0;
-        var tot_len = 0;
         var s_tot = 0;
-        var fd = 0;
         var fd_mid = 0;
         var fd_adj = 0;
         var fd_out = 0;
@@ -185,7 +184,7 @@
         let fac_los = wasmTwoLaneHighways.determine_facility_los(fd_f, average_speed);
 
         // Output (LOS)
-        document.getElementById("los").innerHTML = "Entire LOS: " + fac_los;
+        document.getElementById("los").innerHTML = "Facility LOS: " + fac_los;
         // Facility Follower Density
         document.getElementById("fdF").innerHTML = "Facility Follower Density: " + Math.round(fd_f*1000)/1000;
         // Error
@@ -195,5 +194,5 @@
 
 </script>
 
-<button type="submit" class="btn" on:click={() => callingFunc()}>Calculate</button>
+<button type="submit" class="btn btn-outline" on:click={() => callingFunc()}>Calculate</button>
  <!-- on:click={() => submitted = true} -->

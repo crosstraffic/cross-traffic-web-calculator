@@ -1,4 +1,4 @@
-const tailwindcss = require('tailwindcss');
+const tailwindcss = require('@tailwindcss/postcss');
 const autoprefixer = require('autoprefixer');
 const cssnano = require('cssnano');
 
@@ -7,7 +7,7 @@ const dev = mode === 'development';
 
 const config = {
   plugins: [
-    tailwindcss(), // first load TailwindCSS
+    tailwindcss(), // first run tailwindcss
     autoprefixer(), // then run autoprefixer
     !dev && // optimize the code for production
       cssnano({

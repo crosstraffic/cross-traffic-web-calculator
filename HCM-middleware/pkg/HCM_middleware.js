@@ -29,24 +29,6 @@ function takeObject(idx) {
     return ret;
 }
 
-const cachedTextDecoder = (typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8', { ignoreBOM: true, fatal: true }) : { decode: () => { throw Error('TextDecoder not available') } } );
-
-if (typeof TextDecoder !== 'undefined') { cachedTextDecoder.decode(); };
-
-let cachedUint8Memory0 = null;
-
-function getUint8Memory0() {
-    if (cachedUint8Memory0 === null || cachedUint8Memory0.byteLength === 0) {
-        cachedUint8Memory0 = new Uint8Array(wasm.memory.buffer);
-    }
-    return cachedUint8Memory0;
-}
-
-function getStringFromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
-}
-
 function isLikeNone(x) {
     return x === undefined || x === null;
 }
@@ -136,6 +118,15 @@ function debugString(val) {
 
 let WASM_VECTOR_LEN = 0;
 
+let cachedUint8Memory0 = null;
+
+function getUint8Memory0() {
+    if (cachedUint8Memory0 === null || cachedUint8Memory0.byteLength === 0) {
+        cachedUint8Memory0 = new Uint8Array(wasm.memory.buffer);
+    }
+    return cachedUint8Memory0;
+}
+
 const cachedTextEncoder = (typeof TextEncoder !== 'undefined' ? new TextEncoder('utf-8') : { encode: () => { throw Error('TextEncoder not available') } } );
 
 const encodeString = (typeof cachedTextEncoder.encodeInto === 'function'
@@ -188,6 +179,15 @@ function passStringToWasm0(arg, malloc, realloc) {
 
     WASM_VECTOR_LEN = offset;
     return ptr;
+}
+
+const cachedTextDecoder = (typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8', { ignoreBOM: true, fatal: true }) : { decode: () => { throw Error('TextDecoder not available') } } );
+
+if (typeof TextDecoder !== 'undefined') { cachedTextDecoder.decode(); };
+
+function getStringFromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
 }
 
 let cachedFloat64Memory0 = null;
@@ -261,27 +261,27 @@ export class WasmSegment {
     * @param {number} length
     * @param {number} grade
     * @param {number} spl
-    * @param {boolean} is_hc
-    * @param {number} volume
-    * @param {number} volume_op
-    * @param {number} flow_rate
-    * @param {number} flow_rate_o
-    * @param {number} capacity
-    * @param {number} ffs
-    * @param {number} avg_speed
-    * @param {number} vertical_class
+    * @param {boolean | undefined} is_hc
+    * @param {number | undefined} volume
+    * @param {number | undefined} volume_op
+    * @param {number | undefined} flow_rate
+    * @param {number | undefined} flow_rate_o
+    * @param {number | undefined} capacity
+    * @param {number | undefined} ffs
+    * @param {number | undefined} avg_speed
+    * @param {number | undefined} vertical_class
     * @param {(WasmSubSegment)[]} wasm_subsegments
-    * @param {number} phf
-    * @param {number} phv
-    * @param {number} pf
-    * @param {number} fd
-    * @param {number} fd_mid
-    * @param {number} hor_class
+    * @param {number | undefined} [phf]
+    * @param {number | undefined} [phv]
+    * @param {number | undefined} [pf]
+    * @param {number | undefined} [fd]
+    * @param {number | undefined} [fd_mid]
+    * @param {number | undefined} [hor_class]
     */
     constructor(passing_type, length, grade, spl, is_hc, volume, volume_op, flow_rate, flow_rate_o, capacity, ffs, avg_speed, vertical_class, wasm_subsegments, phf, phv, pf, fd, fd_mid, hor_class) {
         const ptr0 = passArrayJsValueToWasm0(wasm_subsegments, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmsegment_new(passing_type, length, grade, spl, is_hc, volume, volume_op, flow_rate, flow_rate_o, capacity, ffs, avg_speed, vertical_class, ptr0, len0, phf, phv, pf, fd, fd_mid, hor_class);
+        const ret = wasm.wasmsegment_new(passing_type, length, grade, spl, isLikeNone(is_hc) ? 0xFFFFFF : is_hc ? 1 : 0, !isLikeNone(volume), isLikeNone(volume) ? 0 : volume, !isLikeNone(volume_op), isLikeNone(volume_op) ? 0 : volume_op, !isLikeNone(flow_rate), isLikeNone(flow_rate) ? 0 : flow_rate, !isLikeNone(flow_rate_o), isLikeNone(flow_rate_o) ? 0 : flow_rate_o, !isLikeNone(capacity), isLikeNone(capacity) ? 0 : capacity, !isLikeNone(ffs), isLikeNone(ffs) ? 0 : ffs, !isLikeNone(avg_speed), isLikeNone(avg_speed) ? 0 : avg_speed, !isLikeNone(vertical_class), isLikeNone(vertical_class) ? 0 : vertical_class, ptr0, len0, !isLikeNone(phf), isLikeNone(phf) ? 0 : phf, !isLikeNone(phv), isLikeNone(phv) ? 0 : phv, !isLikeNone(pf), isLikeNone(pf) ? 0 : pf, !isLikeNone(fd), isLikeNone(fd) ? 0 : fd, !isLikeNone(fd_mid), isLikeNone(fd_mid) ? 0 : fd_mid, !isLikeNone(hor_class), isLikeNone(hor_class) ? 0 : hor_class);
         this.__wbg_ptr = ret >>> 0;
         return this;
     }
@@ -467,14 +467,15 @@ export class WasmSubSegment {
         wasm.__wbg_wasmsubsegment_free(ptr);
     }
     /**
-    * @param {number} length
-    * @param {number} avg_speed
-    * @param {number} hor_class
-    * @param {number} design_rad
-    * @param {number} sup_ele
+    * @param {number | undefined} [length]
+    * @param {number | undefined} [avg_speed]
+    * @param {number | undefined} [design_rad]
+    * @param {number | undefined} [central_angle]
+    * @param {number | undefined} [hor_class]
+    * @param {number | undefined} [sup_ele]
     */
-    constructor(length, avg_speed, hor_class, design_rad, sup_ele) {
-        const ret = wasm.wasmsubsegment_new(length, avg_speed, hor_class, design_rad, sup_ele);
+    constructor(length, avg_speed, design_rad, central_angle, hor_class, sup_ele) {
+        const ret = wasm.wasmsubsegment_new(!isLikeNone(length), isLikeNone(length) ? 0 : length, !isLikeNone(avg_speed), isLikeNone(avg_speed) ? 0 : avg_speed, !isLikeNone(design_rad), isLikeNone(design_rad) ? 0 : design_rad, !isLikeNone(central_angle), isLikeNone(central_angle) ? 0 : central_angle, !isLikeNone(hor_class), isLikeNone(hor_class) ? 0 : hor_class, !isLikeNone(sup_ele), isLikeNone(sup_ele) ? 0 : sup_ele);
         this.__wbg_ptr = ret >>> 0;
         return this;
     }
@@ -489,14 +490,14 @@ export class WasmSubSegment {
     * @returns {number}
     */
     get_length() {
-        const ret = wasm.wasmsegment_get_length(this.__wbg_ptr);
+        const ret = wasm.wasmsubsegment_get_length(this.__wbg_ptr);
         return ret;
     }
     /**
     * @returns {number}
     */
     get_avg_speed() {
-        const ret = wasm.wasmsegment_get_grade(this.__wbg_ptr);
+        const ret = wasm.wasmsubsegment_get_avg_speed(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -510,14 +511,21 @@ export class WasmSubSegment {
     * @returns {number}
     */
     get_design_rad() {
-        const ret = wasm.wasmsegment_get_spl(this.__wbg_ptr);
+        const ret = wasm.wasmsegment_get_flow_rate(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+    * @returns {number}
+    */
+    get_central_angle() {
+        const ret = wasm.wasmsegment_get_flow_rate_o(this.__wbg_ptr);
         return ret;
     }
     /**
     * @returns {number}
     */
     get_sup_ele() {
-        const ret = wasm.wasmsegment_get_volume(this.__wbg_ptr);
+        const ret = wasm.wasmsegment_get_ffs(this.__wbg_ptr);
         return ret;
     }
 }
@@ -542,16 +550,16 @@ export class WasmTwoLaneHighways {
     }
     /**
     * @param {(WasmSegment)[]} wasm_segments
-    * @param {number} lane_width
-    * @param {number} shoulder_width
-    * @param {number} apd
-    * @param {number} pmhvfl
-    * @param {number} l_de
+    * @param {number | undefined} [lane_width]
+    * @param {number | undefined} [shoulder_width]
+    * @param {number | undefined} [apd]
+    * @param {number | undefined} [pmhvfl]
+    * @param {number | undefined} [l_de]
     */
     constructor(wasm_segments, lane_width, shoulder_width, apd, pmhvfl, l_de) {
         const ptr0 = passArrayJsValueToWasm0(wasm_segments, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmtwolanehighways_new(ptr0, len0, lane_width, shoulder_width, apd, pmhvfl, l_de);
+        const ret = wasm.wasmtwolanehighways_new(ptr0, len0, !isLikeNone(lane_width), isLikeNone(lane_width) ? 0 : lane_width, !isLikeNone(shoulder_width), isLikeNone(shoulder_width) ? 0 : shoulder_width, !isLikeNone(apd), isLikeNone(apd) ? 0 : apd, !isLikeNone(pmhvfl), isLikeNone(pmhvfl) ? 0 : pmhvfl, !isLikeNone(l_de), isLikeNone(l_de) ? 0 : l_de);
         this.__wbg_ptr = ret >>> 0;
         return this;
     }
@@ -800,10 +808,6 @@ function __wbg_get_imports() {
         const ret = getObject(arg0).next();
         return addHeapObject(ret);
     }, arguments) };
-    imports.wbg.__wbindgen_string_new = function(arg0, arg1) {
-        const ret = getStringFromWasm0(arg0, arg1);
-        return addHeapObject(ret);
-    };
     imports.wbg.__wbindgen_bigint_get_as_i64 = function(arg0, arg1) {
         const v = getObject(arg1);
         const ret = typeof(v) === 'bigint' ? v : undefined;
@@ -822,6 +826,10 @@ function __wbg_get_imports() {
     };
     imports.wbg.__wbindgen_memory = function() {
         const ret = wasm.memory;
+        return addHeapObject(ret);
+    };
+    imports.wbg.__wbindgen_string_new = function(arg0, arg1) {
+        const ret = getStringFromWasm0(arg0, arg1);
         return addHeapObject(ret);
     };
     imports.wbg.__wbindgen_string_get = function(arg0, arg1) {
@@ -921,14 +929,6 @@ function __wbg_get_imports() {
         const ret = WasmSubSegment.__unwrap(takeObject(arg0));
         return ret;
     };
-    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
-        const ret = WasmSegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
-    imports.wbg.__wbindgen_error_new = function(arg0, arg1) {
-        const ret = new Error(getStringFromWasm0(arg0, arg1));
-        return addHeapObject(ret);
-    };
     imports.wbg.__wbindgen_jsval_loose_eq = function(arg0, arg1) {
         const ret = getObject(arg0) == getObject(arg1);
         return ret;
@@ -937,6 +937,10 @@ function __wbg_get_imports() {
         const v = getObject(arg0);
         const ret = typeof(v) === 'boolean' ? (v ? 1 : 0) : 2;
         return ret;
+    };
+    imports.wbg.__wbindgen_error_new = function(arg0, arg1) {
+        const ret = new Error(getStringFromWasm0(arg0, arg1));
+        return addHeapObject(ret);
     };
     imports.wbg.__wbindgen_bigint_from_u64 = function(arg0) {
         const ret = BigInt.asUintN(64, arg0);
@@ -956,6 +960,10 @@ function __wbg_get_imports() {
     };
     imports.wbg.__wbindgen_jsval_eq = function(arg0, arg1) {
         const ret = getObject(arg0) === getObject(arg1);
+        return ret;
+    };
+    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
+        const ret = WasmSegment.__unwrap(takeObject(arg0));
         return ret;
     };
     imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
