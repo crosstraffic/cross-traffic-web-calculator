@@ -89,8 +89,6 @@
         var error_str = "";
         var error_flg = 0;
 
-        tot_len = rows.reduce((sum, row) => sum + parseFloat(row.seg_length || 0), 0);
-        
         var wasmSegment = [];
 
         // Initialization
@@ -115,26 +113,33 @@
             PHV = row.phv;
             ver_class = row.vertical_class;
 
-            let wasmSubSegment = [new WasmSubSegment(0.0, 0.0, 0, 0.0, 0.0)];
+            let wasmSubSegment = [new WasmSubSegment()];
 
             if (is_hc && subrows_len > 0) {
                 wasmSubSegment = row.subrows.map((subrow, j) => {
-                    subSeg_len[i][j] = subrow.subseg_length;
-                    rad[j] = subrow.design_radius;
-                    sup_ele[j] = subrow.superelevation;
-                    wasmSubSegment[j] = new WasmSubSegment(subSeg_len[i][j], 0.0, 0, rad[j], sup_ele[j]);
+                    subSeg_len[i][j] = String(subrow.subseg_length);
+                    rad[j] = String(subrow.design_radius);
+                    sup_ele[j] = String(subrow.superelevation);
+
+                    return new WasmSubSegment(
+                        parseFloat(subSeg_len[i][j]),
+                        0,
+                        parseFloat(rad[j]),
+                        0,
+                        0,
+                        parseFloat(sup_ele[j])
+                    );
                 });
             }
 
             const inst_wasmSegment = new WasmSegment(parseInt(passing_type[i]), seg_length, seg_grade, Spl, is_hc, Vi, Vo, 0.0, 0.0, 0, 0.0,
-                          0.0, ver_class, wasmSubSegment, PHF, PHV, 0.0, 0.0, 0.0, 0);
+                          0.0, ver_class, wasmSubSegment, PHF, PHV , 0.0, 0.0, 0.0, 0);
             wasmSegment.push(inst_wasmSegment);
 
             seg_len[i] = seg_length;
         }
 
-        var wasmTwoLaneHighways = new WasmTwoLaneHighways(wasmSegment, LW, SW, APD, PMHVFL, 0.0);
-        
+        var wasmTwoLaneHighways = new WasmTwoLaneHighways(wasmSegment, LW, SW, APD, PMHVFL);
 
         var fd_f = 0;
         var s_tot = 0;
@@ -169,8 +174,6 @@
             tot_len += wasmTwoLaneHighways.get_segments()[i].length;
             s_tot += s * wasmTwoLaneHighways.get_segments()[i].length;
             let los = wasmTwoLaneHighways.determine_segment_los(i, s, capacity);
-
-            // console.log(wasmTwoLaneHighways.get_segments()[i].subsegments);
 
             document.getElementById("ffs" + (i+1)).innerHTML = "" + Math.round(ffs*1000)/1000;
             document.getElementById("pf" + (i+1)).innerHTML = "" + Math.round(pf[i]*1000)/1000;
