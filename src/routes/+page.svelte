@@ -12,33 +12,90 @@
 
 </script>
 
-<div id="routes-container">
-  <div class="home grid h-screen place-items-center mt-20">
-    <div class="home_div">
-
-      <p>Welcome to <b>HCM Calculator</b>! This site is the third-party web site to support calculation along with Highway Capacity Manual (HCM).</p>
-      <p>The HCM Calculator is to provide quick solutions for all of the calculations in HCM.</p>
-      <p>It also illustrates the simple figures for full complement of the understandings.</p>
-
-      <p>This site is launched in November 2022 by <a href="https://reis-portfolio.vercel.app" target="_blank">Rei Tamaru</a>, a PhD student at the University of Wisconsin-Madison.</p>
-
-      <div class="w-48 carousel rounded-box hcmimg" style="float:right">
-        <div class="carousel-item w-full">
-          <img src="hcm7th.jpg" class="w-full" alt="HCM 7th edition" />
-          <div class="middle">
-            <div class="text"><a href="https://nap.nationalacademies.org/catalog/26432/highway-capacity-manual-7th-edition-a-guide-for-multimodal-mobility" target="_blank">+ See</a></div>
-          </div>
-          <!-- <caption>Highway Capacity Manual 7th Edition</caption> -->
-        </div> 
+<div id="routes-container" class="home-page">
+  <!-- Hero -->
+  <section class="hero-section">
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <span class="badge badge-outline hero-badge">Highway Capacity Manual · 7th Edition</span>
+        <h1 class="hero-title">
+          HCM <span class="hero-accent">Calculator</span>
+        </h1>
+        <p class="hero-lead">
+          A third-party web tool that delivers quick, reliable solutions for
+          Highway Capacity Manual (HCM) calculations — paired with simple figures
+          that make every result easy to understand.
+        </p>
+        <div class="hero-actions">
+          <a href="/hcm15" class="btn btn-primary">Open Chapter 15 Calculator</a>
+          <a
+            href="https://nap.nationalacademies.org/catalog/26432/highway-capacity-manual-7th-edition-a-guide-for-multimodal-mobility"
+            target="_blank"
+            rel="noreferrer"
+            class="btn btn-ghost"
+          >
+            About the HCM →
+          </a>
+        </div>
       </div>
 
-      <p>The latest HCM (7th Edition) can be found <a href="https://nap.nationalacademies.org/catalog/26432/highway-capacity-manual-7th-edition-a-guide-for-multimodal-mobility" target="_blank">here (National Academics)</a>.<br>
-      Or you can find it on <a href="https://amzn.to/3ipmRXN" target="_blank">Amazon</a>.
-      </p>
-
-      <p>For the website inquires, please email <a href="mailto:tamaru@wisc.edu">to me</a>.</p>
+      <div class="hero-media">
+        <div class="hcmimg book-card">
+          <img src="hcm7th.jpg" alt="HCM 7th edition" />
+          <div class="middle">
+            <div class="text">
+              <a
+                href="https://nap.nationalacademies.org/catalog/26432/highway-capacity-manual-7th-edition-a-guide-for-multimodal-mobility"
+                target="_blank"
+                rel="noreferrer"
+              >+ See</a>
+            </div>
+          </div>
+        </div>
+        <p class="book-caption">Highway Capacity Manual, 7th Edition</p>
+      </div>
     </div>
-    <!-- add update thread and general usage -->
-  </div>
+  </section>
 
+  <!-- Feature cards -->
+  <section class="feature-section">
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <h3>Quick Solutions</h3>
+      <p>Run full HCM calculations in the browser — powered by a fast WebAssembly compute core.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <h3>Visual Figures</h3>
+      <p>Clear diagrams accompany the numbers so methodology and results are easy to follow.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🛣️</div>
+      <h3>Chapter Coverage</h3>
+      <p>Starting with Chapter 15 (Two-Lane Highways), with more chapters on the way.</p>
+    </div>
+  </section>
+
+  <!-- About / credits -->
+  <section class="about-section">
+    <p>
+      Launched in November 2022 by
+      <a href="https://reis-portfolio.vercel.app" target="_blank" rel="noreferrer">Rei Tamaru</a>,
+      a PhD student at the University of Wisconsin–Madison.
+    </p>
+    <p>
+      You can find the latest HCM (7th Edition) at the
+      <a
+        href="https://nap.nationalacademies.org/catalog/26432/highway-capacity-manual-7th-edition-a-guide-for-multimodal-mobility"
+        target="_blank"
+        rel="noreferrer"
+      >National Academies</a>
+      or on
+      <a href="https://amzn.to/3ipmRXN" target="_blank" rel="noreferrer">Amazon</a>.
+    </p>
+    <p>
+      For website inquiries, please
+      <a href="mailto:tamaru@wisc.edu">email me</a>.
+    </p>
+  </section>
 </div>
