@@ -17,25 +17,21 @@
   <section class="hero-section">
     <div class="hero-grid">
       <div class="hero-copy">
-        <span class="badge badge-outline hero-badge">Highway Capacity Manual · 7th Edition</span>
-        <h1 class="hero-title">
-          HCM <span class="hero-accent">Calculator</span>
-        </h1>
+        <p class="eyebrow">Highway Capacity Manual · 7th Edition</p>
+        <h1 class="hero-title">HCM Calculator</h1>
         <p class="hero-lead">
-          A third-party web tool that delivers quick, reliable solutions for
-          Highway Capacity Manual (HCM) calculations — paired with simple figures
-          that make every result easy to understand.
+          A browser-based implementation of HCM analysis procedures. Compute
+          level of service, follower density, and operating speeds segment by
+          segment — backed by a WebAssembly engine for exact, reproducible results.
         </p>
         <div class="hero-actions">
-          <a href="/hcm15" class="btn btn-primary">Open Chapter 15 Calculator</a>
+          <a href="/hcm15" class="btn-cta">Open Chapter 15 <span aria-hidden="true">→</span></a>
           <a
             href="https://nap.nationalacademies.org/catalog/26432/highway-capacity-manual-7th-edition-a-guide-for-multimodal-mobility"
             target="_blank"
             rel="noreferrer"
-            class="btn btn-ghost"
-          >
-            About the HCM →
-          </a>
+            class="btn-link"
+          >HCM 7th Edition reference</a>
         </div>
       </div>
 
@@ -57,45 +53,71 @@
     </div>
   </section>
 
-  <!-- Feature cards -->
-  <section class="feature-section">
-    <div class="feature-card">
-      <div class="feature-icon">⚡</div>
-      <h3>Quick Solutions</h3>
-      <p>Run full HCM calculations in the browser — powered by a fast WebAssembly compute core.</p>
+  <!-- Capabilities -->
+  <section class="capabilities">
+    <div class="cap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="6" y="6" width="12" height="12" rx="1.5" />
+        <path d="M9 1.5v3M15 1.5v3M9 19.5v3M15 19.5v3M1.5 9h3M1.5 15h3M19.5 9h3M19.5 15h3" />
+      </svg>
+      <h3>WebAssembly engine</h3>
+      <p>Calculations run locally in a compiled Rust core — fast, offline, and identical on every run.</p>
     </div>
-    <div class="feature-card">
-      <div class="feature-icon">📊</div>
-      <h3>Visual Figures</h3>
-      <p>Clear diagrams accompany the numbers so methodology and results are easy to follow.</p>
+    <div class="cap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 3h10l4 4v14H5z" />
+        <path d="M14 3v5h5" />
+        <path d="M8.5 14.5l2 2 4-4.5" />
+      </svg>
+      <h3>HCM-faithful methodology</h3>
+      <p>Follows the manual step by step, including vertical and horizontal alignment effects on each segment.</p>
     </div>
-    <div class="feature-card">
-      <div class="feature-icon">🛣️</div>
-      <h3>Chapter Coverage</h3>
-      <p>Starting with Chapter 15 (Two-Lane Highways), with more chapters on the way.</p>
+    <div class="cap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M8 4H6a2 2 0 0 0-2 2v3c0 1-.5 3-2 3 1.5 0 2 2 2 3v3a2 2 0 0 0 2 2h2" />
+        <path d="M16 4h2a2 2 0 0 1 2 2v3c0 1 .5 3 2 3-1.5 0-2 2-2 3v3a2 2 0 0 1-2 2h-2" />
+      </svg>
+      <h3>Reproducible analyses</h3>
+      <p>Import and export inputs as JSON to version, share, and re-run any study exactly as configured.</p>
     </div>
   </section>
 
-  <!-- About / credits -->
+  <!-- Available chapters -->
+  <section class="chapters">
+    <div class="chapters-head">
+      <h2>Available chapters</h2>
+      <span class="chapters-meta">More chapters in development</span>
+    </div>
+
+    <a class="chapter-row" href="/hcm15">
+      <span class="chapter-no">15</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Two-Lane Highways</span>
+        <span class="chapter-desc">Level of service, follower density, average speed, and passing analysis</span>
+      </span>
+      <span class="chapter-status available">Available</span>
+    </a>
+
+    <div class="chapter-row disabled" aria-disabled="true">
+      <span class="chapter-no">—</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Additional chapters</span>
+        <span class="chapter-desc">Further HCM procedures are being implemented</span>
+      </span>
+      <span class="chapter-status">Planned</span>
+    </div>
+  </section>
+
+  <!-- Credits -->
   <section class="about-section">
     <p>
-      Launched in November 2022 by
+      Built by
       <a href="https://reis-portfolio.vercel.app" target="_blank" rel="noreferrer">Rei Tamaru</a>,
-      a PhD student at the University of Wisconsin–Madison.
+      a PhD student at the University of Wisconsin–Madison. This is an independent
+      tool and is not affiliated with the Transportation Research Board.
     </p>
     <p>
-      You can find the latest HCM (7th Edition) at the
-      <a
-        href="https://nap.nationalacademies.org/catalog/26432/highway-capacity-manual-7th-edition-a-guide-for-multimodal-mobility"
-        target="_blank"
-        rel="noreferrer"
-      >National Academies</a>
-      or on
-      <a href="https://amzn.to/3ipmRXN" target="_blank" rel="noreferrer">Amazon</a>.
-    </p>
-    <p>
-      For website inquiries, please
-      <a href="mailto:tamaru@wisc.edu">email me</a>.
+      Questions or issues? <a href="mailto:tamaru@wisc.edu">tamaru@wisc.edu</a>
     </p>
   </section>
 </div>

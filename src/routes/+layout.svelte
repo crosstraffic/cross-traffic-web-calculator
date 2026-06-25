@@ -67,12 +67,12 @@
   <slot />
 </main>
 
-<footer class="footer footer-horizontal footer-center bg-base-200 text-base-content p-10">
-  <div class="grid grid-flow-col gap-4">
-    <a href="/" class="link link-hover">Home</a> 
-    <a href="terms" class="link link-hover">Terms & Conditions</a> 
-  </div> 
-  <div>
-    <p class="text-sm text-gray-500">Copyright © 2025 - All right reserved by Rei Tamaru and Jonathan Riel</p>
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <nav class="site-footer-links">
+      <a href="/">Home</a>
+      <a href="terms">Terms &amp; Conditions</a>
+    </nav>
+    <p class="site-footer-copy">© 2025 Rei Tamaru and Jonathan Riel. All rights reserved.</p>
   </div>
 </footer>
