@@ -197,5 +197,17 @@
 
 </script>
 
-<button type="submit" class="btn btn-outline" on:click={() => callingFunc()}>Calculate</button>
+<button type="submit" class="btn btn-primary calc-btn" on:click={() => callingFunc()}>Calculate</button>
+
+<style>
+  .calc-btn {
+    background-color: #ea7317;
+    border-color: #ea7317;
+    color: #fff;
+  }
+  .calc-btn:hover {
+    background-color: #c75e0a;
+    border-color: #c75e0a;
+  }
+</style>
  <!-- on:click={() => submitted = true} -->

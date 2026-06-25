@@ -381,33 +381,58 @@
 </script>
 
 
-<div class="mb-6">
-  <h1 class="text-3xl font-bold underline">HCM Calulator - Chapter 15</h1>
-</div>
-
-<div class="mb-4">
-
-  <label for="jsonInput" class="block text-sm font-medium mb-1">JSON Input</label>
-  <input 
-    type="file"
-    id="jsonInput"
-    on:change={jsonInputHandler}
-    class="file-input file-input-bordered w-full max-w-xs"
-    accept=".json"
-  />
+<div class="hcm-page">
+  <header class="page-header">
+    <span class="badge badge-outline page-badge">Chapter 15 · Two-Lane Highways</span>
+    <h1 class="page-title">HCM Calculator — Chapter 15</h1>
+    <p class="page-sub">
+      Estimate free-flow speed, follower density, average speed, and level of
+      service for two-lane highway facilities, segment by segment.
+    </p>
+  </header>
 
   {#if hasError}
-    <div class="alert alert-error shadow-sm mb-4">
+    <div class="alert alert-error shadow-sm mb-6">
       <span>{errMessage}</span>
     </div>
   {/if}
 
   <form
-    id="hcm15" 
+    id="hcm15"
     class="submitted:opacity-50 transition-opacity duration-300"
     on:submit|preventDefault={handleSubmit}
   >
-    <div class="w-full overflow-x-auto">
+    <!-- Import -->
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">Import</h2>
+          <p class="panel-sub">Optionally load a previously exported analysis.</p>
+        </div>
+      </div>
+      <label for="jsonInput" class="block text-sm font-medium mb-1">JSON file</label>
+      <input
+        type="file"
+        id="jsonInput"
+        on:change={jsonInputHandler}
+        class="file-input file-input-bordered w-full max-w-xs"
+        accept=".json"
+      />
+    </section>
+
+    <!-- Segments -->
+    <section class="panel">
+      <div class="panel-head with-actions">
+        <div>
+          <h2 class="panel-title">Segments</h2>
+          <p class="panel-sub">Define the passing type and traffic characteristics of each segment.</p>
+        </div>
+        <div class="panel-actions">
+          <button class="btn btn-outline btn-sm" on:click={addSegment} type="button">+ Add Segment</button>
+          <button class="btn btn-ghost btn-sm" on:click={removeSegment} type="button">Remove</button>
+        </div>
+      </div>
+      <div class="w-full overflow-x-auto">
       <table class="table table-zebra w-full">
         <thead>
           <tr>
@@ -432,9 +457,18 @@
           {/each}
         </tbody>
       </table>
-    </div>
+      </div>
+    </section>
 
-    <div class="grid md:grid-cols-2 sm:grid-cols-1 gap-6 mb-8">
+    <!-- Parameters & horizontal curves -->
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">General Parameters</h2>
+          <p class="panel-sub">Facility-wide values and horizontal-curve subsegments.</p>
+        </div>
+      </div>
+    <div class="grid md:grid-cols-2 sm:grid-cols-1 gap-6">
       <!-- Parameter Inputs -->
       <div class="space-y-4">
         <div>
@@ -528,9 +562,17 @@
         {/each}
       </div>
     </div>
+    </section>
 
     <!-- Segment Image -->
-    <div class="overflow-x-auto mt-6">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">Facility Layout</h2>
+          <p class="panel-sub">Visual sequence of the configured segments.</p>
+        </div>
+      </div>
+    <div class="overflow-x-auto">
       <table class="table-auto w-fit" id="seg_imgs">
         <tbody>
           <tr>
@@ -556,14 +598,13 @@
         </tbody>
       </table>
     </div>
+    </section>
 
     <!-- Form Actions -->
-    <div class="flex flex-wrap justify-end gap-2 mt-4">
+    <div class="action-bar">
+      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
       <button class="btn btn-outline" on:click={jsonOutputHandler} id="jsonOutput" type="button">Export as JSON</button>
-      <button class="btn btn-outline" on:click={resetParams} type="button">Reset Params</button>
       <Calc {lane_width} {shoulder_width} {apd} {pmhvfl} rows_len={localRows.length} rows={localRows}/>
-      <button class="btn btn-outline" on:click={addSegment} type="button">Add Segment</button>
-      <button class="btn btn-outline" on:click={removeSegment} type="button">Remove Segment</button>
     </div>
 
   </form>
@@ -571,8 +612,14 @@
   <!-- <canvas id="simulation-canvas"></canvas> -->
   <pre id="simulation-canvas"></pre>
 
+  <section class="panel results-panel">
+    <div class="panel-head">
+      <div>
+        <h2 class="panel-title">Outputs</h2>
+        <p class="panel-sub">Results populate after pressing Calculate.</p>
+      </div>
+    </div>
   <div class="los overflow-x-auto">
-    <h3>Outputs</h3>
     <table class="table w-full">
       <thead>
         <tr>
@@ -616,9 +663,12 @@
         </tr>
       </tbody>
     </table>
-    <p id="los">Facility LOS: </p>
-    <p id="fdF">Facility Follower Density: </p>
-    <p id="error">Error Message: </p>
+    <div class="facility-summary">
+      <p id="los">Facility LOS: </p>
+      <p id="fdF">Facility Follower Density: </p>
+      <p id="error">Error Message: </p>
+    </div>
   </div>
+  </section>
 
 </div>

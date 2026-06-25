@@ -331,6 +331,97 @@ footer {
 }
 
 /* hcm15.svelte */
+.hcm-page {
+    width: min(1200px, 92%);
+    margin: 0 auto;
+    padding: 1rem 0 4rem;
+}
+
+.page-header {
+    margin-bottom: 1.75rem;
+}
+
+.page-badge {
+    color: #ea7317;
+    border-color: #f4c08a;
+    font-size: 0.78rem;
+    margin-bottom: 0.75rem;
+}
+
+.page-title {
+    font-size: clamp(1.9rem, 3.5vw, 2.6rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #111827;
+    margin-bottom: 0.5rem;
+}
+
+.page-sub {
+    color: #6b7280;
+    font-size: 1rem;
+    line-height: 1.6;
+    max-width: 46rem;
+}
+
+/* Card panels */
+.panel {
+    background: #fff;
+    border: 1px solid #eceff3;
+    border-radius: 16px;
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+}
+
+.panel-head {
+    margin-bottom: 1.25rem;
+}
+
+.panel-head.with-actions {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.panel-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.panel-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+.panel-sub {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin-top: 0.15rem;
+}
+
+/* Action bar */
+.action-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Results */
+.facility-summary {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eceff3;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-weight: 600;
+    color: #1f2933;
+}
 
 .table_p td {
     width: 100px;
