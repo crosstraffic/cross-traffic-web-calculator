@@ -55,13 +55,13 @@ footer {
 
 /* Site footer */
 .site-footer {
-    background: #ffffff;
+    background: transparent;
     border-top: 1px solid #eceff3;
     padding: 1.75rem 0;
 }
 
 .site-footer-inner {
-    width: min(1200px, 92%);
+    width: min(2100px, 96%);
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -94,17 +94,13 @@ footer {
 
 /* Navbar */
 header {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    background: #ffffff;
+    background: transparent;
     border-top: 3px solid #ea7317;
     border-bottom: 1px solid #eceff3;
-    box-shadow: 0 1px 3px rgba(17, 24, 39, 0.04);
 }
 
 .navbar {
-    width: min(1200px, 92%);
+    width: min(2100px, 96%);
     margin: 0 auto;
     min-height: 4.25rem;
     padding: 0;
@@ -486,7 +482,7 @@ a.chapter-row:hover {
 
 /* hcm15.svelte */
 .hcm-page {
-    width: min(1200px, 92%);
+    width: min(2100px, 96%);
     margin: 0 auto;
     padding: 1rem 0 4rem;
 }
@@ -517,14 +513,14 @@ a.chapter-row:hover {
     max-width: 46rem;
 }
 
-/* Card panels */
+/* Form sections (flat — single, uniform background) */
 .panel {
-    background: #fff;
-    border: 1px solid #eceff3;
-    border-radius: 16px;
-    padding: 1.5rem 1.75rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    margin-bottom: 2.25rem;
 }
 
 .panel-head {
@@ -554,6 +550,144 @@ a.chapter-row:hover {
     font-size: 0.9rem;
     color: #6b7280;
     margin-top: 0.15rem;
+}
+
+/* Segment number badge */
+.seg-no {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.7rem;
+    height: 1.7rem;
+    padding: 0 0.4rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #ea7317;
+    background: #fff5ec;
+    border-radius: 7px;
+}
+
+/* Segment / subsegment input tables */
+.seg-table thead th {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #64748b;
+    white-space: nowrap;
+    border-bottom: 1px solid #eceff3;
+}
+
+.seg-table tbody td {
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.seg-table tbody tr:hover {
+    background: #fafbfc;
+}
+
+.cell-field {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.cell-field .unit {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    white-space: nowrap;
+}
+
+.cell-center {
+    text-align: center;
+}
+
+/* Sizing of inputs/selects inside the calculator tables */
+.seg-table .input {
+    width: 5rem;
+    max-width: none;
+    background: #fff;
+}
+
+.seg-table .input.vi_input,
+.seg-table .input.vo_input {
+    width: 5.5rem;
+}
+
+.seg-table .select {
+    min-width: 8rem;
+}
+
+.seg-table .select[id^="vc_select"] {
+    min-width: 4.5rem;
+}
+
+/* General parameters — compact toolbar row */
+.param-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem 2.5rem;
+    align-items: flex-start;
+}
+
+.param-field {
+    min-width: 11rem;
+}
+
+.param-field label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.35rem;
+}
+
+.param-field .input {
+    width: 6rem;
+}
+
+.param-hint {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: 0.3rem;
+    max-width: 16rem;
+}
+
+/* Horizontal-curve subsegment cards — tile across the width.
+   Min track width fits the full 4-column subtable, so it only
+   scrolls when the viewport itself is narrower than one card. */
+.hc-subtables {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+}
+
+.hc-card {
+    border: 1px solid #eceff3;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+}
+
+.hc-card .seg-table {
+    min-width: 440px;
+}
+
+.hc-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.6rem;
+}
+
+.hc-card-head h3 {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #0f172a;
 }
 
 /* Action bar */

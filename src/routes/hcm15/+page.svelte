@@ -433,22 +433,22 @@
         </div>
       </div>
       <div class="w-full overflow-x-auto">
-      <table class="table table-zebra w-full">
+      <table class="table seg-table w-full">
         <thead>
           <tr>
             <!-- <th>Active</th> -->
-            <th>Segment</th>
+            <th>#</th>
             <th>Passing Type</th>
             <th>Length</th>
             <th>Grade</th>
-            <th>Posted Speed Limit</th>
-            <th>Horizontal Curves</th>
-            <th>Horizontal Params</th>
-            <th>Demand Volume</th>
-            <th>Demand Volume (O)</th>
+            <th>Posted Speed</th>
+            <th>Horiz. Curves</th>
+            <th>Horiz. Params</th>
+            <th>Demand Vol.</th>
+            <th>Opposing Vol.</th>
             <th>Vertical Class</th>
-            <th>Peak Hour Factor</th>
-            <th>Heavy Vehicle Per.</th>
+            <th>PHF</th>
+            <th>% Heavy Veh.</th>
           </tr>
         </thead>
         <tbody>
@@ -468,100 +468,106 @@
           <p class="panel-sub">Facility-wide values and horizontal-curve subsegments.</p>
         </div>
       </div>
-    <div class="grid md:grid-cols-2 sm:grid-cols-1 gap-6">
       <!-- Parameter Inputs -->
-      <div class="space-y-4">
-        <div>
-          <label for="LW_input" class="block text-sm font-medium mb-1">Lane Width (ft)</label>
-          <input
-            id="LW_input"
-            type="text"
-            class="input input-bordered w-full max-w-xs"
-            bind:value={lane_width}
-            placeholder="e.g. 12"
-            pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-            required
-          />
+      <div class="param-grid">
+        <div class="param-field">
+          <label for="LW_input">Lane Width</label>
+          <div class="cell-field">
+            <input
+              id="LW_input"
+              type="text"
+              class="input input-bordered input-sm"
+              bind:value={lane_width}
+              placeholder="12"
+              pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+              required
+            />
+            <span class="unit">ft</span>
+          </div>
         </div>
 
-        <div>
-          <label for="SW_input" class="block text-sm font-medium mb-1">Shoulder Width (ft)</label>
-          <input
-            id="SW_input"
-            type="text"
-            class="input input-bordered w-full max-w-xs"
-            placeholder="e.g. 6"
-            bind:value={shoulder_width}
-            pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-            required
-          />
+        <div class="param-field">
+          <label for="SW_input">Shoulder Width</label>
+          <div class="cell-field">
+            <input
+              id="SW_input"
+              type="text"
+              class="input input-bordered input-sm"
+              placeholder="6"
+              bind:value={shoulder_width}
+              pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+              required
+            />
+            <span class="unit">ft</span>
+          </div>
         </div>
 
-        <div>
-          <label for="APD_input" class="block text-sm font-medium mb-1">Access Point Density (per mi)</label>
-          <input
-            id="APD_input"
-            type="text"
-            class="input input-bordered w-full max-w-xs"
-            placeholder="e.g. 2"
-            bind:value={apd}
-            pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-            required
-          />
+        <div class="param-field">
+          <label for="APD_input">Access Point Density</label>
+          <div class="cell-field">
+            <input
+              id="APD_input"
+              type="text"
+              class="input input-bordered input-sm"
+              placeholder="2"
+              bind:value={apd}
+              pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+              required
+            />
+            <span class="unit">/mi</span>
+          </div>
         </div>
 
-        <div>
-          <label for="PMHVFL_input" class="block text-sm font-medium mb-1">
-            % Multiplier for Heavy Vehicles in Passing Lane<br />
-            <span class="text-xs text-gray-500">*Only used when Passing Lane is included</span>
-          </label>
-          <input
-            id="PMHVFL_input"
-            type="text"
-            class="input input-bordered w-full max-w-xs"
-            placeholder="e.g. 0"
-            bind:value={pmhvfl}
-            pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-            required
-          />
+        <div class="param-field">
+          <label for="PMHVFL_input">Heavy Vehicles in Passing Lane</label>
+          <div class="cell-field">
+            <input
+              id="PMHVFL_input"
+              type="text"
+              class="input input-bordered input-sm"
+              placeholder="0"
+              bind:value={pmhvfl}
+              pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+              required
+            />
+            <span class="unit">%</span>
+          </div>
+          <p class="param-hint">Only applied when a Passing Lane segment is present.</p>
         </div>
       </div>
 
       <!-- Segment Subtables -->
-      <div class="space-y-6">
+      <div class="hc-subtables">
         {#each localRows as row}
           {#if row.is_hc}
-            <div class="card card-compact bg-base-100 shadow-xl overflow-x-auto" id="hc_table{row.seg_num}">
-              <div class="card-body">
-                <div class="flex justify-between items-center mb-2">
-                  <h2 class="text-lg font-semibold">Segment {row.seg_num}</h2>
-                  <div class="flex gap-2">
-                    <button class="btn btn-outline btn-sm" on:click={() => addSubSegment(row.seg_num)} type="button">Add</button>
-                    <button class="btn btn-outline btn-sm" on:click={() => removeSubSegment(row.seg_num)} type="button">Remove</button>
-                  </div>
+            <div class="hc-card" id="hc_table{row.seg_num}">
+              <div class="hc-card-head">
+                <h3>Segment {row.seg_num} · Horizontal Curves</h3>
+                <div class="flex gap-2">
+                  <button class="btn btn-outline btn-sm" on:click={() => addSubSegment(row.seg_num)} type="button">Add</button>
+                  <button class="btn btn-ghost btn-sm" on:click={() => removeSubSegment(row.seg_num)} type="button">Remove</button>
                 </div>
-
-                <table class="table table-compact w-full">
-                  <thead>
-                    <tr>
-                      <th>Subsegment</th>
-                      <th>Length</th>
-                      <th>Design Radius</th>
-                      <th>Superelevation</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {#each row.subrows as subrow}
-                      <SubRow bind:subrow={subrow} subseg_num={subrow.subseg_num} />
-                    {/each}
-                  </tbody>
-                </table>
               </div>
+
+              <table class="table seg-table table-compact w-full">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Length</th>
+                    <th>Design Radius</th>
+                    <th>Superelevation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each row.subrows as subrow}
+                    <SubRow bind:subrow={subrow} subseg_num={subrow.subseg_num} />
+                  {/each}
+                </tbody>
+              </table>
             </div>
           {/if}
         {/each}
       </div>
-    </div>
     </section>
 
     <!-- Segment Image -->
