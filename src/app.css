@@ -150,6 +150,25 @@ header {
     color: #374151;
 }
 
+.navbar-end {
+    margin-left: auto;
+}
+
+.nav-github {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+    padding: 0.4rem;
+    border-radius: 8px;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.nav-github:hover {
+    color: #ea7317;
+    background-color: #fff5ec;
+}
+
 @media only screen and (max-width: 768px) {
     .logo img {
         width: 130px;
@@ -897,6 +916,110 @@ a.chapter-row:hover {
     .hc_table {
         max-width: 30rem;
     }
+}
+
+/* guide */
+.guide-page {
+    width: min(900px, 92%);
+    margin: 0 auto;
+    padding: 2rem 0 4rem;
+    color: #374151;
+    line-height: 1.7;
+}
+
+.guide-page a {
+    color: #ea7317;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.guide-page a:hover {
+    color: #c75e0a;
+    text-decoration: underline;
+}
+
+.guide-section {
+    margin-top: 2.25rem;
+}
+
+.guide-section h2 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 0.6rem;
+}
+
+.guide-section h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1f2933;
+    margin: 1.1rem 0 0.4rem;
+}
+
+.guide-steps {
+    list-style: decimal;
+    padding-left: 1.4rem;
+}
+
+.guide-steps li {
+    margin-bottom: 0.5rem;
+}
+
+.guide-list {
+    list-style: disc;
+    padding-left: 1.4rem;
+}
+
+.guide-list li {
+    margin-bottom: 0.5rem;
+}
+
+.guide-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.6rem 0;
+    font-size: 0.92rem;
+}
+
+.guide-table th,
+.guide-table td {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #eceff3;
+}
+
+.guide-table th {
+    color: #64748b;
+    font-weight: 600;
+}
+
+.guide-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #0f172a;
+    color: #fff !important;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 0.6rem 1.2rem;
+    border-radius: 10px;
+    margin-top: 0.5rem;
+}
+
+.guide-cta:hover {
+    background: #1e293b;
+    text-decoration: none !important;
+}
+
+.guide-cta-ghost {
+    background: #fff;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0;
+}
+
+.guide-cta-ghost:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
 }
 
 /* term */
