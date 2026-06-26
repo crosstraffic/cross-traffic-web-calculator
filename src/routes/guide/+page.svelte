@@ -121,6 +121,10 @@
       Calculations run locally in a Rust compute core compiled to WebAssembly. The project is
       open source — issues and contributions are welcome.
     </p>
+    <p>
+      This is an independent, personally built tool and is not affiliated with any organization
+      or corporation.
+    </p>
     <a
       class="guide-cta guide-cta-ghost"
       href="https://github.com/crosstraffic/cross-traffic-web-calculator"

@@ -87,6 +87,6 @@
       <a href="/guide">Guide</a>
       <a href="terms">Terms &amp; Conditions</a>
     </nav>
-    <p class="site-footer-copy">© 2025 Rei Tamaru and Jonathan Riel. All rights reserved.</p>
+    <p class="site-footer-copy">© 2022–2026 Rei Tamaru and Jonathan Riel. All rights reserved.</p>
   </div>
 </footer>

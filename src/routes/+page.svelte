@@ -113,11 +113,12 @@
     <p>
       Built by
       <a href="https://reis-portfolio.vercel.app" target="_blank" rel="noreferrer">Rei Tamaru</a>,
-      a PhD student at the University of Wisconsin–Madison. This is an independent
-      tool and is not affiliated with the Transportation Research Board.
+      an ITS Engineer at HNTB. This is an independent, personally built tool and is
+      not affiliated with any organization or corporation.
     </p>
     <p>
-      Questions or issues? <a href="mailto:tamaru@wisc.edu">tamaru@wisc.edu</a>
+      Questions or issues? Feel free to
+      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">open an issue on GitHub</a>.
     </p>
   </section>
 </div>

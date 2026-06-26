@@ -154,6 +154,15 @@ header {
     margin-left: auto;
 }
 
+/* keep submenu items (e.g. "Chapter 15") on a single line */
+.navbar .menu a {
+    white-space: nowrap;
+}
+
+.navbar .menu .bg-base-200 {
+    min-width: max-content;
+}
+
 .nav-github {
     display: inline-flex;
     align-items: center;
