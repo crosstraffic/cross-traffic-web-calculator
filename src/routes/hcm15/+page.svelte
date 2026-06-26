@@ -2,6 +2,8 @@
   import Row from '../Row/+page.svelte';
   import SubRow from '../SubRow/+page.svelte';
   import Calc from '../Calc/+page.svelte';
+  import RoadDiagram from '../RoadDiagram/+page.svelte';
+  import FacilityView from '../FacilityView/+page.svelte';
   import init, { WasmSegment, WasmSubSegment, WasmTwoLaneHighways } from "HCM-middleware";
   import { onMount } from "svelte";
 
@@ -25,7 +27,6 @@
       vertical_class: '1',
       phf: '0.95',
       phv: '5',
-      img_src: 'segment.jpg',
       subrows: [{
         subseg_num: 1,
         subseg_length: '0',
@@ -36,6 +37,8 @@
   });
 
   let toggle_seg = -1;
+  let facilityExpanded = false;
+  let facilityMode = '3d';
 
   // Show microsimulation
   // function simResults() {
@@ -65,11 +68,9 @@
 
     localRows = [
       ...localRows,
-      { 
+      {
         seg_num: newSegNum,
         subrows: newSubrows,
-        passing_type: '',
-        img_src: 'segment.jpg',
         passing_type: '',
         seg_length: '',
         seg_grade: '0',
@@ -78,7 +79,6 @@
         vi: '0',
         vo: '0',
         vertical_class: '1',
-        is_hc: false,
         phf: '0.95',
         phv: '5',
       }
@@ -95,44 +95,18 @@
     localRows = localRows.map(row => {
       if (row.seg_num !== seg_num) return row;
 
-      // logic based on passing type
-      let img_src = 'segment.jpg';
+      // default demand volumes based on passing type
       let vi = '1000';
       let vo = '0';
-      let caption = 'Undefined';
-      let img_width = 100;
-      let img_height = 100;
 
-      switch (row.passing_type) {
-        case 'Passing Zone':
-          img_src = 'PassingZone.png';
-          img_height = 100;
-          img_width = 100;
-          caption = 'Passing Zone';
-          break;
-        case 'Passing Constrained':
-          img_src = 'PassingConstrained.png';
-          vo = '1500';
-          img_height = 100;
-          img_width = 100;
-          caption = 'Passing Constrained';
-          break;
-        case 'Passing Lane':
-          img_src = 'PassingLane.png';
-          img_height = 100;
-          img_width = 150;
-          caption = 'Passing Lane';
-          break;
+      if (row.passing_type === 'Passing Constrained') {
+        vo = '1500';
       }
 
       return {
         ...row,
         vi,
-        vo,
-        img_src,
-        img_caption: caption,
-        img_height,
-        img_width
+        vo
       };
     });
   }
@@ -275,12 +249,6 @@
         phf: segment.phf,
         phv: segment.phv,
         passing_type: passTypeText,
-        img_src:
-          passTypeText === "Passing Constrained" ? "PassingConstrained.png" :
-          passTypeText === "Passing Zone" ? "PassingZone.png" :
-          passTypeText === "Passing Lane" ? "PassingLane.png" :
-          "segment.jpg",
-        img_caption: passTypeText || "Segment",
         subrows: segment.subsegments.map((subseg, j) => ({
           subseg_num: j + 1,
           subseg_length: subseg.length,
@@ -353,7 +321,6 @@
       vertical_class: "1",
       phf: "0.95",
       phv: "5",
-      img_src: "segment.jpg",
       subrows: [{
         subseg_num: 1,
         subseg_length: 0,
@@ -570,40 +537,151 @@
       </div>
     </section>
 
-    <!-- Segment Image -->
+    <!-- Facility Layout -->
     <section class="panel">
-      <div class="panel-head">
+      <div class="panel-head with-actions">
         <div>
           <h2 class="panel-title">Facility Layout</h2>
-          <p class="panel-sub">Visual sequence of the configured segments.</p>
+          <p class="panel-sub">
+            {facilityExpanded
+              ? 'Edit each segment here — changes stay in sync with the Segments table.'
+              : 'Visual sequence of the configured segments. Expand to edit them here.'}
+          </p>
+        </div>
+        <div class="panel-actions">
+          <div class="view-toggle" role="group" aria-label="Facility view mode">
+            <button type="button" class="vt-btn" class:active={facilityMode === '2d'} on:click={() => (facilityMode = '2d')}>2D</button>
+            <button type="button" class="vt-btn" class:active={facilityMode === '3d'} on:click={() => (facilityMode = '3d')}>3D</button>
+          </div>
+          {#if facilityExpanded}
+            <button class="btn btn-outline btn-sm" on:click={addSegment} type="button">+ Add Segment</button>
+            <button class="btn btn-ghost btn-sm" on:click={removeSegment} type="button">Remove</button>
+          {/if}
+          <button
+            type="button"
+            class="btn btn-outline btn-sm"
+            aria-expanded={facilityExpanded}
+            on:click={() => (facilityExpanded = !facilityExpanded)}
+          >
+            {facilityExpanded ? 'Collapse' : 'Expand & Edit'}
+          </button>
         </div>
       </div>
-    <div class="overflow-x-auto">
-      <table class="table-auto w-fit" id="seg_imgs">
-        <tbody>
-          <tr>
+
+      <div class="facility-overview" class:flat={facilityMode === '2d'}>
+        {#if facilityMode === '3d'}
+          <FacilityView rows={localRows} laneWidth={lane_width} />
+        {:else}
+          <div class="facility-strip" id="seg_imgs">
             {#each localRows as row}
-              <td style="width: {row.img_width || 100}px; padding: 0; vertical-align: top;">
-                <img
-                  src={row.img_src}
-                  alt="segment"
-                  id={"seg_img" + row.seg_num}
-                  width={row.img_width || 100}
-                  height={row.img_height || 100}
-                />
-              </td>
+              <div class="facility-seg" style="flex: {Number(row.seg_length) > 0 ? Number(row.seg_length) : 1} 1 0;">
+                <div class="facility-seg-head">
+                  <span class="seg-no">{row.seg_num}</span>
+                  <span class="facility-seg-type">{row.passing_type || 'Not set'}</span>
+                </div>
+                <div class="facility-seg-img">
+                  <RoadDiagram type={row.passing_type} />
+                </div>
+                <div class="facility-seg-len">
+                  {Number(row.seg_length) > 0 ? row.seg_length + ' mi' : '—'}
+                </div>
+              </div>
             {/each}
-          </tr>
-          <tr>
-            {#each localRows as row}
-              <td class="text-center text-sm text-gray-600">
-                {row.img_caption || '-'}
-              </td>
-            {/each}
-          </tr>
-        </tbody>
-      </table>
-    </div>
+          </div>
+        {/if}
+      </div>
+
+      {#if facilityExpanded}
+        <div class="facility-grid">
+          {#each localRows as row, i (row.seg_num)}
+            <div class="facility-card">
+              <div class="facility-card-head">
+                <span class="seg-no">{row.seg_num}</span>
+                <select
+                  class="select select-bordered select-sm"
+                  bind:value={localRows[i].passing_type}
+                  on:change={() => changeSegment(row.seg_num)}
+                >
+                  <option value="" disabled>Select type</option>
+                  <option>Passing Constrained</option>
+                  <option>Passing Zone</option>
+                  <option>Passing Lane</option>
+                </select>
+              </div>
+
+              <div class="facility-seg-img">
+                <RoadDiagram type={row.passing_type} />
+              </div>
+
+              <div class="facility-fields">
+                <label class="ff">
+                  <span>Length</span>
+                  <span class="cell-field">
+                    <input class="input input-bordered input-sm" bind:value={localRows[i].seg_length} placeholder="0.0" autocomplete="off" />
+                    <span class="unit">mi</span>
+                  </span>
+                </label>
+                <label class="ff">
+                  <span>Grade</span>
+                  <span class="cell-field">
+                    <input class="input input-bordered input-sm" bind:value={localRows[i].seg_grade} placeholder="0" autocomplete="off" />
+                    <span class="unit">%</span>
+                  </span>
+                </label>
+                <label class="ff">
+                  <span>Posted Speed</span>
+                  <span class="cell-field">
+                    <input class="input input-bordered input-sm" bind:value={localRows[i].seg_spl} placeholder="0" autocomplete="off" />
+                    <span class="unit">mph</span>
+                  </span>
+                </label>
+                <label class="ff">
+                  <span>Vertical Class</span>
+                  <select class="select select-bordered select-sm" bind:value={localRows[i].vertical_class}>
+                    <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+                  </select>
+                </label>
+                <label class="ff">
+                  <span>Demand Vol.</span>
+                  <span class="cell-field">
+                    <input class="input input-bordered input-sm" bind:value={localRows[i].vi} placeholder="0" autocomplete="off" />
+                    <span class="unit">veh/h</span>
+                  </span>
+                </label>
+                <label class="ff">
+                  <span>Opposing Vol.</span>
+                  <span class="cell-field">
+                    <input class="input input-bordered input-sm" bind:value={localRows[i].vo} placeholder="0" autocomplete="off" />
+                    <span class="unit">veh/h</span>
+                  </span>
+                </label>
+                <label class="ff">
+                  <span>PHF</span>
+                  <span class="cell-field">
+                    <input class="input input-bordered input-sm" bind:value={localRows[i].phf} placeholder="0.95" autocomplete="off" />
+                  </span>
+                </label>
+                <label class="ff">
+                  <span>% Heavy Veh.</span>
+                  <span class="cell-field">
+                    <input class="input input-bordered input-sm" bind:value={localRows[i].phv} placeholder="5" autocomplete="off" />
+                    <span class="unit">%</span>
+                  </span>
+                </label>
+                <label class="ff ff-check">
+                  <input
+                    type="checkbox"
+                    class="checkbox checkbox-sm"
+                    bind:checked={localRows[i].is_hc}
+                    on:change={(e) => changeHC(row.seg_num, e.target.checked)}
+                  />
+                  <span>Horizontal curves</span>
+                </label>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </section>
 
     <!-- Form Actions -->

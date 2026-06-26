@@ -715,16 +715,171 @@ a.chapter-row:hover {
     width: 100px;
 }
 
-.table_img td {
-    position: relative;
-    height: 80px;
-    word-wrap: break-word;
+/* Facility Layout — proportional road-schematic strip */
+.facility-strip {
+    display: flex;
+    align-items: stretch;
+    overflow-x: auto;
+    border: 1px solid #eceff3;
+    border-radius: 12px;
+    background: #fff;
 }
 
-.table_img td img {
-    position: absolute;
+.facility-seg {
+    min-width: 150px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #eceff3;
+}
+
+.facility-seg:last-child {
+    border-right: none;
+}
+
+.facility-seg-head {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.7rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.facility-seg-type {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #475569;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.facility-seg-img {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.85rem;
+    min-height: 92px;
+}
+
+.facility-seg-len {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.72rem;
+    color: #94a3b8;
+    text-align: center;
+    border-top: 1px solid #f1f5f9;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Connected facility overview */
+.facility-overview {
+    border: 1px solid #eceff3;
+    border-radius: 12px;
+    background: #fff;
+    padding: 0.75rem 1rem 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+/* 2D mode: the strip carries its own border, so drop the frame */
+.facility-overview.flat {
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+
+/* 2D / 3D toggle */
+.view-toggle {
+    display: inline-flex;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.vt-btn {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+    padding: 0.3rem 0.7rem;
+    background: #fff;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.vt-btn + .vt-btn {
+    border-left: 1px solid #e2e8f0;
+}
+
+.vt-btn.active {
+    background: #ea7317;
+    color: #fff;
+}
+
+/* Expanded, editable facility view */
+.facility-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.facility-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #eceff3;
+    border-radius: 12px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.facility-card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.facility-card-head .select {
+    flex: 1;
+}
+
+.facility-card .facility-seg-img {
+    flex: none;
+    min-height: 78px;
+    padding: 0.75rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.facility-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem 0.85rem;
+    padding: 0.85rem;
+}
+
+.facility-fields .ff {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.facility-fields .ff .input {
+    width: 4.5rem;
     max-width: none;
-    top: 0;
+    background: #fff;
+}
+
+.facility-fields .ff .select {
+    width: 100%;
+}
+
+.facility-fields .ff-check {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    grid-column: 1 / -1;
+    margin-top: 0.1rem;
 }
 
 .table input {
