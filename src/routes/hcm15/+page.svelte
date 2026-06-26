@@ -38,7 +38,7 @@
 
   let toggle_seg = -1;
   let facilityExpanded = false;
-  let facilityMode = '3d';
+  let facilityMode = '2d';
 
   // Show microsimulation
   // function simResults() {

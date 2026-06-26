@@ -10,11 +10,11 @@
   export let rows = [];
   export let laneWidth = 12;
 
-  const VIEW_W = 720, VIEW_H = 320, PAD = 42;
+  const VIEW_W = 720, VIEW_H = 230, PAD = 30;
   const STEPS = 190;
   const Z_EXAG = 7;     // grade elevation exaggeration
   const BANK_EXAG = 6;  // superelevation exaggeration
-  const THICK = 6;      // road slab thickness (screen px)
+  const THICK = 11;     // road slab thickness (screen px)
 
   const num = (v, d) => { const n = parseFloat(v); return isNaN(n) ? d : n; };
   const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -212,7 +212,9 @@
     const spanY = Math.max(...pys) - Math.min(...pys);
     const spanZ = (Math.max(...pzs) - Math.min(...pzs)) * Z_EXAG;
     const RAD = Math.hypot(spanX, spanY) || 1;
-    const base0 = Math.min((VIEW_W - 2 * PAD) / RAD, (VIEW_H - 2 * PAD) / (RAD + spanZ));
+    // 1.3 fill factor compensates for the projection compressing the
+    // footprint, so the road fills the frame without zoom-jumping on rotate.
+    const base0 = 1.3 * Math.min((VIEW_W - 2 * PAD) / RAD, (VIEW_H - 2 * PAD) / (RAD + spanZ));
     const sc = base0 * zoom;
     const all = [...C, ...L, ...R, ...Gc, ...Gl, ...Gr];
     const axs = all.map((p) => p.x), ays = all.map((p) => p.y);
@@ -226,6 +228,13 @@
     const poly = (a, b, dy = 0) =>
       'M' + a.map((p) => `${p.x.toFixed(1)},${(p.y + dy).toFixed(1)}`).join(' L') +
       ' L' + [...b].reverse().map((p) => `${p.x.toFixed(1)},${(p.y + dy).toFixed(1)}`).join(' L') + ' Z';
+    // extruded side wall: an edge dropped down by THICK
+    const wall = (edge) =>
+      'M' + edge.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L') +
+      ' L' + [...edge].reverse().map((p) => `${p.x.toFixed(1)},${(p.y + THICK).toFixed(1)}`).join(' L') + ' Z';
+    const endFace = (m, n) =>
+      `M${m.x.toFixed(1)},${m.y.toFixed(1)} L${n.x.toFixed(1)},${n.y.toFixed(1)} ` +
+      `L${n.x.toFixed(1)},${(n.y + THICK).toFixed(1)} L${m.x.toFixed(1)},${(m.y + THICK).toFixed(1)} Z`;
 
     // grade posts + ground lines at intervals and boundaries
     const postIdx = new Set(ranges.flatMap((r) => [r[0], r[1]]));
@@ -257,7 +266,11 @@
     return {
       empty: false,
       shadow: poly(Glf, Grf),
-      extrude: poly(Lf, Rf, THICK),
+      bottom: poly(Lf, Rf, THICK),
+      wallL: wall(Lf),
+      wallR: wall(Rf),
+      capA: endFace(Lf[0], Rf[0]),
+      capB: endFace(Lf[Lf.length - 1], Rf[Rf.length - 1]),
       surface: poly(Lf, Rf),
       ground: P(Gcf),
       posts,
@@ -285,6 +298,13 @@
       on:pointercancel={onUp}
       on:wheel|nonpassive={onWheel}
     >
+      <defs>
+        <linearGradient id="roadGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#5d6f88" />
+          <stop offset="50%" stop-color="#4b5b71" />
+          <stop offset="100%" stop-color="#3e4b5e" />
+        </linearGradient>
+      </defs>
       <!-- ground footprint -->
       <path d={model.shadow} class="r-shadow" />
       <polyline points={model.ground} class="r-ground" />
@@ -292,9 +312,12 @@
       {#each model.posts as p}
         <line x1={p.x1} y1={p.y1} x2={p.x2} y2={p.y2} class="r-post" />
       {/each}
-      <!-- slab thickness -->
-      <path d={model.extrude} class="r-extrude" />
-      <!-- road surface -->
+      <!-- extruded slab: bottom face, side walls, end caps, then top -->
+      <path d={model.bottom} class="r-bottom" />
+      <path d={model.wallL} class="r-wall" />
+      <path d={model.wallR} class="r-wall" />
+      <path d={model.capA} class="r-wall" />
+      <path d={model.capB} class="r-wall" />
       <path d={model.surface} class="r-surface" />
       <polyline points={model.edgeL} class="r-edge" />
       <polyline points={model.edgeR} class="r-edge" />
@@ -362,8 +385,9 @@
   .r-shadow { fill: rgba(15, 23, 42, 0.07); stroke: none; }
   .r-ground { fill: none; stroke: rgba(148, 163, 184, 0.5); stroke-width: 1; stroke-dasharray: 2 4; }
   .r-post { stroke: rgba(100, 116, 139, 0.45); stroke-width: 1; stroke-dasharray: 2 3; }
-  .r-extrude { fill: #1e293b; stroke: #1e293b; stroke-width: 1; stroke-linejoin: round; }
-  .r-surface { fill: #475569; stroke: #334155; stroke-width: 1; stroke-linejoin: round; }
+  .r-bottom { fill: #0f172a; stroke: #0f172a; stroke-width: 1; stroke-linejoin: round; }
+  .r-wall { fill: #1e293b; stroke: #1e293b; stroke-width: 0.75; stroke-linejoin: round; }
+  .r-surface { fill: url(#roadGrad); stroke: #334155; stroke-width: 1; stroke-linejoin: round; }
   .r-edge { fill: none; stroke: #cbd5e1; stroke-width: 1; opacity: 0.5; }
   .r-center { fill: none; stroke: #f8b24a; stroke-width: 1.6; stroke-linecap: round; }
   .r-badge-bg { fill: #fff; stroke: #ea7317; stroke-width: 1.2; }

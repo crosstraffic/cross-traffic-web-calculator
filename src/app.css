@@ -816,8 +816,8 @@ a.chapter-row:hover {
 /* Expanded, editable facility view */
 .facility-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 1.25rem;
 }
 
 .facility-card {
@@ -843,16 +843,16 @@ a.chapter-row:hover {
 
 .facility-card .facility-seg-img {
     flex: none;
-    min-height: 78px;
-    padding: 0.75rem;
+    min-height: 104px;
+    padding: 1rem;
     border-bottom: 1px solid #f1f5f9;
 }
 
 .facility-fields {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.65rem 0.85rem;
-    padding: 0.85rem;
+    gap: 0.8rem 1.1rem;
+    padding: 1.1rem;
 }
 
 .facility-fields .ff {
