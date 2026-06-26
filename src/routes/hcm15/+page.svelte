@@ -2,6 +2,8 @@
   import Row from '../Row/+page.svelte';
   import SubRow from '../SubRow/+page.svelte';
   import Calc from '../Calc/+page.svelte';
+  import RoadDiagram from '../RoadDiagram/+page.svelte';
+  import FacilityView from '../FacilityView/+page.svelte';
   import init, { WasmSegment, WasmSubSegment, WasmTwoLaneHighways } from "HCM-middleware";
   import { onMount } from "svelte";
 
@@ -25,7 +27,6 @@
       vertical_class: '1',
       phf: '0.95',
       phv: '5',
-      img_src: 'segment.jpg',
       subrows: [{
         subseg_num: 1,
         subseg_length: '0',
@@ -36,6 +37,8 @@
   });
 
   let toggle_seg = -1;
+  let facilityExpanded = false;
+  let facilityMode = '2d';
 
   // Show microsimulation
   // function simResults() {
@@ -65,11 +68,9 @@
 
     localRows = [
       ...localRows,
-      { 
+      {
         seg_num: newSegNum,
         subrows: newSubrows,
-        passing_type: '',
-        img_src: 'segment.jpg',
         passing_type: '',
         seg_length: '',
         seg_grade: '0',
@@ -78,7 +79,6 @@
         vi: '0',
         vo: '0',
         vertical_class: '1',
-        is_hc: false,
         phf: '0.95',
         phv: '5',
       }
@@ -95,44 +95,18 @@
     localRows = localRows.map(row => {
       if (row.seg_num !== seg_num) return row;
 
-      // logic based on passing type
-      let img_src = 'segment.jpg';
+      // default demand volumes based on passing type
       let vi = '1000';
       let vo = '0';
-      let caption = 'Undefined';
-      let img_width = 100;
-      let img_height = 100;
 
-      switch (row.passing_type) {
-        case 'Passing Zone':
-          img_src = 'PassingZone.png';
-          img_height = 100;
-          img_width = 100;
-          caption = 'Passing Zone';
-          break;
-        case 'Passing Constrained':
-          img_src = 'PassingConstrained.png';
-          vo = '1500';
-          img_height = 100;
-          img_width = 100;
-          caption = 'Passing Constrained';
-          break;
-        case 'Passing Lane':
-          img_src = 'PassingLane.png';
-          img_height = 100;
-          img_width = 150;
-          caption = 'Passing Lane';
-          break;
+      if (row.passing_type === 'Passing Constrained') {
+        vo = '1500';
       }
 
       return {
         ...row,
         vi,
-        vo,
-        img_src,
-        img_caption: caption,
-        img_height,
-        img_width
+        vo
       };
     });
   }
@@ -275,12 +249,6 @@
         phf: segment.phf,
         phv: segment.phv,
         passing_type: passTypeText,
-        img_src:
-          passTypeText === "Passing Constrained" ? "PassingConstrained.png" :
-          passTypeText === "Passing Zone" ? "PassingZone.png" :
-          passTypeText === "Passing Lane" ? "PassingLane.png" :
-          "segment.jpg",
-        img_caption: passTypeText || "Segment",
         subrows: segment.subsegments.map((subseg, j) => ({
           subseg_num: j + 1,
           subseg_length: subseg.length,
@@ -353,7 +321,6 @@
       vertical_class: "1",
       phf: "0.95",
       phv: "5",
-      img_src: "segment.jpg",
       subrows: [{
         subseg_num: 1,
         subseg_length: 0,
@@ -381,49 +348,74 @@
 </script>
 
 
-<div class="mb-6">
-  <h1 class="text-3xl font-bold underline">HCM Calulator - Chapter 15</h1>
-</div>
-
-<div class="mb-4">
-
-  <label for="jsonInput" class="block text-sm font-medium mb-1">JSON Input</label>
-  <input 
-    type="file"
-    id="jsonInput"
-    on:change={jsonInputHandler}
-    class="file-input file-input-bordered w-full max-w-xs"
-    accept=".json"
-  />
+<div class="hcm-page">
+  <header class="page-header">
+    <span class="badge badge-outline page-badge">Chapter 15 · Two-Lane Highways</span>
+    <h1 class="page-title">HCM Calculator — Chapter 15</h1>
+    <p class="page-sub">
+      Estimate free-flow speed, follower density, average speed, and level of
+      service for two-lane highway facilities, segment by segment.
+    </p>
+  </header>
 
   {#if hasError}
-    <div class="alert alert-error shadow-sm mb-4">
+    <div class="alert alert-error shadow-sm mb-6">
       <span>{errMessage}</span>
     </div>
   {/if}
 
   <form
-    id="hcm15" 
+    id="hcm15"
     class="submitted:opacity-50 transition-opacity duration-300"
     on:submit|preventDefault={handleSubmit}
   >
-    <div class="w-full overflow-x-auto">
-      <table class="table table-zebra w-full">
+    <!-- Import -->
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">Import</h2>
+          <p class="panel-sub">Optionally load a previously exported analysis.</p>
+        </div>
+      </div>
+      <label for="jsonInput" class="block text-sm font-medium mb-1">JSON file</label>
+      <input
+        type="file"
+        id="jsonInput"
+        on:change={jsonInputHandler}
+        class="file-input file-input-bordered w-full max-w-xs"
+        accept=".json"
+      />
+    </section>
+
+    <!-- Segments -->
+    <section class="panel">
+      <div class="panel-head with-actions">
+        <div>
+          <h2 class="panel-title">Segments</h2>
+          <p class="panel-sub">Define the passing type and traffic characteristics of each segment.</p>
+        </div>
+        <div class="panel-actions">
+          <button class="btn btn-outline btn-sm" on:click={addSegment} type="button">+ Add Segment</button>
+          <button class="btn btn-ghost btn-sm" on:click={removeSegment} type="button">Remove</button>
+        </div>
+      </div>
+      <div class="w-full overflow-x-auto">
+      <table class="table seg-table w-full">
         <thead>
           <tr>
             <!-- <th>Active</th> -->
-            <th>Segment</th>
+            <th>#</th>
             <th>Passing Type</th>
             <th>Length</th>
             <th>Grade</th>
-            <th>Posted Speed Limit</th>
-            <th>Horizontal Curves</th>
-            <th>Horizontal Params</th>
-            <th>Demand Volume</th>
-            <th>Demand Volume (O)</th>
+            <th>Posted Speed</th>
+            <th>Horiz. Curves</th>
+            <th>Horiz. Params</th>
+            <th>Demand Vol.</th>
+            <th>Opposing Vol.</th>
             <th>Vertical Class</th>
-            <th>Peak Hour Factor</th>
-            <th>Heavy Vehicle Per.</th>
+            <th>PHF</th>
+            <th>% Heavy Veh.</th>
           </tr>
         </thead>
         <tbody>
@@ -432,138 +424,271 @@
           {/each}
         </tbody>
       </table>
-    </div>
+      </div>
+    </section>
 
-    <div class="grid md:grid-cols-2 sm:grid-cols-1 gap-6 mb-8">
+    <!-- Parameters & horizontal curves -->
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">General Parameters</h2>
+          <p class="panel-sub">Facility-wide values and horizontal-curve subsegments.</p>
+        </div>
+      </div>
       <!-- Parameter Inputs -->
-      <div class="space-y-4">
-        <div>
-          <label for="LW_input" class="block text-sm font-medium mb-1">Lane Width (ft)</label>
-          <input
-            id="LW_input"
-            type="text"
-            class="input input-bordered w-full max-w-xs"
-            bind:value={lane_width}
-            placeholder="e.g. 12"
-            pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-            required
-          />
+      <div class="param-grid">
+        <div class="param-field">
+          <label for="LW_input">Lane Width</label>
+          <div class="cell-field">
+            <input
+              id="LW_input"
+              type="text"
+              class="input input-bordered input-sm"
+              bind:value={lane_width}
+              placeholder="12"
+              pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+              required
+            />
+            <span class="unit">ft</span>
+          </div>
         </div>
 
-        <div>
-          <label for="SW_input" class="block text-sm font-medium mb-1">Shoulder Width (ft)</label>
-          <input
-            id="SW_input"
-            type="text"
-            class="input input-bordered w-full max-w-xs"
-            placeholder="e.g. 6"
-            bind:value={shoulder_width}
-            pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-            required
-          />
+        <div class="param-field">
+          <label for="SW_input">Shoulder Width</label>
+          <div class="cell-field">
+            <input
+              id="SW_input"
+              type="text"
+              class="input input-bordered input-sm"
+              placeholder="6"
+              bind:value={shoulder_width}
+              pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+              required
+            />
+            <span class="unit">ft</span>
+          </div>
         </div>
 
-        <div>
-          <label for="APD_input" class="block text-sm font-medium mb-1">Access Point Density (per mi)</label>
-          <input
-            id="APD_input"
-            type="text"
-            class="input input-bordered w-full max-w-xs"
-            placeholder="e.g. 2"
-            bind:value={apd}
-            pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-            required
-          />
+        <div class="param-field">
+          <label for="APD_input">Access Point Density</label>
+          <div class="cell-field">
+            <input
+              id="APD_input"
+              type="text"
+              class="input input-bordered input-sm"
+              placeholder="2"
+              bind:value={apd}
+              pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+              required
+            />
+            <span class="unit">/mi</span>
+          </div>
         </div>
 
-        <div>
-          <label for="PMHVFL_input" class="block text-sm font-medium mb-1">
-            % Multiplier for Heavy Vehicles in Passing Lane<br />
-            <span class="text-xs text-gray-500">*Only used when Passing Lane is included</span>
-          </label>
-          <input
-            id="PMHVFL_input"
-            type="text"
-            class="input input-bordered w-full max-w-xs"
-            placeholder="e.g. 0"
-            bind:value={pmhvfl}
-            pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
-            required
-          />
+        <div class="param-field">
+          <label for="PMHVFL_input">Heavy Vehicles in Passing Lane</label>
+          <div class="cell-field">
+            <input
+              id="PMHVFL_input"
+              type="text"
+              class="input input-bordered input-sm"
+              placeholder="0"
+              bind:value={pmhvfl}
+              pattern="[+]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+              required
+            />
+            <span class="unit">%</span>
+          </div>
+          <p class="param-hint">Only applied when a Passing Lane segment is present.</p>
         </div>
       </div>
 
       <!-- Segment Subtables -->
-      <div class="space-y-6">
+      <div class="hc-subtables">
         {#each localRows as row}
           {#if row.is_hc}
-            <div class="card card-compact bg-base-100 shadow-xl overflow-x-auto" id="hc_table{row.seg_num}">
-              <div class="card-body">
-                <div class="flex justify-between items-center mb-2">
-                  <h2 class="text-lg font-semibold">Segment {row.seg_num}</h2>
-                  <div class="flex gap-2">
-                    <button class="btn btn-outline btn-sm" on:click={() => addSubSegment(row.seg_num)} type="button">Add</button>
-                    <button class="btn btn-outline btn-sm" on:click={() => removeSubSegment(row.seg_num)} type="button">Remove</button>
-                  </div>
+            <div class="hc-card" id="hc_table{row.seg_num}">
+              <div class="hc-card-head">
+                <h3>Segment {row.seg_num} · Horizontal Curves</h3>
+                <div class="flex gap-2">
+                  <button class="btn btn-outline btn-sm" on:click={() => addSubSegment(row.seg_num)} type="button">Add</button>
+                  <button class="btn btn-ghost btn-sm" on:click={() => removeSubSegment(row.seg_num)} type="button">Remove</button>
                 </div>
-
-                <table class="table table-compact w-full">
-                  <thead>
-                    <tr>
-                      <th>Subsegment</th>
-                      <th>Length</th>
-                      <th>Design Radius</th>
-                      <th>Superelevation</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {#each row.subrows as subrow}
-                      <SubRow bind:subrow={subrow} subseg_num={subrow.subseg_num} />
-                    {/each}
-                  </tbody>
-                </table>
               </div>
+
+              <table class="table seg-table table-compact w-full">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Length</th>
+                    <th>Design Radius</th>
+                    <th>Superelevation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each row.subrows as subrow}
+                    <SubRow bind:subrow={subrow} subseg_num={subrow.subseg_num} />
+                  {/each}
+                </tbody>
+              </table>
             </div>
           {/if}
         {/each}
       </div>
-    </div>
+    </section>
 
-    <!-- Segment Image -->
-    <div class="overflow-x-auto mt-6">
-      <table class="table-auto w-fit" id="seg_imgs">
-        <tbody>
-          <tr>
+    <!-- Facility Layout -->
+    <section class="panel">
+      <div class="panel-head with-actions">
+        <div>
+          <h2 class="panel-title">Facility Layout</h2>
+          <p class="panel-sub">
+            {facilityExpanded
+              ? 'Edit each segment here — changes stay in sync with the Segments table.'
+              : 'Visual sequence of the configured segments. Expand to edit them here.'}
+          </p>
+        </div>
+        <div class="panel-actions">
+          <div class="view-toggle" role="group" aria-label="Facility view mode">
+            <button type="button" class="vt-btn" class:active={facilityMode === '2d'} on:click={() => (facilityMode = '2d')}>2D</button>
+            <button type="button" class="vt-btn" class:active={facilityMode === '3d'} on:click={() => (facilityMode = '3d')}>3D</button>
+          </div>
+          {#if facilityExpanded}
+            <button class="btn btn-outline btn-sm" on:click={addSegment} type="button">+ Add Segment</button>
+            <button class="btn btn-ghost btn-sm" on:click={removeSegment} type="button">Remove</button>
+          {/if}
+          <button
+            type="button"
+            class="btn btn-outline btn-sm"
+            aria-expanded={facilityExpanded}
+            on:click={() => (facilityExpanded = !facilityExpanded)}
+          >
+            {facilityExpanded ? 'Collapse' : 'Expand & Edit'}
+          </button>
+        </div>
+      </div>
+
+      <div class="facility-overview" class:flat={facilityMode === '2d'}>
+        {#if facilityMode === '3d'}
+          <FacilityView rows={localRows} laneWidth={lane_width} />
+        {:else}
+          <div class="facility-strip" id="seg_imgs">
             {#each localRows as row}
-              <td style="width: {row.img_width || 100}px; padding: 0; vertical-align: top;">
-                <img
-                  src={row.img_src}
-                  alt="segment"
-                  id={"seg_img" + row.seg_num}
-                  width={row.img_width || 100}
-                  height={row.img_height || 100}
-                />
-              </td>
+              <div class="facility-seg" style="flex: {Number(row.seg_length) > 0 ? Number(row.seg_length) : 1} 1 0;">
+                <div class="facility-seg-head">
+                  <span class="seg-no">{row.seg_num}</span>
+                  <span class="facility-seg-type">{row.passing_type || 'Not set'}</span>
+                </div>
+                <div class="facility-seg-img">
+                  <RoadDiagram type={row.passing_type} />
+                </div>
+                <div class="facility-seg-len">
+                  {Number(row.seg_length) > 0 ? row.seg_length + ' mi' : '—'}
+                </div>
+              </div>
             {/each}
-          </tr>
-          <tr>
-            {#each localRows as row}
-              <td class="text-center text-sm text-gray-600">
-                {row.img_caption || '-'}
-              </td>
-            {/each}
-          </tr>
-        </tbody>
-      </table>
-    </div>
+          </div>
+        {/if}
+      </div>
+
+      {#if facilityExpanded}
+        <div class="facility-grid">
+          {#each localRows as row, i (row.seg_num)}
+            <div class="facility-card">
+              <div class="facility-card-head">
+                <span class="seg-no">{row.seg_num}</span>
+                <select
+                  class="select select-bordered select-sm"
+                  bind:value={localRows[i].passing_type}
+                  on:change={() => changeSegment(row.seg_num)}
+                >
+                  <option value="" disabled>Select type</option>
+                  <option>Passing Constrained</option>
+                  <option>Passing Zone</option>
+                  <option>Passing Lane</option>
+                </select>
+              </div>
+
+              <div class="facility-seg-img">
+                <RoadDiagram type={row.passing_type} />
+              </div>
+
+              <div class="facility-fields">
+                <label class="ff">
+                  <span>Length</span>
+                  <span class="cell-field">
+                    <input class="input input-bordered input-sm" bind:value={localRows[i].seg_length} placeholder="0.0" autocomplete="off" />
+                    <span class="unit">mi</span>
+                  </span>
+                </label>
+                <label class="ff">
+                  <span>Grade</span>
+                  <span class="cell-field">
+                    <input class="input input-bordered input-sm" bind:value={localRows[i].seg_grade} placeholder="0" autocomplete="off" />
+                    <span class="unit">%</span>
+                  </span>
+                </label>
+                <label class="ff">
+                  <span>Posted Speed</span>
+                  <span class="cell-field">
+                    <input class="input input-bordered input-sm" bind:value={localRows[i].seg_spl} placeholder="0" autocomplete="off" />
+                    <span class="unit">mph</span>
+                  </span>
+                </label>
+                <label class="ff">
+                  <span>Vertical Class</span>
+                  <select class="select select-bordered select-sm" bind:value={localRows[i].vertical_class}>
+                    <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+                  </select>
+                </label>
+                <label class="ff">
+                  <span>Demand Vol.</span>
+                  <span class="cell-field">
+                    <input class="input input-bordered input-sm" bind:value={localRows[i].vi} placeholder="0" autocomplete="off" />
+                    <span class="unit">veh/h</span>
+                  </span>
+                </label>
+                <label class="ff">
+                  <span>Opposing Vol.</span>
+                  <span class="cell-field">
+                    <input class="input input-bordered input-sm" bind:value={localRows[i].vo} placeholder="0" autocomplete="off" />
+                    <span class="unit">veh/h</span>
+                  </span>
+                </label>
+                <label class="ff">
+                  <span>PHF</span>
+                  <span class="cell-field">
+                    <input class="input input-bordered input-sm" bind:value={localRows[i].phf} placeholder="0.95" autocomplete="off" />
+                  </span>
+                </label>
+                <label class="ff">
+                  <span>% Heavy Veh.</span>
+                  <span class="cell-field">
+                    <input class="input input-bordered input-sm" bind:value={localRows[i].phv} placeholder="5" autocomplete="off" />
+                    <span class="unit">%</span>
+                  </span>
+                </label>
+                <label class="ff ff-check">
+                  <input
+                    type="checkbox"
+                    class="checkbox checkbox-sm"
+                    bind:checked={localRows[i].is_hc}
+                    on:change={(e) => changeHC(row.seg_num, e.target.checked)}
+                  />
+                  <span>Horizontal curves</span>
+                </label>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </section>
 
     <!-- Form Actions -->
-    <div class="flex flex-wrap justify-end gap-2 mt-4">
+    <div class="action-bar">
+      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
       <button class="btn btn-outline" on:click={jsonOutputHandler} id="jsonOutput" type="button">Export as JSON</button>
-      <button class="btn btn-outline" on:click={resetParams} type="button">Reset Params</button>
       <Calc {lane_width} {shoulder_width} {apd} {pmhvfl} rows_len={localRows.length} rows={localRows}/>
-      <button class="btn btn-outline" on:click={addSegment} type="button">Add Segment</button>
-      <button class="btn btn-outline" on:click={removeSegment} type="button">Remove Segment</button>
     </div>
 
   </form>
@@ -571,8 +696,14 @@
   <!-- <canvas id="simulation-canvas"></canvas> -->
   <pre id="simulation-canvas"></pre>
 
+  <section class="panel results-panel">
+    <div class="panel-head">
+      <div>
+        <h2 class="panel-title">Outputs</h2>
+        <p class="panel-sub">Results populate after pressing Calculate.</p>
+      </div>
+    </div>
   <div class="los overflow-x-auto">
-    <h3>Outputs</h3>
     <table class="table w-full">
       <thead>
         <tr>
@@ -616,9 +747,12 @@
         </tr>
       </tbody>
     </table>
-    <p id="los">Facility LOS: </p>
-    <p id="fdF">Facility Follower Density: </p>
-    <p id="error">Error Message: </p>
+    <div class="facility-summary">
+      <p id="los">Facility LOS: </p>
+      <p id="fdF">Facility Follower Density: </p>
+      <p id="error">Error Message: </p>
+    </div>
   </div>
+  </section>
 
 </div>
