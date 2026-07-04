@@ -1047,3 +1047,8 @@ a.chapter-row:hover {
     margin-left: 20px;
     list-style-type: square;
 }
+.chapters-menu {
+    max-height: 70vh;
+    overflow-y: auto;
+    min-width: 16rem;
+}

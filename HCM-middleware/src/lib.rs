@@ -1,2 +1,16 @@
 use crosstraffic_middleware::wasm_twolanehighways::{ WasmSegment, WasmSubSegment, WasmTwoLaneHighways };
 use crosstraffic_middleware::wasm_basicfreeways::WasmBasicFreeways;
+use crosstraffic_middleware::wasm_managed_lanes::WasmManagedLanes;
+use crosstraffic_middleware::wasm_weaving::WasmWeavingSegment;
+use crosstraffic_middleware::wasm_merge_diverge::WasmRampSegment;
+use crosstraffic_middleware::wasm_freeway_facilities::{ WasmFacilitySegment, WasmFreewayFacility, WasmPlanningFacility };
+use crosstraffic_middleware::wasm_freeway_reliability::WasmFreewayReliability;
+use crosstraffic_middleware::wasm_urban_facilities::WasmUrbanFacility;
+use crosstraffic_middleware::wasm_urban_reliability::WasmUrbanReliability;
+use crosstraffic_middleware::wasm_urban_segments::WasmUrbanSegment;
+use crosstraffic_middleware::wasm_signalized::WasmSignalizedIntersection;
+use crosstraffic_middleware::wasm_twsc::WasmTwsc;
+use crosstraffic_middleware::wasm_awsc::WasmAwsc;
+use crosstraffic_middleware::wasm_roundabouts::WasmRoundabouts;
+use crosstraffic_middleware::wasm_interchange::{ WasmInterchange, WasmDisplacedLeftTurn };
+use crosstraffic_middleware::wasm_pedbike::{ WasmExclusivePedestrianFacility, WasmSharedUsePathPedestrian, WasmOffStreetBicycleFacility };

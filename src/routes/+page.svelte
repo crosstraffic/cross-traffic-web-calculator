@@ -86,8 +86,62 @@
   <section class="chapters">
     <div class="chapters-head">
       <h2>Available chapters</h2>
-      <span class="chapters-meta">More chapters in development</span>
+      <span class="chapters-meta">Chapters 10 through 24, most in beta</span>
     </div>
+
+    <a class="chapter-row" href="/hcm10">
+      <span class="chapter-no">10</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Freeway Facilities Core Methodology</span>
+        <span class="chapter-desc">Multi-segment, multi-period facility analysis with LOS, speeds, densities, and oversaturation flagging</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm11">
+      <span class="chapter-no">11</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Freeway Reliability Analysis</span>
+        <span class="chapter-desc">Whole-year travel time reliability with TTI percentiles, misery index, and reliability rating</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm12">
+      <span class="chapter-no">12</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Basic Freeway and Multilane Highway Segments</span>
+        <span class="chapter-desc">Free-flow speed, capacity, density, and level of service for basic freeway segments</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm12ml">
+      <span class="chapter-no">12</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Managed Lanes</span>
+        <span class="chapter-desc">Capacity, speed, density, and LOS for a managed lane segment, including friction from adjacent general purpose lanes</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm13">
+      <span class="chapter-no">13</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Freeway Weaving Segments</span>
+        <span class="chapter-desc">Capacity, weaving and nonweaving speeds, density, and LOS for one-sided and two-sided weaving segments</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm14">
+      <span class="chapter-no">14</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Freeway Merge and Diverge Segments</span>
+        <span class="chapter-desc">Ramp influence area density, speeds, and LOS for on-ramp, off-ramp, major merge, and major diverge junctions</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
 
     <a class="chapter-row" href="/hcm15">
       <span class="chapter-no">15</span>
@@ -98,23 +152,86 @@
       <span class="chapter-status available">Available</span>
     </a>
 
-    <a class="chapter-row" href="/hcm12">
-      <span class="chapter-no">12</span>
+    <a class="chapter-row" href="/hcm16">
+      <span class="chapter-no">16</span>
       <span class="chapter-body">
-        <span class="chapter-name">Basic Freeway Segments</span>
-        <span class="chapter-desc">Free-flow speed, capacity, density, and level of service for basic freeway segments</span>
+        <span class="chapter-name">Urban Street Facilities</span>
+        <span class="chapter-desc">Facility travel speed and LOS aggregated from urban street segments</span>
       </span>
       <span class="chapter-status beta">Beta</span>
     </a>
 
-    <div class="chapter-row disabled" aria-disabled="true">
-      <span class="chapter-no">—</span>
+    <a class="chapter-row" href="/hcm17">
+      <span class="chapter-no">17</span>
       <span class="chapter-body">
-        <span class="chapter-name">Additional chapters</span>
-        <span class="chapter-desc">Further HCM procedures are being implemented</span>
+        <span class="chapter-name">Urban Street Reliability and ATDM</span>
+        <span class="chapter-desc">Travel time reliability of a signalized urban street over a year of generated scenarios</span>
       </span>
-      <span class="chapter-status">Planned</span>
-    </div>
+      <span class="chapter-status beta">Beta</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm18">
+      <span class="chapter-no">18</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Urban Street Segments</span>
+        <span class="chapter-desc">Travel speed, stop rate, and LOS for one direction of an urban street segment</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm19">
+      <span class="chapter-no">19</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Signalized Intersections</span>
+        <span class="chapter-desc">Control delay and LOS for a four-leg pretimed signal, by approach and for the intersection</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm20">
+      <span class="chapter-no">20</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Two-Way STOP-Controlled Intersections</span>
+        <span class="chapter-desc">Minor-movement capacities, control delay, queues, and LOS</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm21">
+      <span class="chapter-no">21</span>
+      <span class="chapter-body">
+        <span class="chapter-name">All-Way STOP-Controlled Intersections</span>
+        <span class="chapter-desc">Per-lane departure headways, control delay, queues, and LOS</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm22">
+      <span class="chapter-no">22</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Roundabouts</span>
+        <span class="chapter-desc">Entry-lane capacities, control delay, queues, and LOS for single-lane and two-lane roundabouts with bypass lanes</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm23">
+      <span class="chapter-no">23</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Ramp Terminals and Alternative Intersections</span>
+        <span class="chapter-desc">Experienced travel time and LOS for a signalized diamond interchange, by O-D movement</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm24">
+      <span class="chapter-no">24</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Off-Street Pedestrian and Bicycle Facilities</span>
+        <span class="chapter-desc">Pedestrian space, hindrance events, and bicycle LOS for walkways, stairways, and shared-use paths</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
   </section>
 
   <!-- Credits -->
