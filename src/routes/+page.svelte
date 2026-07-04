@@ -25,7 +25,7 @@
           segment — backed by a WebAssembly engine for exact, reproducible results.
         </p>
         <div class="hero-actions">
-          <a href="/hcm15" class="btn-cta">Open Chapter 15 <span aria-hidden="true">→</span></a>
+          <a href="/hcm15" class="btn-cta">Open Two-Lane Highways <span aria-hidden="true">→</span></a>
           <a
             href="https://nap.nationalacademies.org/catalog/26432/highway-capacity-manual-7th-edition-a-guide-for-multimodal-mobility"
             target="_blank"
@@ -96,6 +96,15 @@
         <span class="chapter-desc">Level of service, follower density, average speed, and passing analysis</span>
       </span>
       <span class="chapter-status available">Available</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm12">
+      <span class="chapter-no">12</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Basic Freeway Segments</span>
+        <span class="chapter-desc">Free-flow speed, capacity, density, and level of service for basic freeway segments</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
     </a>
 
     <div class="chapter-row disabled" aria-disabled="true">

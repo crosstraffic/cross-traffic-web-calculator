@@ -16,7 +16,7 @@
   <section class="guide-section">
     <h2>Getting started</h2>
     <ol class="guide-steps">
-      <li>Open <a href="/hcm15">Chapter 15</a> from the navigation.</li>
+      <li>Open <a href="/hcm15">Two-Lane Highways</a> from the navigation.</li>
       <li>
         <strong>Define your segments</strong> in the Segments table. For each segment set its
         passing type, length, grade, posted speed, demand volumes, vertical class, PHF, and
@@ -37,7 +37,7 @@
         them later.
       </li>
     </ol>
-    <a href="/hcm15" class="guide-cta">Open Chapter 15 <span aria-hidden="true">→</span></a>
+    <a href="/hcm15" class="guide-cta">Open Two-Lane Highways <span aria-hidden="true">→</span></a>
   </section>
 
   <!-- Inputs -->

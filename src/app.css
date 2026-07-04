@@ -470,6 +470,12 @@ a.chapter-row:hover {
     background: #f0fdf4;
 }
 
+.chapter-status.beta {
+    color: #b45309;
+    border-color: #fde68a;
+    background: #fffbeb;
+}
+
 .chapter-row.disabled {
     opacity: 0.7;
 }

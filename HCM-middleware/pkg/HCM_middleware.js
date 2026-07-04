@@ -231,6 +231,139 @@ function getArrayF64FromWasm0(ptr, len) {
     return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
 }
 
+const WasmBasicFreewaysFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmbasicfreeways_free(ptr >>> 0));
+/**
+*/
+export class WasmBasicFreeways {
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        WasmBasicFreewaysFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_wasmbasicfreeways_free(ptr);
+    }
+    /**
+    * @param {number | undefined} [bffs]
+    * @param {number | undefined} [lane_width]
+    * @param {number | undefined} [lane_count]
+    * @param {number | undefined} [lc_r]
+    * @param {number | undefined} [lc_l]
+    * @param {number | undefined} [trd]
+    * @param {number | undefined} [apd]
+    * @param {number | undefined} [grade]
+    * @param {string | undefined} [terrain_type]
+    * @param {number | undefined} [speed_limit]
+    * @param {number | undefined} [phf]
+    * @param {number | undefined} [p_t]
+    * @param {number | undefined} [demand_flow_i]
+    * @param {number | undefined} [length]
+    * @param {string | undefined} [highway_type]
+    * @param {string | undefined} [city_type]
+    */
+    constructor(bffs, lane_width, lane_count, lc_r, lc_l, trd, apd, grade, terrain_type, speed_limit, phf, p_t, demand_flow_i, length, highway_type, city_type) {
+        var ptr0 = isLikeNone(terrain_type) ? 0 : passStringToWasm0(terrain_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len0 = WASM_VECTOR_LEN;
+        var ptr1 = isLikeNone(highway_type) ? 0 : passStringToWasm0(highway_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len1 = WASM_VECTOR_LEN;
+        var ptr2 = isLikeNone(city_type) ? 0 : passStringToWasm0(city_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len2 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmbasicfreeways_new(!isLikeNone(bffs), isLikeNone(bffs) ? 0 : bffs, !isLikeNone(lane_width), isLikeNone(lane_width) ? 0 : lane_width, !isLikeNone(lane_count), isLikeNone(lane_count) ? 0 : lane_count, !isLikeNone(lc_r), isLikeNone(lc_r) ? 0 : lc_r, !isLikeNone(lc_l), isLikeNone(lc_l) ? 0 : lc_l, !isLikeNone(trd), isLikeNone(trd) ? 0 : trd, !isLikeNone(apd), isLikeNone(apd) ? 0 : apd, !isLikeNone(grade), isLikeNone(grade) ? 0 : grade, ptr0, len0, !isLikeNone(speed_limit), isLikeNone(speed_limit) ? 0 : speed_limit, !isLikeNone(phf), isLikeNone(phf) ? 0 : phf, !isLikeNone(p_t), isLikeNone(p_t) ? 0 : p_t, !isLikeNone(demand_flow_i), isLikeNone(demand_flow_i) ? 0 : demand_flow_i, !isLikeNone(length), isLikeNone(length) ? 0 : length, ptr1, len1, ptr2, len2);
+        this.__wbg_ptr = ret >>> 0;
+        return this;
+    }
+    /**
+    * Run the full HCM Ch.12 operational analysis and return the LOS letter.
+    * Populates ffs, capacity, speed, density, and v/c ratio.
+    * @returns {string}
+    */
+    run_operational_analysis() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmbasicfreeways_run_operational_analysis(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+    * @returns {number}
+    */
+    determine_free_flow_speed() {
+        const ret = wasm.wasmbasicfreeways_determine_free_flow_speed(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+    * @returns {number}
+    */
+    get_ffs() {
+        const ret = wasm.wasmbasicfreeways_get_ffs(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+    * @returns {number}
+    */
+    get_capacity() {
+        const ret = wasm.wasmbasicfreeways_get_capacity(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+    * @returns {number}
+    */
+    get_adjusted_capacity() {
+        const ret = wasm.wasmbasicfreeways_get_adjusted_capacity(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+    * @returns {number}
+    */
+    get_speed() {
+        const ret = wasm.wasmbasicfreeways_get_speed(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+    * @returns {number}
+    */
+    get_density() {
+        const ret = wasm.wasmbasicfreeways_get_density(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+    * @returns {number}
+    */
+    get_vc_ratio() {
+        const ret = wasm.wasmbasicfreeways_get_vc_ratio(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+    * @returns {number}
+    */
+    get_lane_count() {
+        const ret = wasm.wasmbasicfreeways_get_lane_count(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+    * @returns {any}
+    */
+    results_to_js_value() {
+        const ret = wasm.wasmbasicfreeways_results_to_js_value(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+}
+
 const WasmSegmentFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_wasmsegment_free(ptr >>> 0));
@@ -929,6 +1062,10 @@ function __wbg_get_imports() {
         const ret = WasmSubSegment.__unwrap(takeObject(arg0));
         return ret;
     };
+    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
+        const ret = WasmSegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
     imports.wbg.__wbindgen_jsval_loose_eq = function(arg0, arg1) {
         const ret = getObject(arg0) == getObject(arg1);
         return ret;
@@ -960,10 +1097,6 @@ function __wbg_get_imports() {
     };
     imports.wbg.__wbindgen_jsval_eq = function(arg0, arg1) {
         const ret = getObject(arg0) === getObject(arg1);
-        return ret;
-    };
-    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
-        const ret = WasmSegment.__unwrap(takeObject(arg0));
         return ret;
     };
     imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {

@@ -2,6 +2,72 @@
 /* eslint-disable */
 /**
 */
+export class WasmBasicFreeways {
+  free(): void;
+/**
+* @param {number | undefined} [bffs]
+* @param {number | undefined} [lane_width]
+* @param {number | undefined} [lane_count]
+* @param {number | undefined} [lc_r]
+* @param {number | undefined} [lc_l]
+* @param {number | undefined} [trd]
+* @param {number | undefined} [apd]
+* @param {number | undefined} [grade]
+* @param {string | undefined} [terrain_type]
+* @param {number | undefined} [speed_limit]
+* @param {number | undefined} [phf]
+* @param {number | undefined} [p_t]
+* @param {number | undefined} [demand_flow_i]
+* @param {number | undefined} [length]
+* @param {string | undefined} [highway_type]
+* @param {string | undefined} [city_type]
+*/
+  constructor(bffs?: number, lane_width?: number, lane_count?: number, lc_r?: number, lc_l?: number, trd?: number, apd?: number, grade?: number, terrain_type?: string, speed_limit?: number, phf?: number, p_t?: number, demand_flow_i?: number, length?: number, highway_type?: string, city_type?: string);
+/**
+* Run the full HCM Ch.12 operational analysis and return the LOS letter.
+* Populates ffs, capacity, speed, density, and v/c ratio.
+* @returns {string}
+*/
+  run_operational_analysis(): string;
+/**
+* @returns {number}
+*/
+  determine_free_flow_speed(): number;
+/**
+* @returns {number}
+*/
+  get_ffs(): number;
+/**
+* @returns {number}
+*/
+  get_capacity(): number;
+/**
+* @returns {number}
+*/
+  get_adjusted_capacity(): number;
+/**
+* @returns {number}
+*/
+  get_speed(): number;
+/**
+* @returns {number}
+*/
+  get_density(): number;
+/**
+* @returns {number}
+*/
+  get_vc_ratio(): number;
+/**
+* @returns {number}
+*/
+  get_lane_count(): number;
+/**
+* @returns {any}
+*/
+  results_to_js_value(): any;
+}
+/**
+*/
 export class WasmSegment {
   free(): void;
 /**
@@ -310,6 +376,18 @@ export interface InitOutput {
   readonly wasmsubsegment_get_sup_ele: (a: number) => number;
   readonly wasmsegment_subsegs_to_js_value: (a: number) => number;
   readonly wasmtwolanehighways_segs_to_js_value: (a: number) => number;
+  readonly __wbg_wasmbasicfreeways_free: (a: number) => void;
+  readonly wasmbasicfreeways_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number) => number;
+  readonly wasmbasicfreeways_run_operational_analysis: (a: number, b: number) => void;
+  readonly wasmbasicfreeways_determine_free_flow_speed: (a: number) => number;
+  readonly wasmbasicfreeways_get_ffs: (a: number) => number;
+  readonly wasmbasicfreeways_get_capacity: (a: number) => number;
+  readonly wasmbasicfreeways_get_adjusted_capacity: (a: number) => number;
+  readonly wasmbasicfreeways_get_speed: (a: number) => number;
+  readonly wasmbasicfreeways_get_density: (a: number) => number;
+  readonly wasmbasicfreeways_get_vc_ratio: (a: number) => number;
+  readonly wasmbasicfreeways_get_lane_count: (a: number) => number;
+  readonly wasmbasicfreeways_results_to_js_value: (a: number) => number;
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_exn_store: (a: number) => void;
