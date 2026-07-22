@@ -165,7 +165,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Chapter 11 · Freeway Reliability Analysis <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">Freeway Reliability Analysis <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
     <h1 class="page-title">HCM Calculator — Freeway Reliability Analysis</h1>
     <p class="page-sub">
       Estimate the travel time reliability of a freeway facility across a whole-year

@@ -132,7 +132,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Chapter 24 · Off-Street Pedestrian and Bicycle Facilities <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">Off-Street Pedestrian and Bicycle Facilities <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
     <h1 class="page-title">HCM Calculator — Off-Street Pedestrian and Bicycle Facilities</h1>
     <p class="page-sub">
       Estimate level of service for exclusive pedestrian facilities, for

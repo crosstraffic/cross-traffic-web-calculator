@@ -118,7 +118,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Chapter 22 · Roundabouts <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">Roundabouts <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
     <h1 class="page-title">HCM Calculator — Roundabouts</h1>
     <p class="page-sub">
       Estimate entry capacities, control delay, queues, and level of service

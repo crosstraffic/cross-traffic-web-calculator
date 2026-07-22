@@ -155,7 +155,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Chapter 17 · Urban Street Reliability and ATDM <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">Urban Street Reliability and ATDM <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
     <h1 class="page-title">HCM Calculator — Urban Street Reliability and ATDM</h1>
     <p class="page-sub">
       Estimate the travel time distribution, travel time index, and reliability

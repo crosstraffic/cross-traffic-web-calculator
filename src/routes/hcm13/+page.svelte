@@ -118,7 +118,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Chapter 13 · Freeway Weaving Segments <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">Freeway Weaving Segments <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
     <h1 class="page-title">HCM Calculator — Freeway Weaving Segments</h1>
     <p class="page-sub">
       Estimate capacity, weaving and nonweaving speeds, density, and level of

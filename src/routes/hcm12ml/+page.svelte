@@ -69,7 +69,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Chapter 12 · Managed Lanes <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">Managed Lanes <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
     <h1 class="page-title">HCM Calculator — Basic Freeway and Multilane Highway Segments · Managed Lanes</h1>
     <p class="page-sub">
       Estimate capacity, space mean speed, density, and level of service for a
