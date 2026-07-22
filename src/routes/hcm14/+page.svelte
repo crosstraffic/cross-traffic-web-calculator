@@ -112,7 +112,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Chapter 14 · Freeway Merge and Diverge Segments <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">Freeway Merge and Diverge Segments <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
     <h1 class="page-title">HCM Calculator — Freeway Merge and Diverge Segments</h1>
     <p class="page-sub">
       Estimate ramp influence area density, speeds, and level of service for a

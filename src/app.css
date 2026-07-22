@@ -1051,4 +1051,6 @@ a.chapter-row:hover {
     max-height: 70vh;
     overflow-y: auto;
     min-width: 16rem;
+    position: relative;
+    z-index: 50;   /* sit above the logo image, which otherwise overlaps the open menu */
 }

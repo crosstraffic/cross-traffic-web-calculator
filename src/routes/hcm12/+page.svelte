@@ -124,7 +124,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Chapter 12 · Basic Freeway Segments <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">Basic Freeway Segments <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
     <h1 class="page-title">HCM Calculator — Basic Freeway Segments</h1>
     <p class="page-sub">
       Estimate free-flow speed, capacity, density, and level of service for a

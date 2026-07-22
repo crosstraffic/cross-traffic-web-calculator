@@ -107,7 +107,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Chapter 16 · Urban Street Facilities <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">Urban Street Facilities <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
     <h1 class="page-title">HCM Calculator — Urban Street Facilities</h1>
     <p class="page-sub">
       Aggregate Chapter 18 urban street segments into facility travel speed,

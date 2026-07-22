@@ -1,6 +1,20 @@
 <script>
   import '../app.css';
+
+  // Native <details> dropdowns don't close on an outside click. Close any open
+  // nav dropdown when the click lands outside it, or on a link inside it (so the
+  // menu doesn't stay open after navigating).
+  function closeNavDropdowns(event) {
+    const target = event.target;
+    document.querySelectorAll('header details[open]').forEach((details) => {
+      if (!details.contains(target) || target.closest('a')) {
+        details.removeAttribute('open');
+      }
+    });
+  }
 </script>
+
+<svelte:window on:click={closeNavDropdowns} />
 
 <header>
   <!-- Google tag (gtag.js) -->
@@ -21,12 +35,12 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </div>
-        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-200 rounded-box w-52">
+        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[50] p-2 shadow bg-base-200 rounded-box w-52">
           <li><a href="/">Home</a></li>
           <li>
             <details>
               <summary class="justify-between">
-                Chapters
+                Analyses
                 <!-- <svg class="fill-current" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/></svg> -->
               </summary>
               <ul class="p-2 bg-base-200">
@@ -62,7 +76,7 @@
         <li>
           <details>
             <summary class="chap_button">
-              Chapters
+              Analyses
               <!-- <svg class="fill-current" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/></svg> -->
             </summary>
             <ul class="p-2 bg-base-200 chapters-menu">

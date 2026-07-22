@@ -156,7 +156,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Chapter 23 · Ramp Terminals and Alternative Intersections <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">Ramp Terminals and Alternative Intersections <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
     <h1 class="page-title">HCM Calculator — Ramp Terminals and Alternative Intersections</h1>
     <p class="page-sub">
       Estimate experienced travel time and level of service for a signalized
