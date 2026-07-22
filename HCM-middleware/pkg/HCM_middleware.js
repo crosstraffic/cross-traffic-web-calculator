@@ -207,16 +207,16 @@ function handleError(f, args) {
     }
 }
 
-function getArrayF64FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
-}
-
 function passArrayF64ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 8, 8) >>> 0;
     getFloat64Memory0().set(arg, ptr / 8);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
+}
+
+function getArrayF64FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
 }
 
 let cachedUint32Memory0 = null;
@@ -648,15 +648,16 @@ export class WasmBasicFreeways {
     * @param {number | undefined} [length]
     * @param {string | undefined} [highway_type]
     * @param {string | undefined} [city_type]
+    * @param {number | undefined} [sut_percentage]
     */
-    constructor(bffs, lane_width, lane_count, lc_r, lc_l, trd, apd, grade, terrain_type, speed_limit, phf, p_t, demand_flow_i, length, highway_type, city_type) {
+    constructor(bffs, lane_width, lane_count, lc_r, lc_l, trd, apd, grade, terrain_type, speed_limit, phf, p_t, demand_flow_i, length, highway_type, city_type, sut_percentage) {
         var ptr0 = isLikeNone(terrain_type) ? 0 : passStringToWasm0(terrain_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         var len0 = WASM_VECTOR_LEN;
         var ptr1 = isLikeNone(highway_type) ? 0 : passStringToWasm0(highway_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         var len1 = WASM_VECTOR_LEN;
         var ptr2 = isLikeNone(city_type) ? 0 : passStringToWasm0(city_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         var len2 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmbasicfreeways_new(!isLikeNone(bffs), isLikeNone(bffs) ? 0 : bffs, !isLikeNone(lane_width), isLikeNone(lane_width) ? 0 : lane_width, !isLikeNone(lane_count), isLikeNone(lane_count) ? 0 : lane_count, !isLikeNone(lc_r), isLikeNone(lc_r) ? 0 : lc_r, !isLikeNone(lc_l), isLikeNone(lc_l) ? 0 : lc_l, !isLikeNone(trd), isLikeNone(trd) ? 0 : trd, !isLikeNone(apd), isLikeNone(apd) ? 0 : apd, !isLikeNone(grade), isLikeNone(grade) ? 0 : grade, ptr0, len0, !isLikeNone(speed_limit), isLikeNone(speed_limit) ? 0 : speed_limit, !isLikeNone(phf), isLikeNone(phf) ? 0 : phf, !isLikeNone(p_t), isLikeNone(p_t) ? 0 : p_t, !isLikeNone(demand_flow_i), isLikeNone(demand_flow_i) ? 0 : demand_flow_i, !isLikeNone(length), isLikeNone(length) ? 0 : length, ptr1, len1, ptr2, len2);
+        const ret = wasm.wasmbasicfreeways_new(!isLikeNone(bffs), isLikeNone(bffs) ? 0 : bffs, !isLikeNone(lane_width), isLikeNone(lane_width) ? 0 : lane_width, !isLikeNone(lane_count), isLikeNone(lane_count) ? 0 : lane_count, !isLikeNone(lc_r), isLikeNone(lc_r) ? 0 : lc_r, !isLikeNone(lc_l), isLikeNone(lc_l) ? 0 : lc_l, !isLikeNone(trd), isLikeNone(trd) ? 0 : trd, !isLikeNone(apd), isLikeNone(apd) ? 0 : apd, !isLikeNone(grade), isLikeNone(grade) ? 0 : grade, ptr0, len0, !isLikeNone(speed_limit), isLikeNone(speed_limit) ? 0 : speed_limit, !isLikeNone(phf), isLikeNone(phf) ? 0 : phf, !isLikeNone(p_t), isLikeNone(p_t) ? 0 : p_t, !isLikeNone(demand_flow_i), isLikeNone(demand_flow_i) ? 0 : demand_flow_i, !isLikeNone(length), isLikeNone(length) ? 0 : length, ptr1, len1, ptr2, len2, !isLikeNone(sut_percentage), isLikeNone(sut_percentage) ? 0 : sut_percentage);
         this.__wbg_ptr = ret >>> 0;
         return this;
     }
@@ -666,19 +667,27 @@ export class WasmBasicFreeways {
     * @returns {string}
     */
     run_operational_analysis() {
-        let deferred1_0;
-        let deferred1_1;
+        let deferred2_0;
+        let deferred2_1;
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
             wasm.wasmbasicfreeways_run_operational_analysis(retptr, this.__wbg_ptr);
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            var ptr1 = r0;
+            var len1 = r1;
+            if (r3) {
+                ptr1 = 0; len1 = 0;
+                throw takeObject(r2);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
         }
     }
     /**
@@ -736,6 +745,16 @@ export class WasmBasicFreeways {
     get_lane_count() {
         const ret = wasm.wasmbasicfreeways_get_lane_count(this.__wbg_ptr);
         return ret >>> 0;
+    }
+    /**
+    * Passenger-car equivalent for heavy vehicles (E_T), populated by the
+    * analysis. This is what `sut_percentage` selects: general terrain vs. the
+    * specific-upgrade exhibits. 0.0 before the analysis has run.
+    * @returns {number}
+    */
+    get_e_t() {
+        const ret = wasm.wasmbasicfreeways_get_e_t(this.__wbg_ptr);
+        return ret;
     }
     /**
     * @returns {any}
@@ -4727,7 +4746,7 @@ export class WasmWeavingSegment {
     * @returns {number}
     */
     get_flow_nonweaving() {
-        const ret = wasm.wasmweavingsegment_get_flow_nonweaving(this.__wbg_ptr);
+        const ret = wasm.wasmbasicfreeways_get_e_t(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -5071,22 +5090,22 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_set_20cbc34131e76824 = function(arg0, arg1, arg2) {
         getObject(arg0)[takeObject(arg1)] = takeObject(arg2);
     };
-    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
-        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
+    imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
+        const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
+        return ret;
+    }, arguments) };
+    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
+        const ret = WasmSegment.__unwrap(takeObject(arg0));
         return ret;
     };
     imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
         const ret = WasmSubSegment.__unwrap(takeObject(arg0));
         return ret;
     };
-    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
-        const ret = WasmSegment.__unwrap(takeObject(arg0));
+    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
+        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
         return ret;
     };
-    imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
-        const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
-        return ret;
-    }, arguments) };
     imports.wbg.__wbindgen_in = function(arg0, arg1) {
         const ret = getObject(arg0) in getObject(arg1);
         return ret;
