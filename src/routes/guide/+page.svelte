@@ -12,8 +12,22 @@
     </p>
   </header>
 
+  <div class="guide-layout">
+    <aside class="guide-sidenav">
+      <nav aria-label="Guide sections">
+        <p class="guide-sidenav-title">On this page</p>
+        <a href="#getting-started">Getting started</a>
+        <a href="#two-lane-inputs">Inputs · Two-Lane</a>
+        <a href="#facility-layout">Facility layout</a>
+        <a href="#outputs">Outputs &amp; LOS</a>
+        <a href="#basic-freeway">Basic Freeway Segments</a>
+        <a href="#open-source">Open source</a>
+      </nav>
+    </aside>
+    <div class="guide-body">
+
   <!-- Getting started -->
-  <section class="guide-section">
+  <section id="getting-started" class="guide-section">
     <h2>Getting started</h2>
     <ol class="guide-steps">
       <li>Open <a href="/hcm15">Two-Lane Highways</a> from the navigation.</li>
@@ -41,7 +55,7 @@
   </section>
 
   <!-- Inputs -->
-  <section class="guide-section">
+  <section id="two-lane-inputs" class="guide-section">
     <h2>Inputs</h2>
 
     <h3>Per segment</h3>
@@ -75,7 +89,7 @@
   </section>
 
   <!-- Facility layout -->
-  <section class="guide-section">
+  <section id="facility-layout" class="guide-section">
     <h2>Facility layout (2D &amp; 3D)</h2>
     <p>The Facility Layout panel visualizes the whole facility as one connected road.</p>
     <ul class="guide-list">
@@ -91,7 +105,7 @@
   </section>
 
   <!-- Outputs -->
-  <section class="guide-section">
+  <section id="outputs" class="guide-section">
     <h2>Outputs &amp; Level of Service</h2>
     <p>After <strong>Calculate</strong>, each segment reports:</p>
     <table class="guide-table">
@@ -115,7 +129,7 @@
   </section>
 
   <!-- Basic Freeway Segments -->
-  <section class="guide-section">
+  <section id="basic-freeway" class="guide-section">
     <h2>Basic Freeway Segments (Chapter 12)</h2>
     <p>
       <a href="/hcm12">Basic Freeway Segments</a> analyzes a single directional freeway
@@ -167,7 +181,7 @@
   </section>
 
   <!-- Source -->
-  <section class="guide-section">
+  <section id="open-source" class="guide-section">
     <h2>Open source</h2>
     <p>
       Calculations run locally in a Rust compute core compiled to WebAssembly. The project is
@@ -189,4 +203,55 @@
       View on GitHub
     </a>
   </section>
+    </div>
+  </div>
 </div>
+
+<style>
+  .guide-layout {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 2.5rem;
+    align-items: start;
+  }
+  .guide-sidenav {
+    position: sticky;
+    top: 5.5rem;
+  }
+  .guide-sidenav nav { display: flex; flex-direction: column; gap: 0.15rem; }
+  .guide-sidenav-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+    margin: 0 0 0.4rem 0.6rem;
+  }
+  .guide-sidenav a {
+    font-size: 0.85rem;
+    color: #475569;
+    padding: 0.3rem 0.6rem;
+    border-left: 2px solid transparent;
+    border-radius: 0 6px 6px 0;
+    text-decoration: none;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  }
+  .guide-sidenav a:hover {
+    color: #ea7317;
+    background: #fff5ec;
+    border-left-color: #f4c08a;
+  }
+  .guide-body { min-width: 0; }
+
+  @media (max-width: 820px) {
+    .guide-layout { grid-template-columns: 1fr; gap: 1rem; }
+    .guide-sidenav { position: static; }
+    .guide-sidenav nav {
+      flex-flow: row wrap;
+      gap: 0.3rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .guide-sidenav-title { display: none; }
+    .guide-sidenav a { border-left: none; border: 1px solid #e2e8f0; border-radius: 999px; }
+  }
+</style>

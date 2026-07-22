@@ -4,11 +4,20 @@
 
 <script>
   import { onMount } from 'svelte';
-  import { report, loadReport } from '$lib/report';
+  import { reports, lastKey, loadReports } from '$lib/report';
   import FreewaySegment3D from '../FreewaySegment3D/+page.svelte';
   import FacilityView from '../FacilityView/+page.svelte';
 
-  onMount(() => { if (!$report) loadReport(); });
+  onMount(() => { if (!Object.keys($reports).length) loadReports(); });
+
+  let selected = null;
+  // Default to the most recent report; keep the user's tab choice while it's valid.
+  $: keys = Object.keys($reports);
+  $: if (selected === null || !$reports[selected]) {
+    selected = ($lastKey && $reports[$lastKey]) ? $lastKey : (keys[0] || null);
+  }
+  $: current = selected ? $reports[selected] : null;
+  $: tabs = keys.map((k) => ({ key: k, label: $reports[k].chapter }));
 
   function printReport() { window.print(); }
 
@@ -20,7 +29,7 @@
 </script>
 
 <div class="hcm-page report-page">
-  {#if !$report}
+  {#if !current}
     <header class="page-header">
       <span class="badge badge-outline page-badge">Report</span>
       <h1 class="page-title">Analysis Report</h1>
@@ -34,21 +43,29 @@
     </div>
   {:else}
     <div class="report-actions no-print">
-      <a class="btn btn-ghost btn-sm" href={$report.href}>← Back to {$report.chapter}</a>
+      {#if tabs.length > 1}
+        <div class="report-tabs" role="group" aria-label="Available reports">
+          {#each tabs as t}
+            <button type="button" class:active={t.key === selected} on:click={() => selected = t.key}>{t.label}</button>
+          {/each}
+        </div>
+      {:else}
+        <a class="btn btn-ghost btn-sm" href={current.href}>← Back to {current.chapter}</a>
+      {/if}
       <button class="btn btn-primary btn-sm" type="button" on:click={printReport}>Print / Save as PDF</button>
     </div>
 
     <article class="report-sheet">
       <header class="report-head">
         <div>
-          <p class="report-eyebrow">{$report.chapterRef}</p>
-          <h1 class="report-title">{$report.chapter}</h1>
-          <p class="report-meta">HCM Calculator · generated {$report.generatedAt}</p>
+          <p class="report-eyebrow">{current.chapterRef}</p>
+          <h1 class="report-title">{current.chapter}</h1>
+          <p class="report-meta">HCM Calculator · generated {current.generatedAt}</p>
         </div>
-        {#if $report.headline}
+        {#if current.headline}
           <div class="report-los">
-            <span class="report-los-label">{$report.headline.label}</span>
-            <span class={losClass($report.headline.value)}>{$report.headline.value}</span>
+            <span class="report-los-label">{current.headline.label}</span>
+            <span class={losClass(current.headline.value)}>{current.headline.value}</span>
           </div>
         {/if}
       </header>
@@ -57,7 +74,7 @@
         <h2>Inputs</h2>
         <table class="report-table kv">
           <tbody>
-            {#each $report.inputs as row}
+            {#each current.inputs as row}
               <tr><th>{row.label}</th><td>{row.value}</td></tr>
             {/each}
           </tbody>
@@ -69,19 +86,19 @@
         <div class="report-table-scroll">
           <table class="report-table">
             <thead>
-              <tr>{#each $report.resultTable.columns as c}<th>{c}</th>{/each}</tr>
+              <tr>{#each current.resultTable.columns as c}<th>{c}</th>{/each}</tr>
             </thead>
             <tbody>
-              {#each $report.resultTable.rows as r}
+              {#each current.resultTable.rows as r}
                 <tr>{#each r as cell, ci}<td class:label={ci === 0}>{cell}</td>{/each}</tr>
               {/each}
             </tbody>
           </table>
         </div>
-        {#if $report.summary && $report.summary.length}
+        {#if current.summary && current.summary.length}
           <table class="report-table kv report-summary">
             <tbody>
-              {#each $report.summary as row}
+              {#each current.summary as row}
                 <tr><th>{row.label}</th><td>{row.value}</td></tr>
               {/each}
             </tbody>
@@ -89,20 +106,20 @@
         {/if}
       </section>
 
-      {#if $report.diagram}
+      {#if current.diagram}
         <section class="report-section">
           <h2>Segment</h2>
           <div class="report-diagram">
-            {#if $report.diagram.kind === 'freeway'}
+            {#if current.diagram.kind === 'freeway'}
               <FreewaySegment3D
-                laneCount={$report.diagram.props.laneCount}
-                laneWidth={$report.diagram.props.laneWidth}
-                length={$report.diagram.props.length}
-                grade={$report.diagram.props.grade}
-                lcR={$report.diagram.props.lcR}
+                laneCount={current.diagram.props.laneCount}
+                laneWidth={current.diagram.props.laneWidth}
+                length={current.diagram.props.length}
+                grade={current.diagram.props.grade}
+                lcR={current.diagram.props.lcR}
               />
-            {:else if $report.diagram.kind === 'twolane'}
-              <FacilityView rows={$report.diagram.props.rows} laneWidth={$report.diagram.props.laneWidth} />
+            {:else if current.diagram.kind === 'twolane'}
+              <FacilityView rows={current.diagram.props.rows} laneWidth={current.diagram.props.laneWidth} />
             {/if}
           </div>
         </section>
@@ -111,14 +128,14 @@
       <section class="report-section">
         <h2>Methodology</h2>
         <ul class="report-notes">
-          {#each $report.methodology as note}
+          {#each current.methodology as note}
             <li>{note}</li>
           {/each}
         </ul>
       </section>
 
       <footer class="report-foot">
-        Generated by the HCM Calculator ({$report.chapterRef}). Calculations run in a Rust core
+        Generated by the HCM Calculator ({current.chapterRef}). Calculations run in a Rust core
         compiled to WebAssembly. This is an independent tool and is not affiliated with any
         organization; verify results independently before relying on them in engineering work.
       </footer>
@@ -134,6 +151,22 @@
     gap: 0.75rem;
     margin-bottom: 1rem;
   }
+  .report-tabs {
+    display: inline-flex;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+  .report-tabs button {
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.35rem 0.9rem;
+    background: #fff;
+    color: #64748b;
+  }
+  .report-tabs button.active { background: #fff5ec; color: #ea7317; font-weight: 600; }
+  .report-tabs button + button { border-left: 1px solid #e2e8f0; }
+
   .report-sheet {
     background: #fff;
     color: #1e293b;
