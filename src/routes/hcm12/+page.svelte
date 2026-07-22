@@ -26,11 +26,17 @@
   let demand_flow_i = 1000;
   let phf = 0.95;
   let phv = 5;
+  let sut_percentage = 0;   // 0 = general terrain; 30/50/70 select the specific-upgrade exhibits
   let city_type = 'urban';
 
   let results = null;
   let hasError = false;
   let errMessage = '';
+
+  // The specific-upgrade exhibits (12-26/27/28) are keyed on grade + length; the
+  // general-terrain exhibit (12-25) is keyed on terrain and ignores them. Surface
+  // that in the UI so the grade/length inputs don't look silently inert.
+  $: usesGrade = Number(sut_percentage) !== 0;
 
   function runAnalysis() {
     hasError = false;
@@ -53,18 +59,27 @@
         Number(demand_flow_i),
         Number(length),
         'basic',
-        city_type
+        city_type,
+        Number(sut_percentage) // 0 -> Exhibit 12-25; 30/50/70 -> Exhibits 12-26/27/28
       );
 
       const los = fw.run_operational_analysis();
+      const p_t = Number(phv) / 100.0;
+      const e_t = fw.get_e_t();
+      const speed = fw.get_speed();
+      const density = fw.get_density();
       results = {
         los,
         ffs: fw.get_ffs(),
         capacity: fw.get_capacity(),
         adjusted_capacity: fw.get_adjusted_capacity(),
-        speed: fw.get_speed(),
-        density: fw.get_density(),
-        vc_ratio: fw.get_vc_ratio()
+        speed,
+        density,
+        vc_ratio: fw.get_vc_ratio(),
+        e_t,
+        // f_HV = 1 / (1 + P_T (E_T - 1)); v_p = D x S (identity D = v_p / S).
+        f_hv: e_t > 0 ? 1.0 / (1.0 + p_t * (e_t - 1.0)) : null,
+        v_p: density * speed
       };
     } catch (err) {
       console.error('Chapter 12 analysis failed:', err);
@@ -86,10 +101,25 @@
     demand_flow_i = 1000;
     phf = 0.95;
     phv = 5;
+    sut_percentage = 0;
     city_type = 'urban';
     results = null;
     hasError = false;
   }
+
+  // LOS letter -> colour band for the results badge.
+  function losClass(los) {
+    switch (los) {
+      case 'A':
+      case 'B': return 'los-badge los-good';
+      case 'C':
+      case 'D': return 'los-badge los-warn';
+      default:  return 'los-badge los-bad';   // E, F
+    }
+  }
+
+  // Clamp the drawn lane count so the diagram stays readable.
+  $: drawnLanes = Math.max(1, Math.min(6, Number(lane_count) || 1));
 </script>
 
 <div class="hcm-page">
@@ -161,7 +191,7 @@
         <div class="param-field">
           <label for="LEN_input">Segment Length</label>
           <div class="cell-field">
-            <input id="LEN_input" type="number" step="0.001" min="0" class="input input-bordered input-sm" bind:value={length} placeholder="0.625" required />
+            <input id="LEN_input" type="number" step="0.001" min="0" class="input input-bordered input-sm" bind:value={length} placeholder="0.625" required class:input-inert={!usesGrade} />
             <span class="unit">mi</span>
           </div>
         </div>
@@ -169,14 +199,14 @@
         <div class="param-field">
           <label for="GRADE_input">Grade</label>
           <div class="cell-field">
-            <input id="GRADE_input" type="number" step="0.1" class="input input-bordered input-sm" bind:value={grade} placeholder="0" required />
+            <input id="GRADE_input" type="number" step="0.1" class="input input-bordered input-sm" bind:value={grade} placeholder="0" required class:input-inert={!usesGrade} />
             <span class="unit">%</span>
           </div>
         </div>
 
         <div class="param-field">
           <label for="TERRAIN_input">Terrain</label>
-          <select id="TERRAIN_input" class="select select-bordered select-sm" bind:value={terrain_type}>
+          <select id="TERRAIN_input" class="select select-bordered select-sm" bind:value={terrain_type} disabled={usesGrade}>
             <option value="level">Level</option>
             <option value="rolling">Rolling</option>
             <option value="mountainous">Mountainous</option>
@@ -190,6 +220,27 @@
             <option value="rural">Rural</option>
           </select>
         </div>
+      </div>
+
+      <!-- Reactive plan view of the analysis direction. -->
+      <div class="freeway-diagram" role="img" aria-label={`${drawnLanes}-lane basic freeway segment, analysis direction`}>
+        <svg viewBox="0 0 240 {18 * drawnLanes + 26}" preserveAspectRatio="xMidYMid meet">
+          <!-- pavement -->
+          <rect x="0" y="8" width="240" height={18 * drawnLanes} class="fw-pavement" />
+          <!-- solid edge lines -->
+          <line x1="0" y1="8" x2="240" y2="8" class="fw-edge" />
+          <line x1="0" y1={8 + 18 * drawnLanes} x2="240" y2={8 + 18 * drawnLanes} class="fw-edge" />
+          <!-- dashed lane lines between lanes -->
+          {#each Array.from({ length: Math.max(0, drawnLanes - 1) }) as _, i}
+            <line x1="0" y1={8 + 18 * (i + 1)} x2="240" y2={8 + 18 * (i + 1)} class="fw-lane-line" />
+          {/each}
+          <!-- direction arrow -->
+          <polygon points="188,{8 + 9 * drawnLanes} 208,{8 + 9 * drawnLanes} 208,{8 + 9 * drawnLanes - 4} 220,{8 + 9 * drawnLanes} 208,{8 + 9 * drawnLanes + 4} 208,{8 + 9 * drawnLanes} " class="fw-arrow" />
+          <!-- right shoulder band -->
+          <rect x="0" y={8 + 18 * drawnLanes} width="240" height="10" class="fw-shoulder" />
+          <text x="4" y={8 + 18 * drawnLanes + 8} class="fw-label">shoulder · {lc_r} ft clearance</text>
+        </svg>
+        <p class="diagram-caption">{drawnLanes} lane{drawnLanes === 1 ? '' : 's'} @ {lane_width} ft · analysis direction →</p>
       </div>
     </section>
 
@@ -226,6 +277,23 @@
         </div>
 
         <div class="param-field">
+          <label for="SUT_input">Heavy-Vehicle Mix</label>
+          <select id="SUT_input" class="select select-bordered select-sm" bind:value={sut_percentage}>
+            <option value={0}>General terrain (mix unknown)</option>
+            <option value={30}>30% single-unit trucks</option>
+            <option value={50}>50% single-unit trucks</option>
+            <option value={70}>70% single-unit trucks</option>
+          </select>
+          <p class="param-hint">
+            {#if usesGrade}
+              Uses the specific-upgrade exhibits (12-26/27/28), keyed on grade and length.
+            {:else}
+              Uses the general-terrain exhibit (12-25); grade and length do not enter.
+            {/if}
+          </p>
+        </div>
+
+        <div class="param-field">
           <label for="SPL_input">Posted Speed Limit</label>
           <div class="cell-field">
             <input id="SPL_input" type="number" min="0" class="input input-bordered input-sm" bind:value={speed_limit} placeholder="65" required />
@@ -255,41 +323,139 @@
     <div class="panel-head">
       <div>
         <h2 class="panel-title">Outputs</h2>
-        <p class="panel-sub">Results populate after pressing Calculate.</p>
+        <p class="panel-sub">The HCM Chapter 12 operational chain, step by step. Results populate after pressing Calculate.</p>
       </div>
+      {#if results}
+        <div class="los-summary">
+          <span class="los-summary-label">Segment LOS</span>
+          <span class={losClass(results.los)}>{results.los}</span>
+        </div>
+      {/if}
     </div>
+
     <div class="los overflow-x-auto">
-      <table class="table w-full">
+      <table class="table w-full step-table">
+        <thead>
+          <tr><th>Step</th><th>Quantity</th><th class="num">Value</th></tr>
+        </thead>
         <tbody>
           <tr>
-            <th>Free-flow Speed (mi/hr):</th>
-            <td>{results ? results.ffs.toFixed(1) : ''}</td>
+            <td class="step-num">1</td>
+            <th>Free-flow speed, FFS</th>
+            <td class="num">{results ? results.ffs.toFixed(1) + ' mi/h' : '—'}</td>
           </tr>
           <tr>
-            <th>Base Capacity (pc/hr/ln):</th>
-            <td>{results ? results.capacity.toFixed(0) : ''}</td>
+            <td class="step-num">2</td>
+            <th>Base capacity</th>
+            <td class="num">{results ? results.capacity.toFixed(0) + ' pc/h/ln' : '—'}</td>
           </tr>
           <tr>
-            <th>Adjusted Capacity (pc/hr/ln):</th>
-            <td>{results ? results.adjusted_capacity.toFixed(0) : ''}</td>
+            <td class="step-num"></td>
+            <th>Adjusted capacity</th>
+            <td class="num">{results ? results.adjusted_capacity.toFixed(0) + ' pc/h/ln' : '—'}</td>
           </tr>
           <tr>
-            <th>Space Mean Speed (mi/hr):</th>
-            <td>{results ? results.speed.toFixed(1) : ''}</td>
+            <td class="step-num">3</td>
+            <th>Passenger-car equivalent, E<sub>T</sub></th>
+            <td class="num">{results ? results.e_t.toFixed(2) : '—'}</td>
           </tr>
           <tr>
-            <th>Density (pc/mi/ln):</th>
-            <td>{results ? results.density.toFixed(1) : ''}</td>
+            <td class="step-num"></td>
+            <th>Heavy-vehicle factor, f<sub>HV</sub></th>
+            <td class="num">{results && results.f_hv != null ? results.f_hv.toFixed(3) : '—'}</td>
           </tr>
           <tr>
-            <th>Volume-to-Capacity Ratio:</th>
-            <td>{results ? results.vc_ratio.toFixed(2) : ''}</td>
+            <td class="step-num">4</td>
+            <th>Demand flow rate, v<sub>p</sub></th>
+            <td class="num">{results ? results.v_p.toFixed(0) + ' pc/h/ln' : '—'}</td>
+          </tr>
+          <tr>
+            <td class="step-num">5</td>
+            <th>Space mean speed, S</th>
+            <td class="num">{results ? results.speed.toFixed(1) + ' mi/h' : '—'}</td>
+          </tr>
+          <tr>
+            <td class="step-num"></td>
+            <th>Volume-to-capacity ratio, v/c</th>
+            <td class="num">{results ? results.vc_ratio.toFixed(2) : '—'}</td>
+          </tr>
+          <tr>
+            <td class="step-num">6</td>
+            <th>Density, D</th>
+            <td class="num">{results ? results.density.toFixed(1) + ' pc/mi/ln' : '—'}</td>
+          </tr>
+          <tr class="step-los">
+            <td class="step-num">7</td>
+            <th>Level of service</th>
+            <td class="num">{results ? results.los : '—'}</td>
           </tr>
         </tbody>
       </table>
       <div class="facility-summary">
-        <p>Segment LOS: {results ? results.los : ''}</p>
+        <p>Density and LOS follow HCM Exhibit 12-15. E<sub>T</sub> is read from {usesGrade ? `the ${sut_percentage}% specific-upgrade exhibit` : 'the general-terrain exhibit (12-25)'}.</p>
       </div>
     </div>
   </section>
 </div>
+
+<style>
+  .freeway-diagram {
+    margin-top: 1rem;
+    max-width: 420px;
+  }
+  .freeway-diagram svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .fw-pavement { fill: color-mix(in srgb, currentColor 8%, transparent); }
+  .fw-shoulder { fill: color-mix(in srgb, currentColor 4%, transparent); }
+  .fw-edge { stroke: currentColor; stroke-width: 1.5; opacity: 0.85; }
+  .fw-lane-line { stroke: currentColor; stroke-width: 1; stroke-dasharray: 8 7; opacity: 0.5; }
+  .fw-arrow { fill: currentColor; opacity: 0.6; }
+  .fw-label { font-size: 7px; fill: currentColor; opacity: 0.55; }
+  .diagram-caption {
+    font-size: 0.75rem;
+    opacity: 0.65;
+    margin-top: 0.35rem;
+  }
+  .los-summary {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+  }
+  .los-summary-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.6;
+  }
+  .los-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .los-good { background: #16a34a; }
+  .los-warn { background: #d97706; }
+  .los-bad  { background: #dc2626; }
+  .step-table .step-num {
+    width: 3rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.6;
+  }
+  .step-table td.num, .step-table th.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .step-table tr.step-los th, .step-table tr.step-los td { font-weight: 700; }
+  .input-inert { opacity: 0.5; }
+</style>
