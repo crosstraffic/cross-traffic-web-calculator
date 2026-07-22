@@ -44,22 +44,8 @@
                 <!-- <svg class="fill-current" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/></svg> -->
               </summary>
               <ul class="p-2 bg-base-200">
-                <li><a href="/hcm10">Freeway Facilities <span class="badge badge-warning badge-xs">beta</span></a></li>
-                <li><a href="/hcm11">Freeway Reliability <span class="badge badge-warning badge-xs">beta</span></a></li>
                 <li><a href="/hcm12">Basic Freeway Segments</a></li>
-                <li><a href="/hcm12ml">Managed Lanes <span class="badge badge-warning badge-xs">beta</span></a></li>
-                <li><a href="/hcm13">Weaving Segments <span class="badge badge-warning badge-xs">beta</span></a></li>
-                <li><a href="/hcm14">Merge and Diverge Segments <span class="badge badge-warning badge-xs">beta</span></a></li>
                 <li><a href="/hcm15">Two-Lane Highways</a></li>
-                <li><a href="/hcm16">Urban Street Facilities <span class="badge badge-warning badge-xs">beta</span></a></li>
-                <li><a href="/hcm17">Urban Street Reliability <span class="badge badge-warning badge-xs">beta</span></a></li>
-                <li><a href="/hcm18">Urban Street Segments <span class="badge badge-warning badge-xs">beta</span></a></li>
-                <li><a href="/hcm19">Signalized Intersections <span class="badge badge-warning badge-xs">beta</span></a></li>
-                <li><a href="/hcm20">Two-Way STOP Control <span class="badge badge-warning badge-xs">beta</span></a></li>
-                <li><a href="/hcm21">All-Way STOP Control <span class="badge badge-warning badge-xs">beta</span></a></li>
-                <li><a href="/hcm22">Roundabouts <span class="badge badge-warning badge-xs">beta</span></a></li>
-                <li><a href="/hcm23">Ramp Terminals <span class="badge badge-warning badge-xs">beta</span></a></li>
-                <li><a href="/hcm24">Off-Street Ped and Bike <span class="badge badge-warning badge-xs">beta</span></a></li>
               </ul>
             </details>
           </li>
@@ -81,22 +67,8 @@
               <!-- <svg class="fill-current" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"/></svg> -->
             </summary>
             <ul class="p-2 bg-base-200 chapters-menu">
-              <li><a href="/hcm10">Freeway Facilities <span class="badge badge-warning badge-xs">beta</span></a></li>
-              <li><a href="/hcm11">Freeway Reliability <span class="badge badge-warning badge-xs">beta</span></a></li>
               <li><a href="/hcm12">Basic Freeway Segments</a></li>
-              <li><a href="/hcm12ml">Managed Lanes <span class="badge badge-warning badge-xs">beta</span></a></li>
-              <li><a href="/hcm13">Weaving Segments <span class="badge badge-warning badge-xs">beta</span></a></li>
-              <li><a href="/hcm14">Merge and Diverge Segments <span class="badge badge-warning badge-xs">beta</span></a></li>
               <li><a href="/hcm15">Two-Lane Highways</a></li>
-              <li><a href="/hcm16">Urban Street Facilities <span class="badge badge-warning badge-xs">beta</span></a></li>
-              <li><a href="/hcm17">Urban Street Reliability <span class="badge badge-warning badge-xs">beta</span></a></li>
-              <li><a href="/hcm18">Urban Street Segments <span class="badge badge-warning badge-xs">beta</span></a></li>
-              <li><a href="/hcm19">Signalized Intersections <span class="badge badge-warning badge-xs">beta</span></a></li>
-              <li><a href="/hcm20">Two-Way STOP Control <span class="badge badge-warning badge-xs">beta</span></a></li>
-              <li><a href="/hcm21">All-Way STOP Control <span class="badge badge-warning badge-xs">beta</span></a></li>
-              <li><a href="/hcm22">Roundabouts <span class="badge badge-warning badge-xs">beta</span></a></li>
-              <li><a href="/hcm23">Ramp Terminals <span class="badge badge-warning badge-xs">beta</span></a></li>
-              <li><a href="/hcm24">Off-Street Ped and Bike <span class="badge badge-warning badge-xs">beta</span></a></li>
             </ul>
           </details>
         </li>
