@@ -5,6 +5,7 @@
 <script>
   import init, { WasmBasicFreeways } from "HCM-middleware";
   import { onMount } from "svelte";
+  import FreewaySegment3D from '../FreewaySegment3D/+page.svelte';
 
   let ready = false;
 
@@ -183,31 +184,19 @@
     }
   }
 
-  // Clamp the drawn lane count so the diagram stays readable.
+  // Clamp the drawn lane count so the 2D plan diagram stays readable.
   $: drawnLanes = Math.max(1, Math.min(6, Number(lane_count) || 1));
-  // Tilt the perspective deck by the grade (clamped) so a positive grade visibly
-  // rises into the distance; 60deg is the flat reference.
-  $: deckTilt = 60 - Math.max(-8, Math.min(8, Number(grade) || 0));
 </script>
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Basic Freeway Segments <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">Basic Freeway Segments</span>
     <h1 class="page-title">HCM Calculator — Basic Freeway Segments</h1>
     <p class="page-sub">
       Estimate free-flow speed, capacity, density, and level of service for a
       basic freeway segment in the analysis direction.
     </p>
   </header>
-
-  <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
-    <span>
-      <strong>Beta.</strong> This chapter is newly implemented and its results have
-      not yet been validated against the full set of published HCM worked examples.
-      Verify results independently before relying on them in engineering work, and
-      please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
-    </span>
-  </div>
 
   {#if hasError}
     <div class="alert alert-error shadow-sm mb-6">
@@ -333,15 +322,7 @@
             </svg>
           </div>
         {:else}
-          <div class="segment-scene" role="img" aria-label={`${drawnLanes}-lane basic freeway segment in perspective, ${grade}% grade`}>
-            <div class="segment-deck" style={`transform: rotateX(${deckTilt}deg);`}>
-              {#each Array.from({ length: drawnLanes }) as _, i}
-                <div class="lane3d" class:last={i === drawnLanes - 1}></div>
-              {/each}
-              <div class="shoulder3d"></div>
-              <div class="deck-arrow">▲</div>
-            </div>
-          </div>
+          <FreewaySegment3D laneCount={lane_count} laneWidth={lane_width} length={length} grade={grade} lcR={lc_r} />
         {/if}
 
         <p class="diagram-caption">
@@ -506,7 +487,7 @@
 </div>
 
 <style>
-  .diagram-block { margin-top: 1rem; max-width: 460px; }
+  .diagram-block { margin: 1rem auto 0; max-width: 560px; text-align: center; }
   .diagram-toggle {
     display: inline-flex;
     border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
@@ -535,54 +516,6 @@
   .fw-lane-line { stroke: currentColor; stroke-width: 1; stroke-dasharray: 8 7; opacity: 0.5; }
   .fw-arrow { fill: currentColor; opacity: 0.6; }
   .fw-label { font-size: 7px; fill: currentColor; opacity: 0.55; }
-
-  /* 3D perspective view */
-  .segment-scene {
-    perspective: 900px;
-    perspective-origin: 50% 28%;
-    height: 240px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
-  .segment-deck {
-    display: flex;
-    width: 320px;
-    height: 190px;
-    position: relative;
-    transform-style: preserve-3d;
-    transition: transform 0.25s ease;
-    box-shadow: 0 30px 40px -30px rgba(0, 0, 0, 0.5);
-    background: color-mix(in srgb, currentColor 10%, transparent);
-    border: 1.5px solid color-mix(in srgb, currentColor 55%, transparent);
-    border-radius: 2px;
-  }
-  .lane3d {
-    flex: 1;
-    height: 100%;
-    border-right: 2px dashed color-mix(in srgb, currentColor 45%, transparent);
-  }
-  .lane3d.last { border-right: none; }
-  .shoulder3d {
-    width: 18px;
-    height: 100%;
-    background: repeating-linear-gradient(
-      0deg,
-      color-mix(in srgb, currentColor 30%, transparent) 0 8px,
-      transparent 8px 16px
-    );
-    border-left: 2px solid color-mix(in srgb, currentColor 55%, transparent);
-  }
-  .deck-arrow {
-    position: absolute;
-    top: 6px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 1.1rem;
-    opacity: 0.55;
-    line-height: 1;
-  }
 
   .diagram-caption { font-size: 0.75rem; opacity: 0.65; margin-top: 0.35rem; }
 
