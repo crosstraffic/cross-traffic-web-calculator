@@ -64,6 +64,7 @@
             </details>
           </li>
           <li><a href="/guide">Guide</a></li>
+          <li><a href="/report">Report</a></li>
         </ul>
       </div>
       <!-- Gonna be LOGO -->
@@ -100,6 +101,7 @@
           </details>
         </li>
         <li><a class="home_button" href="/guide">Guide</a></li>
+        <li><a class="home_button" href="/report">Report</a></li>
       </ul>
     </div>
 
