@@ -7,8 +7,8 @@
     <p class="eyebrow">How to use the HCM Calculator</p>
     <h1 class="page-title">Guide</h1>
     <p class="page-sub">
-      A quick walkthrough of running an HCM Chapter 15 (Two-Lane Highways) analysis —
-      from defining segments to reading the results.
+      A quick walkthrough of the HCM Chapter 15 (Two-Lane Highways) and Chapter 12
+      (Basic Freeway Segments) analyses — from defining inputs to reading the results.
     </p>
   </header>
 
@@ -112,6 +112,58 @@
       <a href="https://nap.nationalacademies.org/catalog/26432/highway-capacity-manual-7th-edition-a-guide-for-multimodal-mobility" target="_blank" rel="noreferrer">HCM</a>
       for the authoritative thresholds. LOS <strong>F</strong> means demand exceeds capacity.
     </p>
+  </section>
+
+  <!-- Basic Freeway Segments -->
+  <section class="guide-section">
+    <h2>Basic Freeway Segments (Chapter 12)</h2>
+    <p>
+      <a href="/hcm12">Basic Freeway Segments</a> analyzes a single directional freeway
+      segment — the HCM Chapter 12 method. A basic freeway segment is one unit of analysis;
+      for a multi-segment freeway <em>facility</em> (basic, merge, diverge, and weaving
+      segments together), use <a href="/hcm10">Freeway Facilities</a> instead.
+    </p>
+    <ol class="guide-steps">
+      <li>Open <a href="/hcm12">Basic Freeway Segments</a>, or press <strong>Load example</strong> to start from a sample segment.</li>
+      <li>Set the <strong>Geometry</strong>: lanes in the analysis direction, lane width,
+        right-side lateral clearance, ramp density, length, grade, terrain, and area type.</li>
+      <li>Set the <strong>Traffic</strong>: directional demand, PHF, heavy-vehicle&nbsp;%,
+        posted speed, and base free-flow speed.</li>
+      <li>Choose the <strong>Heavy-Vehicle Mix</strong> — see the note below.</li>
+      <li>Press <strong>Calculate</strong>. The Outputs panel walks the operational chain step by step.</li>
+      <li>Use <strong>Export JSON</strong> to save your inputs and the importer to reload them later.</li>
+    </ol>
+
+    <h3>Heavy-Vehicle Mix (the key Chapter 12 choice)</h3>
+    <p>This selects how the passenger-car equivalent E<sub>T</sub> is read:</p>
+    <ul class="guide-list">
+      <li><strong>General terrain (mix unknown)</strong> — HCM Exhibit 12-25, keyed on terrain
+        (level / rolling / mountainous). Grade and length do <em>not</em> enter the result.</li>
+      <li><strong>30 / 50 / 70% single-unit trucks</strong> — the specific-upgrade exhibits
+        (12-26 / 12-27 / 12-28), keyed on grade and length. Choose one of these when the truck
+        composition is known and you are analyzing a specific upgrade.</li>
+    </ul>
+
+    <h3>Outputs</h3>
+    <p>The operational chain is reported step by step:</p>
+    <table class="guide-table">
+      <thead><tr><th>Step</th><th>Output</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Free-flow speed (FFS)</td></tr>
+        <tr><td>2</td><td>Base and adjusted capacity</td></tr>
+        <tr><td>3</td><td>Passenger-car equivalent E<sub>T</sub> and heavy-vehicle factor f<sub>HV</sub></td></tr>
+        <tr><td>4</td><td>Demand flow rate v<sub>p</sub></td></tr>
+        <tr><td>5</td><td>Space mean speed and volume-to-capacity ratio</td></tr>
+        <tr><td>6</td><td>Density</td></tr>
+        <tr><td>7</td><td>Level of service (A–F, per HCM Exhibit 12-15, keyed on density)</td></tr>
+      </tbody>
+    </table>
+    <p>
+      The <strong>Plan / 3D</strong> toggle shows the segment as a flat cross-section, or a
+      drag-to-rotate 3D deck where the lanes recede into the distance and the grade lifts the
+      far end. Drag to rotate, <strong>Alt-drag</strong> to pan, scroll / pinch to zoom.
+    </p>
+    <a href="/hcm12" class="guide-cta">Open Basic Freeway Segments <span aria-hidden="true">→</span></a>
   </section>
 
   <!-- Source -->

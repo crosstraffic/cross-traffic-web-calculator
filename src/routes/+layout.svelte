@@ -46,7 +46,7 @@
               <ul class="p-2 bg-base-200">
                 <li><a href="/hcm10">Freeway Facilities <span class="badge badge-warning badge-xs">beta</span></a></li>
                 <li><a href="/hcm11">Freeway Reliability <span class="badge badge-warning badge-xs">beta</span></a></li>
-                <li><a href="/hcm12">Basic Freeway Segments <span class="badge badge-warning badge-xs">beta</span></a></li>
+                <li><a href="/hcm12">Basic Freeway Segments</a></li>
                 <li><a href="/hcm12ml">Managed Lanes <span class="badge badge-warning badge-xs">beta</span></a></li>
                 <li><a href="/hcm13">Weaving Segments <span class="badge badge-warning badge-xs">beta</span></a></li>
                 <li><a href="/hcm14">Merge and Diverge Segments <span class="badge badge-warning badge-xs">beta</span></a></li>
@@ -82,7 +82,7 @@
             <ul class="p-2 bg-base-200 chapters-menu">
               <li><a href="/hcm10">Freeway Facilities <span class="badge badge-warning badge-xs">beta</span></a></li>
               <li><a href="/hcm11">Freeway Reliability <span class="badge badge-warning badge-xs">beta</span></a></li>
-              <li><a href="/hcm12">Basic Freeway Segments <span class="badge badge-warning badge-xs">beta</span></a></li>
+              <li><a href="/hcm12">Basic Freeway Segments</a></li>
               <li><a href="/hcm12ml">Managed Lanes <span class="badge badge-warning badge-xs">beta</span></a></li>
               <li><a href="/hcm13">Weaving Segments <span class="badge badge-warning badge-xs">beta</span></a></li>
               <li><a href="/hcm14">Merge and Diverge Segments <span class="badge badge-warning badge-xs">beta</span></a></li>

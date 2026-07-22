@@ -259,7 +259,9 @@
   .r-wall { fill: #1e293b; stroke: #1e293b; stroke-width: 0.75; stroke-linejoin: round; }
   .r-surface { fill: url(#fwRoadGrad); stroke: #334155; stroke-width: 1; stroke-linejoin: round; }
   .r-shoulder { fill: #6b7a90; stroke: #334155; stroke-width: 0.75; stroke-linejoin: round; opacity: 0.85; }
-  .r-edge { fill: none; stroke: #e2e8f0; stroke-width: 1.4; opacity: 0.7; }
-  .r-lane { fill: none; stroke: #f8b24a; stroke-width: 1.5; stroke-linecap: round; }
+  .r-edge { fill: none; stroke: #f1f5f9; stroke-width: 1.6; opacity: 0.85; }
+  /* Freeway lane lines are white (same-direction traffic), not the yellow/orange
+     centerline of a two-lane highway. */
+  .r-lane { fill: none; stroke: #f1f5f9; stroke-width: 1.4; stroke-linecap: round; opacity: 0.75; }
   .r-arrow { fill: #ea7317; }
 </style>
