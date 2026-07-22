@@ -1051,6 +1051,8 @@ a.chapter-row:hover {
     max-height: 70vh;
     overflow-y: auto;
     min-width: 16rem;
-    position: relative;
-    z-index: 50;   /* sit above the logo image, which otherwise overlaps the open menu */
+    /* DaisyUI already positions this submenu absolute so it floats over the
+       header. Do NOT set position here (position: relative puts it back in flow
+       and expands the header). Only raise z-index so it sits above the logo. */
+    z-index: 50;
 }
