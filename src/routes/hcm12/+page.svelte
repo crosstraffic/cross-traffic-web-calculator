@@ -6,6 +6,7 @@
   import init, { WasmBasicFreeways } from "HCM-middleware";
   import { onMount } from "svelte";
   import FreewaySegment3D from '../FreewaySegment3D/+page.svelte';
+  import { setReport } from '$lib/report';
 
   let ready = false;
 
@@ -83,11 +84,70 @@
         f_hv: e_t > 0 ? 1.0 / (1.0 + p_t * (e_t - 1.0)) : null,
         v_p: density * speed
       };
+      publishReport();
     } catch (err) {
       console.error('Chapter 12 analysis failed:', err);
       hasError = true;
       errMessage = 'The analysis could not be completed with the given inputs. Check the values and try again.';
     }
+  }
+
+  function publishReport() {
+    if (!results) return;
+    setReport({
+      chapter: 'Basic Freeway Segments',
+      chapterRef: 'HCM Chapter 12',
+      href: '/hcm12',
+      generatedAt: new Date().toLocaleString(),
+      headline: { label: 'Segment LOS', value: results.los },
+      inputs: [
+        { label: 'Lanes (analysis direction)', value: lane_count },
+        { label: 'Lane width', value: `${lane_width} ft` },
+        { label: 'Right-side lateral clearance', value: `${lc_r} ft` },
+        { label: 'Total ramp density', value: `${trd} /mi` },
+        { label: 'Segment length', value: `${length} mi` },
+        { label: 'Grade', value: `${grade} %` },
+        { label: 'Terrain', value: terrain_type },
+        { label: 'Area type', value: city_type },
+        { label: 'Directional demand', value: `${demand_flow_i} veh/h` },
+        { label: 'Peak hour factor', value: phf },
+        { label: 'Heavy vehicles', value: `${phv} %` },
+        { label: 'Heavy-vehicle mix', value: usesGrade ? `${sut_percentage}% single-unit trucks` : 'General terrain (mix unknown)' },
+        { label: 'Posted speed limit', value: `${speed_limit} mph` },
+        { label: 'Base free-flow speed', value: `${bffs} mph` },
+      ],
+      resultTable: {
+        columns: ['Quantity', 'Value'],
+        rows: [
+          ['Free-flow speed, FFS', `${results.ffs.toFixed(1)} mi/h`],
+          ['Base capacity', `${results.capacity.toFixed(0)} pc/h/ln`],
+          ['Adjusted capacity', `${results.adjusted_capacity.toFixed(0)} pc/h/ln`],
+          ['Passenger-car equivalent, E_T', results.e_t.toFixed(2)],
+          ['Heavy-vehicle factor, f_HV', results.f_hv != null ? results.f_hv.toFixed(3) : '—'],
+          ['Demand flow rate, v_p', `${results.v_p.toFixed(0)} pc/h/ln`],
+          ['Space mean speed, S', `${results.speed.toFixed(1)} mi/h`],
+          ['Volume-to-capacity ratio, v/c', results.vc_ratio.toFixed(2)],
+          ['Density, D', `${results.density.toFixed(1)} pc/mi/ln`],
+          ['Level of service', results.los],
+        ],
+      },
+      summary: [],
+      methodology: [
+        'Free-flow speed: base FFS reduced for lane width, right-side lateral clearance, and total ramp density (HCM Ch. 12, Step 2).',
+        usesGrade
+          ? `Heavy vehicles: E_T from the ${sut_percentage}% single-unit-truck specific-upgrade exhibit (12-26/27/28), keyed on grade and length.`
+          : 'Heavy vehicles: E_T from the general-terrain exhibit (12-25); grade and length do not enter.',
+        'Heavy-vehicle factor f_HV = 1 / (1 + P_T (E_T − 1)); demand flow rate v_p = D × S.',
+        'Level of service keyed on density per HCM Exhibit 12-15.',
+      ],
+      diagram: {
+        kind: 'freeway',
+        props: {
+          laneCount: Number(lane_count), laneWidth: Number(lane_width),
+          length: Number(length), grade: Number(grade), lcR: Number(lc_r),
+        },
+      },
+    });
   }
 
   function resetParams() {

@@ -1,6 +1,7 @@
 <script>
   import init, { WasmSegment, WasmSubSegment, WasmTwoLaneHighways } from "HCM-middleware";
   import Error from "../+error.svelte";
+  import { setReport } from '$lib/report';
 
     // Export variables
     export let lane_width;
@@ -146,6 +147,7 @@
         var fd_mid = 0;
         var fd_adj = 0;
         var fd_out = 0;
+        const segReport = [];
         for (let i=0; i < rows_len; i++) {
             [pass_min, pass_max] = wasmTwoLaneHighways.identify_vertical_class(i);
             [vd, demandFlow_o, capacity] = wasmTwoLaneHighways.determine_demand_flow(i);
@@ -180,6 +182,13 @@
             document.getElementById("avgspd" + (i+1)).innerHTML = "" + Math.round(s*1000) / 1000;
             document.getElementById("fd" + (i+1)).innerHTML = "" + Math.round(fd_out*1000) / 1000;
             document.getElementById("seglos" + (i+1)).innerHTML = "" + los;
+            segReport.push({
+              ffs: Math.round(ffs * 100) / 100,
+              avgspd: Math.round(s * 100) / 100,
+              pf: Math.round(pf[i] * 100) / 100,
+              fd: Math.round(fd_out * 100) / 100,
+              los,
+            });
         }
         fd_f = fd_f / tot_len;
 
@@ -192,6 +201,44 @@
         document.getElementById("fdF").innerHTML = "Facility Follower Density: " + Math.round(fd_f*1000)/1000;
         // Error
         document.getElementById("error").innerHTML = "Error message: " + out;
+
+        setReport({
+          chapter: 'Two-Lane Highways',
+          chapterRef: 'HCM Chapter 15',
+          href: '/hcm15',
+          generatedAt: new Date().toLocaleString(),
+          headline: { label: 'Facility LOS', value: fac_los },
+          inputs: [
+            { label: 'Lane width', value: `${lane_width} ft` },
+            { label: 'Shoulder width', value: `${shoulder_width} ft` },
+            { label: 'Access point density', value: `${apd} /mi` },
+            { label: 'Heavy vehicles in passing lane', value: `${pmhvfl} %` },
+            { label: 'Segments', value: rows_len },
+          ],
+          resultTable: {
+            columns: ['Quantity', ...segReport.map((_, i) => `Segment ${i + 1}`)],
+            rows: [
+              ['Free-flow speed (mi/h)', ...segReport.map((r) => r.ffs)],
+              ['Average speed (mi/h)', ...segReport.map((r) => r.avgspd)],
+              ['Percent followers (%)', ...segReport.map((r) => r.pf)],
+              ['Follower density (followers/mi)', ...segReport.map((r) => r.fd)],
+              ['Segment LOS', ...segReport.map((r) => r.los)],
+            ],
+          },
+          summary: [
+            { label: 'Facility LOS', value: fac_los },
+            { label: 'Facility follower density', value: `${Math.round(fd_f * 1000) / 1000} followers/mi` },
+          ],
+          methodology: [
+            'HCM 7th Edition Chapter 15 (Two-Lane Highways).',
+            'Service measure: follower density (followers/mi); the facility value is length-weighted across segments.',
+            'Level of service is keyed on follower density; thresholds depend on posted speed (see the HCM).',
+          ],
+          diagram: {
+            kind: 'twolane',
+            props: { rows: JSON.parse(JSON.stringify(rows)), laneWidth: Number(lane_width) },
+          },
+        });
 
     }
 
