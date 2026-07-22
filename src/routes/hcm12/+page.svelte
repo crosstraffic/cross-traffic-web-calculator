@@ -32,6 +32,7 @@
   let results = null;
   let hasError = false;
   let errMessage = '';
+  let diagramMode = '2d';   // '2d' plan view | '3d' perspective view
 
   // The specific-upgrade exhibits (12-26/27/28) are keyed on grade + length; the
   // general-terrain exhibit (12-25) is keyed on terrain and ignores them. Surface
@@ -107,6 +108,70 @@
     hasError = false;
   }
 
+  // ─── JSON import / export ──────────────────────────────────────────────────
+  // A flat object mirroring the inputs below (a single basic-freeway segment).
+
+  function applyInput(json) {
+    if (json.bffs != null) bffs = json.bffs;
+    if (json.speed_limit != null) speed_limit = json.speed_limit;
+    if (json.lane_count != null) lane_count = json.lane_count;
+    if (json.lane_width != null) lane_width = json.lane_width;
+    if (json.lc_r != null) lc_r = json.lc_r;
+    if (json.trd != null) trd = json.trd;
+    if (json.grade != null) grade = json.grade;
+    if (json.terrain_type != null) terrain_type = json.terrain_type;
+    if (json.length != null) length = json.length;
+    if (json.demand_flow_i != null) demand_flow_i = json.demand_flow_i;
+    if (json.phf != null) phf = json.phf;
+    if (json.phv != null) phv = json.phv;
+    if (json.sut_percentage != null) sut_percentage = json.sut_percentage;
+    if (json.city_type != null) city_type = json.city_type;
+    results = null;
+    hasError = false;
+  }
+
+  function jsonInputHandler(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        applyInput(JSON.parse(reader.result));
+      } catch (err) {
+        hasError = true;
+        errMessage = 'Invalid JSON file. Please upload a valid basic-freeway input file.';
+      }
+    };
+    reader.onerror = () => {
+      hasError = true;
+      errMessage = 'The file could not be read.';
+    };
+    reader.readAsText(file);
+    event.target.value = '';   // allow re-selecting the same file
+  }
+
+  async function loadExample() {
+    try {
+      const res = await fetch('/examples/hcm12_basic_freeway.json');
+      applyInput(await res.json());
+    } catch (err) {
+      hasError = true;
+      errMessage = 'Could not load the bundled example.';
+    }
+  }
+
+  function exportJson() {
+    const data = {
+      bffs, lane_width, lane_count, lc_r, trd, grade, terrain_type,
+      length, demand_flow_i, phf, phv, sut_percentage, speed_limit, city_type
+    };
+    const href = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data, null, 2));
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = 'hcm12_input.json';
+    a.click();
+  }
+
   // LOS letter -> colour band for the results badge.
   function losClass(los) {
     switch (los) {
@@ -120,6 +185,9 @@
 
   // Clamp the drawn lane count so the diagram stays readable.
   $: drawnLanes = Math.max(1, Math.min(6, Number(lane_count) || 1));
+  // Tilt the perspective deck by the grade (clamped) so a positive grade visibly
+  // rises into the distance; 60deg is the flat reference.
+  $: deckTilt = 60 - Math.max(-8, Math.min(8, Number(grade) || 0));
 </script>
 
 <div class="hcm-page">
@@ -148,6 +216,27 @@
   {/if}
 
   <form id="hcm12" on:submit|preventDefault={runAnalysis}>
+    <!-- Import -->
+    <section class="panel">
+      <div class="panel-head with-actions">
+        <div>
+          <h2 class="panel-title">Import</h2>
+          <p class="panel-sub">Load a basic-freeway input file, or start from the bundled example.</p>
+        </div>
+        <div class="panel-actions">
+          <button class="btn btn-outline btn-sm" type="button" on:click={loadExample}>Load example</button>
+        </div>
+      </div>
+      <label for="jsonInput" class="block text-sm font-medium mb-1">JSON file</label>
+      <input
+        type="file"
+        id="jsonInput"
+        on:change={jsonInputHandler}
+        class="file-input file-input-bordered w-full max-w-xs"
+        accept=".json"
+      />
+    </section>
+
     <!-- Geometry -->
     <section class="panel">
       <div class="panel-head">
@@ -222,25 +311,42 @@
         </div>
       </div>
 
-      <!-- Reactive plan view of the analysis direction. -->
-      <div class="freeway-diagram" role="img" aria-label={`${drawnLanes}-lane basic freeway segment, analysis direction`}>
-        <svg viewBox="0 0 240 {18 * drawnLanes + 26}" preserveAspectRatio="xMidYMid meet">
-          <!-- pavement -->
-          <rect x="0" y="8" width="240" height={18 * drawnLanes} class="fw-pavement" />
-          <!-- solid edge lines -->
-          <line x1="0" y1="8" x2="240" y2="8" class="fw-edge" />
-          <line x1="0" y1={8 + 18 * drawnLanes} x2="240" y2={8 + 18 * drawnLanes} class="fw-edge" />
-          <!-- dashed lane lines between lanes -->
-          {#each Array.from({ length: Math.max(0, drawnLanes - 1) }) as _, i}
-            <line x1="0" y1={8 + 18 * (i + 1)} x2="240" y2={8 + 18 * (i + 1)} class="fw-lane-line" />
-          {/each}
-          <!-- direction arrow -->
-          <polygon points="188,{8 + 9 * drawnLanes} 208,{8 + 9 * drawnLanes} 208,{8 + 9 * drawnLanes - 4} 220,{8 + 9 * drawnLanes} 208,{8 + 9 * drawnLanes + 4} 208,{8 + 9 * drawnLanes} " class="fw-arrow" />
-          <!-- right shoulder band -->
-          <rect x="0" y={8 + 18 * drawnLanes} width="240" height="10" class="fw-shoulder" />
-          <text x="4" y={8 + 18 * drawnLanes + 8} class="fw-label">shoulder · {lc_r} ft clearance</text>
-        </svg>
-        <p class="diagram-caption">{drawnLanes} lane{drawnLanes === 1 ? '' : 's'} @ {lane_width} ft · analysis direction →</p>
+      <!-- Reactive segment view: plan (2D) or perspective (3D). -->
+      <div class="diagram-block">
+        <div class="diagram-toggle" role="group" aria-label="Segment view">
+          <button type="button" class:active={diagramMode === '2d'} on:click={() => diagramMode = '2d'}>Plan</button>
+          <button type="button" class:active={diagramMode === '3d'} on:click={() => diagramMode = '3d'}>3D</button>
+        </div>
+
+        {#if diagramMode === '2d'}
+          <div class="freeway-diagram" role="img" aria-label={`${drawnLanes}-lane basic freeway segment, analysis direction`}>
+            <svg viewBox="0 0 240 {18 * drawnLanes + 26}" preserveAspectRatio="xMidYMid meet">
+              <rect x="0" y="8" width="240" height={18 * drawnLanes} class="fw-pavement" />
+              <line x1="0" y1="8" x2="240" y2="8" class="fw-edge" />
+              <line x1="0" y1={8 + 18 * drawnLanes} x2="240" y2={8 + 18 * drawnLanes} class="fw-edge" />
+              {#each Array.from({ length: Math.max(0, drawnLanes - 1) }) as _, i}
+                <line x1="0" y1={8 + 18 * (i + 1)} x2="240" y2={8 + 18 * (i + 1)} class="fw-lane-line" />
+              {/each}
+              <polygon points="188,{8 + 9 * drawnLanes} 208,{8 + 9 * drawnLanes} 208,{8 + 9 * drawnLanes - 4} 220,{8 + 9 * drawnLanes} 208,{8 + 9 * drawnLanes + 4} 208,{8 + 9 * drawnLanes} " class="fw-arrow" />
+              <rect x="0" y={8 + 18 * drawnLanes} width="240" height="10" class="fw-shoulder" />
+              <text x="4" y={8 + 18 * drawnLanes + 8} class="fw-label">shoulder · {lc_r} ft clearance</text>
+            </svg>
+          </div>
+        {:else}
+          <div class="segment-scene" role="img" aria-label={`${drawnLanes}-lane basic freeway segment in perspective, ${grade}% grade`}>
+            <div class="segment-deck" style={`transform: rotateX(${deckTilt}deg);`}>
+              {#each Array.from({ length: drawnLanes }) as _, i}
+                <div class="lane3d" class:last={i === drawnLanes - 1}></div>
+              {/each}
+              <div class="shoulder3d"></div>
+              <div class="deck-arrow">▲</div>
+            </div>
+          </div>
+        {/if}
+
+        <p class="diagram-caption">
+          {drawnLanes} lane{drawnLanes === 1 ? '' : 's'} @ {lane_width} ft · {length} mi{#if Number(grade) !== 0} · {grade}% grade{/if} · analysis direction {diagramMode === '3d' ? '↑' : '→'}
+        </p>
       </div>
     </section>
 
@@ -315,6 +421,7 @@
     <!-- Form Actions -->
     <div class="action-bar">
       <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-outline" on:click={exportJson} type="button">Export JSON</button>
       <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
     </div>
   </form>
@@ -399,38 +506,89 @@
 </div>
 
 <style>
-  .freeway-diagram {
-    margin-top: 1rem;
-    max-width: 420px;
+  .diagram-block { margin-top: 1rem; max-width: 460px; }
+  .diagram-toggle {
+    display: inline-flex;
+    border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    margin-bottom: 0.75rem;
   }
-  .freeway-diagram svg {
-    width: 100%;
-    height: auto;
-    display: block;
+  .diagram-toggle button {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.7rem;
+    background: transparent;
+    color: inherit;
+    opacity: 0.6;
   }
+  .diagram-toggle button.active {
+    background: color-mix(in srgb, currentColor 10%, transparent);
+    opacity: 1;
+    font-weight: 600;
+  }
+
+  /* 2D plan view */
+  .freeway-diagram svg { width: 100%; height: auto; display: block; }
   .fw-pavement { fill: color-mix(in srgb, currentColor 8%, transparent); }
   .fw-shoulder { fill: color-mix(in srgb, currentColor 4%, transparent); }
   .fw-edge { stroke: currentColor; stroke-width: 1.5; opacity: 0.85; }
   .fw-lane-line { stroke: currentColor; stroke-width: 1; stroke-dasharray: 8 7; opacity: 0.5; }
   .fw-arrow { fill: currentColor; opacity: 0.6; }
   .fw-label { font-size: 7px; fill: currentColor; opacity: 0.55; }
-  .diagram-caption {
-    font-size: 0.75rem;
-    opacity: 0.65;
-    margin-top: 0.35rem;
-  }
-  .los-summary {
+
+  /* 3D perspective view */
+  .segment-scene {
+    perspective: 900px;
+    perspective-origin: 50% 28%;
+    height: 240px;
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.25rem;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
   }
-  .los-summary-label {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    opacity: 0.6;
+  .segment-deck {
+    display: flex;
+    width: 320px;
+    height: 190px;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.25s ease;
+    box-shadow: 0 30px 40px -30px rgba(0, 0, 0, 0.5);
+    background: color-mix(in srgb, currentColor 10%, transparent);
+    border: 1.5px solid color-mix(in srgb, currentColor 55%, transparent);
+    border-radius: 2px;
   }
+  .lane3d {
+    flex: 1;
+    height: 100%;
+    border-right: 2px dashed color-mix(in srgb, currentColor 45%, transparent);
+  }
+  .lane3d.last { border-right: none; }
+  .shoulder3d {
+    width: 18px;
+    height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      color-mix(in srgb, currentColor 30%, transparent) 0 8px,
+      transparent 8px 16px
+    );
+    border-left: 2px solid color-mix(in srgb, currentColor 55%, transparent);
+  }
+  .deck-arrow {
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.1rem;
+    opacity: 0.55;
+    line-height: 1;
+  }
+
+  .diagram-caption { font-size: 0.75rem; opacity: 0.65; margin-top: 0.35rem; }
+
+  /* Outputs */
+  .los-summary { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; }
+  .los-summary-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.6; }
   .los-badge {
     display: inline-flex;
     align-items: center;
@@ -445,17 +603,8 @@
   .los-good { background: #16a34a; }
   .los-warn { background: #d97706; }
   .los-bad  { background: #dc2626; }
-  .step-table .step-num {
-    width: 3rem;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-    opacity: 0.6;
-  }
-  .step-table td.num, .step-table th.num {
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
+  .step-table .step-num { width: 3rem; text-align: center; font-variant-numeric: tabular-nums; opacity: 0.6; }
+  .step-table td.num, .step-table th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .step-table tr.step-los th, .step-table tr.step-los td { font-weight: 700; }
   .input-inert { opacity: 0.5; }
 </style>
