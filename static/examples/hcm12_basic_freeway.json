@@ -1,0 +1,16 @@
+{
+  "bffs": 70.0,
+  "lane_width": 12.0,
+  "lane_count": 3,
+  "lc_r": 6,
+  "trd": 1,
+  "grade": 2.0,
+  "terrain_type": "level",
+  "length": 0.625,
+  "demand_flow_i": 4500,
+  "phf": 0.95,
+  "phv": 10,
+  "sut_percentage": 0,
+  "speed_limit": 65,
+  "city_type": "urban"
+}
