@@ -351,7 +351,7 @@
 <div class="hcm-page">
   <header class="page-header">
     <span class="badge badge-outline page-badge">Chapter 15 · Two-Lane Highways</span>
-    <h1 class="page-title">HCM Calculator — Chapter 15</h1>
+    <h1 class="page-title">HCM Calculator — Two-Lane Highways</h1>
     <p class="page-sub">
       Estimate free-flow speed, follower density, average speed, and level of
       service for two-lane highway facilities, segment by segment.

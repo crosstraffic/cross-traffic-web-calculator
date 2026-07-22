@@ -29,9 +29,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "crosstraffic_middleware"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d71f392b5d58fd4db902e1ca27aaffaffd5b932bf7a0833a7c2503e0ebffc48"
+version = "0.1.7"
 dependencies = [
  "js-sys",
  "serde",
@@ -63,9 +61,9 @@ checksum = "90ed8c1e510134f979dbc4f070f87d4313098b704861a105fe34231c70a3901c"
 
 [[package]]
 name = "once_cell"
-version = "1.19.0"
+version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
+checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "proc-macro2"
@@ -152,11 +150,10 @@ dependencies = [
 
 [[package]]
 name = "transportations_library"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1da39e85141aeeb9c492dec32c5c2ae62d850fd3525437944b8cc2a5f1ffb32"
+version = "0.2.0"
 dependencies = [
  "assert_approx_eq",
+ "once_cell",
  "round",
  "serde",
  "serde_json",
