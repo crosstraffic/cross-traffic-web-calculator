@@ -3,6 +3,8 @@
 </svelte:head>
 
 <script>
+  import LosScale from '$lib/LosScale.svelte';
+  import LosBadge from '$lib/LosBadge.svelte';
   import init, { WasmSignalizedIntersection } from "HCM-middleware";
   import { onMount } from "svelte";
 
@@ -358,9 +360,22 @@
           </tr>
         </tbody>
       </table>
-      <div class="facility-summary">
-        <p>Intersection LOS: {results ? results.los : ''}</p>
-      </div>
+      {#if results}
+        <div class="result-summary">
+          <div class="result-summary-badge">
+            <span class="result-summary-label">Intersection LOS</span>
+            <LosBadge los={results.los} size="lg" />
+          </div>
+          <div class="result-summary-scale">
+            <LosScale
+              measure="control_delay_signal"
+              value={results.delay}
+              los={results.los}
+              title="Control delay against the Exhibit 19-8 thresholds"
+            />
+          </div>
+        </div>
+      {/if}
     </div>
   </section>
 </div>
