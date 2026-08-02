@@ -4,18 +4,9 @@ const heap = new Array(128).fill(undefined);
 
 heap.push(undefined, null, true, false);
 
-let heap_next = heap.length;
-
-function addHeapObject(obj) {
-    if (heap_next === heap.length) heap.push(heap.length + 1);
-    const idx = heap_next;
-    heap_next = heap[idx];
-
-    heap[idx] = obj;
-    return idx;
-}
-
 function getObject(idx) { return heap[idx]; }
+
+let heap_next = heap.length;
 
 function dropObject(idx) {
     if (idx < 132) return;
@@ -27,6 +18,15 @@ function takeObject(idx) {
     const ret = getObject(idx);
     dropObject(idx);
     return ret;
+}
+
+function addHeapObject(obj) {
+    if (heap_next === heap.length) heap.push(heap.length + 1);
+    const idx = heap_next;
+    heap_next = heap[idx];
+
+    heap[idx] = obj;
+    return idx;
 }
 
 function isLikeNone(x) {
@@ -702,6 +702,25 @@ export class WasmBasicFreeways {
     */
     get_ffs() {
         const ret = wasm.wasmbasicfreeways_get_ffs(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+    * Adjusted free-flow speed FFS_adj = FFS x SAF (mi/h), which the Equation 12-1 speed curve is
+    * drawn against. Note the asymmetry: the breakpoint below follows this, while base capacity is
+    * computed from the unadjusted FFS.
+    * @returns {number}
+    */
+    get_ffs_adj() {
+        const ret = wasm.wasmbasicfreeways_get_ffs_adj(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+    * Adjusted breakpoint BP_adj (pc/h/ln) - Exhibit 12-6, the flow at which the speed curve stops
+    * being flat. Exposed so a caller can plot the curve without restating the exhibit's formula.
+    * @returns {number}
+    */
+    get_breakpoint() {
+        const ret = wasm.wasmbasicfreeways_get_breakpoint(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -2167,22 +2186,26 @@ export class WasmRampSegment {
     /**
     * Run the full HCM Ch.14 analysis (Steps 1-5) and return the LOS letter.
     * Populates flows, v_12, capacities, density, and speeds.
-    * @returns {string}
+    *
+    * Returns `undefined` for a major merge operating under capacity, where the HCM defines no
+    * level of service and only the capacity checks apply. Callers must render that case rather
+    * than printing an empty letter.
+    * @returns {string | undefined}
     */
     run_analysis() {
-        let deferred1_0;
-        let deferred1_1;
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
             wasm.wasmrampsegment_run_analysis(retptr, this.__wbg_ptr);
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
+            let v1;
+            if (r0 !== 0) {
+                v1 = getStringFromWasm0(r0, r1).slice();
+                wasm.__wbindgen_free(r0, r1 * 1, 1);
+            }
+            return v1;
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
         }
     }
     /**
@@ -2230,22 +2253,24 @@ export class WasmRampSegment {
     }
     /**
     * Level of service letter - Exhibit 14-3.
-    * @returns {string}
+    *
+    * Returns `undefined` for a major merge under capacity; see [`Self::run_analysis`].
+    * @returns {string | undefined}
     */
     determine_los() {
-        let deferred1_0;
-        let deferred1_1;
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
             wasm.wasmrampsegment_determine_los(retptr, this.__wbg_ptr);
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
+            let v1;
+            if (r0 !== 0) {
+                v1 = getStringFromWasm0(r0, r1).slice();
+                wasm.__wbindgen_free(r0, r1 * 1, 1);
+            }
+            return v1;
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
         }
     }
     /**
@@ -4746,7 +4771,7 @@ export class WasmWeavingSegment {
     * @returns {number}
     */
     get_flow_nonweaving() {
-        const ret = wasm.wasmbasicfreeways_get_e_t(this.__wbg_ptr);
+        const ret = wasm.wasmweavingsegment_get_flow_nonweaving(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -4895,6 +4920,9 @@ async function __wbg_load(module, imports) {
 function __wbg_get_imports() {
     const imports = {};
     imports.wbg = {};
+    imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
+        takeObject(arg0);
+    };
     imports.wbg.__wbg_get_bd8e338fbd5f5cc8 = function(arg0, arg1) {
         const ret = getObject(arg0)[arg1 >>> 0];
         return addHeapObject(ret);
@@ -4910,9 +4938,6 @@ function __wbg_get_imports() {
     imports.wbg.__wbindgen_number_new = function(arg0) {
         const ret = arg0;
         return addHeapObject(ret);
-    };
-    imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
-        takeObject(arg0);
     };
     imports.wbg.__wbindgen_is_function = function(arg0) {
         const ret = typeof(getObject(arg0)) === 'function';

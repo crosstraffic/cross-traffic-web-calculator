@@ -3,6 +3,8 @@
 </svelte:head>
 
 <script>
+  import LosScale from '$lib/LosScale.svelte';
+  import LosBadge from '$lib/LosBadge.svelte';
   import init, { WasmExclusivePedestrianFacility, WasmSharedUsePathPedestrian, WasmOffStreetBicycleFacility } from "HCM-middleware";
   import { onMount } from "svelte";
 
@@ -464,9 +466,30 @@
           {/if}
         </tbody>
       </table>
-      <div class="facility-summary">
-        <p>Facility LOS: {results ? results.los : ''}</p>
-      </div>
+      {#if results}
+        <div class="result-summary">
+          <div class="result-summary-badge">
+            <span class="result-summary-label">Facility LOS</span>
+            <LosBadge los={results.los} size="lg" />
+          </div>
+          <div class="result-summary-scale">
+            {#if results.kind === 'bicycle'}
+              <LosScale
+                measure="blos_score_path"
+                value={results.blos_score}
+                los={results.los}
+                title="BLOS score against the Exhibit 24-5 thresholds"
+              />
+            {:else}
+              <p class="result-summary-note">
+                This mode is scored on average pedestrian space and event frequency rather than a
+                single perception score, so the figures above are the service measures. See the
+                table for the values the letter was read from.
+              </p>
+            {/if}
+          </div>
+        </div>
+      {/if}
     </div>
   </section>
 </div>

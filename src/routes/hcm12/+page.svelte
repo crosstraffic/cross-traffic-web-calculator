@@ -3,6 +3,9 @@
 </svelte:head>
 
 <script>
+  import LosScale from '$lib/LosScale.svelte';
+  import LosBadge from '$lib/LosBadge.svelte';
+  import SpeedFlowCurve from '$lib/SpeedFlowCurve.svelte';
   import init, { WasmBasicFreeways } from "HCM-middleware";
   import { onMount } from "svelte";
   import FreewaySegment3D from '../FreewaySegment3D/+page.svelte';
@@ -82,7 +85,11 @@
         e_t,
         // f_HV = 1 / (1 + P_T (E_T - 1)); v_p = D x S (identity D = v_p / S).
         f_hv: e_t > 0 ? 1.0 / (1.0 + p_t * (e_t - 1.0)) : null,
-        v_p: density * speed
+        v_p: density * speed,
+        // Inputs to the Equation 12-1 curve, read from the engine rather than restated here so the
+        // Exhibit 12-6 parameters have exactly one definition.
+        ffs_adj: fw.get_ffs_adj(),
+        breakpoint: fw.get_breakpoint()
       };
       publishReport();
     } catch (err) {
@@ -231,17 +238,6 @@
     a.href = href;
     a.download = 'hcm12_input.json';
     a.click();
-  }
-
-  // LOS letter -> colour band for the results badge.
-  function losClass(los) {
-    switch (los) {
-      case 'A':
-      case 'B': return 'los-badge los-good';
-      case 'C':
-      case 'D': return 'los-badge los-warn';
-      default:  return 'los-badge los-bad';   // E, F
-    }
   }
 
   // Clamp the drawn lane count so the 2D plan diagram stays readable.
@@ -476,10 +472,28 @@
       {#if results}
         <div class="los-summary">
           <span class="los-summary-label">Segment LOS</span>
-          <span class={losClass(results.los)}>{results.los}</span>
+          <LosBadge los={results.los} size="lg" />
         </div>
       {/if}
     </div>
+
+    {#if results}
+      <div class="result-visuals">
+        <LosScale
+          measure="density_pc"
+          value={results.density}
+          los={results.los}
+          title="Density against the Exhibit 12-15 thresholds"
+        />
+        <SpeedFlowCurve
+          ffsAdj={results.ffs_adj}
+          capacityAdj={results.adjusted_capacity}
+          breakpoint={results.breakpoint}
+          flow={results.v_p}
+          speed={results.speed}
+        />
+      </div>
+    {/if}
 
     <div class="los overflow-x-auto">
       <table class="table w-full step-table">

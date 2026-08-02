@@ -1,3 +1,7 @@
+<svelte:head>
+  <title>HCM Calculator — Two-Lane Highways</title>
+</svelte:head>
+
 <script>
   import Row from '../Row/+page.svelte';
   import SubRow from '../SubRow/+page.svelte';

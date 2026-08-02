@@ -67,9 +67,13 @@
         Number(saf)
       );
 
+      // The HCM defines no level of service for a major merge operating under capacity: the
+      // chapter checks its capacity and stops there. The binding returns undefined in that case
+      // rather than inventing a letter, so the summary says so instead of rendering blank.
       const los = rs.run_analysis();
       results = {
         los,
+        losUndefined: los === undefined || los === null,
         flow_freeway: rs.get_flow_freeway(),
         flow_ramp: rs.get_flow_ramp(),
         v12: rs.get_v12(),
@@ -350,7 +354,15 @@
         </tbody>
       </table>
       <div class="facility-summary">
-        <p>Segment LOS: {results ? results.los : ''}</p>
+        {#if results && results.losUndefined}
+          <p>
+            Segment LOS: not defined by the HCM for this configuration. Chapter 14 evaluates a
+            major merge through its capacity checks only; the demand and capacity figures above
+            are the result.
+          </p>
+        {:else}
+          <p>Segment LOS: {results ? results.los : ''}</p>
+        {/if}
       </div>
     </div>
   </section>
