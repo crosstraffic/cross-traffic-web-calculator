@@ -131,6 +131,34 @@ test.describe('chapter 14 merge and diverge calculator', () => {
     await expect(page.getByText(/5[23]\.[0-9]/).first()).toBeVisible(); // S_R ≈ 53.0
   });
 
+  test('the same on-ramp under Edition 7.1 via the picker', async ({ page }) => {
+    // Same Chapter 26 Example Problem 1 inputs under the Edition 7.1 methodology, which
+    // replaces the lane-distribution model with an equivalent-basic-segment speed less an
+    // impedance. Expected values come from the library's Edition 7.1 implementation for this
+    // fixture: density 32.1 pc/mi/ln, influence area speed 55.1 mi/h, d/c 0.94, LOS E under
+    // the Exhibit 14-2 Edition 7.1 bands.
+    await page.goto('/hcm14');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#VER_input').selectOption('7.1');
+    await page.locator('#FL_input').fill('2');
+    await page.locator('#FFS_input').fill('60');
+    await page.locator('#RFFS_input').fill('45');
+    await page.locator('#LA_input').fill('740');
+    await page.locator('#VF_input').fill('2500');
+    await page.locator('#VR_input').fill('535');
+    await page.locator('#PHF_input').fill('0.90');
+    await page.locator('#PHV_input').fill('5');
+    await page.locator('#RPHV_input').fill('5');
+    await calculate.click();
+
+    await expect(page.getByText(/Edition 7.1 bands.*: E/)).toBeVisible();
+    await expect(page.getByText(/32\.[0-9]/)).toBeVisible(); // density ≈ 32.1
+    await expect(page.getByText(/55\.[0-9]/).first()).toBeVisible(); // S ≈ 55.1
+    await expect(page.getByText('Demand-to-Capacity Ratio:')).toBeVisible();
+  });
+
   test('major merge under capacity says the HCM defines no LOS', async ({ page }) => {
     await page.goto('/hcm14');
     const calculate = page.getByRole('button', { name: 'Calculate' });

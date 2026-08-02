@@ -15,6 +15,7 @@
   });
 
   // Inputs (defaults follow the HCM Chapter 14 base conditions)
+  let version = '7';
   let ramp_type = 'on_ramp';
   let ramp_side = 'right';
   let ramp_lanes = 1;
@@ -33,12 +34,14 @@
   let saf = 1.0;
 
   let results = null;
+  let results71 = null;
   let hasError = false;
   let errMessage = '';
 
   function runAnalysis() {
     hasError = false;
     results = null;
+    results71 = null;
 
     try {
       const rs = new WasmRampSegment(
@@ -65,13 +68,22 @@
         undefined,             // downstream_distance
         undefined,             // downstream_ramp_flow
         Number(caf),
-        Number(saf)
+        Number(saf),
+        version
       );
 
       // The HCM defines no level of service for a major merge operating under capacity: the
       // chapter checks its capacity and stops there. The binding returns undefined in that case
       // rather than inventing a letter, so the summary says so instead of rendering blank.
       const los = rs.run_analysis();
+
+      if (version === '7.1') {
+        // The Edition 7.1 methodology has its own step structure; read its full typed
+        // result instead of the 7th Edition step getters.
+        results71 = { ...rs.analysis_v7_1() };
+        return;
+      }
+
       results = {
         los,
         losUndefined: los === undefined || los === null,
@@ -94,6 +106,7 @@
   }
 
   function resetParams() {
+    version = '7';
     ramp_type = 'on_ramp';
     ramp_side = 'right';
     ramp_lanes = 1;
@@ -111,6 +124,7 @@
     caf = 1.0;
     saf = 1.0;
     results = null;
+    results71 = null;
     hasError = false;
   }
 </script>
@@ -149,6 +163,15 @@
         </div>
       </div>
       <div class="param-grid">
+        <div class="param-field">
+          <label for="VER_input">HCM Edition</label>
+          <select id="VER_input" class="select select-bordered select-sm" bind:value={version}>
+            <option value="7">7th Edition</option>
+            <option value="7.1">Edition 7.1 (2025)</option>
+          </select>
+          <p class="param-hint">Edition 7.1 replaces this chapter's methodology; the editions report different speeds, capacities, and LOS.</p>
+        </div>
+
         <div class="param-field">
           <label for="RT_input">Ramp Type</label>
           <select id="RT_input" class="select select-bordered select-sm" bind:value={ramp_type}>
@@ -320,7 +343,68 @@
         <p class="panel-sub">Results populate after pressing Calculate.</p>
       </div>
     </div>
-    <div class="los overflow-x-auto">
+    {#if results71}
+      <div class="los overflow-x-auto">
+        <p class="panel-sub">Edition 7.1 methodology: influence area speed from an equivalent basic segment less a speed impedance, capacity from the 35 pc/mi/ln breakdown density.</p>
+        <table class="table w-full">
+          <tbody>
+            <tr>
+              <th>Freeway Flow Rate (pc/hr):</th>
+              <td>{results71.flow_freeway.toFixed(0)}</td>
+            </tr>
+            <tr>
+              <th>Ramp Flow Rate (pc/hr):</th>
+              <td>{results71.flow_ramp.toFixed(0)}</td>
+            </tr>
+            <tr>
+              <th>Influence Area Flow per Lane (pc/hr/ln):</th>
+              <td>{results71.flow_per_lane.toFixed(0)}</td>
+            </tr>
+            <tr>
+              <th>Equivalent Basic Segment Speed (mi/hr):</th>
+              <td>{results71.speed_basic.toFixed(1)}</td>
+            </tr>
+            <tr>
+              <th>Speed Impedance (mi/hr):</th>
+              <td>{results71.speed_impedance.toFixed(2)}</td>
+            </tr>
+            <tr>
+              <th>Influence Area Speed (mi/hr):</th>
+              <td>{results71.speed_avg == null ? 'not defined (demand far past capacity)' : results71.speed_avg.toFixed(1)}</td>
+            </tr>
+            <tr>
+              <th>Influence Area Capacity (pc/hr/ln):</th>
+              <td>{results71.capacity_per_lane == null ? 'not defined for these inputs' : results71.capacity_per_lane.toFixed(0)}</td>
+            </tr>
+            <tr>
+              <th>Demand-to-Capacity Ratio:</th>
+              <td>{results71.dc_ratio == null ? 'not defined for these inputs' : results71.dc_ratio.toFixed(2)}</td>
+            </tr>
+            <tr>
+              <th>Neighboring Freeway Capacity (pc/hr):</th>
+              <td>{results71.capacity_neighboring_freeway.toFixed(0)}</td>
+            </tr>
+            <tr>
+              <th>Ramp Roadway Capacity (pc/hr):</th>
+              <td>{results71.capacity_ramp_roadway.toFixed(0)}</td>
+            </tr>
+            <tr>
+              <th>Demand Exceeds Capacity:</th>
+              <td>{results71.demand_exceeds_capacity ? 'Yes, LOS F' : 'No'}</td>
+            </tr>
+            <tr>
+              <th>Influence Area Density (pc/mi/ln):</th>
+              <td>{Number.isFinite(results71.density) ? results71.density.toFixed(1) : 'over capacity'}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="facility-summary">
+          <p>Segment LOS (Exhibit 14-2, Edition 7.1 bands): {results71.los}</p>
+        </div>
+      </div>
+    {/if}
+
+    <div class="los overflow-x-auto" style={results71 ? 'display:none' : ''}>
       <table class="table w-full">
         <tbody>
           <tr>
