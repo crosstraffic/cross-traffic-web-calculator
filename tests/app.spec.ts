@@ -35,6 +35,22 @@ test.describe('navigation and route gating', () => {
     await expect(nav.locator('a[href="/hcm19"]')).toHaveCount(1);
   });
 
+  test('the theme toggle flips to dark and persists across reloads', async ({ page }) => {
+    await page.goto('/');
+    const html = page.locator('html');
+    await expect(html).toHaveAttribute('data-theme', 'light');
+
+    await page.locator('.nav-theme-toggle').click();
+    await expect(html).toHaveAttribute('data-theme', 'dark');
+
+    // The inline script in app.html applies the saved theme before hydration.
+    await page.reload();
+    await expect(html).toHaveAttribute('data-theme', 'dark');
+
+    await page.locator('.nav-theme-toggle').click();
+    await expect(html).toHaveAttribute('data-theme', 'light');
+  });
+
   test('unreleased chapter routes redirect home', async ({ page }) => {
     // hcm16 and hcm20 exist in the repo but are not in the RELEASED set of
     // src/routes/+layout.js; a direct visit must land on the home page.

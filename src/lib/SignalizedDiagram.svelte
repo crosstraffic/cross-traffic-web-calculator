@@ -209,21 +209,21 @@
     display: block;
     margin: 0 auto;
   }
-  .sd-pavement { fill: #e2e8f0; }
+  .sd-pavement { fill: var(--diag-pavement); }
   .sd-edge {
-    stroke: #334155;
+    stroke: var(--diag-edge);
     stroke-width: 2;
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
   }
-  .sd-center { stroke: #eab308; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+  .sd-center { stroke: var(--diag-center); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
   .sd-lane-line {
-    stroke: #ffffff;
+    stroke: var(--diag-lane-line);
     stroke-width: 1.5;
     stroke-dasharray: 8 6;
     vector-effect: non-scaling-stroke;
   }
-  .sd-stop { stroke: #ffffff; stroke-width: 3; vector-effect: non-scaling-stroke; }
+  .sd-stop { stroke: var(--diag-lane-line); stroke-width: 3; vector-effect: non-scaling-stroke; }
 
   .sd-move {
     fill: none;
@@ -256,12 +256,12 @@
     gap: 0.35rem;
     font-size: 0.72rem;
     padding: 0.15rem 0.5rem;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border-strong);
     border-radius: 999px;
     background: transparent;
     cursor: default;
   }
-  .sd-chip.active { border-color: #334155; }
+  .sd-chip.active { border-color: var(--diag-edge); }
   .swatch {
     width: 0.7rem;
     height: 0.7rem;
@@ -270,7 +270,7 @@
   }
   .sd-note {
     font-size: 0.72rem;
-    color: #64748b;
+    color: var(--diag-wall-edge);
     margin-top: 0.35rem;
   }
 
@@ -284,9 +284,9 @@
     height: 100%;
     font-size: 8px;
     line-height: 1;
-    color: #475569;
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid #cbd5e1;
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--surface) 90%, transparent);
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
     padding: 2px 3px;
     overflow: hidden;
@@ -307,10 +307,10 @@
     font-size: 8px;
     line-height: 1;
     padding: 2px 1px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border-strong);
     border-radius: 3px;
-    background: #ffffff;
-    color: #0f172a;
+    background: var(--surface);
+    color: var(--text);
     text-align: center;
   }
   .sd-cluster input::-webkit-outer-spin-button,

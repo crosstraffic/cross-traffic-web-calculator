@@ -199,30 +199,30 @@
     display: block;
     margin: 0 auto;
   }
-  .wv-pavement { fill: #e2e8f0; }
+  .wv-pavement { fill: var(--diag-pavement); }
   .wv-edge {
-    stroke: #334155;
+    stroke: var(--diag-edge);
     stroke-width: 2;
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
   }
   .wv-edge-path {
     fill: none;
-    stroke: #334155;
+    stroke: var(--diag-edge);
     stroke-width: 2;
     stroke-linejoin: round;
     vector-effect: non-scaling-stroke;
   }
   .wv-lane-line {
-    stroke: #ffffff;
+    stroke: var(--diag-lane-line);
     stroke-width: 1.5;
     stroke-dasharray: 8 6;
     vector-effect: non-scaling-stroke;
   }
-  .wv-dim { stroke: #64748b; stroke-width: 1; }
-  .wv-ext { stroke: #64748b; stroke-width: 0.75; stroke-dasharray: 2 3; opacity: 0.6; }
-  .wv-label { font-size: 9px; fill: #64748b; }
-  .wv-arrow { fill: #334155; }
+  .wv-dim { stroke: var(--diag-wall-edge); stroke-width: 1; }
+  .wv-ext { stroke: var(--diag-wall-edge); stroke-width: 0.75; stroke-dasharray: 2 3; opacity: 0.6; }
+  .wv-label { font-size: 9px; fill: var(--diag-wall-edge); }
+  .wv-arrow { fill: var(--diag-edge); }
 
   .wv-move {
     fill: none;
@@ -255,20 +255,20 @@
     gap: 0.35rem;
     font-size: 0.72rem;
     padding: 0.15rem 0.5rem;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border-strong);
     border-radius: 999px;
     background: transparent;
     cursor: default;
   }
-  .wv-chip.active { border-color: #334155; }
+  .wv-chip.active { border-color: var(--diag-edge); }
   .wv-chip input {
     width: 3.6rem;
     font-size: 0.72rem;
     padding: 0.05rem 0.25rem;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
-    background: #ffffff;
-    color: #0f172a;
+    background: var(--surface);
+    color: var(--text);
     text-align: right;
   }
   .swatch {

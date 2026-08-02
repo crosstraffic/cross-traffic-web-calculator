@@ -159,46 +159,46 @@
     display: block;
     margin: 0 auto;
   }
-  .rd-pavement { fill: #e2e8f0; }
+  .rd-pavement { fill: var(--diag-pavement); }
   .rd-scl {
-    fill: #e2e8f0;
+    fill: var(--diag-pavement);
     transition: fill 120ms ease;
   }
-  .rd-scl.active { fill: #fed7aa; }
+  .rd-scl.active { fill: var(--diag-scl-active); }
   .rd-influence {
-    fill: #2563eb;
+    fill: var(--diag-infl);
     opacity: 0.10;
     transition: opacity 120ms ease;
   }
   .rd-influence.active { opacity: 0.30; }
   .rd-edge {
-    stroke: #334155;
+    stroke: var(--diag-edge);
     stroke-width: 2;
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
   }
   .rd-edge-path {
     fill: none;
-    stroke: #334155;
+    stroke: var(--diag-edge);
     stroke-width: 2;
     stroke-linejoin: round;
     vector-effect: non-scaling-stroke;
   }
   .rd-lane-line {
-    stroke: #ffffff;
+    stroke: var(--diag-lane-line);
     stroke-width: 1.5;
     stroke-dasharray: 8 6;
     vector-effect: non-scaling-stroke;
   }
   .rd-lane-line-dark {
-    stroke: #94a3b8;
+    stroke: var(--diag-wall);
     stroke-width: 1.5;
     stroke-dasharray: 8 6;
     vector-effect: non-scaling-stroke;
   }
-  .rd-dim { stroke: #64748b; stroke-width: 1; }
-  .rd-label { font-size: 9px; fill: #64748b; }
-  .rd-arrow { fill: #334155; }
+  .rd-dim { stroke: var(--diag-wall-edge); stroke-width: 1; }
+  .rd-label { font-size: 9px; fill: var(--diag-wall-edge); }
+  .rd-arrow { fill: var(--diag-edge); }
 
   .rd-legend {
     display: flex;
@@ -210,10 +210,10 @@
     width: 3.6rem;
     font-size: 0.72rem;
     padding: 0.05rem 0.25rem;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border-strong);
     border-radius: 4px;
-    background: #ffffff;
-    color: #0f172a;
+    background: var(--surface);
+    color: var(--text);
     text-align: right;
   }
   .rd-chip {
@@ -222,18 +222,18 @@
     gap: 0.35rem;
     font-size: 0.72rem;
     padding: 0.15rem 0.5rem;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border-strong);
     border-radius: 999px;
     background: transparent;
     cursor: default;
   }
-  .rd-chip.active { border-color: #334155; }
+  .rd-chip.active { border-color: var(--diag-edge); }
   .swatch {
     width: 0.7rem;
     height: 0.7rem;
     border-radius: 2px;
     display: inline-block;
   }
-  .swatch.ramp { background: #fed7aa; border: 1px solid #334155; }
+  .swatch.ramp { background: var(--diag-scl-active); border: 1px solid var(--diag-edge); }
   .swatch.influence { background: rgba(37, 99, 235, 0.3); }
 </style>
