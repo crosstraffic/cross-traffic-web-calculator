@@ -22,6 +22,7 @@
   let jam_density = 190;
   let queue_discharge_drop = 7;
   let total_ramp_density = 1.0;
+  let interchange_density = '';
 
   // Mainline entry demand, one value per 15-min analysis period
   let mainline_demand = '4000, 4400, 4800, 4400';
@@ -103,7 +104,7 @@
         Number(jam_density),
         Number(queue_discharge_drop) / 100.0,
         Number(total_ramp_density),
-        undefined                          // interchange density defaults to total ramp density
+        interchange_density !== '' ? Number(interchange_density) : undefined
       );
 
       fac.run_analysis();
@@ -145,6 +146,7 @@
     jam_density = 190;
     queue_discharge_drop = 7;
     total_ramp_density = 1.0;
+    interchange_density = '';
     mainline_demand = '4000, 4400, 4800, 4400';
     segments = defaultSegments();
     results = null;
@@ -154,21 +156,22 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Freeway Facilities <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">Freeway Facilities</span>
     <h1 class="page-title">HCM Calculator — Freeway Facilities Core Methodology</h1>
     <p class="page-sub">
       Evaluate a directional freeway facility of basic, merge, diverge, weaving, and
-      overlapping ramp segments over consecutive 15-min analysis periods. This beta
-      covers the mixed-flow core methodology. Managed lanes and work zones are not included.
+      overlapping ramp segments over consecutive 15-min analysis periods. Covers the
+      mixed-flow core methodology. Managed lanes and work zones are not included.
     </p>
   </header>
 
-  <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
+  <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> This chapter is newly implemented and its results have
-      not yet been validated against the full set of published HCM worked examples.
-      Verify results independently before relying on them in engineering work, and
-      please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      The compute engine reproduces the published HCM worked examples for this
+      chapter at the facility level. On an oversaturated facility the placement of
+      a queue among upstream segments can differ from the published engine while
+      the facility totals agree. Verify results independently before relying on
+      them in engineering work, and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
 
@@ -199,7 +202,7 @@
         <div class="param-field">
           <label for="HV_input">Heavy Vehicles</label>
           <div class="cell-field">
-            <input id="HV_input" type="number" step="0.1" min="0" max="100" class="input input-bordered input-sm" bind:value={hv_pct} placeholder="5" required />
+            <input id="HV_input" type="number" step="0.01" min="0" max="100" class="input input-bordered input-sm" bind:value={hv_pct} placeholder="5" required />
             <span class="unit">%</span>
           </div>
         </div>
@@ -251,6 +254,15 @@
             <input id="TRD_input" type="number" step="0.1" min="0" class="input input-bordered input-sm" bind:value={total_ramp_density} placeholder="1.0" required />
             <span class="unit">/mi</span>
           </div>
+        </div>
+
+        <div class="param-field">
+          <label for="ID_input">Interchange Density</label>
+          <div class="cell-field">
+            <input id="ID_input" type="number" step="0.1" min="0" class="input input-bordered input-sm" bind:value={interchange_density} placeholder="" />
+            <span class="unit">/mi</span>
+          </div>
+          <p class="param-hint">Used by weaving segments. Blank uses the total ramp density.</p>
         </div>
       </div>
     </section>
