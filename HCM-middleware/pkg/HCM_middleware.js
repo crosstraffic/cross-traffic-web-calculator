@@ -4,9 +4,18 @@ const heap = new Array(128).fill(undefined);
 
 heap.push(undefined, null, true, false);
 
-function getObject(idx) { return heap[idx]; }
-
 let heap_next = heap.length;
+
+function addHeapObject(obj) {
+    if (heap_next === heap.length) heap.push(heap.length + 1);
+    const idx = heap_next;
+    heap_next = heap[idx];
+
+    heap[idx] = obj;
+    return idx;
+}
+
+function getObject(idx) { return heap[idx]; }
 
 function dropObject(idx) {
     if (idx < 132) return;
@@ -18,15 +27,6 @@ function takeObject(idx) {
     const ret = getObject(idx);
     dropObject(idx);
     return ret;
-}
-
-function addHeapObject(obj) {
-    if (heap_next === heap.length) heap.push(heap.length + 1);
-    const idx = heap_next;
-    heap_next = heap[idx];
-
-    heap[idx] = obj;
-    return idx;
 }
 
 function isLikeNone(x) {
@@ -223,6 +223,13 @@ function getUint32Memory0() {
     return cachedUint32Memory0;
 }
 
+function passArray32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getUint32Memory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
 function passArrayJsValueToWasm0(array, malloc) {
     const ptr = malloc(array.length * 4, 4) >>> 0;
     const mem = getUint32Memory0();
@@ -230,13 +237,6 @@ function passArrayJsValueToWasm0(array, malloc) {
         mem[ptr / 4 + i] = addHeapObject(array[i]);
     }
     WASM_VECTOR_LEN = array.length;
-    return ptr;
-}
-
-function passArray32ToWasm0(arg, malloc) {
-    const ptr = malloc(arg.length * 4, 4) >>> 0;
-    getUint32Memory0().set(arg, ptr / 4);
-    WASM_VECTOR_LEN = arg.length;
     return ptr;
 }
 
@@ -4632,17 +4632,84 @@ export class WasmWeavingSegment {
     * @param {number | undefined} [basic_freeway_capacity]
     * @param {number | undefined} [caf]
     * @param {number | undefined} [saf]
+    * @param {number | undefined} [nw_rf]
+    * @param {number | undefined} [nw_fr]
+    * @param {number | undefined} [nw_rr]
+    * @param {string | undefined} [version]
     */
-    constructor(weaving_type, facility_type, length_short, num_lanes, num_weaving_lanes, ffs, v_ff, v_fr, v_rf, v_rr, phf, heavy_vehicle_pct, terrain, lc_rf, lc_fr, lc_rr, interchange_density, basic_freeway_capacity, caf, saf) {
+    constructor(weaving_type, facility_type, length_short, num_lanes, num_weaving_lanes, ffs, v_ff, v_fr, v_rf, v_rr, phf, heavy_vehicle_pct, terrain, lc_rf, lc_fr, lc_rr, interchange_density, basic_freeway_capacity, caf, saf, nw_rf, nw_fr, nw_rr, version) {
         var ptr0 = isLikeNone(weaving_type) ? 0 : passStringToWasm0(weaving_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         var len0 = WASM_VECTOR_LEN;
         var ptr1 = isLikeNone(facility_type) ? 0 : passStringToWasm0(facility_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         var len1 = WASM_VECTOR_LEN;
         var ptr2 = isLikeNone(terrain) ? 0 : passStringToWasm0(terrain, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         var len2 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmweavingsegment_new(ptr0, len0, ptr1, len1, !isLikeNone(length_short), isLikeNone(length_short) ? 0 : length_short, !isLikeNone(num_lanes), isLikeNone(num_lanes) ? 0 : num_lanes, !isLikeNone(num_weaving_lanes), isLikeNone(num_weaving_lanes) ? 0 : num_weaving_lanes, !isLikeNone(ffs), isLikeNone(ffs) ? 0 : ffs, !isLikeNone(v_ff), isLikeNone(v_ff) ? 0 : v_ff, !isLikeNone(v_fr), isLikeNone(v_fr) ? 0 : v_fr, !isLikeNone(v_rf), isLikeNone(v_rf) ? 0 : v_rf, !isLikeNone(v_rr), isLikeNone(v_rr) ? 0 : v_rr, !isLikeNone(phf), isLikeNone(phf) ? 0 : phf, !isLikeNone(heavy_vehicle_pct), isLikeNone(heavy_vehicle_pct) ? 0 : heavy_vehicle_pct, ptr2, len2, !isLikeNone(lc_rf), isLikeNone(lc_rf) ? 0 : lc_rf, !isLikeNone(lc_fr), isLikeNone(lc_fr) ? 0 : lc_fr, !isLikeNone(lc_rr), isLikeNone(lc_rr) ? 0 : lc_rr, !isLikeNone(interchange_density), isLikeNone(interchange_density) ? 0 : interchange_density, !isLikeNone(basic_freeway_capacity), isLikeNone(basic_freeway_capacity) ? 0 : basic_freeway_capacity, !isLikeNone(caf), isLikeNone(caf) ? 0 : caf, !isLikeNone(saf), isLikeNone(saf) ? 0 : saf);
+        var ptr3 = isLikeNone(version) ? 0 : passStringToWasm0(version, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len3 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmweavingsegment_new(ptr0, len0, ptr1, len1, !isLikeNone(length_short), isLikeNone(length_short) ? 0 : length_short, !isLikeNone(num_lanes), isLikeNone(num_lanes) ? 0 : num_lanes, !isLikeNone(num_weaving_lanes), isLikeNone(num_weaving_lanes) ? 0 : num_weaving_lanes, !isLikeNone(ffs), isLikeNone(ffs) ? 0 : ffs, !isLikeNone(v_ff), isLikeNone(v_ff) ? 0 : v_ff, !isLikeNone(v_fr), isLikeNone(v_fr) ? 0 : v_fr, !isLikeNone(v_rf), isLikeNone(v_rf) ? 0 : v_rf, !isLikeNone(v_rr), isLikeNone(v_rr) ? 0 : v_rr, !isLikeNone(phf), isLikeNone(phf) ? 0 : phf, !isLikeNone(heavy_vehicle_pct), isLikeNone(heavy_vehicle_pct) ? 0 : heavy_vehicle_pct, ptr2, len2, !isLikeNone(lc_rf), isLikeNone(lc_rf) ? 0 : lc_rf, !isLikeNone(lc_fr), isLikeNone(lc_fr) ? 0 : lc_fr, !isLikeNone(lc_rr), isLikeNone(lc_rr) ? 0 : lc_rr, !isLikeNone(interchange_density), isLikeNone(interchange_density) ? 0 : interchange_density, !isLikeNone(basic_freeway_capacity), isLikeNone(basic_freeway_capacity) ? 0 : basic_freeway_capacity, !isLikeNone(caf), isLikeNone(caf) ? 0 : caf, !isLikeNone(saf), isLikeNone(saf) ? 0 : saf, !isLikeNone(nw_rf), isLikeNone(nw_rf) ? 0 : nw_rf, !isLikeNone(nw_fr), isLikeNone(nw_fr) ? 0 : nw_fr, !isLikeNone(nw_rr), isLikeNone(nw_rr) ? 0 : nw_rr, ptr3, len3);
         this.__wbg_ptr = ret >>> 0;
         return this;
+    }
+    /**
+    * The HCM edition this segment analyzes under, "7" or "7.1".
+    * @returns {string}
+    */
+    get version() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmweavingsegment_version(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+    * Set the HCM edition, "7" or "7.1". Throws on anything else.
+    * @param {string} version
+    */
+    set version(version) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(version, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.wasmweavingsegment_set_version(retptr, this.__wbg_ptr, ptr0, len0);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Full Edition 7.1 analysis as a JS object (null until `run_analysis()` has run on a
+    * version "7.1" segment). Fields follow the Rust `WeavingAnalysis` struct: class, flows,
+    * ffs_adj, speed_basic, weaving_intensity, speed_impedance, speed_avg (null far past
+    * capacity), capacity_per_lane, dc_ratio, density, los, and the rest.
+    * @returns {any}
+    */
+    analysis_v7_1() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmweavingsegment_analysis_v7_1(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
     * Run the full HCM Ch.13 analysis (Steps 2-8) and return the LOS letter.
@@ -4667,7 +4734,7 @@ export class WasmWeavingSegment {
     }
     /**
     * Step 2: demand flows under equivalent ideal conditions (Eq. 13-1).
-    * Returns [v_W, v_NW, v] in pc/h.
+    * Returns [v_W, v_NW, v] in pc/h. 7th Edition only; throws on a "7.1" segment.
     * @returns {Float64Array}
     */
     determine_demand_flow() {
@@ -4676,6 +4743,11 @@ export class WasmWeavingSegment {
             wasm.wasmweavingsegment_determine_demand_flow(retptr, this.__wbg_ptr);
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
             var v1 = getArrayF64FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 8, 8);
             return v1;
@@ -4685,38 +4757,87 @@ export class WasmWeavingSegment {
     }
     /**
     * Step 3: minimum lane-changing rate LC_MIN (lc/h) - Eqs. 13-2/13-3.
+    * 7th Edition only; throws on a "7.1" segment.
     * @returns {number}
     */
     determine_configuration_characteristics() {
-        const ret = wasm.wasmweavingsegment_determine_configuration_characteristics(this.__wbg_ptr);
-        return ret;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmweavingsegment_determine_configuration_characteristics(retptr, this.__wbg_ptr);
+            var r0 = getFloat64Memory0()[retptr / 8 + 0];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
+            return r0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
     * Step 4: maximum weaving length L_MAX (ft) - Eq. 13-4.
+    * 7th Edition only; throws on a "7.1" segment.
     * @returns {number}
     */
     determine_max_weaving_length() {
-        const ret = wasm.wasmweavingsegment_determine_max_weaving_length(this.__wbg_ptr);
-        return ret;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmweavingsegment_determine_max_weaving_length(retptr, this.__wbg_ptr);
+            var r0 = getFloat64Memory0()[retptr / 8 + 0];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
+            return r0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
     * Step 5: weaving segment capacity (veh/h) - Eqs. 13-5..13-10.
+    * 7th Edition only; throws on a "7.1" segment.
     * @returns {number}
     */
     determine_capacity() {
-        const ret = wasm.wasmweavingsegment_determine_capacity(this.__wbg_ptr);
-        return ret;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmweavingsegment_determine_capacity(retptr, this.__wbg_ptr);
+            var r0 = getFloat64Memory0()[retptr / 8 + 0];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
+            return r0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
     * Step 6: total lane-changing rate LC_ALL (lc/h) - Eqs. 13-11..13-17.
+    * 7th Edition only; throws on a "7.1" segment.
     * @returns {number}
     */
     determine_lane_changing_rates() {
-        const ret = wasm.wasmweavingsegment_determine_lane_changing_rates(this.__wbg_ptr);
-        return ret;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmweavingsegment_determine_lane_changing_rates(retptr, this.__wbg_ptr);
+            var r0 = getFloat64Memory0()[retptr / 8 + 0];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
+            return r0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
     * Step 7: speeds [S_W, S_NW, S] in mi/h - Eqs. 13-18..13-22.
+    * 7th Edition only; throws on a "7.1" segment.
     * @returns {Float64Array}
     */
     estimate_speed() {
@@ -4725,6 +4846,11 @@ export class WasmWeavingSegment {
             wasm.wasmweavingsegment_estimate_speed(retptr, this.__wbg_ptr);
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
             var v1 = getArrayF64FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 8, 8);
             return v1;
@@ -4734,30 +4860,51 @@ export class WasmWeavingSegment {
     }
     /**
     * Step 8a: density (pc/mi/ln) - Eq. 13-23.
+    * 7th Edition only; throws on a "7.1" segment.
     * @returns {number}
     */
     determine_density() {
-        const ret = wasm.wasmweavingsegment_determine_density(this.__wbg_ptr);
-        return ret;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmweavingsegment_determine_density(retptr, this.__wbg_ptr);
+            var r0 = getFloat64Memory0()[retptr / 8 + 0];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
+            return r0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
     * Step 8b: level of service letter - Exhibit 13-6.
+    * 7th Edition only; throws on a "7.1" segment.
     * @returns {string}
     */
     determine_los() {
-        let deferred1_0;
-        let deferred1_1;
+        let deferred2_0;
+        let deferred2_1;
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
             wasm.wasmweavingsegment_determine_los(retptr, this.__wbg_ptr);
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
-            deferred1_0 = r0;
-            deferred1_1 = r1;
-            return getStringFromWasm0(r0, r1);
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            var ptr1 = r0;
+            var len1 = r1;
+            if (r3) {
+                ptr1 = 0; len1 = 0;
+                throw takeObject(r2);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
         }
     }
     /**
@@ -4920,9 +5067,6 @@ async function __wbg_load(module, imports) {
 function __wbg_get_imports() {
     const imports = {};
     imports.wbg = {};
-    imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
-        takeObject(arg0);
-    };
     imports.wbg.__wbg_get_bd8e338fbd5f5cc8 = function(arg0, arg1) {
         const ret = getObject(arg0)[arg1 >>> 0];
         return addHeapObject(ret);
@@ -4938,6 +5082,9 @@ function __wbg_get_imports() {
     imports.wbg.__wbindgen_number_new = function(arg0) {
         const ret = arg0;
         return addHeapObject(ret);
+    };
+    imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
+        takeObject(arg0);
     };
     imports.wbg.__wbindgen_is_function = function(arg0) {
         const ret = typeof(getObject(arg0)) === 'function';
@@ -5084,6 +5231,10 @@ function __wbg_get_imports() {
         const ret = result;
         return ret;
     };
+    imports.wbg.__wbindgen_error_new = function(arg0, arg1) {
+        const ret = new Error(getStringFromWasm0(arg0, arg1));
+        return addHeapObject(ret);
+    };
     imports.wbg.__wbindgen_jsval_loose_eq = function(arg0, arg1) {
         const ret = getObject(arg0) == getObject(arg1);
         return ret;
@@ -5100,10 +5251,6 @@ function __wbg_get_imports() {
         getInt32Memory0()[arg0 / 4 + 1] = len1;
         getInt32Memory0()[arg0 / 4 + 0] = ptr1;
     };
-    imports.wbg.__wbindgen_error_new = function(arg0, arg1) {
-        const ret = new Error(getStringFromWasm0(arg0, arg1));
-        return addHeapObject(ret);
-    };
     imports.wbg.__wbindgen_bigint_from_u64 = function(arg0) {
         const ret = BigInt.asUintN(64, arg0);
         return addHeapObject(ret);
@@ -5115,22 +5262,14 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_set_20cbc34131e76824 = function(arg0, arg1, arg2) {
         getObject(arg0)[takeObject(arg1)] = takeObject(arg2);
     };
-    imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
-        const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
-        return ret;
-    }, arguments) };
-    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
-        const ret = WasmSegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
     imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
         const ret = WasmSubSegment.__unwrap(takeObject(arg0));
         return ret;
     };
-    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
-        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
+    imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
+        const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
         return ret;
-    };
+    }, arguments) };
     imports.wbg.__wbindgen_in = function(arg0, arg1) {
         const ret = getObject(arg0) in getObject(arg1);
         return ret;
@@ -5141,6 +5280,14 @@ function __wbg_get_imports() {
     };
     imports.wbg.__wbindgen_jsval_eq = function(arg0, arg1) {
         const ret = getObject(arg0) === getObject(arg1);
+        return ret;
+    };
+    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
+        const ret = WasmSegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
+    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
+        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
         return ret;
     };
 

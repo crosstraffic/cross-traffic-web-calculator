@@ -9,6 +9,8 @@ test.describe('navigation and route gating', () => {
   test('released chapter routes stay put', async ({ page }) => {
     await page.goto('/hcm12');
     await expect(page).toHaveURL(/\/hcm12$/);
+    await page.goto('/hcm13');
+    await expect(page).toHaveURL(/\/hcm13$/);
     await page.goto('/hcm14');
     await expect(page).toHaveURL(/\/hcm14$/);
     await page.goto('/hcm15');
@@ -19,17 +21,86 @@ test.describe('navigation and route gating', () => {
     await page.goto('/');
     const nav = page.locator('.navbar-center');
     await expect(nav.locator('a[href="/hcm12"]')).toHaveCount(1);
+    await expect(nav.locator('a[href="/hcm13"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm14"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm15"]')).toHaveCount(1);
   });
 
   test('unreleased chapter routes redirect home', async ({ page }) => {
-    // hcm13 and hcm19 exist in the repo but are not in the RELEASED set of
+    // hcm10 and hcm19 exist in the repo but are not in the RELEASED set of
     // src/routes/+layout.js; a direct visit must land on the home page.
-    await page.goto('/hcm13');
+    await page.goto('/hcm10');
     await expect(page).toHaveURL(/\/$/);
     await page.goto('/hcm19');
     await expect(page).toHaveURL(/\/$/);
+  });
+});
+
+test.describe('chapter 13 weaving calculator', () => {
+  // Both tests run HCM Chapter 27, Example Problem 1 (the same segment), once per
+  // edition. The editions disagree by design: the 7th Edition reports S = 53.1 mi/h
+  // and D = 26.3 pc/mi/ln, Edition 7.1 reports S_o = 59.32 and D = 23.6, both LOS C.
+  async function fillExampleProblem1(page) {
+    await page.locator('#LS_input').fill('1500');
+    await page.locator('#N_input').fill('4');
+    await page.locator('#LCRF_input').fill('0');
+    await page.locator('#LCFR_input').fill('1');
+    await page.locator('#FFS_input').fill('65');
+    await page.locator('#VFF_input').fill('1815');
+    await page.locator('#VFR_input').fill('692');
+    await page.locator('#VRF_input').fill('1037');
+    await page.locator('#VRR_input').fill('1297');
+    await page.locator('#PHF_input').fill('0.91');
+    await page.locator('#PHV_input').fill('5');
+    await page.locator('#CIFL_input').fill('2350');
+  }
+
+  test('reproduces the published example under the 7th Edition', async ({ page }) => {
+    await page.goto('/hcm13');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await fillExampleProblem1(page);
+    await page.locator('#NWL_input').fill('3');
+    await calculate.click();
+
+    await expect(page.getByText(/Segment LOS: C/)).toBeVisible();
+    await expect(page.getByText(/26\.[0-9]/)).toBeVisible(); // D ≈ 26.3
+    await expect(page.getByText(/53\.[0-9]/).first()).toBeVisible(); // S ≈ 53.1
+  });
+
+  test('reproduces the published example under Edition 7.1 via the picker', async ({ page }) => {
+    await page.goto('/hcm13');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#VER_input').selectOption('7.1');
+    await fillExampleProblem1(page);
+    // Edition 7.1 configuration weighting: complex 0-1 weave, N_W,RF = 2, N_W,FR = 1.
+    await page.locator('#NWRF_input').fill('2');
+    await page.locator('#NWFR_input').fill('1');
+    await calculate.click();
+
+    await expect(page.getByText(/Edition 7.1 bands.*: C/)).toBeVisible();
+    await expect(page.getByText(/23\.[0-9]/)).toBeVisible(); // D ≈ 23.6
+    await expect(page.getByText(/59\.[0-9]/).first()).toBeVisible(); // S_o ≈ 59.32
+    await expect(page.getByText('Configuration Class:')).toBeVisible();
+  });
+
+  test('the movement diagram follows the inputs and highlights on hover', async ({ page }) => {
+    await page.goto('/hcm13');
+    const diagram = page.locator('.weave-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /one-sided weaving segment/);
+
+    // Hovering a legend chip highlights its movement path and dims the rest.
+    await page.locator('.wv-chip.rf').hover();
+    await expect(page.locator('path.mv-rf')).toHaveClass(/active/);
+    await expect(page.locator('path.mv-ff')).toHaveClass(/dim/);
+
+    // The geometry reacts to the form: two-sided redraws the ramps.
+    await page.locator('#WT_input').selectOption('two_sided');
+    await expect(diagram).toHaveAttribute('aria-label', /two-sided weaving segment/);
   });
 });
 
@@ -69,6 +140,19 @@ test.describe('chapter 14 merge and diverge calculator', () => {
     await calculate.click();
 
     await expect(page.getByText(/not defined by the HCM/)).toBeVisible();
+  });
+
+  test('the junction diagram follows the inputs', async ({ page }) => {
+    await page.goto('/hcm14');
+    const diagram = page.locator('.ramp-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /right-side on ramp/);
+
+    await page.locator('.rd-chip', { hasText: 'influence area' }).hover();
+    await expect(page.locator('.rd-influence')).toHaveClass(/active/);
+
+    await page.locator('#RT_input').selectOption('off_ramp');
+    await expect(diagram).toHaveAttribute('aria-label', /off ramp/);
   });
 });
 
