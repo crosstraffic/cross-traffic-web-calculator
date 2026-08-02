@@ -7,6 +7,8 @@ test.describe('navigation and route gating', () => {
   });
 
   test('released chapter routes stay put', async ({ page }) => {
+    await page.goto('/hcm10');
+    await expect(page).toHaveURL(/\/hcm10$/);
     await page.goto('/hcm12');
     await expect(page).toHaveURL(/\/hcm12$/);
     await page.goto('/hcm13');
@@ -20,6 +22,7 @@ test.describe('navigation and route gating', () => {
   test('nav lists every released chapter', async ({ page }) => {
     await page.goto('/');
     const nav = page.locator('.navbar-center');
+    await expect(nav.locator('a[href="/hcm10"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm12"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm13"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm14"]')).toHaveCount(1);
@@ -27,12 +30,78 @@ test.describe('navigation and route gating', () => {
   });
 
   test('unreleased chapter routes redirect home', async ({ page }) => {
-    // hcm10 and hcm19 exist in the repo but are not in the RELEASED set of
+    // hcm11 and hcm19 exist in the repo but are not in the RELEASED set of
     // src/routes/+layout.js; a direct visit must land on the home page.
-    await page.goto('/hcm10');
+    await page.goto('/hcm11');
     await expect(page).toHaveURL(/\/$/);
     await page.goto('/hcm19');
     await expect(page).toHaveURL(/\/$/);
+  });
+});
+
+test.describe('chapter 10 freeway facilities calculator', () => {
+  // Cell order in the segment table: 0 #, 1 type select, 2 length, 3 lanes,
+  // 4 on-ramp demand, 5 off-ramp demand, 6 ramp FFS, 7 accel, 8 decel.
+  async function setSegment(page, index, seg) {
+    const row = page.locator('.seg-table tbody tr').nth(index);
+    await row.locator('select').selectOption(seg.type);
+    await row.locator('td').nth(2).locator('input').fill(seg.len);
+    await row.locator('td').nth(3).locator('input').fill(seg.lanes);
+    if (seg.on) await row.locator('td').nth(4).locator('input').fill(seg.on);
+    if (seg.off) await row.locator('td').nth(5).locator('input').fill(seg.off);
+  }
+
+  test('reproduces the published undersaturated facility example problem', async ({ page }) => {
+    // HCM Chapter 25, Example Problem 1: 6-mi urban freeway, 11 segments, five
+    // 15-min periods. Published facility performance (Exhibit 25-52):
+    // 57.6/27.5 D, 56.6/31.3 D, 55.0/34.8 E, 57.9/27.5 D, 58.4/21.4 C;
+    // overall 56.9 mi/h at 28.4 veh/mi/ln (the engine prints 28.5, within the
+    // book's rounding). The library integration suite asserts all 55 cells of
+    // the speed, density, and LOS matrices for this fixture.
+    await page.goto('/hcm10');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#FFS_input').fill('60');
+    await page.locator('#HV_input').fill('2.25');
+    await page.locator('#PHF_input').fill('1.0');
+    await page.locator('#ID_input').fill('0.8');
+    await page.locator('#DEMAND_input').fill('4505, 4955, 5225, 4685, 3785');
+
+    // The form starts with 3 segment rows; EP1 has 11.
+    for (let i = 0; i < 8; i++) {
+      await page.getByRole('button', { name: '+ Add Segment' }).click();
+    }
+
+    await setSegment(page, 0, { type: 'Basic', len: '5280', lanes: '3' });
+    await setSegment(page, 1, { type: 'Merge', len: '1500', lanes: '3', on: '450, 540, 630, 360, 180' });
+    await setSegment(page, 2, { type: 'Basic', len: '2280', lanes: '3' });
+    await setSegment(page, 3, { type: 'Diverge', len: '1500', lanes: '3', off: '270, 360, 270, 270, 270' });
+    await setSegment(page, 4, { type: 'Basic', len: '5280', lanes: '3' });
+    await setSegment(page, 5, { type: 'Weaving', len: '2640', lanes: '4', on: '540, 720, 810, 360, 270', off: '360, 360, 360, 360, 180' });
+    await setSegment(page, 6, { type: 'Basic', len: '5280', lanes: '3' });
+    await setSegment(page, 7, { type: 'Merge', len: '1140', lanes: '3', on: '450, 540, 630, 450, 270' });
+    await setSegment(page, 8, { type: 'OverlappingRamp', len: '360', lanes: '3' });
+    await setSegment(page, 9, { type: 'Diverge', len: '1140', lanes: '3', off: '270, 270, 450, 270, 180' });
+    await setSegment(page, 10, { type: 'Basic', len: '5280', lanes: '3' });
+
+    // Weaving details subtable for segment 6.
+    await page.locator('#SL_input6').fill('1640');
+    await page.locator('#NWL_input6').fill('2');
+    await page.locator('#LCRF_input6').fill('1');
+    await page.locator('#LCFR_input6').fill('1');
+    await page.locator('#RR_input6').fill('50, 100, 150, 80, 50');
+
+    await calculate.click();
+
+    // Facility LOS by period, Exhibit 25-52: D D E D C.
+    const losRow = page.locator('tr', { has: page.getByText('Facility LOS:') }).first();
+    await expect(losRow.locator('td')).toHaveText(['D', 'D', 'E', 'D', 'C']);
+
+    await expect(page.getByText('Facility Length: 6.00 mi')).toBeVisible();
+    await expect(page.getByText('Overall Space Mean Speed: 56.9 mi/hr')).toBeVisible();
+    await expect(page.getByText('Overall Density: 28.5 veh/mi/ln')).toBeVisible();
+    await expect(page.getByText(/Oversaturated: No/)).toBeVisible();
   });
 });
 
