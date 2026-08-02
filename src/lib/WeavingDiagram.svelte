@@ -119,12 +119,14 @@
     {#if twoSided}
       <!-- ramp legs run straight along the band centerline to the gore, so no
            curve cuts across the gore notch; curves happen inside the through lanes -->
-      <!-- ramp-to-ramp: enters lower left, crosses every lane in one smooth S, leaves upper right -->
-      <path d={`M${rampInlet2.x},${rampInlet2.y} L${gIn + 2},${mainBot + 9} C${gIn + 100},${yBottom + 6} ${gOut - 100},${yTop - 6} ${gOut - 2},${mainTop - 9} L${rampOutlet2.x},${rampOutlet2.y}`} class={`mv-rr ${cls(hovered, 'rr')}`} />
+      <!-- ramp-to-ramp: enters lower left, crosses every lane in one smooth S, and leaves
+           up the outer side of the off-ramp band (the freeway-to-ramp movement keeps the
+           gore side, so the two never cross inside the band) -->
+      <path d={`M${rampInlet2.x},${rampInlet2.y} L${gIn + 2},${mainBot + 9} C${gIn + 100},${yBottom + 6} ${gOut - 110},${yTop - 4} ${gOut - 2},${mainTop - 13} L${rampOutlet2.x},${rampOutlet2.y - 2}`} class={`mv-rr ${cls(hovered, 'rr')}`} />
       <!-- ramp-to-freeway: enters lower left, settles into the bottom lane -->
       <path d={`M${rampInlet2.x},${rampInlet2.y + 4} L${gIn + 4},${mainBot + 12} Q${gIn + 56},${mainBot} ${gIn + 96},${yBottom} H312`} class={`mv-rf ${cls(hovered, 'rf')}`} />
-      <!-- freeway-to-ramp: rides the top lane, leaves up the off-ramp -->
-      <path d={`M0,${yTop} H${gOut - 70} Q${gOut - 12},${yTop - 4} ${gOut},${mainTop - 12} L${rampOutlet2.x},${rampOutlet2.y + 4}`} class={`mv-fr ${cls(hovered, 'fr')}`} />
+      <!-- freeway-to-ramp: rides the top lane, leaves up the gore side of the off-ramp -->
+      <path d={`M0,${yTop} H${gOut - 70} Q${gOut - 16},${yTop - 6} ${gOut + 2},${mainTop - 7} L${rampOutlet2.x},${rampOutlet2.y + 4}`} class={`mv-fr ${cls(hovered, 'fr')}`} />
     {:else}
       <!-- ramp legs run straight along the band centerline to the gore point
            (the centerline meets the auxiliary lane middle exactly at the gore) -->
