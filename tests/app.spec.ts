@@ -9,6 +9,8 @@ test.describe('navigation and route gating', () => {
   test('released chapter routes stay put', async ({ page }) => {
     await page.goto('/hcm10');
     await expect(page).toHaveURL(/\/hcm10$/);
+    await page.goto('/hcm11');
+    await expect(page).toHaveURL(/\/hcm11$/);
     await page.goto('/hcm12');
     await expect(page).toHaveURL(/\/hcm12$/);
     await page.goto('/hcm13');
@@ -23,6 +25,7 @@ test.describe('navigation and route gating', () => {
     await page.goto('/');
     const nav = page.locator('.navbar-center');
     await expect(nav.locator('a[href="/hcm10"]')).toHaveCount(1);
+    await expect(nav.locator('a[href="/hcm11"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm12"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm13"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm14"]')).toHaveCount(1);
@@ -30,9 +33,9 @@ test.describe('navigation and route gating', () => {
   });
 
   test('unreleased chapter routes redirect home', async ({ page }) => {
-    // hcm11 and hcm19 exist in the repo but are not in the RELEASED set of
+    // hcm16 and hcm19 exist in the repo but are not in the RELEASED set of
     // src/routes/+layout.js; a direct visit must land on the home page.
-    await page.goto('/hcm11');
+    await page.goto('/hcm16');
     await expect(page).toHaveURL(/\/$/);
     await page.goto('/hcm19');
     await expect(page).toHaveURL(/\/$/);
@@ -102,6 +105,31 @@ test.describe('chapter 10 freeway facilities calculator', () => {
     await expect(page.getByText('Overall Space Mean Speed: 56.9 mi/hr')).toBeVisible();
     await expect(page.getByText('Overall Density: 28.5 veh/mi/ln')).toBeVisible();
     await expect(page.getByText(/Oversaturated: No/)).toBeVisible();
+  });
+});
+
+test.describe('chapter 11 freeway reliability calculator', () => {
+  test('default inputs run a deterministic whole-year scenario set', async ({ page }) => {
+    // No published example fits this page's reduced scope (no weather model, no
+    // custom demand multipliers), so this pins the engine's deterministic output
+    // for the default facility with rng seed 1: 12 months x 5 weekdays x 4
+    // replications = 240 scenarios, 4 periods each = 960 observations, and the
+    // exact metric values the seeded run produces. Any engine change that moves
+    // these numbers must be deliberate.
+    await page.goto('/hcm11');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await calculate.click();
+
+    const cell = (label) => page.locator('tr', { hasText: label }).first().locator('td');
+    await expect(cell('Scenarios Evaluated:')).toHaveText('240', { timeout: 60_000 });
+    await expect(cell('Travel Time Observations:')).toHaveText('960');
+    await expect(cell('Free-Flow Travel Time (min):')).toHaveText('2.28');
+    await expect(cell('Mean TTI:')).toHaveText('1.264');
+    await expect(cell('50th Percentile TTI:')).toHaveText('1.097');
+    await expect(cell('95th Percentile TTI (PTI):')).toHaveText('1.698');
+    await expect(page.getByText(/Reliability Rating: 62\.9/)).toBeVisible();
   });
 });
 

@@ -45,6 +45,7 @@
               </summary>
               <ul class="p-2 bg-base-200">
                 <li><a href="/hcm10">Freeway Facilities</a></li>
+                <li><a href="/hcm11">Freeway Reliability (Beta)</a></li>
                 <li><a href="/hcm12">Basic Freeway Segments</a></li>
                 <li><a href="/hcm13">Freeway Weaving Segments</a></li>
                 <li><a href="/hcm14">Freeway Merge and Diverge Segments</a></li>
@@ -71,6 +72,7 @@
             </summary>
             <ul class="p-2 bg-base-200 chapters-menu">
               <li><a href="/hcm10">Freeway Facilities</a></li>
+              <li><a href="/hcm11">Freeway Reliability (Beta)</a></li>
               <li><a href="/hcm12">Basic Freeway Segments</a></li>
               <li><a href="/hcm13">Freeway Weaving Segments</a></li>
                 <li><a href="/hcm14">Freeway Merge and Diverge Segments</a></li>
