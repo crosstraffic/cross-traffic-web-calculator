@@ -177,10 +177,13 @@
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> This chapter is newly implemented and its results have
-      not yet been validated against the full set of published HCM worked examples.
-      Verify results independently before relying on them in engineering work, and
-      please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      <strong>Beta.</strong> The engine reproduces the scenario generation and the
+      central reliability measures of the published HCM worked example within a few
+      percent (median and mean TTI, misery index). Tail measures depend on the
+      published engine's Monte Carlo stream and are not reproduced, the 95th
+      percentile TTI runs up to about 20% high. This page also excludes weather
+      events, work zones, and special events. Verify results independently before
+      relying on them in engineering work, and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
 
