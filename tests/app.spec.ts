@@ -9,17 +9,66 @@ test.describe('navigation and route gating', () => {
   test('released chapter routes stay put', async ({ page }) => {
     await page.goto('/hcm12');
     await expect(page).toHaveURL(/\/hcm12$/);
+    await page.goto('/hcm14');
+    await expect(page).toHaveURL(/\/hcm14$/);
     await page.goto('/hcm15');
     await expect(page).toHaveURL(/\/hcm15$/);
   });
 
+  test('nav lists every released chapter', async ({ page }) => {
+    await page.goto('/');
+    const nav = page.locator('.navbar-center');
+    await expect(nav.locator('a[href="/hcm12"]')).toHaveCount(1);
+    await expect(nav.locator('a[href="/hcm14"]')).toHaveCount(1);
+    await expect(nav.locator('a[href="/hcm15"]')).toHaveCount(1);
+  });
+
   test('unreleased chapter routes redirect home', async ({ page }) => {
-    // hcm14 and hcm19 exist in the repo but are not in the RELEASED set of
+    // hcm13 and hcm19 exist in the repo but are not in the RELEASED set of
     // src/routes/+layout.js; a direct visit must land on the home page.
-    await page.goto('/hcm14');
+    await page.goto('/hcm13');
     await expect(page).toHaveURL(/\/$/);
     await page.goto('/hcm19');
     await expect(page).toHaveURL(/\/$/);
+  });
+});
+
+test.describe('chapter 14 merge and diverge calculator', () => {
+  test('reproduces the published isolated on-ramp example problem', async ({ page }) => {
+    // HCM Chapter 26, Example Problem 1: one-lane right-hand on-ramp to a
+    // four-lane freeway (2 lanes/direction), FFS 60, L_A 740 ft, 2,500 veh/h
+    // freeway demand, 535 veh/h ramp demand, PHF 0.90, 5% trucks, level.
+    // Published: D_R = 28.2 pc/mi/ln, LOS D, S_R = 53.0 mi/h (library
+    // integration test chapter14_integration.rs asserts the same fixture).
+    await page.goto('/hcm14');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#FL_input').fill('2');
+    await page.locator('#FFS_input').fill('60');
+    await page.locator('#RFFS_input').fill('45');
+    await page.locator('#LA_input').fill('740');
+    await page.locator('#VF_input').fill('2500');
+    await page.locator('#VR_input').fill('535');
+    await page.locator('#PHF_input').fill('0.90');
+    await page.locator('#PHV_input').fill('5');
+    await page.locator('#RPHV_input').fill('5');
+    await calculate.click();
+
+    await expect(page.getByText(/Segment LOS: D/)).toBeVisible();
+    await expect(page.getByText(/28\.[0-9]/)).toBeVisible(); // D_R ≈ 28.2
+    await expect(page.getByText(/5[23]\.[0-9]/).first()).toBeVisible(); // S_R ≈ 53.0
+  });
+
+  test('major merge under capacity says the HCM defines no LOS', async ({ page }) => {
+    await page.goto('/hcm14');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#RT_input').selectOption('major_merge');
+    await calculate.click();
+
+    await expect(page.getByText(/not defined by the HCM/)).toBeVisible();
   });
 });
 

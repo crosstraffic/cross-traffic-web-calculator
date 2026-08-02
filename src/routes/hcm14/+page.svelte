@@ -126,8 +126,9 @@
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> This chapter is newly implemented and its results have
-      not yet been validated against the full set of published HCM worked examples.
+      <strong>Beta.</strong> The compute engine reproduces the published HCM worked
+      examples for this chapter; the interface itself is newly released. If a result
+      looks wrong, please report it.
       Verify results independently before relying on them in engineering work, and
       please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
