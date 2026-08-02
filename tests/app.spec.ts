@@ -47,6 +47,25 @@ test.describe('navigation and route gating', () => {
     expect(pavement).toBe('#e2e8f0');
   });
 
+  test('the site works fully offline once visited', async ({ page, context, browserName }) => {
+    // Service-worker + offline emulation is only dependable in chromium.
+    test.skip(browserName !== 'chromium', 'service worker test runs on chromium');
+
+    await page.goto('/');
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    await page.waitForTimeout(1500); // precache settles
+
+    await context.setOffline(true);
+    // A chapter page never visited in this session: shell, page, and the wasm
+    // engine must all come from the cache, and the engine must compute.
+    await page.goto('/hcm14');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+    await calculate.click();
+    await expect(page.getByText(/Segment LOS: [A-F]/)).toBeVisible();
+    await context.setOffline(false);
+  });
+
   test('nav lists every released chapter', async ({ page }) => {
     await page.goto('/');
     const nav = page.locator('.navbar-center');
