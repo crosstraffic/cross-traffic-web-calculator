@@ -86,6 +86,22 @@ test.describe('chapter 13 weaving calculator', () => {
     await expect(page.getByText(/59\.[0-9]/).first()).toBeVisible(); // S_o ≈ 59.32
     await expect(page.getByText('Configuration Class:')).toBeVisible();
   });
+
+  test('the movement diagram follows the inputs and highlights on hover', async ({ page }) => {
+    await page.goto('/hcm13');
+    const diagram = page.locator('.weave-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /one-sided weaving segment/);
+
+    // Hovering a legend chip highlights its movement path and dims the rest.
+    await page.locator('.wv-chip.rf').hover();
+    await expect(page.locator('path.mv-rf')).toHaveClass(/active/);
+    await expect(page.locator('path.mv-ff')).toHaveClass(/dim/);
+
+    // The geometry reacts to the form: two-sided redraws the ramps.
+    await page.locator('#WT_input').selectOption('two_sided');
+    await expect(diagram).toHaveAttribute('aria-label', /two-sided weaving segment/);
+  });
 });
 
 test.describe('chapter 14 merge and diverge calculator', () => {
@@ -124,6 +140,19 @@ test.describe('chapter 14 merge and diverge calculator', () => {
     await calculate.click();
 
     await expect(page.getByText(/not defined by the HCM/)).toBeVisible();
+  });
+
+  test('the junction diagram follows the inputs', async ({ page }) => {
+    await page.goto('/hcm14');
+    const diagram = page.locator('.ramp-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /right-side on ramp/);
+
+    await page.locator('.rd-chip', { hasText: 'influence area' }).hover();
+    await expect(page.locator('.rd-influence')).toHaveClass(/active/);
+
+    await page.locator('#RT_input').selectOption('off_ramp');
+    await expect(diagram).toHaveAttribute('aria-label', /off ramp/);
   });
 });
 

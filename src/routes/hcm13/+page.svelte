@@ -4,6 +4,7 @@
 
 <script>
   import init, { WasmWeavingSegment } from "HCM-middleware";
+  import WeavingDiagram from '$lib/WeavingDiagram.svelte';
   import { onMount } from "svelte";
 
   let ready = false;
@@ -289,6 +290,18 @@
             <option value="mountainous">Mountainous</option>
           </select>
         </div>
+      </div>
+
+      <div class="diagram-block">
+        <p class="panel-sub">Hover a movement to trace it through the segment. The picture follows the inputs.</p>
+        <WeavingDiagram
+          weavingType={weaving_type}
+          numLanes={num_lanes}
+          vFF={v_ff}
+          vFR={v_fr}
+          vRF={v_rf}
+          vRR={v_rr}
+        />
       </div>
     </section>
 

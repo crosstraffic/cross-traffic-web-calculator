@@ -4,6 +4,7 @@
 
 <script>
   import init, { WasmRampSegment } from "HCM-middleware";
+  import RampDiagram from '$lib/RampDiagram.svelte';
   import { onMount } from "svelte";
 
   let ready = false;
@@ -209,6 +210,18 @@
             <option value="mountainous">Mountainous</option>
           </select>
         </div>
+      </div>
+
+      <div class="diagram-block">
+        <p class="panel-sub">Hover the legend to highlight the ramp or the influence area the method evaluates. The picture follows the inputs.</p>
+        <RampDiagram
+          rampType={ramp_type}
+          rampSide={ramp_side}
+          rampLanes={ramp_lanes}
+          freewayLanes={freeway_lanes}
+          accelLen={accel_lane_length}
+          decelLen={decel_lane_length}
+        />
       </div>
     </section>
 
