@@ -134,10 +134,10 @@
 </div>
 
 <style>
-  .w3-shadow { fill: #0f172a; opacity: 0.08; }
-  .w3-wall { fill: #94a3b8; stroke: #64748b; stroke-width: 0.5; }
-  .w3-top { fill: #e2e8f0; stroke: #334155; stroke-width: 1.25; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-  .w3-lane-line { stroke: #ffffff; stroke-width: 1.25; stroke-dasharray: 7 5; fill: none; vector-effect: non-scaling-stroke; }
+  .w3-shadow { fill: var(--text); opacity: 0.08; }
+  .w3-wall { fill: var(--diag-wall); stroke: var(--diag-wall-edge); stroke-width: 0.5; }
+  .w3-top { fill: var(--diag-pavement); stroke: var(--diag-edge); stroke-width: 1.25; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .w3-lane-line { stroke: var(--diag-lane-line); stroke-width: 1.25; stroke-dasharray: 7 5; fill: none; vector-effect: non-scaling-stroke; }
 
   .w3-move {
     fill: none;
@@ -165,11 +165,11 @@
     gap: 0.35rem;
     font-size: 0.72rem;
     padding: 0.15rem 0.5rem;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border-strong);
     border-radius: 999px;
     background: transparent;
     cursor: default;
   }
-  .w3-chip.active { border-color: #334155; }
+  .w3-chip.active { border-color: var(--diag-edge); }
   .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
 </style>

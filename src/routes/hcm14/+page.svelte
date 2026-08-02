@@ -384,7 +384,7 @@
         <div class="param-field">
           <label for="PHV_input">Heavy Vehicles (Freeway)</label>
           <div class="cell-field">
-            <input id="PHV_input" type="number" step="0.1" min="0" max="100" class="input input-bordered input-sm" bind:value={phv} placeholder="5" required />
+            <input id="PHV_input" type="number" step="0.01" min="0" max="100" class="input input-bordered input-sm" bind:value={phv} placeholder="5" required />
             <span class="unit">%</span>
           </div>
         </div>
@@ -392,7 +392,7 @@
         <div class="param-field">
           <label for="RPHV_input">Heavy Vehicles (Ramp)</label>
           <div class="cell-field">
-            <input id="RPHV_input" type="number" step="0.1" min="0" max="100" class="input input-bordered input-sm" bind:value={ramp_phv} placeholder="5" required />
+            <input id="RPHV_input" type="number" step="0.01" min="0" max="100" class="input input-bordered input-sm" bind:value={ramp_phv} placeholder="5" required />
             <span class="unit">%</span>
           </div>
         </div>

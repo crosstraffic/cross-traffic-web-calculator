@@ -121,29 +121,29 @@
 </div>
 
 <style>
-  .r3-shadow { fill: #0f172a; opacity: 0.08; }
-  .r3-wall { fill: #94a3b8; stroke: #64748b; stroke-width: 0.5; }
-  .r3-top { fill: #e2e8f0; stroke: #334155; stroke-width: 1.25; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .r3-shadow { fill: var(--text); opacity: 0.08; }
+  .r3-wall { fill: var(--diag-wall); stroke: var(--diag-wall-edge); stroke-width: 0.5; }
+  .r3-top { fill: var(--diag-pavement); stroke: var(--diag-edge); stroke-width: 1.25; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
   .r3-scl {
-    fill: #cbd5e1;
-    stroke: #334155;
+    fill: var(--border-strong);
+    stroke: var(--diag-edge);
     stroke-width: 1.25;
     stroke-linejoin: round;
     vector-effect: non-scaling-stroke;
     transition: fill 120ms ease;
   }
-  .r3-scl.active { fill: #86efac; }
+  .r3-scl.active { fill: var(--diag-scl-active-3d); }
   .r3-influence {
-    fill: #fde68a;
+    fill: var(--diag-infl-soft);
     opacity: 0.45;
-    stroke: #d97706;
+    stroke: var(--diag-infl-edge);
     stroke-width: 1;
     stroke-dasharray: 5 4;
     vector-effect: non-scaling-stroke;
     transition: opacity 120ms ease;
   }
   .r3-influence.active { opacity: 0.85; }
-  .r3-lane-line { stroke: #ffffff; stroke-width: 1.25; stroke-dasharray: 7 5; fill: none; vector-effect: non-scaling-stroke; }
+  .r3-lane-line { stroke: var(--diag-lane-line); stroke-width: 1.25; stroke-dasharray: 7 5; fill: none; vector-effect: non-scaling-stroke; }
 
   .r3-legend { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.35rem; }
   .r3-chip {
@@ -152,13 +152,13 @@
     gap: 0.35rem;
     font-size: 0.72rem;
     padding: 0.15rem 0.5rem;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--border-strong);
     border-radius: 999px;
     background: transparent;
     cursor: default;
   }
-  .r3-chip.active { border-color: #334155; }
+  .r3-chip.active { border-color: var(--diag-edge); }
   .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
-  .swatch.ramp { background: #86efac; }
-  .swatch.influence { background: #fde68a; border: 1px solid #d97706; }
+  .swatch.ramp { background: var(--diag-scl-active-3d); }
+  .swatch.influence { background: var(--diag-infl-soft); border: 1px solid var(--diag-infl-edge); }
 </style>
