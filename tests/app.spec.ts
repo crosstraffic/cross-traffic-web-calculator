@@ -19,6 +19,8 @@ test.describe('navigation and route gating', () => {
     await expect(page).toHaveURL(/\/hcm14$/);
     await page.goto('/hcm15');
     await expect(page).toHaveURL(/\/hcm15$/);
+    await page.goto('/hcm19');
+    await expect(page).toHaveURL(/\/hcm19$/);
   });
 
   test('nav lists every released chapter', async ({ page }) => {
@@ -30,14 +32,15 @@ test.describe('navigation and route gating', () => {
     await expect(nav.locator('a[href="/hcm13"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm14"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm15"]')).toHaveCount(1);
+    await expect(nav.locator('a[href="/hcm19"]')).toHaveCount(1);
   });
 
   test('unreleased chapter routes redirect home', async ({ page }) => {
-    // hcm16 and hcm19 exist in the repo but are not in the RELEASED set of
+    // hcm16 and hcm20 exist in the repo but are not in the RELEASED set of
     // src/routes/+layout.js; a direct visit must land on the home page.
     await page.goto('/hcm16');
     await expect(page).toHaveURL(/\/$/);
-    await page.goto('/hcm19');
+    await page.goto('/hcm20');
     await expect(page).toHaveURL(/\/$/);
   });
 });
@@ -315,6 +318,55 @@ test.describe('chapter 12 basic freeway calculator', () => {
 
     await page.getByRole('button', { name: 'Reset Params' }).click();
     await expect(page.locator('.los-badge')).toHaveCount(0);
+  });
+});
+
+test.describe('chapter 19 signalized intersection calculator', () => {
+  test('reproduces the published pretimed timing-plan example', async ({ page }) => {
+    // HCM Chapter 31, Section 2, pretimed phase duration example (Exhibit 31-7):
+    // two-phase signal, through movements only, cycle 60 s, phases 33.3 s (EB/WB)
+    // and 26.7 s (NB/SB) including the change period. Published X_c = 0.923; the
+    // approach delays are hand-computed from Equations 19-19/19-26 in the library
+    // integration suite: EB 30.0 C, WB 12.5 B, NB 37.4 D, SB 20.2 C,
+    // intersection 26.8 s/veh LOS C.
+    await page.goto('/hcm19');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#CYCLE_input').fill('60');
+    await page.locator('#PHF_input').fill('1.0');
+    await page.locator('#PHV_input').fill('0');
+
+    const approaches = [
+      { key: 'NB', thru: '665', phase: '26.7' },
+      { key: 'SB', thru: '475', phase: '26.7' },
+      { key: 'EB', thru: '855', phase: '33.3' },
+      { key: 'WB', thru: '475', phase: '33.3' },
+    ];
+    for (const ap of approaches) {
+      await page.locator(`#${ap.key}_VL_input`).fill('0');
+      await page.locator(`#${ap.key}_VT_input`).fill(ap.thru);
+      await page.locator(`#${ap.key}_VR_input`).fill('0');
+      await page.locator(`#${ap.key}_LL_input`).fill('0');
+      await page.locator(`#${ap.key}_LT_input`).fill('1');
+      await page.locator(`#${ap.key}_LR_input`).fill('0');
+      await page.locator(`#${ap.key}_TP_input`).fill(ap.phase);
+      await page.locator(`#${ap.key}_LP_input`).fill('0');
+    }
+
+    await calculate.click();
+
+    const row = (dir) => page.locator('tr', { has: page.locator(`th:text-is("${dir}")`) }).first();
+    await expect(row('EB').locator('td').nth(1)).toHaveText('30.0');
+    await expect(row('EB').locator('td').nth(2)).toHaveText('C');
+    await expect(row('WB').locator('td').nth(1)).toHaveText('12.5');
+    await expect(row('NB').locator('td').nth(1)).toHaveText('37.4');
+    await expect(row('NB').locator('td').nth(2)).toHaveText('D');
+    await expect(row('SB').locator('td').nth(1)).toHaveText('20.2');
+
+    await expect(page.locator('tr', { hasText: 'Critical Volume-to-Capacity' }).locator('td')).toHaveText('0.92');
+    await expect(page.locator('tr', { hasText: 'Intersection Control Delay' }).locator('td')).toHaveText('26.8');
+    await expect(page.locator('.result-summary-badge .los-badge')).toHaveAttribute('aria-label', /Level of service C/);
   });
 });
 
