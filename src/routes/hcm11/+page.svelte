@@ -258,7 +258,7 @@
         <div class="param-field">
           <label for="HV_input">Heavy Vehicles</label>
           <div class="cell-field">
-            <input id="HV_input" type="number" step="0.1" min="0" max="100" class="input input-bordered input-sm" bind:value={hv_pct} placeholder="5" required />
+            <input id="HV_input" type="number" step="0.01" min="0" max="100" class="input input-bordered input-sm" bind:value={hv_pct} placeholder="5" required />
             <span class="unit">%</span>
           </div>
         </div>

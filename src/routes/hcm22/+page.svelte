@@ -186,7 +186,7 @@
           <div class="param-field">
             <label for="HV_{leg.key}_input">Heavy Vehicles</label>
             <div class="cell-field">
-              <input id="HV_{leg.key}_input" type="number" step="0.1" min="0" max="100" class="input input-bordered input-sm" bind:value={entries[leg.key].hv} placeholder="2" required />
+              <input id="HV_{leg.key}_input" type="number" step="0.01" min="0" max="100" class="input input-bordered input-sm" bind:value={entries[leg.key].hv} placeholder="2" required />
               <span class="unit">%</span>
             </div>
           </div>

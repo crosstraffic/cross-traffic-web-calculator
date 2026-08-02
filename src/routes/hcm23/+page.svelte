@@ -240,7 +240,7 @@
         <div class="param-field">
           <label for="PHV_input">Heavy Vehicles (arterial)</label>
           <div class="cell-field">
-            <input id="PHV_input" type="number" step="0.1" min="0" max="100" class="input input-bordered input-sm" bind:value={phv} placeholder="6.1" required />
+            <input id="PHV_input" type="number" step="0.01" min="0" max="100" class="input input-bordered input-sm" bind:value={phv} placeholder="6.1" required />
             <span class="unit">%</span>
           </div>
         </div>

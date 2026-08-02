@@ -1222,3 +1222,43 @@ a.chapter-row:hover {
     border-color: var(--warn-border);
     color: var(--warn-text);
 }
+
+/* Printing always uses the light palette, whatever the screen theme: the
+   report sheet is paper. */
+@media print {
+    html[data-theme='dark'] {
+        --surface: #fff;
+        --surface-subtle: #f1f5f9;
+        --surface-page: #fff;
+        --border: #eceff3;
+        --border-strong: #cbd5e1;
+        --text: #0f172a;
+        --text-secondary: #475569;
+        --text-muted: #64748b;
+        --text-faint: #94a3b8;
+        --accent: #ea7317;
+        --accent-strong: #c75e0a;
+        --accent-soft: #fff5ec;
+        --accent-muted: #f4c08a;
+        --warn-bg: #fffbeb;
+        --warn-border: #fde68a;
+        --warn-text: #b45309;
+        --ok-bg: #f0fdf4;
+        --ok-border: #bbf7d0;
+        --ok-text: #15803d;
+        --diag-pavement: #e2e8f0;
+        --diag-pavement-alt: #cbd5e1;
+        --diag-edge: #334155;
+        --diag-lane-line: #ffffff;
+        --diag-center: #eab308;
+        --diag-wall: #94a3b8;
+        --diag-wall-edge: #64748b;
+        --diag-dim: #64748b;
+        --diag-scl-active: #fed7aa;
+        --diag-infl: #2563eb;
+        --diag-infl-soft: #fde68a;
+        --diag-infl-edge: #d97706;
+        --diag-scl-active-3d: #86efac;
+        color-scheme: light;
+    }
+}

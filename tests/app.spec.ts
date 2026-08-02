@@ -23,6 +23,30 @@ test.describe('navigation and route gating', () => {
     await expect(page).toHaveURL(/\/hcm19$/);
   });
 
+  test('desktop shows the horizontal menu, phones get the hamburger', async ({ page }) => {
+    // Regression guard for the Tailwind v4 import-order bug that silently
+    // stopped emitting responsive utilities: assert VISIBILITY, not presence.
+    await page.goto('/');
+    await expect(page.locator('.navbar-center')).toBeVisible();
+    await expect(page.locator('.navbar-start .dropdown [role="button"]')).toBeHidden();
+
+    await page.setViewportSize({ width: 500, height: 800 });
+    await expect(page.locator('.navbar-center')).toBeHidden();
+    await expect(page.locator('.navbar-start .dropdown [role="button"]')).toBeVisible();
+  });
+
+  test('printing always uses the light palette', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('.nav-theme-toggle').click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+    await page.emulateMedia({ media: 'print' });
+    const pavement = await page.evaluate(() =>
+      getComputedStyle(document.documentElement).getPropertyValue('--diag-pavement').trim()
+    );
+    expect(pavement).toBe('#e2e8f0');
+  });
+
   test('nav lists every released chapter', async ({ page }) => {
     await page.goto('/');
     const nav = page.locator('.navbar-center');
