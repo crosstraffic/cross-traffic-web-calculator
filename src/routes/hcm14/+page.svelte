@@ -5,6 +5,10 @@
 <script>
   import init, { WasmRampSegment } from "HCM-middleware";
   import RampDiagram from '$lib/RampDiagram.svelte';
+  import RampDiagram3D from '$lib/RampDiagram3D.svelte';
+  import ViewToggle from '$lib/ViewToggle.svelte';
+
+  let diagramMode = '2d';
   import { onMount } from "svelte";
 
   let ready = false;
@@ -234,15 +238,29 @@
       </div>
 
       <div class="diagram-block">
-        <p class="panel-sub">Hover the legend to highlight the ramp or the influence area the method evaluates. The picture follows the inputs.</p>
-        <RampDiagram
-          rampType={ramp_type}
-          rampSide={ramp_side}
-          rampLanes={ramp_lanes}
-          freewayLanes={freeway_lanes}
-          accelLen={accel_lane_length}
-          decelLen={decel_lane_length}
-        />
+        <div class="diagram-head">
+          <p class="panel-sub">Hover the legend to highlight the ramp or the influence area the method evaluates. The picture follows the inputs.</p>
+          <ViewToggle bind:mode={diagramMode} label="Junction view mode" />
+        </div>
+        {#if diagramMode === '3d'}
+          <RampDiagram3D
+            rampType={ramp_type}
+            rampSide={ramp_side}
+            rampLanes={ramp_lanes}
+            freewayLanes={freeway_lanes}
+            accelLen={accel_lane_length}
+            decelLen={decel_lane_length}
+          />
+        {:else}
+          <RampDiagram
+            rampType={ramp_type}
+            rampSide={ramp_side}
+            rampLanes={ramp_lanes}
+            freewayLanes={freeway_lanes}
+            accelLen={accel_lane_length}
+            decelLen={decel_lane_length}
+          />
+        {/if}
       </div>
     </section>
 

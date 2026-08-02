@@ -7,8 +7,9 @@
   import LosBadge from '$lib/LosBadge.svelte';
   import SignalizedDiagram from '$lib/SignalizedDiagram.svelte';
   import SignalizedDiagram3D from '$lib/SignalizedDiagram3D.svelte';
+  import ViewToggle from '$lib/ViewToggle.svelte';
 
-  let view3d = false;
+  let diagramMode = '2d';
   import init, { WasmSignalizedIntersection } from "HCM-middleware";
   import { onMount } from "svelte";
 
@@ -228,13 +229,10 @@
 
       <div class="diagram-block">
         <div class="diagram-head">
-          <p class="panel-sub">Hover the legend to highlight an approach's movements. The picture follows the lane and phasing inputs, and in the plan view the movement volumes can be edited directly on the diagram.</p>
-          <label class="view-toggle">
-            <input type="checkbox" class="toggle toggle-sm" bind:checked={view3d} />
-            3D view
-          </label>
+          <p class="panel-sub">Hover the legend to highlight an approach's movements. The picture follows the lane and phasing inputs, and in the 2D view the movement volumes can be edited directly on the diagram.</p>
+          <ViewToggle bind:mode={diagramMode} label="Intersection view mode" />
         </div>
-        {#if view3d}
+        {#if diagramMode === '3d'}
           <SignalizedDiagram3D {approaches} />
         {:else}
           <SignalizedDiagram bind:approaches />
@@ -400,19 +398,3 @@
   </section>
 </div>
 
-<style>
-  .diagram-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-  .view-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.78rem;
-    white-space: nowrap;
-    cursor: pointer;
-  }
-</style>

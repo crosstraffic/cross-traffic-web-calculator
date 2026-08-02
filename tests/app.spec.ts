@@ -201,6 +201,14 @@ test.describe('chapter 13 weaving calculator', () => {
     // The geometry reacts to the form: two-sided redraws the ramps.
     await page.locator('#WT_input').selectOption('two_sided');
     await expect(diagram).toHaveAttribute('aria-label', /two-sided weaving segment/);
+
+    // The shared 2D/3D toggle swaps in the projected view with the same state.
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
+    const svg3d = page.locator('.weave-diagram-3d svg');
+    await expect(svg3d).toBeVisible();
+    await expect(svg3d).toHaveAttribute('aria-label', /two-sided weaving segment, 3D view/);
+    await page.locator('.w3-chip.rr').hover();
+    await expect(page.locator('.weave-diagram-3d path.mv-rr')).toHaveClass(/active/);
   });
 });
 
@@ -281,6 +289,14 @@ test.describe('chapter 14 merge and diverge calculator', () => {
 
     await page.locator('#RT_input').selectOption('off_ramp');
     await expect(diagram).toHaveAttribute('aria-label', /off ramp/);
+
+    // The shared 2D/3D toggle swaps in the projected view with the same state.
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
+    const svg3d = page.locator('.ramp-diagram-3d svg');
+    await expect(svg3d).toBeVisible();
+    await expect(svg3d).toHaveAttribute('aria-label', /off ramp, 3D view/);
+    await page.locator('.r3-chip.influence').hover();
+    await expect(page.locator('.ramp-diagram-3d .r3-influence')).toHaveClass(/active/);
   });
 });
 
@@ -403,9 +419,9 @@ test.describe('chapter 19 signalized intersection calculator', () => {
     await page.locator('#EB_VL_input').fill('120');
     await expect(page.locator('input[aria-label="EB left-turn volume"]')).toHaveValue('120');
 
-    // The 3D toggle swaps in the rotatable projected view, which keeps the
-    // legend highlighting and follows the same inputs.
-    await page.locator('.view-toggle input').check();
+    // The shared 2D/3D toggle swaps in the rotatable projected view, which
+    // keeps the legend highlighting and follows the same inputs.
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
     const svg3d = page.locator('.signal-diagram-3d svg');
     await expect(svg3d).toBeVisible();
     await expect(svg3d).toHaveAttribute('aria-label', /3D view/);
@@ -414,7 +430,7 @@ test.describe('chapter 19 signalized intersection calculator', () => {
     await expect(page.locator('.signal-diagram-3d path.mv-sb').first()).toHaveClass(/dim/);
 
     // Toggling back restores the editable plan view with the edited value.
-    await page.locator('.view-toggle input').uncheck();
+    await page.locator('.view-toggle .vt-btn', { hasText: '2D' }).click();
     await expect(page.locator('input[aria-label="NB through volume"]')).toHaveValue('750');
   });
 });

@@ -5,6 +5,10 @@
 <script>
   import init, { WasmWeavingSegment } from "HCM-middleware";
   import WeavingDiagram from '$lib/WeavingDiagram.svelte';
+  import WeavingDiagram3D from '$lib/WeavingDiagram3D.svelte';
+  import ViewToggle from '$lib/ViewToggle.svelte';
+
+  let diagramMode = '2d';
   import { onMount } from "svelte";
 
   let ready = false;
@@ -292,15 +296,29 @@
       </div>
 
       <div class="diagram-block">
-        <p class="panel-sub">Hover a movement to trace it through the segment. The picture follows the inputs.</p>
-        <WeavingDiagram
-          weavingType={weaving_type}
-          numLanes={num_lanes}
-          vFF={v_ff}
-          vFR={v_fr}
-          vRF={v_rf}
-          vRR={v_rr}
-        />
+        <div class="diagram-head">
+          <p class="panel-sub">Hover a movement to trace it through the segment. The picture follows the inputs.</p>
+          <ViewToggle bind:mode={diagramMode} label="Segment view mode" />
+        </div>
+        {#if diagramMode === '3d'}
+          <WeavingDiagram3D
+            weavingType={weaving_type}
+            numLanes={num_lanes}
+            vFF={v_ff}
+            vFR={v_fr}
+            vRF={v_rf}
+            vRR={v_rr}
+          />
+        {:else}
+          <WeavingDiagram
+            weavingType={weaving_type}
+            numLanes={num_lanes}
+            vFF={v_ff}
+            vFR={v_fr}
+            vRF={v_rf}
+            vRR={v_rr}
+          />
+        {/if}
       </div>
     </section>
 

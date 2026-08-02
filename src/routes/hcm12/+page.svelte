@@ -9,6 +9,7 @@
   import init, { WasmBasicFreeways } from "HCM-middleware";
   import { onMount } from "svelte";
   import FreewaySegment3D from '../FreewaySegment3D/+page.svelte';
+  import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
 
   let ready = false;
@@ -358,9 +359,8 @@
 
       <!-- Reactive segment view: plan (2D) or perspective (3D). -->
       <div class="diagram-block">
-        <div class="diagram-toggle" role="group" aria-label="Segment view">
-          <button type="button" class:active={diagramMode === '2d'} on:click={() => diagramMode = '2d'}>Plan</button>
-          <button type="button" class:active={diagramMode === '3d'} on:click={() => diagramMode = '3d'}>3D</button>
+        <div class="diagram-toggle-row">
+          <ViewToggle bind:mode={diagramMode} label="Segment view" />
         </div>
 
         {#if diagramMode === '2d'}
@@ -562,25 +562,7 @@
 
 <style>
   .diagram-block { margin: 1rem auto 0; max-width: 560px; text-align: center; }
-  .diagram-toggle {
-    display: inline-flex;
-    border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
-    border-radius: 0.5rem;
-    overflow: hidden;
-    margin-bottom: 0.75rem;
-  }
-  .diagram-toggle button {
-    font-size: 0.75rem;
-    padding: 0.2rem 0.7rem;
-    background: transparent;
-    color: inherit;
-    opacity: 0.6;
-  }
-  .diagram-toggle button.active {
-    background: color-mix(in srgb, currentColor 10%, transparent);
-    opacity: 1;
-    font-weight: 600;
-  }
+  .diagram-toggle-row { margin-bottom: 0.75rem; }
 
   /* 2D plan view */
   .freeway-diagram svg { width: 100%; height: auto; display: block; }
