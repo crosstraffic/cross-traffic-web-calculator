@@ -117,19 +117,23 @@
     <path d={`M0,${yLane(Math.max(0, Math.floor((mainLanes - 1) / 2)))} H312`} class={`mv-ff ${cls(hovered, 'ff')}`} />
 
     {#if twoSided}
+      <!-- ramp legs run straight along the band centerline to the gore, so no
+           curve cuts across the gore notch; curves happen inside the through lanes -->
       <!-- ramp-to-ramp: enters lower left, crosses every lane in one smooth S, leaves upper right -->
-      <path d={`M${rampInlet2.x},${rampInlet2.y} C${gIn + 90},${mainBot + 2} ${gOut - 90},${mainTop - 2} ${rampOutlet2.x},${rampOutlet2.y}`} class={`mv-rr ${cls(hovered, 'rr')}`} />
+      <path d={`M${rampInlet2.x},${rampInlet2.y} L${gIn + 2},${mainBot + 9} C${gIn + 100},${yBottom + 6} ${gOut - 100},${yTop - 6} ${gOut - 2},${mainTop - 9} L${rampOutlet2.x},${rampOutlet2.y}`} class={`mv-rr ${cls(hovered, 'rr')}`} />
       <!-- ramp-to-freeway: enters lower left, settles into the bottom lane -->
-      <path d={`M${rampInlet2.x},${rampInlet2.y + 4} Q${gIn + 26},${mainBot + 2} ${gIn + 88},${yBottom} H312`} class={`mv-rf ${cls(hovered, 'rf')}`} />
+      <path d={`M${rampInlet2.x},${rampInlet2.y + 4} L${gIn + 4},${mainBot + 12} Q${gIn + 56},${mainBot} ${gIn + 96},${yBottom} H312`} class={`mv-rf ${cls(hovered, 'rf')}`} />
       <!-- freeway-to-ramp: rides the top lane, leaves up the off-ramp -->
-      <path d={`M0,${yTop} H${gOut - 64} Q${gOut + 4},${yTop - 4} ${rampOutlet2.x},${rampOutlet2.y + 4}`} class={`mv-fr ${cls(hovered, 'fr')}`} />
+      <path d={`M0,${yTop} H${gOut - 70} Q${gOut - 12},${yTop - 4} ${gOut},${mainTop - 12} L${rampOutlet2.x},${rampOutlet2.y + 4}`} class={`mv-fr ${cls(hovered, 'fr')}`} />
     {:else}
+      <!-- ramp legs run straight along the band centerline to the gore point
+           (the centerline meets the auxiliary lane middle exactly at the gore) -->
       <!-- ramp-to-freeway: up the on-ramp, along the auxiliary lane, merge to lane 1 -->
-      <path d={`M${rampInlet.x},${rampInlet.y - 3} Q${gIn + 8},${yAux - 2} ${gIn + 48},${yAux - 2} C${gIn + 84},${yAux - 2} ${gIn + 96},${yBottom} ${gIn + 132},${yBottom} H312`} class={`mv-rf ${cls(hovered, 'rf')}`} />
+      <path d={`M${rampInlet.x},${rampInlet.y - 3} L${gIn},${yAux - 3} C${gIn + 52},${yAux - 2} ${gIn + 84},${yBottom} ${gIn + 128},${yBottom} H312`} class={`mv-rf ${cls(hovered, 'rf')}`} />
       <!-- freeway-to-ramp: lane 1 to the auxiliary lane, out the off-ramp -->
-      <path d={`M0,${yBottom} H${gIn + 24} C${gIn + 60},${yBottom} ${gIn + 72},${yAux - 2} ${gIn + 108},${yAux - 2} H${gOut - 16} Q${gOut + 24},${yAux} ${rampOutlet.x},${rampOutlet.y - 3}`} class={`mv-fr ${cls(hovered, 'fr')}`} />
+      <path d={`M0,${yBottom} H${gIn + 24} C${gIn + 60},${yBottom} ${gIn + 72},${yAux - 2} ${gIn + 108},${yAux - 2} H${gOut} L${rampOutlet.x},${rampOutlet.y - 3}`} class={`mv-fr ${cls(hovered, 'fr')}`} />
       <!-- ramp-to-ramp: stays in the auxiliary lane the whole length -->
-      <path d={`M${rampInlet.x},${rampInlet.y + 4} Q${gIn + 12},${yAux + 5} ${gIn + 52},${yAux + 5} H${gOut - 20} Q${gOut + 20},${yAux + 5} ${rampOutlet.x},${rampOutlet.y + 4}`} class={`mv-rr ${cls(hovered, 'rr')}`} />
+      <path d={`M${rampInlet.x},${rampInlet.y + 4} L${gIn},${yAux + 4} H${gOut} L${rampOutlet.x},${rampOutlet.y + 4}`} class={`mv-rr ${cls(hovered, 'rr')}`} />
     {/if}
 
     <!-- direction arrow on the freeway-to-freeway lane -->
