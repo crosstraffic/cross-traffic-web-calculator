@@ -223,13 +223,6 @@ function getUint32Memory0() {
     return cachedUint32Memory0;
 }
 
-function passArray32ToWasm0(arg, malloc) {
-    const ptr = malloc(arg.length * 4, 4) >>> 0;
-    getUint32Memory0().set(arg, ptr / 4);
-    WASM_VECTOR_LEN = arg.length;
-    return ptr;
-}
-
 function passArrayJsValueToWasm0(array, malloc) {
     const ptr = malloc(array.length * 4, 4) >>> 0;
     const mem = getUint32Memory0();
@@ -237,6 +230,13 @@ function passArrayJsValueToWasm0(array, malloc) {
         mem[ptr / 4 + i] = addHeapObject(array[i]);
     }
     WASM_VECTOR_LEN = array.length;
+    return ptr;
+}
+
+function passArray32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getUint32Memory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
     return ptr;
 }
 
@@ -2167,8 +2167,9 @@ export class WasmRampSegment {
     * @param {number | undefined} [downstream_ramp_flow]
     * @param {number | undefined} [caf]
     * @param {number | undefined} [saf]
+    * @param {string | undefined} [version]
     */
-    constructor(ramp_type, ramp_side, ramp_lanes, freeway_lanes, freeway_ffs, ramp_ffs, accel_lane_length, accel_lane_length2, decel_lane_length, decel_lane_length2, freeway_demand, ramp_demand, phf, heavy_vehicle_pct, ramp_heavy_vehicle_pct, terrain, adjacent_upstream, upstream_distance, upstream_ramp_flow, adjacent_downstream, downstream_distance, downstream_ramp_flow, caf, saf) {
+    constructor(ramp_type, ramp_side, ramp_lanes, freeway_lanes, freeway_ffs, ramp_ffs, accel_lane_length, accel_lane_length2, decel_lane_length, decel_lane_length2, freeway_demand, ramp_demand, phf, heavy_vehicle_pct, ramp_heavy_vehicle_pct, terrain, adjacent_upstream, upstream_distance, upstream_ramp_flow, adjacent_downstream, downstream_distance, downstream_ramp_flow, caf, saf, version) {
         var ptr0 = isLikeNone(ramp_type) ? 0 : passStringToWasm0(ramp_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         var len0 = WASM_VECTOR_LEN;
         var ptr1 = isLikeNone(ramp_side) ? 0 : passStringToWasm0(ramp_side, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
@@ -2179,9 +2180,72 @@ export class WasmRampSegment {
         var len3 = WASM_VECTOR_LEN;
         var ptr4 = isLikeNone(adjacent_downstream) ? 0 : passStringToWasm0(adjacent_downstream, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         var len4 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmrampsegment_new(ptr0, len0, ptr1, len1, !isLikeNone(ramp_lanes), isLikeNone(ramp_lanes) ? 0 : ramp_lanes, !isLikeNone(freeway_lanes), isLikeNone(freeway_lanes) ? 0 : freeway_lanes, !isLikeNone(freeway_ffs), isLikeNone(freeway_ffs) ? 0 : freeway_ffs, !isLikeNone(ramp_ffs), isLikeNone(ramp_ffs) ? 0 : ramp_ffs, !isLikeNone(accel_lane_length), isLikeNone(accel_lane_length) ? 0 : accel_lane_length, !isLikeNone(accel_lane_length2), isLikeNone(accel_lane_length2) ? 0 : accel_lane_length2, !isLikeNone(decel_lane_length), isLikeNone(decel_lane_length) ? 0 : decel_lane_length, !isLikeNone(decel_lane_length2), isLikeNone(decel_lane_length2) ? 0 : decel_lane_length2, !isLikeNone(freeway_demand), isLikeNone(freeway_demand) ? 0 : freeway_demand, !isLikeNone(ramp_demand), isLikeNone(ramp_demand) ? 0 : ramp_demand, !isLikeNone(phf), isLikeNone(phf) ? 0 : phf, !isLikeNone(heavy_vehicle_pct), isLikeNone(heavy_vehicle_pct) ? 0 : heavy_vehicle_pct, !isLikeNone(ramp_heavy_vehicle_pct), isLikeNone(ramp_heavy_vehicle_pct) ? 0 : ramp_heavy_vehicle_pct, ptr2, len2, ptr3, len3, !isLikeNone(upstream_distance), isLikeNone(upstream_distance) ? 0 : upstream_distance, !isLikeNone(upstream_ramp_flow), isLikeNone(upstream_ramp_flow) ? 0 : upstream_ramp_flow, ptr4, len4, !isLikeNone(downstream_distance), isLikeNone(downstream_distance) ? 0 : downstream_distance, !isLikeNone(downstream_ramp_flow), isLikeNone(downstream_ramp_flow) ? 0 : downstream_ramp_flow, !isLikeNone(caf), isLikeNone(caf) ? 0 : caf, !isLikeNone(saf), isLikeNone(saf) ? 0 : saf);
+        var ptr5 = isLikeNone(version) ? 0 : passStringToWasm0(version, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len5 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmrampsegment_new(ptr0, len0, ptr1, len1, !isLikeNone(ramp_lanes), isLikeNone(ramp_lanes) ? 0 : ramp_lanes, !isLikeNone(freeway_lanes), isLikeNone(freeway_lanes) ? 0 : freeway_lanes, !isLikeNone(freeway_ffs), isLikeNone(freeway_ffs) ? 0 : freeway_ffs, !isLikeNone(ramp_ffs), isLikeNone(ramp_ffs) ? 0 : ramp_ffs, !isLikeNone(accel_lane_length), isLikeNone(accel_lane_length) ? 0 : accel_lane_length, !isLikeNone(accel_lane_length2), isLikeNone(accel_lane_length2) ? 0 : accel_lane_length2, !isLikeNone(decel_lane_length), isLikeNone(decel_lane_length) ? 0 : decel_lane_length, !isLikeNone(decel_lane_length2), isLikeNone(decel_lane_length2) ? 0 : decel_lane_length2, !isLikeNone(freeway_demand), isLikeNone(freeway_demand) ? 0 : freeway_demand, !isLikeNone(ramp_demand), isLikeNone(ramp_demand) ? 0 : ramp_demand, !isLikeNone(phf), isLikeNone(phf) ? 0 : phf, !isLikeNone(heavy_vehicle_pct), isLikeNone(heavy_vehicle_pct) ? 0 : heavy_vehicle_pct, !isLikeNone(ramp_heavy_vehicle_pct), isLikeNone(ramp_heavy_vehicle_pct) ? 0 : ramp_heavy_vehicle_pct, ptr2, len2, ptr3, len3, !isLikeNone(upstream_distance), isLikeNone(upstream_distance) ? 0 : upstream_distance, !isLikeNone(upstream_ramp_flow), isLikeNone(upstream_ramp_flow) ? 0 : upstream_ramp_flow, ptr4, len4, !isLikeNone(downstream_distance), isLikeNone(downstream_distance) ? 0 : downstream_distance, !isLikeNone(downstream_ramp_flow), isLikeNone(downstream_ramp_flow) ? 0 : downstream_ramp_flow, !isLikeNone(caf), isLikeNone(caf) ? 0 : caf, !isLikeNone(saf), isLikeNone(saf) ? 0 : saf, ptr5, len5);
         this.__wbg_ptr = ret >>> 0;
         return this;
+    }
+    /**
+    * The HCM edition this segment analyzes under, "7" or "7.1".
+    * @returns {string}
+    */
+    get version() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmrampsegment_version(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+    * Set the HCM edition, "7" or "7.1". Throws on anything else.
+    * @param {string} version
+    */
+    set version(version) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(version, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.wasmrampsegment_set_version(retptr, this.__wbg_ptr, ptr0, len0);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Full Edition 7.1 analysis as a JS object (null until `run_analysis()` has run on a
+    * version "7.1" segment). Fields follow the Rust `RampAnalysis` struct: flows, ffs_adj,
+    * speed_basic, speed_impedance, speed_avg (null far past capacity), capacity_per_lane,
+    * dc_ratio, the capacity checks, density, and los.
+    * @returns {any}
+    */
+    analysis_v7_1() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmrampsegment_analysis_v7_1(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
     * Run the full HCM Ch.14 analysis (Steps 1-5) and return the LOS letter.
@@ -2210,6 +2274,7 @@ export class WasmRampSegment {
     }
     /**
     * Step 1: demand flows [v_F, v_R] in pc/h - Eq. 14-1.
+    * 7th Edition only; throws on a "7.1" segment.
     * @returns {Float64Array}
     */
     determine_demand_flow() {
@@ -2218,6 +2283,11 @@ export class WasmRampSegment {
             wasm.wasmrampsegment_determine_demand_flow(retptr, this.__wbg_ptr);
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
             var v1 = getArrayF64FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 8, 8);
             return v1;
@@ -2227,32 +2297,69 @@ export class WasmRampSegment {
     }
     /**
     * Step 2: flow in Lanes 1 and 2, v_12 (pc/h) - Eqs. 14-2..14-19.
+    * 7th Edition only; throws on a "7.1" segment.
     * @returns {number}
     */
     estimate_v12() {
-        const ret = wasm.wasmrampsegment_estimate_v12(this.__wbg_ptr);
-        return ret;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmrampsegment_estimate_v12(retptr, this.__wbg_ptr);
+            var r0 = getFloat64Memory0()[retptr / 8 + 0];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
+            return r0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
     * Step 3: adjusted freeway capacity (pc/h) and capacity checks
     * (Exhibits 14-10/14-12, Eq. 14-21).
+    * 7th Edition only; throws on a "7.1" segment.
     * @returns {number}
     */
     determine_capacity() {
-        const ret = wasm.wasmrampsegment_determine_capacity(this.__wbg_ptr);
-        return ret;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmrampsegment_determine_capacity(retptr, this.__wbg_ptr);
+            var r0 = getFloat64Memory0()[retptr / 8 + 0];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
+            return r0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
     * Step 4: density in the ramp influence area (pc/mi/ln)
     * - Eqs. 14-22/14-23/14-28.
+    * 7th Edition only; throws on a "7.1" segment.
     * @returns {number}
     */
     determine_density() {
-        const ret = wasm.wasmrampsegment_determine_density(this.__wbg_ptr);
-        return ret;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmrampsegment_determine_density(retptr, this.__wbg_ptr);
+            var r0 = getFloat64Memory0()[retptr / 8 + 0];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
+            return r0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
     * Level of service letter - Exhibit 14-3.
+    * 7th Edition only; throws on a "7.1" segment.
     *
     * Returns `undefined` for a major merge under capacity; see [`Self::run_analysis`].
     * @returns {string | undefined}
@@ -2263,6 +2370,11 @@ export class WasmRampSegment {
             wasm.wasmrampsegment_determine_los(retptr, this.__wbg_ptr);
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
             let v1;
             if (r0 !== 0) {
                 v1 = getStringFromWasm0(r0, r1).slice();
@@ -2276,6 +2388,7 @@ export class WasmRampSegment {
     /**
     * Step 5: speeds [S_R, S_O, S] in mi/h - Exhibits 14-13/14-14/14-15.
     * S_O is NaN when the outer-lane speed does not apply.
+    * 7th Edition only; throws on a "7.1" segment.
     * @returns {Float64Array}
     */
     estimate_speed() {
@@ -2284,6 +2397,11 @@ export class WasmRampSegment {
             wasm.wasmrampsegment_estimate_speed(retptr, this.__wbg_ptr);
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
             var v1 = getArrayF64FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 8, 8);
             return v1;
@@ -5231,10 +5349,6 @@ function __wbg_get_imports() {
         const ret = result;
         return ret;
     };
-    imports.wbg.__wbindgen_error_new = function(arg0, arg1) {
-        const ret = new Error(getStringFromWasm0(arg0, arg1));
-        return addHeapObject(ret);
-    };
     imports.wbg.__wbindgen_jsval_loose_eq = function(arg0, arg1) {
         const ret = getObject(arg0) == getObject(arg1);
         return ret;
@@ -5251,6 +5365,10 @@ function __wbg_get_imports() {
         getInt32Memory0()[arg0 / 4 + 1] = len1;
         getInt32Memory0()[arg0 / 4 + 0] = ptr1;
     };
+    imports.wbg.__wbindgen_error_new = function(arg0, arg1) {
+        const ret = new Error(getStringFromWasm0(arg0, arg1));
+        return addHeapObject(ret);
+    };
     imports.wbg.__wbindgen_bigint_from_u64 = function(arg0) {
         const ret = BigInt.asUintN(64, arg0);
         return addHeapObject(ret);
@@ -5262,8 +5380,16 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_set_20cbc34131e76824 = function(arg0, arg1, arg2) {
         getObject(arg0)[takeObject(arg1)] = takeObject(arg2);
     };
+    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
+        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
     imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
         const ret = WasmSubSegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
+    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
+        const ret = WasmSegment.__unwrap(takeObject(arg0));
         return ret;
     };
     imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
@@ -5280,14 +5406,6 @@ function __wbg_get_imports() {
     };
     imports.wbg.__wbindgen_jsval_eq = function(arg0, arg1) {
         const ret = getObject(arg0) === getObject(arg1);
-        return ret;
-    };
-    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
-        const ret = WasmSegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
-    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
-        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
         return ret;
     };
 
