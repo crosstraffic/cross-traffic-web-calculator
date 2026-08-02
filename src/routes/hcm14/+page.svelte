@@ -117,7 +117,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Freeway Merge and Diverge Segments <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">Freeway Merge and Diverge Segments</span>
     <h1 class="page-title">HCM Calculator — Freeway Merge and Diverge Segments</h1>
     <p class="page-sub">
       Estimate ramp influence area density, speeds, and level of service for a
@@ -125,13 +125,11 @@
     </p>
   </header>
 
-  <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
+  <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> The compute engine reproduces the published HCM worked
-      examples for this chapter; the interface itself is newly released. If a result
-      looks wrong, please report it.
-      Verify results independently before relying on them in engineering work, and
-      please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      The compute engine reproduces the published HCM worked examples for this
+      chapter. Verify results independently before relying on them in engineering
+      work, and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
 

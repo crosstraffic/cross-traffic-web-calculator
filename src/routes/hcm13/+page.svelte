@@ -141,7 +141,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Freeway Weaving Segments <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">Freeway Weaving Segments</span>
     <h1 class="page-title">HCM Calculator — Freeway Weaving Segments</h1>
     <p class="page-sub">
       Estimate capacity, weaving and nonweaving speeds, density, and level of
@@ -149,11 +149,10 @@
     </p>
   </header>
 
-  <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
+  <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> The compute engine reproduces the published HCM worked
-      examples for this chapter under both editions; the interface itself is newly
-      released. The 7th Edition and Edition 7.1 are different models — the same
+      The compute engine reproduces the published HCM worked examples for this
+      chapter under both editions. The 7th Edition and Edition 7.1 are different models — the same
       segment can land a full LOS letter apart between them, and weaving LOS F
       begins at 35 rather than 43 pc/mi/ln under 7.1 — so results are only
       comparable within one edition. Please
