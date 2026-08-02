@@ -65,10 +65,10 @@
     <rect x="0" y={mainTop} width="320" height={LANE * mainLanes} class="wv-pavement" />
 
     {#if twoSided}
-      <!-- on-ramp band merging from lower left; taper ends at gIn + 40 -->
-      <polygon points="{gIn - RAMP},{mainBot + DROP} {gIn},{mainBot} {gIn + 40},{mainBot} {gIn - RAMP},{mainBot + DROP + LANE}" class="wv-pavement" />
-      <!-- off-ramp band diverging to upper right; taper begins at gOut - 40 -->
-      <polygon points="{gOut - 40},{mainTop} {gOut + RAMP},{mainTop - DROP - LANE} {gOut + RAMP},{mainTop - DROP} {gOut},{mainTop}" class="wv-pavement" />
+      <!-- on-ramp band merging from lower left; taper ends at gIn + 70 -->
+      <polygon points="{gIn - RAMP},{mainBot + DROP} {gIn},{mainBot} {gIn + 70},{mainBot} {gIn - RAMP},{mainBot + DROP + LANE}" class="wv-pavement" />
+      <!-- off-ramp band diverging to upper right; taper begins at gOut - 70 -->
+      <polygon points="{gOut - 70},{mainTop} {gOut + RAMP},{mainTop - DROP - LANE} {gOut + RAMP},{mainTop - DROP} {gOut},{mainTop}" class="wv-pavement" />
     {:else}
       <!-- auxiliary lane between the gores -->
       <rect x={gIn} y={mainBot} width={gOut - gIn} height={LANE} class="wv-pavement" />
@@ -86,18 +86,18 @@
 
     {#if twoSided}
       <!-- top edge: solid outside the diverge taper, lane line across it -->
-      <line x1="0" y1={mainTop} x2={gOut - 40} y2={mainTop} class="wv-edge" />
-      <line x1={gOut - 40} y1={mainTop} x2={gOut} y2={mainTop} class="wv-lane-line" />
+      <line x1="0" y1={mainTop} x2={gOut - 70} y2={mainTop} class="wv-edge" />
+      <line x1={gOut - 70} y1={mainTop} x2={gOut} y2={mainTop} class="wv-lane-line" />
       <!-- off-ramp edges: outer edge above, gore edge below -->
-      <line x1={gOut - 40} y1={mainTop} x2={gOut + RAMP} y2={mainTop - DROP - LANE} class="wv-edge" />
+      <line x1={gOut - 70} y1={mainTop} x2={gOut + RAMP} y2={mainTop - DROP - LANE} class="wv-edge" />
       <line x1={gOut} y1={mainTop} x2={gOut + RAMP} y2={mainTop - DROP} class="wv-edge" />
       <!-- bottom edge: solid outside the merge taper, lane line across it -->
       <line x1="0" y1={mainBot} x2={gIn} y2={mainBot} class="wv-edge" />
-      <line x1={gIn} y1={mainBot} x2={gIn + 40} y2={mainBot} class="wv-lane-line" />
-      <line x1={gIn + 40} y1={mainBot} x2="320" y2={mainBot} class="wv-edge" />
+      <line x1={gIn} y1={mainBot} x2={gIn + 70} y2={mainBot} class="wv-lane-line" />
+      <line x1={gIn + 70} y1={mainBot} x2="320" y2={mainBot} class="wv-edge" />
       <!-- on-ramp edges -->
       <line x1={gIn - RAMP} y1={mainBot + DROP} x2={gIn} y2={mainBot} class="wv-edge" />
-      <line x1={gIn - RAMP} y1={mainBot + DROP + LANE} x2={gIn + 40} y2={mainBot} class="wv-edge" />
+      <line x1={gIn - RAMP} y1={mainBot + DROP + LANE} x2={gIn + 70} y2={mainBot} class="wv-edge" />
     {:else}
       <!-- top edge: solid the whole way -->
       <line x1="0" y1={mainTop} x2="320" y2={mainTop} class="wv-edge" />
