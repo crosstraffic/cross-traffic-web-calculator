@@ -5,6 +5,7 @@
 <script>
   import LosScale from '$lib/LosScale.svelte';
   import LosBadge from '$lib/LosBadge.svelte';
+  import SignalizedDiagram from '$lib/SignalizedDiagram.svelte';
   import init, { WasmSignalizedIntersection } from "HCM-middleware";
   import { onMount } from "svelte";
 
@@ -220,6 +221,11 @@
             <span class="unit">p/h</span>
           </div>
         </div>
+      </div>
+
+      <div class="diagram-block">
+        <p class="panel-sub">Hover the legend to highlight an approach's movements. The picture follows the lane and phasing inputs.</p>
+        <SignalizedDiagram {approaches} />
       </div>
     </section>
 

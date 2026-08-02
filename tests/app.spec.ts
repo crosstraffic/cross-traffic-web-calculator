@@ -368,6 +368,31 @@ test.describe('chapter 19 signalized intersection calculator', () => {
     await expect(page.locator('tr', { hasText: 'Intersection Control Delay' }).locator('td')).toHaveText('26.8');
     await expect(page.locator('.result-summary-badge .los-badge')).toHaveAttribute('aria-label', /Level of service C/);
   });
+
+  test('the intersection diagram follows the inputs and highlights on hover', async ({ page }) => {
+    await page.goto('/hcm19');
+    const diagram = page.locator('.signal-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /four-leg signalized intersection/);
+
+    // Hovering a legend chip highlights that approach's movements and dims the rest.
+    await page.locator('.sd-chip.eb').hover();
+    await expect(page.locator('path.mv-eb').first()).toHaveClass(/active/);
+    await expect(page.locator('path.mv-nb').first()).toHaveClass(/dim/);
+
+    // The left-turn path renders dashed while permitted and solid once a
+    // protected phase is set; the chip text follows.
+    const nbLeft = page.locator('path.mv-nb').nth(1);
+    await expect(nbLeft).toHaveAttribute('stroke-dasharray', '6 5');
+    await page.locator('#NB_LP_input').fill('12');
+    await expect(nbLeft).not.toHaveAttribute('stroke-dasharray', '6 5');
+    await expect(page.locator('.sd-chip.nb')).toContainText('protected left');
+
+    // Adding lanes widens the road: more dashed lane lines appear.
+    const before = await page.locator('line.sd-lane-line').count();
+    await page.locator('#NB_LT_input').fill('3');
+    await expect(page.locator('line.sd-lane-line')).toHaveCount(before + 4);
+  });
 });
 
 test.describe('chapter 15 two-lane highway calculator', () => {
