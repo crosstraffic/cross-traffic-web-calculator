@@ -93,6 +93,15 @@
     <line x1="0" y1={edgeY} x2={Math.min(laneX0, taperTip)} y2={edgeY} class="rd-edge" />
     <line x1={Math.min(laneX0, taperTip)} y1={edgeY} x2={Math.max(laneX1, taperTip)} y2={edgeY} class="rd-lane-line-dark" />
     <line x1={Math.max(laneX1, taperTip)} y1={edgeY} x2="320" y2={edgeY} class="rd-edge" />
+    <!-- lane divider inside a two-lane ramp and its speed-change lanes -->
+    {#if nRamp === 2}
+      <line x1={laneX0} y1={ry(LANE)} x2={laneX1} y2={ry(LANE)} class="rd-lane-line" />
+      {#if isOn}
+        <line x1={gore - RAMP} y1={ry(DROP + LANE)} x2={gore} y2={ry(LANE)} class="rd-lane-line" />
+      {:else}
+        <line x1={gore} y1={ry(LANE)} x2={gore + RAMP} y2={ry(DROP + LANE)} class="rd-lane-line" />
+      {/if}
+    {/if}
     <!-- outer edge: along the ramp band, the parallel lane, and the taper -->
     {#if isOn}
       <polyline points="{gore - RAMP},{ry(DROP + LANE * nRamp)} {gore},{ry(LANE * nRamp)} {laneX1},{ry(LANE * nRamp)} {taperTip},{ry(0)}" class="rd-edge-path" />
