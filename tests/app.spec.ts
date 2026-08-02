@@ -396,6 +396,17 @@ test.describe('chapter 19 signalized intersection calculator', () => {
     await expect(page.locator('tr', { hasText: 'Critical Volume-to-Capacity' }).locator('td')).toHaveText('0.92');
     await expect(page.locator('tr', { hasText: 'Intersection Control Delay' }).locator('td')).toHaveText('26.8');
     await expect(page.locator('.result-summary-badge .los-badge')).toHaveAttribute('aria-label', /Level of service C/);
+
+    // Every run publishes a printable report; the link opens it with the same
+    // numbers, the input echo, and the read-only diagram.
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page).toHaveURL(/\/report$/);
+    await expect(page.locator('.report-title')).toHaveText('Signalized Intersections');
+    await expect(page.locator('tr', { hasText: 'Critical volume-to-capacity ratio' }).locator('td')).toHaveText('0.92');
+    await expect(page.locator('tr', { hasText: 'Cycle length' }).locator('td')).toHaveText('60 s');
+    await expect(page.locator('.report-diagram .signal-diagram svg')).toBeVisible();
+    await expect(page.locator('.report-diagram .sd-cluster')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Print / Save as PDF' })).toBeVisible();
   });
 
   test('the intersection diagram follows the inputs and highlights on hover', async ({ page }) => {

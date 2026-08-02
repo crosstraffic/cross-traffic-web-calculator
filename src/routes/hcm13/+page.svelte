@@ -7,6 +7,7 @@
   import WeavingDiagram from '$lib/WeavingDiagram.svelte';
   import WeavingDiagram3D from '$lib/WeavingDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
+  import { setReport } from '$lib/report';
 
   let diagramMode = '2d';
   import { onMount } from "svelte";
@@ -105,6 +106,70 @@
           density: ws.get_density()
         };
       }
+
+      const is71 = version === '7.1';
+      setReport({
+        chapter: 'Freeway Weaving Segments',
+        chapterRef: 'HCM Chapter 13',
+        href: '/hcm13',
+        generatedAt: new Date().toLocaleString(),
+        headline: { label: is71 ? 'Segment LOS (Edition 7.1)' : 'Segment LOS', value: is71 ? results71.los : results.los },
+        inputs: [
+          { label: 'HCM edition', value: is71 ? 'Edition 7.1 (2025)' : '7th Edition' },
+          { label: 'Weaving type', value: weaving_type === 'two_sided' ? 'Two-sided' : 'One-sided' },
+          { label: 'Facility type', value: facility_type === 'multilane' ? 'Multilane highway or C-D roadway' : 'Freeway' },
+          { label: 'Short length, L_S', value: `${length_short} ft` },
+          { label: 'Lanes, N', value: num_lanes },
+          is71
+            ? { label: 'Weaving lanes N_W,RF / N_W,FR / N_W,RR', value: `${nw_rf} / ${nw_fr} / ${nw_rr}` }
+            : { label: 'Weaving lanes, N_WL', value: num_weaving_lanes },
+          { label: 'Min. lane changes LC_RF / LC_FR / LC_RR', value: `${lc_rf} / ${lc_fr} / ${lc_rr}` },
+          { label: 'Interchange density', value: `${interchange_density} /mi` },
+          { label: 'Terrain', value: terrain },
+          { label: 'Free-flow speed', value: `${ffs} mph` },
+          { label: 'Demand v_FF / v_RF / v_FR / v_RR', value: `${v_ff} / ${v_rf} / ${v_fr} / ${v_rr} veh/h` },
+          { label: 'Peak hour factor', value: phf },
+          { label: 'Heavy vehicles', value: `${phv} %` },
+          { label: 'Basic freeway capacity, c_IFL', value: `${basic_freeway_capacity} pc/h/ln` },
+          { label: 'CAF / SAF', value: `${caf} / ${saf}` },
+        ],
+        resultTable: {
+          columns: ['Quantity', 'Value'],
+          rows: is71 ? [
+            ['Configuration class', results71.class],
+            ['Total flow rate', `${results71.flow_total.toFixed(0)} pc/h`],
+            ['Equivalent basic segment speed', `${results71.speed_basic.toFixed(1)} mi/h`],
+            ['Speed impedance', `${results71.speed_impedance.toFixed(2)} mi/h`],
+            ['Overall speed', results71.speed_avg == null ? 'not defined (demand far past capacity)' : `${results71.speed_avg.toFixed(1)} mi/h`],
+            ['Capacity', results71.capacity_per_lane == null ? 'not defined for these inputs' : `${results71.capacity_per_lane.toFixed(0)} pc/h/ln`],
+            ['Demand-to-capacity ratio', results71.dc_ratio == null ? 'not defined' : results71.dc_ratio.toFixed(2)],
+            ['Density', Number.isFinite(results71.density) ? `${results71.density.toFixed(1)} pc/mi/ln` : 'over capacity'],
+            ['Level of service (Exhibit 13-7, Edition 7.1 bands)', results71.los],
+          ] : [
+            ['Weaving flow rate', `${results.flow_weaving.toFixed(0)} pc/h`],
+            ['Nonweaving flow rate', `${results.flow_nonweaving.toFixed(0)} pc/h`],
+            ['Total flow rate', `${results.flow_total.toFixed(0)} pc/h`],
+            ['Volume ratio, VR', results.volume_ratio.toFixed(3)],
+            ['Maximum weaving length, L_MAX', `${results.l_max.toFixed(0)} ft`],
+            ['Operates as a weaving segment', results.is_weaving ? 'Yes' : 'No, analyze as separate segments'],
+            ['Capacity', `${results.capacity.toFixed(0)} veh/h`],
+            ['Volume-to-capacity ratio', results.vc_ratio.toFixed(2)],
+            ['Weaving speed, S_W', `${results.speed_weaving.toFixed(1)} mi/h`],
+            ['Nonweaving speed, S_NW', `${results.speed_nonweaving.toFixed(1)} mi/h`],
+            ['Average speed, S', `${results.speed_avg.toFixed(1)} mi/h`],
+            ['Density, D', `${results.density.toFixed(1)} pc/mi/ln`],
+            ['Level of service', results.los],
+          ],
+        },
+        summary: [],
+        methodology: is71 ? [
+          'Edition 7.1 methodology: overall speed from an equivalent basic segment less a speed impedance, capacity from the 35 pc/mi/ln breakdown density.',
+          'LOS from the Edition 7.1 Exhibit 13-7 bands. Weaving LOS F begins at 35 pc/mi/ln under 7.1.',
+        ] : [
+          '7th Edition methodology: lane-changing rates (Equations 13-11 through 13-17), weaving and nonweaving speeds (Equations 13-18 through 13-22), density and LOS (Exhibit 13-6).',
+        ],
+        diagram: { kind: 'weaving', props: { weavingType: weaving_type, numLanes: num_lanes, vFF: v_ff, vFR: v_fr, vRF: v_rf, vRR: v_rr } },
+      });
     } catch (err) {
       console.error('Chapter 13 analysis failed:', err);
       hasError = true;
@@ -421,11 +486,16 @@
   </form>
 
   <section class="panel results-panel">
-    <div class="panel-head">
+    <div class="panel-head with-actions">
       <div>
         <h2 class="panel-title">Outputs</h2>
         <p class="panel-sub">Results populate after pressing Calculate.</p>
       </div>
+      {#if results || results71}
+        <div class="panel-actions">
+          <a class="btn btn-outline btn-sm" href="/report">Open printable report</a>
+        </div>
+      {/if}
     </div>
     {#if results71}
       <div class="los overflow-x-auto">

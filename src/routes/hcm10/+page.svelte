@@ -4,6 +4,7 @@
 
 <script>
   import init, { WasmFacilitySegment, WasmFreewayFacility } from "HCM-middleware";
+  import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
   let ready = false;
@@ -128,6 +129,42 @@
         oversaturated: fac.is_oversaturated(),
         total_length: fac.total_length_mi()
       };
+
+      const worstLos = perPeriod.reduce((w, p) => (p.los > w ? p.los : w), 'A');
+      setReport({
+        chapter: 'Freeway Facilities Core Methodology',
+        chapterRef: 'HCM Chapter 10',
+        href: '/hcm10',
+        generatedAt: new Date().toLocaleString(),
+        headline: { label: 'Facility LOS (worst period)', value: worstLos },
+        inputs: [
+          { label: 'Free-flow speed', value: `${ffs} mi/h` },
+          { label: 'Heavy vehicles', value: `${hv_pct} %` },
+          { label: 'Terrain', value: terrain },
+          { label: 'Area type', value: city_type },
+          { label: 'Peak hour factor', value: phf },
+          { label: 'Jam density', value: `${jam_density} pc/mi/ln` },
+          { label: 'Queue discharge capacity drop', value: `${queue_discharge_drop} %` },
+          { label: 'Total ramp density', value: `${total_ramp_density} /mi` },
+          { label: 'Interchange density', value: interchange_density !== '' ? `${interchange_density} /mi` : 'total ramp density' },
+          { label: 'Mainline entry demand', value: `${mainline_demand} veh/h` },
+          { label: 'Segments (upstream to downstream)', value: segments.map((s) => `${s.seg_type} ${s.length_ft} ft x${s.lanes}`).join(', ') },
+        ],
+        resultTable: {
+          columns: ['Period', 'Space mean speed (mi/h)', 'Average density (veh/mi/ln)', 'LOS'],
+          rows: results.perPeriod.map((p, i) => [`${i + 1}`, p.speed.toFixed(1), p.density.toFixed(1), p.los]),
+        },
+        summary: [
+          { label: 'Facility length', value: `${results.total_length.toFixed(2)} mi` },
+          { label: 'Overall space mean speed', value: `${results.overall_speed.toFixed(1)} mi/h` },
+          { label: 'Overall density', value: `${results.overall_density.toFixed(1)} veh/mi/ln` },
+          { label: 'Oversaturated', value: results.oversaturated ? 'Yes, demand exceeds capacity somewhere in the time-space domain' : 'No' },
+        ],
+        methodology: [
+          'HCM Chapter 10 core methodology: each segment analyzed per its own chapter (12, 13, 14) per 15-min period, with oversaturated periods handled by the Chapter 25 queue-tracking procedure on a time-space domain.',
+          'On an oversaturated facility the placement of a queue among upstream segments can differ from the published engine while the facility totals agree.',
+        ],
+      });
     } catch (err) {
       console.error('Chapter 10 analysis failed:', err);
       hasError = true;
@@ -397,11 +434,16 @@
   </form>
 
   <section class="panel results-panel">
-    <div class="panel-head">
+    <div class="panel-head with-actions">
       <div>
         <h2 class="panel-title">Outputs</h2>
         <p class="panel-sub">Results populate after pressing Calculate.</p>
       </div>
+      {#if results}
+        <div class="panel-actions">
+          <a class="btn btn-outline btn-sm" href="/report">Open printable report</a>
+        </div>
+      {/if}
     </div>
     <div class="los overflow-x-auto">
       <table class="table w-full">

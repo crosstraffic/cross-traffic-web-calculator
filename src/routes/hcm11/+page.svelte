@@ -4,6 +4,7 @@
 
 <script>
   import init, { WasmFacilitySegment, WasmFreewayReliability } from "HCM-middleware";
+  import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
   let ready = false;
@@ -132,6 +133,49 @@
         expected_vhd: rel.expected_vhd(),
         pct_below_target: rel.failure_pct_below_speed(Number(target_speed))
       };
+
+      setReport({
+        chapter: 'Freeway Reliability Analysis',
+        chapterRef: 'HCM Chapter 11',
+        href: '/hcm11',
+        generatedAt: new Date().toLocaleString(),
+        headline: null,
+        inputs: [
+          { label: 'Free-flow speed', value: `${ffs} mi/h` },
+          { label: 'Heavy vehicles', value: `${hv_pct} %` },
+          { label: 'Terrain', value: terrain },
+          { label: 'Area type', value: city_type },
+          { label: 'Mainline entry demand', value: `${mainline_demand} veh/h` },
+          { label: 'Segments (upstream to downstream)', value: segments.map((s) => `${s.seg_type} ${s.length_ft} ft x${s.lanes}`).join(', ') },
+          { label: 'Replications per demand combination', value: replications },
+          { label: 'Seed dataset', value: `month ${seed_month}, ${seed_weekday}` },
+          { label: 'Incidents', value: include_incidents ? `crash rate ${crash_rate} per 100M VMT, incident-to-crash ratio ${incident_crash_ratio}` : 'excluded' },
+          { label: 'Random seed', value: rng_seed },
+          { label: 'Target speed for on-time measure', value: `${target_speed} mi/h` },
+        ],
+        resultTable: {
+          columns: ['Measure', 'Value'],
+          rows: [
+            ['Scenarios evaluated', `${results.num_scenarios}`],
+            ['Travel time observations', `${results.num_observations}`],
+            ['Free-flow travel time', `${results.fftt.toFixed(2)} min`],
+            ['Mean TTI', results.tti_mean.toFixed(3)],
+            ['50th percentile TTI', results.tti_50.toFixed(3)],
+            ['80th percentile TTI', results.tti_80.toFixed(3)],
+            ['95th percentile TTI (PTI)', results.tti_95.toFixed(3)],
+            ['Misery index', results.misery_index.toFixed(3)],
+            ['Semi-standard deviation', results.semi_std_dev.toFixed(3)],
+            ['Expected vehicle hours of delay', `${results.expected_vhd.toFixed(1)} veh-h`],
+            [`Share of travel below ${target_speed} mi/h`, `${results.pct_below_target.toFixed(1)} %`],
+            ['Reliability rating (share of travel at TTI below 1.33)', `${results.reliability_rating.toFixed(1)} %`],
+          ],
+        },
+        summary: [],
+        methodology: [
+          'HCM Chapter 11 reliability methodology: a whole-year weekday reporting period built from monthly and weekday demand ratios with randomly generated incidents, every scenario evaluated with the Chapter 10 core methodology, and the travel time index distribution VMT-weighted.',
+          'Beta scope. The engine reproduces the published scenario generation and central reliability measures within a few percent, but tail measures depend on the published engine’s Monte Carlo stream and are not reproduced. The 95th percentile TTI runs up to about 20% high. Weather events, work zones, and special events are excluded on this page.',
+        ],
+      });
     } catch (err) {
       console.error('Chapter 11 analysis failed:', err);
       hasError = true;
@@ -386,11 +430,16 @@
   </form>
 
   <section class="panel results-panel">
-    <div class="panel-head">
+    <div class="panel-head with-actions">
       <div>
         <h2 class="panel-title">Outputs</h2>
         <p class="panel-sub">Results populate after pressing Calculate. Every scenario is evaluated with the Chapter 10 core methodology, so the run can take a few seconds.</p>
       </div>
+      {#if results}
+        <div class="panel-actions">
+          <a class="btn btn-outline btn-sm" href="/report">Open printable report</a>
+        </div>
+      {/if}
     </div>
     <div class="los overflow-x-auto">
       <table class="table w-full">
