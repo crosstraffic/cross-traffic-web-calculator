@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>HCM Calculator — Basic Freeway and Multilane Highway Segments · Managed Lanes</title>
+  <title>Managed Lanes · HCM Calculator</title>
 </svelte:head>
 
 <script>
@@ -69,8 +69,8 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Managed Lanes <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
-    <h1 class="page-title">HCM Calculator — Basic Freeway and Multilane Highway Segments · Managed Lanes</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 12 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <h1 class="page-title">Managed Lanes</h1>
     <p class="page-sub">
       Estimate capacity, space mean speed, density, and level of service for a
       basic managed lane segment adjacent to general purpose freeway lanes.

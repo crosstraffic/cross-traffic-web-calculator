@@ -22,7 +22,7 @@
         <p class="hero-lead">
           A browser-based implementation of HCM analysis procedures. Compute
           level of service, follower density, and operating speeds segment by
-          segment — backed by a WebAssembly engine for exact, reproducible results.
+          segment, backed by a WebAssembly engine for exact, reproducible results.
         </p>
         <div class="hero-actions">
           <a href="/hcm15" class="btn-cta">Open Two-Lane Highways <span aria-hidden="true">→</span></a>
@@ -61,7 +61,7 @@
         <path d="M9 1.5v3M15 1.5v3M9 19.5v3M15 19.5v3M1.5 9h3M1.5 15h3M19.5 9h3M19.5 15h3" />
       </svg>
       <h3>WebAssembly engine</h3>
-      <p>Calculations run locally in a compiled Rust core — fast, offline, and identical on every run.</p>
+      <p>Calculations run locally in a compiled Rust core. Fast, offline, and identical on every run.</p>
     </div>
     <div class="cap">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

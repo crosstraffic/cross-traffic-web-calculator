@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>HCM Calculator — Two-Lane Highways</title>
+  <title>Two-Lane Highways · HCM Calculator</title>
 </svelte:head>
 
 <script>
@@ -8,6 +8,7 @@
   import Calc from '../Calc/+page.svelte';
   import RoadDiagram from '../RoadDiagram/+page.svelte';
   import FacilityView from '../FacilityView/+page.svelte';
+  import ViewToggle from '$lib/ViewToggle.svelte';
   import init, { WasmSegment, WasmSubSegment, WasmTwoLaneHighways } from "HCM-middleware";
   import { onMount } from "svelte";
 
@@ -354,8 +355,8 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Two-Lane Highways</span>
-    <h1 class="page-title">HCM Calculator — Two-Lane Highways</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 15</span>
+    <h1 class="page-title">Two-Lane Highways</h1>
     <p class="page-sub">
       Estimate free-flow speed, follower density, average speed, and level of
       service for two-lane highway facilities, segment by segment.
@@ -548,15 +549,12 @@
           <h2 class="panel-title">Facility Layout</h2>
           <p class="panel-sub">
             {facilityExpanded
-              ? 'Edit each segment here — changes stay in sync with the Segments table.'
+              ? 'Edit each segment here. Changes stay in sync with the Segments table.'
               : 'Visual sequence of the configured segments. Expand to edit them here.'}
           </p>
         </div>
         <div class="panel-actions">
-          <div class="view-toggle" role="group" aria-label="Facility view mode">
-            <button type="button" class="vt-btn" class:active={facilityMode === '2d'} on:click={() => (facilityMode = '2d')}>2D</button>
-            <button type="button" class="vt-btn" class:active={facilityMode === '3d'} on:click={() => (facilityMode = '3d')}>3D</button>
-          </div>
+          <ViewToggle bind:mode={facilityMode} label="Facility view mode" />
           {#if facilityExpanded}
             <button class="btn btn-outline btn-sm" on:click={addSegment} type="button">+ Add Segment</button>
             <button class="btn btn-ghost btn-sm" on:click={removeSegment} type="button">Remove</button>

@@ -1,10 +1,15 @@
 <svelte:head>
-  <title>HCM Calculator — Signalized Intersections</title>
+  <title>Signalized Intersections · HCM Calculator</title>
 </svelte:head>
 
 <script>
   import LosScale from '$lib/LosScale.svelte';
   import LosBadge from '$lib/LosBadge.svelte';
+  import SignalizedDiagram from '$lib/SignalizedDiagram.svelte';
+  import SignalizedDiagram3D from '$lib/SignalizedDiagram3D.svelte';
+  import ViewToggle from '$lib/ViewToggle.svelte';
+
+  let diagramMode = '2d';
   import init, { WasmSignalizedIntersection } from "HCM-middleware";
   import { onMount } from "svelte";
 
@@ -108,20 +113,21 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Signalized Intersections <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
-    <h1 class="page-title">HCM Calculator — Signalized Intersections</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 19</span>
+    <h1 class="page-title">Signalized Intersections</h1>
     <p class="page-sub">
       Estimate control delay and level of service for a four-leg pretimed
       signalized intersection, by approach and for the intersection as a whole.
     </p>
   </header>
 
-  <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
+  <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> This chapter is newly implemented and its results have
-      not yet been validated against the full set of published HCM worked examples.
-      Verify results independently before relying on them in engineering work, and
-      please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      The compute engine reproduces the published HCM worked examples for this
+      chapter. This page exposes a simplified pretimed configuration. Parking,
+      bus stops, grades, platooning, and actuated phase timing are analyzed at
+      their base values. Verify results
+      independently before relying on them in engineering work, and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
 
@@ -219,6 +225,18 @@
             <span class="unit">p/h</span>
           </div>
         </div>
+      </div>
+
+      <div class="diagram-block">
+        <div class="diagram-head">
+          <p class="panel-sub">Hover the legend to highlight an approach's movements. The picture follows the lane and phasing inputs, and in the 2D view the movement volumes can be edited directly on the diagram.</p>
+          <ViewToggle bind:mode={diagramMode} label="Intersection view mode" />
+        </div>
+        {#if diagramMode === '3d'}
+          <SignalizedDiagram3D {approaches} />
+        {:else}
+          <SignalizedDiagram bind:approaches />
+        {/if}
       </div>
     </section>
 
@@ -379,3 +397,4 @@
     </div>
   </section>
 </div>
+

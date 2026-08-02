@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>HCM Calculator — Roundabouts</title>
+  <title>Roundabouts · HCM Calculator</title>
 </svelte:head>
 
 <script>
@@ -118,8 +118,8 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Roundabouts <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
-    <h1 class="page-title">HCM Calculator — Roundabouts</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 22 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <h1 class="page-title">Roundabouts</h1>
     <p class="page-sub">
       Estimate entry capacities, control delay, queues, and level of service
       for each entry lane and for the roundabout as a whole.

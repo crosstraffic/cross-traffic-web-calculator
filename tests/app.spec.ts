@@ -19,6 +19,8 @@ test.describe('navigation and route gating', () => {
     await expect(page).toHaveURL(/\/hcm14$/);
     await page.goto('/hcm15');
     await expect(page).toHaveURL(/\/hcm15$/);
+    await page.goto('/hcm19');
+    await expect(page).toHaveURL(/\/hcm19$/);
   });
 
   test('nav lists every released chapter', async ({ page }) => {
@@ -30,14 +32,15 @@ test.describe('navigation and route gating', () => {
     await expect(nav.locator('a[href="/hcm13"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm14"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm15"]')).toHaveCount(1);
+    await expect(nav.locator('a[href="/hcm19"]')).toHaveCount(1);
   });
 
   test('unreleased chapter routes redirect home', async ({ page }) => {
-    // hcm16 and hcm19 exist in the repo but are not in the RELEASED set of
+    // hcm16 and hcm20 exist in the repo but are not in the RELEASED set of
     // src/routes/+layout.js; a direct visit must land on the home page.
     await page.goto('/hcm16');
     await expect(page).toHaveURL(/\/$/);
-    await page.goto('/hcm19');
+    await page.goto('/hcm20');
     await expect(page).toHaveURL(/\/$/);
   });
 });
@@ -198,6 +201,20 @@ test.describe('chapter 13 weaving calculator', () => {
     // The geometry reacts to the form: two-sided redraws the ramps.
     await page.locator('#WT_input').selectOption('two_sided');
     await expect(diagram).toHaveAttribute('aria-label', /two-sided weaving segment/);
+
+    // The legend inputs two-way bind to the form.
+    await page.locator('input[aria-label*="v_RF"]').fill('880');
+    await expect(page.locator('#VRF_input')).toHaveValue('880');
+    await page.locator('#VFR_input').fill('610');
+    await expect(page.locator('input[aria-label*="v_FR"]')).toHaveValue('610');
+
+    // The shared 2D/3D toggle swaps in the projected view with the same state.
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
+    const svg3d = page.locator('.weave-diagram-3d svg');
+    await expect(svg3d).toBeVisible();
+    await expect(svg3d).toHaveAttribute('aria-label', /two-sided weaving segment, 3D view/);
+    await page.locator('.w3-chip.rr').hover();
+    await expect(page.locator('.weave-diagram-3d path.mv-rr')).toHaveClass(/active/);
   });
 });
 
@@ -276,8 +293,23 @@ test.describe('chapter 14 merge and diverge calculator', () => {
     await page.locator('.rd-chip', { hasText: 'influence area' }).hover();
     await expect(page.locator('.rd-influence')).toHaveClass(/active/);
 
+    // The dimensioned length is editable beside the legend and two-way binds
+    // to the form.
+    await page.locator('input[aria-label="Acceleration lane length (ft)"]').fill('980');
+    await expect(page.locator('#LA_input')).toHaveValue('980');
+
     await page.locator('#RT_input').selectOption('off_ramp');
     await expect(diagram).toHaveAttribute('aria-label', /off ramp/);
+    await page.locator('input[aria-label="Deceleration lane length (ft)"]').fill('520');
+    await expect(page.locator('#LD_input')).toHaveValue('520');
+
+    // The shared 2D/3D toggle swaps in the projected view with the same state.
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
+    const svg3d = page.locator('.ramp-diagram-3d svg');
+    await expect(svg3d).toBeVisible();
+    await expect(svg3d).toHaveAttribute('aria-label', /off ramp, 3D view/);
+    await page.locator('.r3-chip.influence').hover();
+    await expect(page.locator('.ramp-diagram-3d .r3-influence')).toHaveClass(/active/);
   });
 });
 
@@ -315,6 +347,104 @@ test.describe('chapter 12 basic freeway calculator', () => {
 
     await page.getByRole('button', { name: 'Reset Params' }).click();
     await expect(page.locator('.los-badge')).toHaveCount(0);
+  });
+});
+
+test.describe('chapter 19 signalized intersection calculator', () => {
+  test('reproduces the published pretimed timing-plan example', async ({ page }) => {
+    // HCM Chapter 31, Section 2, pretimed phase duration example (Exhibit 31-7):
+    // two-phase signal, through movements only, cycle 60 s, phases 33.3 s (EB/WB)
+    // and 26.7 s (NB/SB) including the change period. Published X_c = 0.923; the
+    // approach delays are hand-computed from Equations 19-19/19-26 in the library
+    // integration suite: EB 30.0 C, WB 12.5 B, NB 37.4 D, SB 20.2 C,
+    // intersection 26.8 s/veh LOS C.
+    await page.goto('/hcm19');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#CYCLE_input').fill('60');
+    await page.locator('#PHF_input').fill('1.0');
+    await page.locator('#PHV_input').fill('0');
+
+    const approaches = [
+      { key: 'NB', thru: '665', phase: '26.7' },
+      { key: 'SB', thru: '475', phase: '26.7' },
+      { key: 'EB', thru: '855', phase: '33.3' },
+      { key: 'WB', thru: '475', phase: '33.3' },
+    ];
+    for (const ap of approaches) {
+      await page.locator(`#${ap.key}_VL_input`).fill('0');
+      await page.locator(`#${ap.key}_VT_input`).fill(ap.thru);
+      await page.locator(`#${ap.key}_VR_input`).fill('0');
+      await page.locator(`#${ap.key}_LL_input`).fill('0');
+      await page.locator(`#${ap.key}_LT_input`).fill('1');
+      await page.locator(`#${ap.key}_LR_input`).fill('0');
+      await page.locator(`#${ap.key}_TP_input`).fill(ap.phase);
+      await page.locator(`#${ap.key}_LP_input`).fill('0');
+    }
+
+    await calculate.click();
+
+    const row = (dir) => page.locator('tr', { has: page.locator(`th:text-is("${dir}")`) }).first();
+    await expect(row('EB').locator('td').nth(1)).toHaveText('30.0');
+    await expect(row('EB').locator('td').nth(2)).toHaveText('C');
+    await expect(row('WB').locator('td').nth(1)).toHaveText('12.5');
+    await expect(row('NB').locator('td').nth(1)).toHaveText('37.4');
+    await expect(row('NB').locator('td').nth(2)).toHaveText('D');
+    await expect(row('SB').locator('td').nth(1)).toHaveText('20.2');
+
+    await expect(page.locator('tr', { hasText: 'Critical Volume-to-Capacity' }).locator('td')).toHaveText('0.92');
+    await expect(page.locator('tr', { hasText: 'Intersection Control Delay' }).locator('td')).toHaveText('26.8');
+    await expect(page.locator('.result-summary-badge .los-badge')).toHaveAttribute('aria-label', /Level of service C/);
+  });
+
+  test('the intersection diagram follows the inputs and highlights on hover', async ({ page }) => {
+    await page.goto('/hcm19');
+    const diagram = page.locator('.signal-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /four-leg signalized intersection/);
+
+    // Hovering a legend chip highlights that approach's movements and dims the rest.
+    await page.locator('.sd-chip.eb').hover();
+    await expect(page.locator('path.mv-eb').first()).toHaveClass(/active/);
+    await expect(page.locator('path.mv-nb').first()).toHaveClass(/dim/);
+
+    // The left-turn path renders dashed while permitted and solid once a
+    // protected phase is set; the chip text follows.
+    const nbLeft = page.locator('path.mv-nb').nth(1);
+    await expect(nbLeft).toHaveAttribute('stroke-dasharray', '6 5');
+    await page.locator('#NB_LP_input').fill('12');
+    await expect(nbLeft).not.toHaveAttribute('stroke-dasharray', '6 5');
+    await expect(page.locator('.sd-chip.nb')).toContainText('protected left');
+
+    // Adding lanes widens the road: more dashed lane lines appear.
+    const before = await page.locator('line.sd-lane-line').count();
+    await page.locator('#NB_LT_input').fill('3');
+    await expect(page.locator('line.sd-lane-line')).toHaveCount(before + 4);
+  });
+
+  test('volumes can be edited on the diagram and the 3D view toggles', async ({ page }) => {
+    await page.goto('/hcm19');
+
+    // The on-diagram editors two-way bind to the same state as the form.
+    await page.locator('input[aria-label="NB through volume"]').fill('750');
+    await expect(page.locator('#NB_VT_input')).toHaveValue('750');
+    await page.locator('#EB_VL_input').fill('120');
+    await expect(page.locator('input[aria-label="EB left-turn volume"]')).toHaveValue('120');
+
+    // The shared 2D/3D toggle swaps in the rotatable projected view, which
+    // keeps the legend highlighting and follows the same inputs.
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
+    const svg3d = page.locator('.signal-diagram-3d svg');
+    await expect(svg3d).toBeVisible();
+    await expect(svg3d).toHaveAttribute('aria-label', /3D view/);
+    await page.locator('.sd3-chip.wb').hover();
+    await expect(page.locator('.signal-diagram-3d path.mv-wb').first()).toHaveClass(/active/);
+    await expect(page.locator('.signal-diagram-3d path.mv-sb').first()).toHaveClass(/dim/);
+
+    // Toggling back restores the editable plan view with the edited value.
+    await page.locator('.view-toggle .vt-btn', { hasText: '2D' }).click();
+    await expect(page.locator('input[aria-label="NB through volume"]')).toHaveValue('750');
   });
 });
 

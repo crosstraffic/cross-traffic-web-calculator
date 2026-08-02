@@ -829,6 +829,14 @@ a.chapter-row:hover {
     overflow: hidden;
 }
 
+/* Header row above a chapter diagram: caption left, view toggle right */
+.diagram-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
 .vt-btn {
     font-size: 0.8rem;
     font-weight: 600;

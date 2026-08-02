@@ -109,7 +109,7 @@
       </text>
     {:else if overCapacity}
       <text class="sfc-over" x={PAD.left + plotW / 2} y={PAD.top + plotH / 2} text-anchor="middle">
-        demand exceeds capacity — the curve does not extend here
+        demand exceeds capacity, past the end of the curve
       </text>
     {/if}
   </svg>

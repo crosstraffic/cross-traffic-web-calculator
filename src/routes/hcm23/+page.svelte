@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>HCM Calculator — Ramp Terminals and Alternative Intersections</title>
+  <title>Ramp Terminals and Alternative Intersections · HCM Calculator</title>
 </svelte:head>
 
 <script>
@@ -156,8 +156,8 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Ramp Terminals and Alternative Intersections <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
-    <h1 class="page-title">HCM Calculator — Ramp Terminals and Alternative Intersections</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 23 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <h1 class="page-title">Ramp Terminals and Alternative Intersections</h1>
     <p class="page-sub">
       Estimate experienced travel time and level of service for a signalized
       conventional diamond interchange, by origin-destination movement and for

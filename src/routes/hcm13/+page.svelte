@@ -1,10 +1,14 @@
 <svelte:head>
-  <title>HCM Calculator — Freeway Weaving Segments</title>
+  <title>Freeway Weaving Segments · HCM Calculator</title>
 </svelte:head>
 
 <script>
   import init, { WasmWeavingSegment } from "HCM-middleware";
   import WeavingDiagram from '$lib/WeavingDiagram.svelte';
+  import WeavingDiagram3D from '$lib/WeavingDiagram3D.svelte';
+  import ViewToggle from '$lib/ViewToggle.svelte';
+
+  let diagramMode = '2d';
   import { onMount } from "svelte";
 
   let ready = false;
@@ -141,8 +145,8 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Freeway Weaving Segments</span>
-    <h1 class="page-title">HCM Calculator — Freeway Weaving Segments</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 13</span>
+    <h1 class="page-title">Freeway Weaving Segments</h1>
     <p class="page-sub">
       Estimate capacity, weaving and nonweaving speeds, density, and level of
       service for a freeway weaving segment.
@@ -152,9 +156,9 @@
   <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">
     <span>
       The compute engine reproduces the published HCM worked examples for this
-      chapter under both editions. The 7th Edition and Edition 7.1 are different models — the same
+      chapter under both editions. The 7th Edition and Edition 7.1 are different models. The same
       segment can land a full LOS letter apart between them, and weaving LOS F
-      begins at 35 rather than 43 pc/mi/ln under 7.1 — so results are only
+      begins at 35 rather than 43 pc/mi/ln under 7.1, so results are only
       comparable within one edition. Please
       <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
@@ -292,15 +296,29 @@
       </div>
 
       <div class="diagram-block">
-        <p class="panel-sub">Hover a movement to trace it through the segment. The picture follows the inputs.</p>
-        <WeavingDiagram
-          weavingType={weaving_type}
-          numLanes={num_lanes}
-          vFF={v_ff}
-          vFR={v_fr}
-          vRF={v_rf}
-          vRR={v_rr}
-        />
+        <div class="diagram-head">
+          <p class="panel-sub">Hover a movement to trace it through the segment. The picture follows the inputs.</p>
+          <ViewToggle bind:mode={diagramMode} label="Segment view mode" />
+        </div>
+        {#if diagramMode === '3d'}
+          <WeavingDiagram3D
+            weavingType={weaving_type}
+            numLanes={num_lanes}
+            vFF={v_ff}
+            vFR={v_fr}
+            vRF={v_rf}
+            vRR={v_rr}
+          />
+        {:else}
+          <WeavingDiagram
+            weavingType={weaving_type}
+            numLanes={num_lanes}
+            bind:vFF={v_ff}
+            bind:vFR={v_fr}
+            bind:vRF={v_rf}
+            bind:vRR={v_rr}
+          />
+        {/if}
       </div>
     </section>
 

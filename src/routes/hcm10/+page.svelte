@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>HCM Calculator — Freeway Facilities Core Methodology</title>
+  <title>Freeway Facilities Core Methodology · HCM Calculator</title>
 </svelte:head>
 
 <script>
@@ -156,8 +156,8 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Freeway Facilities</span>
-    <h1 class="page-title">HCM Calculator — Freeway Facilities Core Methodology</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 10</span>
+    <h1 class="page-title">Freeway Facilities Core Methodology</h1>
     <p class="page-sub">
       Evaluate a directional freeway facility of basic, merge, diverge, weaving, and
       overlapping ramp segments over consecutive 15-min analysis periods. Covers the

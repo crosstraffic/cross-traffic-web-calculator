@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>HCM Calculator — Two-Way STOP-Controlled Intersections</title>
+  <title>Two-Way STOP-Controlled Intersections · HCM Calculator</title>
 </svelte:head>
 
 <script>
@@ -127,8 +127,8 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Two-Way STOP-Controlled Intersections <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
-    <h1 class="page-title">HCM Calculator — Two-Way STOP-Controlled Intersections</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 20 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <h1 class="page-title">Two-Way STOP-Controlled Intersections</h1>
     <p class="page-sub">
       Estimate movement capacities, control delay, queues, and level of service
       for the controlled movements at a two-way STOP-controlled intersection.

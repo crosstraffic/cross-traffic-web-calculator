@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>HCM Calculator — Urban Street Facilities</title>
+  <title>Urban Street Facilities · HCM Calculator</title>
 </svelte:head>
 
 <script>
@@ -107,8 +107,8 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Urban Street Facilities <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
-    <h1 class="page-title">HCM Calculator — Urban Street Facilities</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 16 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <h1 class="page-title">Urban Street Facilities</h1>
     <p class="page-sub">
       Aggregate Chapter 18 urban street segments into facility travel speed,
       spatial stop rate, and level of service for one direction of travel.

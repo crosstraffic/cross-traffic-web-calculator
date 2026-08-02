@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>HCM Calculator — Freeway Reliability Analysis</title>
+  <title>Freeway Reliability Analysis · HCM Calculator</title>
 </svelte:head>
 
 <script>
@@ -165,8 +165,8 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Freeway Reliability Analysis <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
-    <h1 class="page-title">HCM Calculator — Freeway Reliability Analysis</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 11 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <h1 class="page-title">Freeway Reliability Analysis</h1>
     <p class="page-sub">
       Estimate the travel time reliability of a freeway facility across a whole-year
       reporting period on Monday through Friday. This beta models demand variability
