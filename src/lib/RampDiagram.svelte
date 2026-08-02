@@ -2,6 +2,10 @@
   // Interactive plan view of a ramp-freeway junction. Geometry follows the
   // form inputs; hovering the legend highlights the ramp or the two-lane
   // ramp influence area the Chapter 14 method evaluates.
+  //
+  // The speed-change lane is drawn as a parallel lane: an on-ramp joins at
+  // the gore, runs alongside, and tapers out downstream; an off-ramp mirrors
+  // that upstream. Left-side ramps mirror the whole junction vertically.
   export let rampType = 'on_ramp';
   export let rampSide = 'right';
   export let rampLanes = 1;
@@ -11,82 +15,103 @@
 
   let hovered = null; // 'ramp' | 'influence' | null
 
+  const LANE = 16;   // lane height, px
+  const RAMP = 74;   // horizontal run of the ramp band
+  const DROP = 42;   // vertical drop of the ramp band over that run
+  const TAPER = 32;  // length of the speed-change lane end taper
+
   $: lanes = Math.max(2, Math.min(5, Number(freewayLanes) || 3));
   $: isOn = rampType === 'on_ramp' || rampType === 'major_merge';
   $: isMajor = rampType === 'major_merge' || rampType === 'major_diverge';
   $: onRight = rampSide !== 'left';
   $: nRamp = Math.max(1, Math.min(2, Number(rampLanes) || 1));
 
-  // Leave room for the ramp on whichever side it joins (it extends up to
-  // 36 + 12 * nRamp px beyond the mainline edge).
-  $: mainTop = onRight ? 24 : 48 + 12 * nRamp;
-  $: mainH = 16 * lanes;
-  $: mainBot = mainTop + mainH;
-  $: viewH = mainBot + (onRight ? 48 + 12 * nRamp : 24);
-
-  // Speed-change lane length, drawn proportionally and clamped so the taper
-  // stays readable: 300 ft .. 1,500 ft maps to 60 .. 200 px.
+  // Speed-change lane length: 300..1,500 ft maps to 70..170 px.
   $: scl = Math.max(300, Math.min(1500, Number(isOn ? accelLen : decelLen) || 500));
-  $: sclPx = 60 + ((scl - 300) / 1200) * 140;
+  $: sclPx = 70 + ((scl - 300) / 1200) * 100;
 
-  // Gore position: merges join on the left half, diverges leave on the right.
-  $: gore = isOn ? 70 : 250 - sclPx;
+  // Gore x: where the ramp band meets the parallel lane.
+  $: gore = isOn ? 84 : 236;
 
-  // The influence area covers the two lanes adjacent to the ramp for 1,500 ft
-  // from the gore, in the direction of travel.
+  $: mainTop = onRight ? 20 : DROP + LANE + 30;
+  $: mainH = LANE * lanes;
+  $: mainBot = mainTop + mainH;
+  $: viewH = mainBot + (onRight ? DROP + LANE + 30 : 20);
+
+  // Vertical mirror for left-side ramps: offsets grow away from `edgeY`.
+  $: dir = onRight ? 1 : -1;
+  $: edgeY = onRight ? mainBot : mainTop;
+  $: ry = (offset) => edgeY + dir * offset;
+
+  // Parallel-lane span along the mainline edge.
+  $: laneX0 = isOn ? gore : gore - sclPx;
+  $: laneX1 = isOn ? gore + sclPx : gore;
+  $: taperTip = isOn ? laneX1 + TAPER : laneX0 - TAPER;
+
+  // Influence area: the two lanes nearest the ramp, 1,500 ft from the gore
+  // (downstream of a merge, upstream of a diverge).
   $: inflLanes = Math.min(2, lanes);
-  $: inflY = onRight ? mainBot - 16 * inflLanes : mainTop;
-  $: rampBandY = onRight ? mainBot : mainTop - 16 * nRamp;
+  $: inflY = onRight ? mainBot - LANE * inflLanes : mainTop;
+  $: inflX = isOn ? gore : Math.max(0, gore - 170);
+  $: inflW = 170;
+
+  $: dimY = ry(LANE + 18);
+  $: labelY = ry(LANE + 30) + (onRight ? 0 : 4);
+
+  // Speed-change lane outline: gore-side end is full width, the other end
+  // tapers back to the mainline edge.
+  $: sclPoints = isOn
+    ? `${laneX0},${ry(0)} ${taperTip},${ry(0)} ${laneX1},${ry(LANE * nRamp)} ${laneX0},${ry(LANE * nRamp)}`
+    : `${taperTip},${ry(0)} ${laneX1},${ry(0)} ${laneX1},${ry(LANE * nRamp)} ${laneX0},${ry(LANE * nRamp)}`;
 </script>
 
 <div class="ramp-diagram">
   <svg viewBox="0 0 320 {viewH}" preserveAspectRatio="xMidYMid meet" role="img"
        aria-label={`${lanes}-lane freeway with a ${nRamp}-lane ${onRight ? 'right' : 'left'}-side ${rampType.replace('_', ' ')}`}>
-    <!-- mainline -->
+
+    <!-- ══ pavement fills (edges drawn separately) ══ -->
     <rect x="0" y={mainTop} width="320" height={mainH} class="rd-pavement" />
-    <line x1="0" y1={mainTop} x2="320" y2={mainTop} class="rd-edge" />
-    <line x1="0" y1={mainBot} x2="320" y2={mainBot} class="rd-edge" />
-    {#each Array.from({ length: lanes - 1 }) as _, i}
-      <line x1="0" y1={mainTop + 16 * (i + 1)} x2="320" y2={mainTop + 16 * (i + 1)} class="rd-lane-line" />
-    {/each}
+    <!-- parallel speed-change lane with its end taper -->
+    <polygon points={sclPoints} class="rd-scl" class:active={hovered === 'ramp'} />
+    <!-- ramp band joining the gore -->
+    {#if isOn}
+      <polygon points="{gore - RAMP},{ry(DROP)} {gore},{ry(0)} {gore},{ry(LANE * nRamp)} {gore - RAMP},{ry(DROP + LANE * nRamp)}" class="rd-scl" class:active={hovered === 'ramp'} />
+    {:else}
+      <polygon points="{gore},{ry(0)} {gore + RAMP},{ry(DROP)} {gore + RAMP},{ry(DROP + LANE * nRamp)} {gore},{ry(LANE * nRamp)}" class="rd-scl" class:active={hovered === 'ramp'} />
+    {/if}
 
     <!-- influence area (lanes 1-2 nearest the ramp) -->
-    <rect
-      x={isOn ? gore : Math.max(0, gore - 150)}
-      y={inflY}
-      width="150"
-      height={16 * inflLanes}
-      class="rd-influence"
-      class:active={hovered === 'influence'}
-    />
+    <rect x={inflX} y={inflY} width={inflW} height={LANE * inflLanes} class="rd-influence" class:active={hovered === 'influence'} />
 
-    <!-- ramp + speed-change lane -->
-    {#if onRight}
-      {#if isOn}
-        <polygon points="0,{mainBot + 36} {gore},{mainBot} {gore},{mainBot + 16 * nRamp} 0,{mainBot + 36 + 12 * nRamp}"
-                 class="rd-ramp" class:active={hovered === 'ramp'} />
-        <polygon points="{gore},{mainBot} {gore + sclPx},{mainBot} {gore},{mainBot + 16 * nRamp}"
-                 class="rd-ramp" class:active={hovered === 'ramp'} />
-        <text x={gore + 8} y={mainBot + 13} class="rd-label">L_A = {isMajor ? '—' : `${accelLen} ft`}</text>
-      {:else}
-        <polygon points="{gore},{mainBot} {gore + sclPx},{mainBot} {gore + sclPx},{mainBot + 16 * nRamp} 320,{mainBot + 36 + 12 * nRamp} 320,{mainBot + 36}"
-                 class="rd-ramp" class:active={hovered === 'ramp'} />
-        <text x={gore + 8} y={mainBot + 13} class="rd-label">L_D = {isMajor ? '—' : `${decelLen} ft`}</text>
-      {/if}
+    <!-- ══ edges and lane lines ══ -->
+    {#each Array.from({ length: lanes - 1 }) as _, i}
+      <line x1="0" y1={mainTop + LANE * (i + 1)} x2="320" y2={mainTop + LANE * (i + 1)} class="rd-lane-line" />
+    {/each}
+    <!-- far mainline edge: always solid -->
+    <line x1="0" y1={onRight ? mainTop : mainBot} x2="320" y2={onRight ? mainTop : mainBot} class="rd-edge" />
+    <!-- ramp-side mainline edge: dashed along the speed-change lane, solid elsewhere -->
+    <line x1="0" y1={edgeY} x2={Math.min(laneX0, taperTip)} y2={edgeY} class="rd-edge" />
+    <line x1={Math.min(laneX0, taperTip)} y1={edgeY} x2={Math.max(laneX1, taperTip)} y2={edgeY} class="rd-lane-line-dark" />
+    <line x1={Math.max(laneX1, taperTip)} y1={edgeY} x2="320" y2={edgeY} class="rd-edge" />
+    <!-- outer edge: along the ramp band, the parallel lane, and the taper -->
+    {#if isOn}
+      <polyline points="{gore - RAMP},{ry(DROP + LANE * nRamp)} {gore},{ry(LANE * nRamp)} {laneX1},{ry(LANE * nRamp)} {taperTip},{ry(0)}" class="rd-edge-path" />
+      <line x1={gore - RAMP} y1={ry(DROP)} x2={gore} y2={ry(0)} class="rd-edge" />
     {:else}
-      {#if isOn}
-        <polygon points="0,{mainTop - 36} {gore},{mainTop} {gore},{mainTop - 16 * nRamp} 0,{mainTop - 36 - 12 * nRamp}"
-                 class="rd-ramp" class:active={hovered === 'ramp'} />
-        <polygon points="{gore},{mainTop} {gore + sclPx},{mainTop} {gore},{mainTop - 16 * nRamp}"
-                 class="rd-ramp" class:active={hovered === 'ramp'} />
-      {:else}
-        <polygon points="{gore},{mainTop} {gore + sclPx},{mainTop} {gore + sclPx},{mainTop - 16 * nRamp} 320,{mainTop - 36 - 12 * nRamp} 320,{mainTop - 36}"
-                 class="rd-ramp" class:active={hovered === 'ramp'} />
-      {/if}
+      <polyline points="{taperTip},{ry(0)} {laneX0},{ry(LANE * nRamp)} {gore},{ry(LANE * nRamp)} {gore + RAMP},{ry(DROP + LANE * nRamp)}" class="rd-edge-path" />
+      <line x1={gore} y1={ry(0)} x2={gore + RAMP} y2={ry(DROP)} class="rd-edge" />
     {/if}
 
     <!-- direction arrow -->
-    <polygon points="288,{mainTop + mainH / 2 - 4} 300,{mainTop + mainH / 2} 288,{mainTop + mainH / 2 + 4}" class="rd-arrow" />
+    <polygon points="298,{mainTop + mainH / 2 - 5} 312,{mainTop + mainH / 2} 298,{mainTop + mainH / 2 + 5}" class="rd-arrow" />
+
+    <!-- ══ speed-change lane dimension, outside the pavement ══ -->
+    {#if !isMajor}
+      <line x1={laneX0} y1={dimY} x2={laneX1} y2={dimY} class="rd-dim" />
+      <line x1={laneX0} y1={ry(LANE * nRamp + 2)} x2={laneX0} y2={ry(LANE + 22)} class="rd-dim" />
+      <line x1={laneX1} y1={ry(LANE * nRamp + 2)} x2={laneX1} y2={ry(LANE + 22)} class="rd-dim" />
+      <text x={(laneX0 + laneX1) / 2} y={labelY} class="rd-label" text-anchor="middle">{isOn ? `L_A = ${accelLen} ft` : `L_D = ${decelLen} ft`}</text>
+    {/if}
   </svg>
 
   <div class="rd-legend">
@@ -94,7 +119,7 @@
       on:mouseenter={() => (hovered = 'ramp')} on:mouseleave={() => (hovered = null)}
       on:focus={() => (hovered = 'ramp')} on:blur={() => (hovered = null)}>
       <span class="swatch ramp"></span>
-      {isOn ? 'On-ramp and acceleration lane' : 'Deceleration lane and off-ramp'} ({nRamp} lane{nRamp === 1 ? '' : 's'}, {onRight ? 'right' : 'left'} side)
+      {isOn ? (isMajor ? 'Major merge roadway' : 'On-ramp and acceleration lane') : (isMajor ? 'Major diverge roadway' : 'Deceleration lane and off-ramp')} ({nRamp} lane{nRamp === 1 ? '' : 's'}, {onRight ? 'right' : 'left'} side)
     </button>
     <button type="button" class="rd-chip" class:active={hovered === 'influence'}
       on:mouseenter={() => (hovered = 'influence')} on:mouseleave={() => (hovered = null)}
@@ -108,24 +133,48 @@
 <style>
   .ramp-diagram svg {
     width: 100%;
+    max-width: 720px;
     display: block;
+    margin: 0 auto;
   }
   .rd-pavement { fill: #e2e8f0; }
-  .rd-ramp {
+  .rd-scl {
     fill: #e2e8f0;
-    stroke: #334155;
-    stroke-width: 1.5;
     transition: fill 120ms ease;
   }
-  .rd-ramp.active { fill: #fed7aa; }
+  .rd-scl.active { fill: #fed7aa; }
   .rd-influence {
     fill: #2563eb;
     opacity: 0.10;
     transition: opacity 120ms ease;
   }
   .rd-influence.active { opacity: 0.30; }
-  .rd-edge { stroke: #334155; stroke-width: 2; vector-effect: non-scaling-stroke; }
-  .rd-lane-line { stroke: #ffffff; stroke-width: 1.5; stroke-dasharray: 8 6; vector-effect: non-scaling-stroke; }
+  .rd-edge {
+    stroke: #334155;
+    stroke-width: 2;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .rd-edge-path {
+    fill: none;
+    stroke: #334155;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .rd-lane-line {
+    stroke: #ffffff;
+    stroke-width: 1.5;
+    stroke-dasharray: 8 6;
+    vector-effect: non-scaling-stroke;
+  }
+  .rd-lane-line-dark {
+    stroke: #94a3b8;
+    stroke-width: 1.5;
+    stroke-dasharray: 8 6;
+    vector-effect: non-scaling-stroke;
+  }
+  .rd-dim { stroke: #64748b; stroke-width: 1; }
   .rd-label { font-size: 9px; fill: #64748b; }
   .rd-arrow { fill: #334155; }
 

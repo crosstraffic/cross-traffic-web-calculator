@@ -2,6 +2,11 @@
   // Interactive plan view of a weaving segment. The geometry follows the form
   // inputs and each of the four component movements can be highlighted from
   // the legend, so the v_FF/v_FR/v_RF/v_RR inputs have a picture.
+  //
+  // One-sided: on-ramp joins at the entry gore, an auxiliary lane runs the
+  // short length, the off-ramp leaves at the exit gore, all on the right.
+  // Two-sided: on-ramp on the right, off-ramp on the left, so the
+  // ramp-to-ramp movement crosses every mainline lane.
   export let weavingType = 'one_sided';
   export let numLanes = 4;
   export let vFF = 0;
@@ -11,25 +16,32 @@
 
   let hovered = null; // 'ff' | 'fr' | 'rf' | 'rr' | null
 
-  // Mainline band: `lanes` mainline lanes drawn at 16 px each, plus the
-  // auxiliary/ramp lane below (one-sided) or ramps on both sides (two-sided).
-  $: lanes = Math.max(2, Math.min(6, Number(numLanes) || 4));
-  $: mainTop = 26;
-  $: mainH = 16 * lanes;
-  $: mainBot = mainTop + mainH;
-  $: viewH = mainBot + 56;
-  // Gore x-positions: entry gore at 70, exit gore at 250; the span between
-  // them reads as the short length L_S.
-  const gIn = 70;
-  const gOut = 250;
-
   $: twoSided = weavingType === 'two_sided';
+  // One-sided: N includes the auxiliary lane, so draw N-1 mainline lanes.
+  $: mainLanes = Math.max(2, Math.min(6, (Number(numLanes) || 4) - (twoSided ? 0 : 1)));
 
-  // Movement centerlines. One-sided: both ramps on the right (bottom).
-  // Two-sided: on-ramp bottom-left, off-ramp top-right, so the ramp-to-ramp
-  // movement crosses every mainline lane.
-  $: yLaneMid = (i) => mainTop + 16 * i + 8;
-  $: rampY = mainBot + 24;
+  const LANE = 16;      // lane height, px
+  const gIn = 78;       // entry gore x
+  const gOut = 246;     // exit gore x
+  const RAMP = 84;      // horizontal run of a ramp band
+  const DROP = 46;      // vertical drop of a ramp band over that run
+
+  $: mainTop = twoSided ? DROP + LANE + 14 : 16;
+  $: mainBot = mainTop + LANE * mainLanes;
+  $: auxBot = mainBot + LANE;
+  $: viewH = (twoSided ? mainBot : auxBot) + DROP + LANE + 20;
+
+  $: yLane = (i) => mainTop + LANE * i + LANE / 2;
+  $: yBottom = yLane(mainLanes - 1);
+  $: yTop = yLane(0);
+  $: yAux = mainBot + LANE / 2;
+
+  // Ramp-band centerline points 14 px in from the band ends, so movement
+  // paths enter and leave inside the pavement instead of overshooting it.
+  $: rampInlet = { x: gIn - RAMP + 14, y: auxBot + DROP - LANE / 2 - (DROP * 14) / RAMP };
+  $: rampOutlet = { x: gOut + RAMP - 14, y: auxBot - LANE / 2 + (DROP * (RAMP - 14)) / RAMP };
+  $: rampInlet2 = { x: gIn - RAMP + 14, y: mainBot + DROP + LANE / 2 - (DROP * 14) / RAMP };
+  $: rampOutlet2 = { x: gOut + RAMP - 14, y: mainTop - DROP - LANE / 2 + (DROP * 14) / RAMP };
 
   const movements = [
     { key: 'ff', label: 'v_FF freeway → freeway' },
@@ -47,43 +59,95 @@
 
 <div class="weave-diagram">
   <svg viewBox="0 0 320 {viewH}" preserveAspectRatio="xMidYMid meet" role="img"
-       aria-label={`${lanes}-lane ${twoSided ? 'two-sided' : 'one-sided'} weaving segment`}>
-    <!-- mainline -->
-    <rect x="0" y={mainTop} width="320" height={mainH} class="wv-pavement" />
-    <line x1="0" y1={mainTop} x2="320" y2={mainTop} class="wv-edge" />
-    <line x1="0" y1={mainBot} x2="320" y2={mainBot} class="wv-edge" />
-    {#each Array.from({ length: lanes - 1 }) as _, i}
-      <line x1="0" y1={mainTop + 16 * (i + 1)} x2="320" y2={mainTop + 16 * (i + 1)} class="wv-lane-line" />
+       aria-label={`${Number(numLanes) || 4}-lane ${twoSided ? 'two-sided' : 'one-sided'} weaving segment`}>
+
+    <!-- ══ pavement (fills only, no strokes: edges are drawn as lines) ══ -->
+    <rect x="0" y={mainTop} width="320" height={LANE * mainLanes} class="wv-pavement" />
+
+    {#if twoSided}
+      <!-- on-ramp band merging from lower left; taper ends at gIn + 40 -->
+      <polygon points="{gIn - RAMP},{mainBot + DROP} {gIn},{mainBot} {gIn + 40},{mainBot} {gIn - RAMP},{mainBot + DROP + LANE}" class="wv-pavement" />
+      <!-- off-ramp band diverging to upper right; taper begins at gOut - 40 -->
+      <polygon points="{gOut - 40},{mainTop} {gOut + RAMP},{mainTop - DROP - LANE} {gOut + RAMP},{mainTop - DROP} {gOut},{mainTop}" class="wv-pavement" />
+    {:else}
+      <!-- auxiliary lane between the gores -->
+      <rect x={gIn} y={mainBot} width={gOut - gIn} height={LANE} class="wv-pavement" />
+      <!-- on-ramp band into the entry gore -->
+      <polygon points="{gIn - RAMP},{auxBot + DROP - LANE} {gIn},{mainBot} {gIn},{auxBot} {gIn - RAMP},{auxBot + DROP}" class="wv-pavement" />
+      <!-- off-ramp band out of the exit gore -->
+      <polygon points="{gOut},{mainBot} {gOut + RAMP},{auxBot + DROP - LANE} {gOut + RAMP},{auxBot + DROP} {gOut},{auxBot}" class="wv-pavement" />
+    {/if}
+
+    <!-- ══ edges and lane lines ══ -->
+    <!-- mainline lane lines -->
+    {#each Array.from({ length: mainLanes - 1 }) as _, i}
+      <line x1="0" y1={mainTop + LANE * (i + 1)} x2="320" y2={mainTop + LANE * (i + 1)} class="wv-lane-line" />
     {/each}
 
-    <!-- ramps -->
     {#if twoSided}
-      <!-- on-ramp joins bottom-left, off-ramp leaves top-right -->
-      <polygon points="0,{mainBot + 34} {gIn},{mainBot} {gIn + 46},{mainBot} 0,{mainBot + 48}" class="wv-ramp" />
-      <polygon points="{gOut - 46},{mainTop} {gOut},{mainTop} 320,{mainTop - 22} 320,{mainTop - 8}" class="wv-ramp" />
+      <!-- top edge: solid outside the diverge taper, lane line across it -->
+      <line x1="0" y1={mainTop} x2={gOut - 40} y2={mainTop} class="wv-edge" />
+      <line x1={gOut - 40} y1={mainTop} x2={gOut} y2={mainTop} class="wv-lane-line" />
+      <!-- off-ramp edges: outer edge above, gore edge below -->
+      <line x1={gOut - 40} y1={mainTop} x2={gOut + RAMP} y2={mainTop - DROP - LANE} class="wv-edge" />
+      <line x1={gOut} y1={mainTop} x2={gOut + RAMP} y2={mainTop - DROP} class="wv-edge" />
+      <!-- bottom edge: solid outside the merge taper, lane line across it -->
+      <line x1="0" y1={mainBot} x2={gIn} y2={mainBot} class="wv-edge" />
+      <line x1={gIn} y1={mainBot} x2={gIn + 40} y2={mainBot} class="wv-lane-line" />
+      <line x1={gIn + 40} y1={mainBot} x2="320" y2={mainBot} class="wv-edge" />
+      <!-- on-ramp edges -->
+      <line x1={gIn - RAMP} y1={mainBot + DROP} x2={gIn} y2={mainBot} class="wv-edge" />
+      <line x1={gIn - RAMP} y1={mainBot + DROP + LANE} x2={gIn + 40} y2={mainBot} class="wv-edge" />
     {:else}
-      <!-- both ramps on the right side; auxiliary lane between the gores -->
-      <polygon points="0,{mainBot + 34} {gIn},{mainBot + 16} {gIn},{mainBot} 0,{mainBot + 48}" class="wv-ramp" />
-      <rect x={gIn} y={mainBot} width={gOut - gIn} height="16" class="wv-ramp" />
-      <polygon points="{gOut},{mainBot} {gOut},{mainBot + 16} 320,{mainBot + 34} 320,{mainBot + 48}" class="wv-ramp" />
+      <!-- top edge: solid the whole way -->
+      <line x1="0" y1={mainTop} x2="320" y2={mainTop} class="wv-edge" />
+      <!-- mainline/auxiliary boundary: solid outside the gores, dashed within -->
+      <line x1="0" y1={mainBot} x2={gIn} y2={mainBot} class="wv-edge" />
+      <line x1={gIn} y1={mainBot} x2={gOut} y2={mainBot} class="wv-lane-line" />
+      <line x1={gOut} y1={mainBot} x2="320" y2={mainBot} class="wv-edge" />
+      <!-- outer edge: up the on-ramp, along the auxiliary lane, down the off-ramp -->
+      <polyline points="{gIn - RAMP},{auxBot + DROP} {gIn},{auxBot} {gOut},{auxBot} {gOut + RAMP},{auxBot + DROP}" class="wv-edge-path" />
+      <!-- gore edges (inner ramp edges meeting the mainline edge) -->
+      <line x1={gIn - RAMP} y1={auxBot + DROP - LANE} x2={gIn} y2={mainBot} class="wv-edge" />
+      <line x1={gOut} y1={mainBot} x2={gOut + RAMP} y2={auxBot + DROP - LANE} class="wv-edge" />
     {/if}
 
-    <!-- L_S dimension between gores -->
-    <line x1={gIn} y1={mainBot + (twoSided ? 6 : 22)} x2={gOut} y2={mainBot + (twoSided ? 6 : 22)} class="wv-dim" />
-    <text x={(gIn + gOut) / 2} y={mainBot + (twoSided ? 16 : 32)} class="wv-label" text-anchor="middle">L_S</text>
+    <!-- ══ movement paths ══ -->
+    <!-- freeway-to-freeway: straight through a middle lane -->
+    <path d={`M0,${yLane(Math.max(0, Math.floor((mainLanes - 1) / 2)))} H312`} class={`mv-ff ${cls(hovered, 'ff')}`} />
 
-    <!-- movement paths -->
-    <path d={`M0,${yLaneMid(Math.max(0, Math.floor(lanes / 2) - 1))} H320`} class={`mv-ff ${cls(hovered, 'ff')}`} />
     {#if twoSided}
-      <path d={`M20,${mainBot + 36} C ${gIn + 30},${mainBot - 10} ${gOut - 60},${yLaneMid(0) + 10} ${gOut + 30},${yLaneMid(0)} C ${gOut + 40},${mainTop - 4} 300,${mainTop - 10} 318,${mainTop - 14}`} class={`mv-rr ${cls(hovered, 'rr')}`} />
-      <path d={`M20,${mainBot + 38} C ${gIn + 40},${mainBot - 6} 180,${yLaneMid(lanes - 1)} 320,${yLaneMid(lanes - 1)}`} class={`mv-rf ${cls(hovered, 'rf')}`} />
-      <path d={`M0,${yLaneMid(0)} C ${gOut - 80},${yLaneMid(0)} ${gOut - 20},${mainTop + 4} 316,${mainTop - 16}`} class={`mv-fr ${cls(hovered, 'fr')}`} />
+      <!-- ramp-to-ramp: enters lower left, crosses every lane in one smooth S, leaves upper right -->
+      <path d={`M${rampInlet2.x},${rampInlet2.y} C${gIn + 90},${mainBot + 2} ${gOut - 90},${mainTop - 2} ${rampOutlet2.x},${rampOutlet2.y}`} class={`mv-rr ${cls(hovered, 'rr')}`} />
+      <!-- ramp-to-freeway: enters lower left, settles into the bottom lane -->
+      <path d={`M${rampInlet2.x},${rampInlet2.y + 4} Q${gIn + 26},${mainBot + 2} ${gIn + 88},${yBottom} H312`} class={`mv-rf ${cls(hovered, 'rf')}`} />
+      <!-- freeway-to-ramp: rides the top lane, leaves up the off-ramp -->
+      <path d={`M0,${yTop} H${gOut - 64} Q${gOut + 4},${yTop - 4} ${rampOutlet2.x},${rampOutlet2.y + 4}`} class={`mv-fr ${cls(hovered, 'fr')}`} />
     {:else}
-      <path d={`M14,${mainBot + 38} C ${gIn + 30},${mainBot + 8} ${gIn + 60},${yLaneMid(lanes - 1)} 320,${yLaneMid(lanes - 1)}`} class={`mv-rf ${cls(hovered, 'rf')}`} />
-      <path d={`M0,${yLaneMid(lanes - 1)} C ${gOut - 90},${yLaneMid(lanes - 1)} ${gOut - 30},${mainBot + 8} 306,${mainBot + 38}`} class={`mv-fr ${cls(hovered, 'fr')}`} />
-      <path d={`M14,${mainBot + 40} C ${gIn + 20},${mainBot + 10} ${gOut - 20},${mainBot + 10} 306,${mainBot + 40}`} class={`mv-rr ${cls(hovered, 'rr')}`} />
+      <!-- ramp-to-freeway: up the on-ramp, along the auxiliary lane, merge to lane 1 -->
+      <path d={`M${rampInlet.x},${rampInlet.y - 3} Q${gIn + 8},${yAux - 2} ${gIn + 48},${yAux - 2} C${gIn + 84},${yAux - 2} ${gIn + 96},${yBottom} ${gIn + 132},${yBottom} H312`} class={`mv-rf ${cls(hovered, 'rf')}`} />
+      <!-- freeway-to-ramp: lane 1 to the auxiliary lane, out the off-ramp -->
+      <path d={`M0,${yBottom} H${gIn + 24} C${gIn + 60},${yBottom} ${gIn + 72},${yAux - 2} ${gIn + 108},${yAux - 2} H${gOut - 16} Q${gOut + 24},${yAux} ${rampOutlet.x},${rampOutlet.y - 3}`} class={`mv-fr ${cls(hovered, 'fr')}`} />
+      <!-- ramp-to-ramp: stays in the auxiliary lane the whole length -->
+      <path d={`M${rampInlet.x},${rampInlet.y + 4} Q${gIn + 12},${yAux + 5} ${gIn + 52},${yAux + 5} H${gOut - 20} Q${gOut + 20},${yAux + 5} ${rampOutlet.x},${rampOutlet.y + 4}`} class={`mv-rr ${cls(hovered, 'rr')}`} />
     {/if}
-    <polygon points="288,{yLaneMid(Math.max(0, Math.floor(lanes / 2) - 1)) - 4} 300,{yLaneMid(Math.max(0, Math.floor(lanes / 2) - 1))} 288,{yLaneMid(Math.max(0, Math.floor(lanes / 2) - 1)) + 4}" class="wv-arrow" />
+
+    <!-- direction arrow on the freeway-to-freeway lane -->
+    <polygon points="300,{yLane(Math.max(0, Math.floor((mainLanes - 1) / 2))) - 5} 314,{yLane(Math.max(0, Math.floor((mainLanes - 1) / 2)))} 300,{yLane(Math.max(0, Math.floor((mainLanes - 1) / 2))) + 5}" class="wv-arrow" />
+
+    <!-- ══ L_S dimension between the gores ══ -->
+    {#if twoSided}
+      <!-- dimension below the roadway, gore to gore, with dotted extension lines -->
+      <line x1={gIn} y1={mainBot + 24} x2={gIn} y2={mainBot + DROP + LANE + 12} class="wv-ext" />
+      <line x1={gOut} y1={mainTop + 2} x2={gOut} y2={mainBot + DROP + LANE + 12} class="wv-ext" />
+      <line x1={gIn} y1={mainBot + DROP + LANE + 8} x2={gOut} y2={mainBot + DROP + LANE + 8} class="wv-dim" />
+      <text x={(gIn + gOut) / 2} y={mainBot + DROP + LANE + 18} class="wv-label" text-anchor="middle">L_S</text>
+    {:else}
+      <line x1={gIn} y1={auxBot + 20} x2={gOut} y2={auxBot + 20} class="wv-dim" />
+      <line x1={gIn} y1={auxBot + 2} x2={gIn} y2={auxBot + 24} class="wv-dim" />
+      <line x1={gOut} y1={auxBot + 2} x2={gOut} y2={auxBot + 24} class="wv-dim" />
+      <text x={(gIn + gOut) / 2} y={auxBot + 32} class="wv-label" text-anchor="middle">L_S</text>
+    {/if}
   </svg>
 
   <div class="wv-legend" role="list">
@@ -108,24 +172,44 @@
 <style>
   .weave-diagram svg {
     width: 100%;
+    max-width: 720px;
     display: block;
+    margin: 0 auto;
   }
   .wv-pavement { fill: #e2e8f0; }
-  .wv-ramp { fill: #e2e8f0; stroke: #334155; stroke-width: 1.5; }
-  .wv-edge { stroke: #334155; stroke-width: 2; vector-effect: non-scaling-stroke; }
-  .wv-lane-line { stroke: #ffffff; stroke-width: 1.5; stroke-dasharray: 8 6; vector-effect: non-scaling-stroke; }
-  .wv-dim { stroke: #64748b; stroke-width: 1; stroke-dasharray: 3 3; }
+  .wv-edge {
+    stroke: #334155;
+    stroke-width: 2;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .wv-edge-path {
+    fill: none;
+    stroke: #334155;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .wv-lane-line {
+    stroke: #ffffff;
+    stroke-width: 1.5;
+    stroke-dasharray: 8 6;
+    vector-effect: non-scaling-stroke;
+  }
+  .wv-dim { stroke: #64748b; stroke-width: 1; }
+  .wv-ext { stroke: #64748b; stroke-width: 0.75; stroke-dasharray: 2 3; opacity: 0.6; }
   .wv-label { font-size: 9px; fill: #64748b; }
   .wv-arrow { fill: #334155; }
 
   .wv-move {
     fill: none;
     stroke-width: 2.5;
+    stroke-linecap: round;
     vector-effect: non-scaling-stroke;
     transition: opacity 120ms ease, stroke-width 120ms ease;
     opacity: 0.85;
   }
-  .wv-move.dim { opacity: 0.15; }
+  .wv-move.dim { opacity: 0.12; }
   .wv-move.active { stroke-width: 4; opacity: 1; }
   .mv-ff { stroke: #2563eb; }
   .mv-rf { stroke: #16a34a; }
