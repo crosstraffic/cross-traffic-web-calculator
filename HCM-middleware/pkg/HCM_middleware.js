@@ -214,11 +214,6 @@ function passArrayF64ToWasm0(arg, malloc) {
     return ptr;
 }
 
-function getArrayF64FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
-}
-
 let cachedUint32Memory0 = null;
 
 function getUint32Memory0() {
@@ -243,6 +238,11 @@ function passArray32ToWasm0(arg, malloc) {
     getUint32Memory0().set(arg, ptr / 4);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
+}
+
+function getArrayF64FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
 }
 
 const WasmAwscFinalization = (typeof FinalizationRegistry === 'undefined')

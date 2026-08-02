@@ -13,3 +13,7 @@ HCM-middleware/pkg
 vectorstore.db/index.faiss
 vectorstore.db/index.pkl
 supabase_db_create.sql
+
+# Playwright artifacts
+test-results/
+playwright-report/
