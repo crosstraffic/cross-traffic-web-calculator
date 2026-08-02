@@ -7,6 +7,9 @@
   import { reports, lastKey, loadReports } from '$lib/report';
   import FreewaySegment3D from '../FreewaySegment3D/+page.svelte';
   import FacilityView from '../FacilityView/+page.svelte';
+  import WeavingDiagram from '$lib/WeavingDiagram.svelte';
+  import RampDiagram from '$lib/RampDiagram.svelte';
+  import SignalizedDiagram from '$lib/SignalizedDiagram.svelte';
 
   onMount(() => { if (!Object.keys($reports).length) loadReports(); });
 
@@ -36,9 +39,9 @@
     </header>
     <div class="panel">
       <p class="panel-sub">
-        No analysis yet. Run an analysis on
-        <a href="/hcm12">Basic Freeway Segments</a> or
-        <a href="/hcm15">Two-Lane Highways</a>, then return here to view and print the report.
+        No analysis yet. Run an analysis on any chapter page, then return here
+        to view and print the report. Reports from several chapters are kept
+        side by side for the session.
       </p>
     </div>
   {:else}
@@ -120,6 +123,26 @@
               />
             {:else if current.diagram.kind === 'twolane'}
               <FacilityView rows={current.diagram.props.rows} laneWidth={current.diagram.props.laneWidth} />
+            {:else if current.diagram.kind === 'weaving'}
+              <WeavingDiagram
+                weavingType={current.diagram.props.weavingType}
+                numLanes={current.diagram.props.numLanes}
+                vFF={current.diagram.props.vFF}
+                vFR={current.diagram.props.vFR}
+                vRF={current.diagram.props.vRF}
+                vRR={current.diagram.props.vRR}
+              />
+            {:else if current.diagram.kind === 'ramp'}
+              <RampDiagram
+                rampType={current.diagram.props.rampType}
+                rampSide={current.diagram.props.rampSide}
+                rampLanes={current.diagram.props.rampLanes}
+                freewayLanes={current.diagram.props.freewayLanes}
+                accelLen={current.diagram.props.accelLen}
+                decelLen={current.diagram.props.decelLen}
+              />
+            {:else if current.diagram.kind === 'signalized'}
+              <SignalizedDiagram approaches={current.diagram.props.approaches} editable={false} />
             {/if}
           </div>
         </section>

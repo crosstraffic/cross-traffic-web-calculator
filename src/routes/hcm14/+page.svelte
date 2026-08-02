@@ -7,6 +7,7 @@
   import RampDiagram from '$lib/RampDiagram.svelte';
   import RampDiagram3D from '$lib/RampDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
+  import { setReport } from '$lib/report';
 
   let diagramMode = '2d';
   import { onMount } from "svelte";
@@ -85,23 +86,90 @@
         // The Edition 7.1 methodology has its own step structure; read its full typed
         // result instead of the 7th Edition step getters.
         results71 = { ...rs.analysis_v7_1() };
-        return;
+      } else {
+        results = {
+          los,
+          losUndefined: los === undefined || los === null,
+          flow_freeway: rs.get_flow_freeway(),
+          flow_ramp: rs.get_flow_ramp(),
+          v12: rs.get_v12(),
+          capacity_freeway: rs.get_capacity_freeway(),
+          capacity_ramp: rs.get_capacity_ramp(),
+          vc_ratio: rs.get_vc_ratio(),
+          demand_exceeds_capacity: rs.get_demand_exceeds_capacity(),
+          density: rs.get_density(),
+          speed_ramp: rs.get_speed_ramp(),
+          speed_avg: rs.get_speed_avg()
+        };
       }
 
-      results = {
-        los,
-        losUndefined: los === undefined || los === null,
-        flow_freeway: rs.get_flow_freeway(),
-        flow_ramp: rs.get_flow_ramp(),
-        v12: rs.get_v12(),
-        capacity_freeway: rs.get_capacity_freeway(),
-        capacity_ramp: rs.get_capacity_ramp(),
-        vc_ratio: rs.get_vc_ratio(),
-        demand_exceeds_capacity: rs.get_demand_exceeds_capacity(),
-        density: rs.get_density(),
-        speed_ramp: rs.get_speed_ramp(),
-        speed_avg: rs.get_speed_avg()
-      };
+      const is71 = version === '7.1';
+      const typeLabel = {
+        on_ramp: 'On-ramp (merge)', off_ramp: 'Off-ramp (diverge)',
+        major_merge: 'Major merge', major_diverge: 'Major diverge',
+      }[ramp_type] || ramp_type;
+      setReport({
+        chapter: 'Freeway Merge and Diverge Segments',
+        chapterRef: 'HCM Chapter 14',
+        href: '/hcm14',
+        generatedAt: new Date().toLocaleString(),
+        headline: is71
+          ? { label: 'Segment LOS (Edition 7.1)', value: results71.los }
+          : (results.losUndefined ? null : { label: 'Segment LOS', value: results.los }),
+        inputs: [
+          { label: 'HCM edition', value: is71 ? 'Edition 7.1 (2025)' : '7th Edition' },
+          { label: 'Ramp type', value: typeLabel },
+          { label: 'Ramp side', value: ramp_side === 'left' ? 'Left' : 'Right' },
+          { label: 'Ramp lanes', value: ramp_lanes },
+          { label: 'Freeway lanes (one direction)', value: freeway_lanes },
+          { label: 'Acceleration lane length, L_A', value: `${accel_lane_length} ft` },
+          { label: 'Deceleration lane length, L_D', value: `${decel_lane_length} ft` },
+          { label: 'Terrain', value: terrain },
+          { label: 'Freeway / ramp free-flow speed', value: `${freeway_ffs} / ${ramp_ffs} mph` },
+          { label: 'Freeway / ramp demand', value: `${freeway_demand} / ${ramp_demand} veh/h` },
+          { label: 'Peak hour factor', value: phf },
+          { label: 'Heavy vehicles (freeway / ramp)', value: `${phv} / ${ramp_phv} %` },
+          { label: 'CAF / SAF', value: `${caf} / ${saf}` },
+        ],
+        resultTable: {
+          columns: ['Quantity', 'Value'],
+          rows: is71 ? [
+            ['Freeway flow rate', `${results71.flow_freeway.toFixed(0)} pc/h`],
+            ['Ramp flow rate', `${results71.flow_ramp.toFixed(0)} pc/h`],
+            ['Influence area flow per lane', `${results71.flow_per_lane.toFixed(0)} pc/h/ln`],
+            ['Equivalent basic segment speed', `${results71.speed_basic.toFixed(1)} mi/h`],
+            ['Speed impedance', `${results71.speed_impedance.toFixed(2)} mi/h`],
+            ['Influence area speed', results71.speed_avg == null ? 'not defined (demand far past capacity)' : `${results71.speed_avg.toFixed(1)} mi/h`],
+            ['Influence area capacity', results71.capacity_per_lane == null ? 'not defined for these inputs' : `${results71.capacity_per_lane.toFixed(0)} pc/h/ln`],
+            ['Demand-to-capacity ratio', results71.dc_ratio == null ? 'not defined' : results71.dc_ratio.toFixed(2)],
+            ['Neighboring freeway capacity', `${results71.capacity_neighboring_freeway.toFixed(0)} pc/h`],
+            ['Ramp roadway capacity', `${results71.capacity_ramp_roadway.toFixed(0)} pc/h`],
+            ['Demand exceeds capacity', results71.demand_exceeds_capacity ? 'Yes, LOS F' : 'No'],
+            ['Influence area density', Number.isFinite(results71.density) ? `${results71.density.toFixed(1)} pc/mi/ln` : 'over capacity'],
+            ['Level of service (Exhibit 14-2, Edition 7.1 bands)', results71.los],
+          ] : [
+            ['Freeway flow rate', `${results.flow_freeway.toFixed(0)} pc/h`],
+            ['Ramp flow rate', `${results.flow_ramp.toFixed(0)} pc/h`],
+            ['Flow in lanes 1 and 2, v_12', `${results.v12.toFixed(0)} pc/h`],
+            ['Freeway capacity', `${results.capacity_freeway.toFixed(0)} pc/h`],
+            ['Ramp capacity', `${results.capacity_ramp.toFixed(0)} pc/h`],
+            ['Volume-to-capacity ratio', results.vc_ratio.toFixed(2)],
+            ['Demand exceeds capacity', results.demand_exceeds_capacity ? 'Yes, LOS F' : 'No'],
+            ['Ramp influence area density', `${results.density.toFixed(1)} pc/mi/ln`],
+            ['Ramp influence area speed', `${results.speed_ramp.toFixed(1)} mi/h`],
+            ['Average speed, all lanes', `${results.speed_avg.toFixed(1)} mi/h`],
+            ['Level of service', results.losUndefined ? 'Not defined by the HCM for this configuration' : results.los],
+          ],
+        },
+        summary: [],
+        methodology: is71 ? [
+          'Edition 7.1 methodology: influence area speed from an equivalent basic segment less a speed impedance (Equations 14-2 through 14-5), capacity from the 35 pc/mi/ln breakdown density, LOS from the Edition 7.1 Exhibit 14-2 bands.',
+        ] : [
+          '7th Edition methodology: lane distribution and v_12 (Equations 14-2 through 14-19), capacity checks (Exhibits 14-10 and 14-12), density (Equations 14-22, 14-23, 14-28), speeds (Exhibits 14-13 through 14-15), LOS (Exhibit 14-3).',
+          results.losUndefined ? 'The HCM evaluates a major merge through its capacity checks only and defines no level of service under capacity.' : null,
+        ].filter(Boolean),
+        diagram: { kind: 'ramp', props: { rampType: ramp_type, rampSide: ramp_side, rampLanes: ramp_lanes, freewayLanes: freeway_lanes, accelLen: accel_lane_length, decelLen: decel_lane_length } },
+      });
     } catch (err) {
       console.error('Chapter 14 analysis failed:', err);
       hasError = true;
@@ -355,11 +423,16 @@
   </form>
 
   <section class="panel results-panel">
-    <div class="panel-head">
+    <div class="panel-head with-actions">
       <div>
         <h2 class="panel-title">Outputs</h2>
         <p class="panel-sub">Results populate after pressing Calculate.</p>
       </div>
+      {#if results || results71}
+        <div class="panel-actions">
+          <a class="btn btn-outline btn-sm" href="/report">Open printable report</a>
+        </div>
+      {/if}
     </div>
     {#if results71}
       <div class="los overflow-x-auto">

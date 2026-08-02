@@ -8,6 +8,7 @@
   import SignalizedDiagram from '$lib/SignalizedDiagram.svelte';
   import SignalizedDiagram3D from '$lib/SignalizedDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
+  import { setReport } from '$lib/report';
 
   let diagramMode = '2d';
   import init, { WasmSignalizedIntersection } from "HCM-middleware";
@@ -87,6 +88,43 @@
         critical_vc: r.critical_vc_ratio,
         approaches: r.approaches
       };
+
+      setReport({
+        chapter: 'Signalized Intersections',
+        chapterRef: 'HCM Chapter 19',
+        href: '/hcm19',
+        generatedAt: new Date().toLocaleString(),
+        headline: { label: 'Intersection LOS', value: results.los },
+        inputs: [
+          { label: 'Cycle length', value: `${cycle_length} s` },
+          { label: 'Peak hour factor', value: phf },
+          { label: 'Base saturation flow', value: `${base_sat_flow} pc/h/ln` },
+          { label: 'Area type', value: area_type === 'cbd' ? 'Central business district' : 'Non-CBD' },
+          { label: 'Yellow / red clearance', value: `${yellow} / ${red_clearance} s` },
+          { label: 'Heavy vehicles', value: `${phv} %` },
+          { label: 'Posted speed limit', value: `${speed_limit} mph` },
+          { label: 'Average lane width', value: `${lane_width} ft` },
+          { label: 'Conflicting pedestrians', value: `${ped_flow} p/h` },
+          ...approaches.map((a) => ({
+            label: `${a.label} (L/T/R)`,
+            value: `${a.v_left}/${a.v_thru}/${a.v_right} veh/h, lanes ${a.ln_left}/${a.ln_thru}/${a.ln_right}, phases ${a.thru_phase}s thru, ${Number(a.left_phase) > 0 ? a.left_phase + 's protected left' : 'permitted left'}`,
+          })),
+        ],
+        resultTable: {
+          columns: ['Approach', 'Flow rate (veh/h)', 'Control delay (s/veh)', 'LOS'],
+          rows: results.approaches.map((ar) => [ar.direction, ar.flow_rate.toFixed(0), ar.control_delay_s.toFixed(1), ar.los]),
+        },
+        summary: [
+          { label: 'Intersection control delay', value: `${results.delay.toFixed(1)} s/veh` },
+          { label: 'Critical volume-to-capacity ratio, X_c', value: results.critical_vc.toFixed(2) },
+          { label: 'Intersection LOS (Exhibit 19-8)', value: results.los },
+        ],
+        methodology: [
+          'HCM Chapter 19 motorized vehicle methodology under pretimed control: adjusted saturation flow (Equation 19-8 factors for lane width, heavy vehicles, area type, turns, pedestrians), capacity from g/C, control delay (Equations 19-19 and 19-26 with pretimed k = 0.50), LOS from Exhibit 19-8.',
+          'This page analyzes a simplified configuration. Parking, bus stops, grades, platooning, and actuated phase timing sit at base values.',
+        ],
+        diagram: { kind: 'signalized', props: { approaches: approaches.map((a) => ({ ...a })) } },
+      });
     } catch (err) {
       console.error('Chapter 19 analysis failed:', err);
       hasError = true;
@@ -324,11 +362,16 @@
   </form>
 
   <section class="panel results-panel">
-    <div class="panel-head">
+    <div class="panel-head with-actions">
       <div>
         <h2 class="panel-title">Outputs</h2>
         <p class="panel-sub">Results populate after pressing Calculate.</p>
       </div>
+      {#if results}
+        <div class="panel-actions">
+          <a class="btn btn-outline btn-sm" href="/report">Open printable report</a>
+        </div>
+      {/if}
     </div>
     <div class="los overflow-x-auto">
       <table class="table w-full">

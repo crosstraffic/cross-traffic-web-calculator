@@ -10,6 +10,9 @@
   // dashed when the left runs permitted (no protected phase) and solid when a
   // protected phase is set.
   export let approaches = [];
+  // False renders a read-only picture (no on-diagram volume editors), used by
+  // the printable report.
+  export let editable = true;
 
   let hovered = null; // 'NB' | 'SB' | 'EB' | 'WB' | null
 
@@ -163,7 +166,7 @@
     {/each}
 
     <!-- ══ on-diagram volume editors ══ -->
-    {#each approaches || [] as a (a.key)}
+    {#each editable ? approaches || [] : [] as a (a.key)}
       {#if clusterPos[a.key]}
         <foreignObject x={clusterPos[a.key].x} y={clusterPos[a.key].y} width={CW} height={CH}>
           <div class="sd-cluster {a.key.toLowerCase()}" xmlns="http://www.w3.org/1999/xhtml"
