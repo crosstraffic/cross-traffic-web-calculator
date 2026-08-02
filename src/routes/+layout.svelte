@@ -45,6 +45,7 @@
               </summary>
               <ul class="p-2 bg-base-200">
                 <li><a href="/hcm12">Basic Freeway Segments</a></li>
+                <li><a href="/hcm13">Freeway Weaving Segments</a></li>
                 <li><a href="/hcm14">Freeway Merge and Diverge Segments</a></li>
                 <li><a href="/hcm15">Two-Lane Highways</a></li>
               </ul>
@@ -69,7 +70,8 @@
             </summary>
             <ul class="p-2 bg-base-200 chapters-menu">
               <li><a href="/hcm12">Basic Freeway Segments</a></li>
-              <li><a href="/hcm14">Freeway Merge and Diverge Segments</a></li>
+              <li><a href="/hcm13">Freeway Weaving Segments</a></li>
+                <li><a href="/hcm14">Freeway Merge and Diverge Segments</a></li>
               <li><a href="/hcm15">Two-Lane Highways</a></li>
             </ul>
           </details>

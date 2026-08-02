@@ -14,6 +14,7 @@
   });
 
   // Inputs (defaults follow the HCM Chapter 13 base conditions)
+  let version = '7';
   let weaving_type = 'one_sided';
   let facility_type = 'freeway';
   let length_short = 1500;
@@ -22,6 +23,9 @@
   let lc_rf = 1;
   let lc_fr = 1;
   let lc_rr = 0;
+  let nw_rf = 1;
+  let nw_fr = 1;
+  let nw_rr = 0;
   let interchange_density = 0.8;
   let terrain = 'level';
   let ffs = 70;
@@ -36,12 +40,14 @@
   let saf = 1.0;
 
   let results = null;
+  let results71 = null;
   let hasError = false;
   let errMessage = '';
 
   function runAnalysis() {
     hasError = false;
     results = null;
+    results71 = null;
 
     try {
       const ws = new WasmWeavingSegment(
@@ -64,25 +70,36 @@
         Number(interchange_density),
         Number(basic_freeway_capacity),
         Number(caf),
-        Number(saf)
+        Number(saf),
+        Number(nw_rf),
+        Number(nw_fr),
+        Number(nw_rr),
+        version
       );
 
       const los = ws.run_analysis();
-      results = {
-        los,
-        flow_weaving: ws.get_flow_weaving(),
-        flow_nonweaving: ws.get_flow_nonweaving(),
-        flow_total: ws.get_flow_total(),
-        volume_ratio: ws.get_volume_ratio(),
-        l_max: ws.get_l_max(),
-        is_weaving: ws.is_weaving(),
-        capacity: ws.get_capacity(),
-        vc_ratio: ws.get_vc_ratio(),
-        speed_weaving: ws.get_speed_weaving(),
-        speed_nonweaving: ws.get_speed_nonweaving(),
-        speed_avg: ws.get_speed_avg(),
-        density: ws.get_density()
-      };
+
+      if (version === '7.1') {
+        // The Edition 7.1 methodology has its own step structure; read its full typed
+        // result instead of the 7th Edition step getters.
+        results71 = { los, ...ws.analysis_v7_1() };
+      } else {
+        results = {
+          los,
+          flow_weaving: ws.get_flow_weaving(),
+          flow_nonweaving: ws.get_flow_nonweaving(),
+          flow_total: ws.get_flow_total(),
+          volume_ratio: ws.get_volume_ratio(),
+          l_max: ws.get_l_max(),
+          is_weaving: ws.is_weaving(),
+          capacity: ws.get_capacity(),
+          vc_ratio: ws.get_vc_ratio(),
+          speed_weaving: ws.get_speed_weaving(),
+          speed_nonweaving: ws.get_speed_nonweaving(),
+          speed_avg: ws.get_speed_avg(),
+          density: ws.get_density()
+        };
+      }
     } catch (err) {
       console.error('Chapter 13 analysis failed:', err);
       hasError = true;
@@ -91,6 +108,10 @@
   }
 
   function resetParams() {
+    version = '7';
+    nw_rf = 1;
+    nw_fr = 1;
+    nw_rr = 0;
     weaving_type = 'one_sided';
     facility_type = 'freeway';
     length_short = 1500;
@@ -112,6 +133,7 @@
     caf = 1.0;
     saf = 1.0;
     results = null;
+    results71 = null;
     hasError = false;
   }
 </script>
@@ -128,10 +150,13 @@
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> This chapter is newly implemented and its results have
-      not yet been validated against the full set of published HCM worked examples.
-      Verify results independently before relying on them in engineering work, and
-      please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      <strong>Beta.</strong> The compute engine reproduces the published HCM worked
+      examples for this chapter under both editions; the interface itself is newly
+      released. The 7th Edition and Edition 7.1 are different models — the same
+      segment can land a full LOS letter apart between them, and weaving LOS F
+      begins at 35 rather than 43 pc/mi/ln under 7.1 — so results are only
+      comparable within one edition. Please
+      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
 
@@ -151,6 +176,15 @@
         </div>
       </div>
       <div class="param-grid">
+        <div class="param-field">
+          <label for="VER_input">HCM Edition</label>
+          <select id="VER_input" class="select select-bordered select-sm" bind:value={version}>
+            <option value="7">7th Edition</option>
+            <option value="7.1">Edition 7.1 (2025)</option>
+          </select>
+          <p class="param-hint">Edition 7.1 replaces this chapter's methodology; the editions report different speeds, capacities, and LOS.</p>
+        </div>
+
         <div class="param-field">
           <label for="WT_input">Weaving Type</label>
           <select id="WT_input" class="select select-bordered select-sm" bind:value={weaving_type}>
@@ -214,6 +248,30 @@
             <span class="unit">lc/veh</span>
           </div>
         </div>
+
+        {#if version === '7.1'}
+          <div class="param-field">
+            <label for="NWRF_input">Weaving Lanes, Ramp to Freeway (N_W,RF)</label>
+            <div class="cell-field">
+              <input id="NWRF_input" type="number" min="0" class="input input-bordered input-sm" bind:value={nw_rf} required />
+            </div>
+            <p class="param-hint">Lanes from which the ramp-to-freeway movement can weave. Edition 7.1 only.</p>
+          </div>
+
+          <div class="param-field">
+            <label for="NWFR_input">Weaving Lanes, Freeway to Ramp (N_W,FR)</label>
+            <div class="cell-field">
+              <input id="NWFR_input" type="number" min="0" class="input input-bordered input-sm" bind:value={nw_fr} required />
+            </div>
+          </div>
+
+          <div class="param-field">
+            <label for="NWRR_input">Weaving Lanes, Ramp to Ramp (two-sided only)</label>
+            <div class="cell-field">
+              <input id="NWRR_input" type="number" min="0" class="input input-bordered input-sm" bind:value={nw_rr} required />
+            </div>
+          </div>
+        {/if}
 
         <div class="param-field">
           <label for="ID_input">Interchange Density</label>
@@ -339,7 +397,52 @@
         <p class="panel-sub">Results populate after pressing Calculate.</p>
       </div>
     </div>
-    <div class="los overflow-x-auto">
+    {#if results71}
+      <div class="los overflow-x-auto">
+        <p class="panel-sub">Edition 7.1 methodology: overall speed from an equivalent basic segment less a speed impedance, capacity from the 35 pc/mi/ln breakdown density.</p>
+        <table class="table w-full">
+          <tbody>
+            <tr>
+              <th>Configuration Class:</th>
+              <td>{results71.class}</td>
+            </tr>
+            <tr>
+              <th>Total Flow Rate (pc/hr):</th>
+              <td>{results71.flow_total.toFixed(0)}</td>
+            </tr>
+            <tr>
+              <th>Equivalent Basic Segment Speed (mi/hr):</th>
+              <td>{results71.speed_basic.toFixed(1)}</td>
+            </tr>
+            <tr>
+              <th>Speed Impedance (mi/hr):</th>
+              <td>{results71.speed_impedance.toFixed(2)}</td>
+            </tr>
+            <tr>
+              <th>Overall Speed (mi/hr):</th>
+              <td>{results71.speed_avg == null ? 'not defined (demand far past capacity)' : results71.speed_avg.toFixed(1)}</td>
+            </tr>
+            <tr>
+              <th>Capacity (pc/hr/ln):</th>
+              <td>{results71.capacity_per_lane == null ? 'not defined for these inputs' : results71.capacity_per_lane.toFixed(0)}</td>
+            </tr>
+            <tr>
+              <th>Demand-to-Capacity Ratio:</th>
+              <td>{results71.dc_ratio == null ? '—' : results71.dc_ratio.toFixed(2)}</td>
+            </tr>
+            <tr>
+              <th>Density (pc/mi/ln):</th>
+              <td>{Number.isFinite(results71.density) ? results71.density.toFixed(1) : 'over capacity'}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="facility-summary">
+          <p>Segment LOS (Exhibit 13-7, Edition 7.1 bands): {results71.los}</p>
+        </div>
+      </div>
+    {/if}
+
+    <div class="los overflow-x-auto" style={results71 ? 'display:none' : ''}>
       <table class="table w-full">
         <tbody>
           <tr>
