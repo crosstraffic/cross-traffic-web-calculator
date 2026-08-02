@@ -51,6 +51,16 @@
   ];
   $: volumes = { ff: vFF, rf: vRF, fr: vFR, rr: vRR };
 
+  // The legend inputs assign back to the exported props, so a page that
+  // binds vFF/vFR/vRF/vRR sees edits made on the diagram.
+  function setVol(key, raw) {
+    const v = raw === '' ? '' : Number(raw);
+    if (key === 'ff') vFF = v;
+    else if (key === 'rf') vRF = v;
+    else if (key === 'fr') vFR = v;
+    else if (key === 'rr') vRR = v;
+  }
+
   function cls(h, key) {
     if (h == null) return 'wv-move';
     return h === key ? 'wv-move active' : 'wv-move dim';
@@ -158,19 +168,26 @@
 
   <div class="wv-legend" role="list">
     {#each movements as m}
-      <button
-        type="button"
+      <label
         role="listitem"
         class="wv-chip {m.key}"
         class:active={hovered === m.key}
         on:mouseenter={() => (hovered = m.key)}
         on:mouseleave={() => (hovered = null)}
-        on:focus={() => (hovered = m.key)}
-        on:blur={() => (hovered = null)}
       >
         <span class="swatch {m.key}"></span>
-        {m.label}: {Number(volumes[m.key]) || 0} veh/h
-      </button>
+        {m.label}
+        <input
+          type="number"
+          min="0"
+          aria-label="{m.label} volume (veh/h)"
+          value={volumes[m.key]}
+          on:input={(e) => setVol(m.key, e.currentTarget.value)}
+          on:focus={() => (hovered = m.key)}
+          on:blur={() => (hovered = null)}
+        />
+        veh/h
+      </label>
     {/each}
   </div>
 </div>
@@ -244,6 +261,16 @@
     cursor: default;
   }
   .wv-chip.active { border-color: #334155; }
+  .wv-chip input {
+    width: 3.6rem;
+    font-size: 0.72rem;
+    padding: 0.05rem 0.25rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: #ffffff;
+    color: #0f172a;
+    text-align: right;
+  }
   .swatch {
     width: 0.7rem;
     height: 0.7rem;

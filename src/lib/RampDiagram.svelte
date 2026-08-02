@@ -136,6 +136,19 @@
       <span class="swatch influence"></span>
       Ramp influence area (lanes 1–2, 1,500 ft {isOn ? 'downstream' : 'upstream'} of the gore)
     </button>
+    {#if !isMajor}
+      <!-- The dimensioned length is editable here; assigning back to the
+           exported prop reaches a page that binds accelLen/decelLen. -->
+      <label class="rd-chip rd-len">
+        {isOn ? 'L_A' : 'L_D'}
+        {#if isOn}
+          <input type="number" min="0" step="10" aria-label="Acceleration lane length (ft)" bind:value={accelLen} />
+        {:else}
+          <input type="number" min="0" step="10" aria-label="Deceleration lane length (ft)" bind:value={decelLen} />
+        {/if}
+        ft
+      </label>
+    {/if}
   </div>
 </div>
 
@@ -192,6 +205,16 @@
     flex-wrap: wrap;
     gap: 0.4rem;
     margin-top: 0.5rem;
+  }
+  .rd-len input {
+    width: 3.6rem;
+    font-size: 0.72rem;
+    padding: 0.05rem 0.25rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: #ffffff;
+    color: #0f172a;
+    text-align: right;
   }
   .rd-chip {
     display: inline-flex;

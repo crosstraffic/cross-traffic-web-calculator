@@ -313,10 +313,10 @@
           <WeavingDiagram
             weavingType={weaving_type}
             numLanes={num_lanes}
-            vFF={v_ff}
-            vFR={v_fr}
-            vRF={v_rf}
-            vRR={v_rr}
+            bind:vFF={v_ff}
+            bind:vFR={v_fr}
+            bind:vRF={v_rf}
+            bind:vRR={v_rr}
           />
         {/if}
       </div>

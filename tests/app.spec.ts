@@ -202,6 +202,12 @@ test.describe('chapter 13 weaving calculator', () => {
     await page.locator('#WT_input').selectOption('two_sided');
     await expect(diagram).toHaveAttribute('aria-label', /two-sided weaving segment/);
 
+    // The legend inputs two-way bind to the form.
+    await page.locator('input[aria-label*="v_RF"]').fill('880');
+    await expect(page.locator('#VRF_input')).toHaveValue('880');
+    await page.locator('#VFR_input').fill('610');
+    await expect(page.locator('input[aria-label*="v_FR"]')).toHaveValue('610');
+
     // The shared 2D/3D toggle swaps in the projected view with the same state.
     await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
     const svg3d = page.locator('.weave-diagram-3d svg');
@@ -287,8 +293,15 @@ test.describe('chapter 14 merge and diverge calculator', () => {
     await page.locator('.rd-chip', { hasText: 'influence area' }).hover();
     await expect(page.locator('.rd-influence')).toHaveClass(/active/);
 
+    // The dimensioned length is editable beside the legend and two-way binds
+    // to the form.
+    await page.locator('input[aria-label="Acceleration lane length (ft)"]').fill('980');
+    await expect(page.locator('#LA_input')).toHaveValue('980');
+
     await page.locator('#RT_input').selectOption('off_ramp');
     await expect(diagram).toHaveAttribute('aria-label', /off ramp/);
+    await page.locator('input[aria-label="Deceleration lane length (ft)"]').fill('520');
+    await expect(page.locator('#LD_input')).toHaveValue('520');
 
     // The shared 2D/3D toggle swaps in the projected view with the same state.
     await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();

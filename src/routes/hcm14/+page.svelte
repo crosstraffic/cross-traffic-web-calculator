@@ -257,8 +257,8 @@
             rampSide={ramp_side}
             rampLanes={ramp_lanes}
             freewayLanes={freeway_lanes}
-            accelLen={accel_lane_length}
-            decelLen={decel_lane_length}
+            bind:accelLen={accel_lane_length}
+            bind:decelLen={decel_lane_length}
           />
         {/if}
       </div>
