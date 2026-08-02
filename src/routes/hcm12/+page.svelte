@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>HCM Calculator — Basic Freeway Segments</title>
+  <title>Basic Freeway Segments · HCM Calculator</title>
 </svelte:head>
 
 <script>
@@ -247,8 +247,8 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Basic Freeway Segments</span>
-    <h1 class="page-title">HCM Calculator — Basic Freeway Segments</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 12</span>
+    <h1 class="page-title">Basic Freeway Segments</h1>
     <p class="page-sub">
       Estimate free-flow speed, capacity, density, and level of service for a
       basic freeway segment in the analysis direction.

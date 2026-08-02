@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>HCM Calculator — Freeway Merge and Diverge Segments</title>
+  <title>Freeway Merge and Diverge Segments · HCM Calculator</title>
 </svelte:head>
 
 <script>
@@ -135,8 +135,8 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Freeway Merge and Diverge Segments</span>
-    <h1 class="page-title">HCM Calculator — Freeway Merge and Diverge Segments</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 14</span>
+    <h1 class="page-title">Freeway Merge and Diverge Segments</h1>
     <p class="page-sub">
       Estimate ramp influence area density, speeds, and level of service for a
       ramp-freeway junction.

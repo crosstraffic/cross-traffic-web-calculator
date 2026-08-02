@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>HCM Calculator — Two-Lane Highways</title>
+  <title>Two-Lane Highways · HCM Calculator</title>
 </svelte:head>
 
 <script>
@@ -355,8 +355,8 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Two-Lane Highways</span>
-    <h1 class="page-title">HCM Calculator — Two-Lane Highways</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 15</span>
+    <h1 class="page-title">Two-Lane Highways</h1>
     <p class="page-sub">
       Estimate free-flow speed, follower density, average speed, and level of
       service for two-lane highway facilities, segment by segment.
@@ -549,7 +549,7 @@
           <h2 class="panel-title">Facility Layout</h2>
           <p class="panel-sub">
             {facilityExpanded
-              ? 'Edit each segment here — changes stay in sync with the Segments table.'
+              ? 'Edit each segment here. Changes stay in sync with the Segments table.'
               : 'Visual sequence of the configured segments. Expand to edit them here.'}
           </p>
         </div>

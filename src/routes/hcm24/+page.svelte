@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>HCM Calculator — Off-Street Pedestrian and Bicycle Facilities</title>
+  <title>Off-Street Pedestrian and Bicycle Facilities · HCM Calculator</title>
 </svelte:head>
 
 <script>
@@ -134,8 +134,8 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Off-Street Pedestrian and Bicycle Facilities <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
-    <h1 class="page-title">HCM Calculator — Off-Street Pedestrian and Bicycle Facilities</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 24 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <h1 class="page-title">Off-Street Pedestrian and Bicycle Facilities</h1>
     <p class="page-sub">
       Estimate level of service for exclusive pedestrian facilities, for
       pedestrians on shared-use paths, and for bicyclists on off-street paths.

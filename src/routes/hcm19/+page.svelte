@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>HCM Calculator — Signalized Intersections</title>
+  <title>Signalized Intersections · HCM Calculator</title>
 </svelte:head>
 
 <script>
@@ -113,8 +113,8 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Signalized Intersections</span>
-    <h1 class="page-title">HCM Calculator — Signalized Intersections</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 19</span>
+    <h1 class="page-title">Signalized Intersections</h1>
     <p class="page-sub">
       Estimate control delay and level of service for a four-leg pretimed
       signalized intersection, by approach and for the intersection as a whole.

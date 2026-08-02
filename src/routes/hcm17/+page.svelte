@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>HCM Calculator — Urban Street Reliability and ATDM</title>
+  <title>Urban Street Reliability and ATDM · HCM Calculator</title>
 </svelte:head>
 
 <script>
@@ -155,8 +155,8 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">Urban Street Reliability and ATDM <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
-    <h1 class="page-title">HCM Calculator — Urban Street Reliability and ATDM</h1>
+    <span class="badge badge-outline page-badge">HCM Chapter 17 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <h1 class="page-title">Urban Street Reliability and ATDM</h1>
     <p class="page-sub">
       Estimate the travel time distribution, travel time index, and reliability
       rating of a signalized urban street facility over a one-year weekday
