@@ -1,3 +1,10 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* ═══ Theme tokens ═══
    Light values match the original palette exactly; [data-theme="dark"]
    overrides flip the site and every diagram. The nav toggle sets data-theme
@@ -77,12 +84,6 @@
     color-scheme: dark;
 }
 
-@import "tailwindcss";
-@plugin "daisyui";
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 /* __layout.svelte */
 
@@ -179,10 +180,11 @@ header {
 }
 
 .navbar {
-    width: min(2100px, 96%);
+    /* The header row runs wider than the content column on purpose. */
+    width: 100%;
     margin: 0 auto;
     min-height: 4.25rem;
-    padding: 0;
+    padding: 0 1.25rem;
     font-size: 1rem;
     background: transparent !important;
     box-shadow: none !important;

@@ -44,7 +44,7 @@
   <div class="navbar bg-base-100 shadow-md">
     <div class="navbar-start">
       <div class="dropdown">
-        <div tabindex="0" role="button" class="btn btn-ghost btn-circle lg:hidden">
+        <div tabindex="0" role="button" class="btn btn-ghost btn-circle md:hidden">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
@@ -75,7 +75,7 @@
       <!-- Gonna be LOGO -->
       <a href="/" class="normal-case text-xl logo"><img src="hcm_calculator_logo.png" alt="logo" style="max-width:110px;height:100%"/></a>
     </div>
-    <div class="navbar-center hidden lg:flex">
+    <div class="navbar-center hidden md:flex">
       <ul class="menu menu-horizontal p-0">
         <li><a class="home_button" href="/">Home</a></li>
         <!-- <li><a href="/about">About</a></li> -->
