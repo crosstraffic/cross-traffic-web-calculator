@@ -393,6 +393,30 @@ test.describe('chapter 19 signalized intersection calculator', () => {
     await page.locator('#NB_LT_input').fill('3');
     await expect(page.locator('line.sd-lane-line')).toHaveCount(before + 4);
   });
+
+  test('volumes can be edited on the diagram and the 3D view toggles', async ({ page }) => {
+    await page.goto('/hcm19');
+
+    // The on-diagram editors two-way bind to the same state as the form.
+    await page.locator('input[aria-label="NB through volume"]').fill('750');
+    await expect(page.locator('#NB_VT_input')).toHaveValue('750');
+    await page.locator('#EB_VL_input').fill('120');
+    await expect(page.locator('input[aria-label="EB left-turn volume"]')).toHaveValue('120');
+
+    // The 3D toggle swaps in the rotatable projected view, which keeps the
+    // legend highlighting and follows the same inputs.
+    await page.locator('.view-toggle input').check();
+    const svg3d = page.locator('.signal-diagram-3d svg');
+    await expect(svg3d).toBeVisible();
+    await expect(svg3d).toHaveAttribute('aria-label', /3D view/);
+    await page.locator('.sd3-chip.wb').hover();
+    await expect(page.locator('.signal-diagram-3d path.mv-wb').first()).toHaveClass(/active/);
+    await expect(page.locator('.signal-diagram-3d path.mv-sb').first()).toHaveClass(/dim/);
+
+    // Toggling back restores the editable plan view with the edited value.
+    await page.locator('.view-toggle input').uncheck();
+    await expect(page.locator('input[aria-label="NB through volume"]')).toHaveValue('750');
+  });
 });
 
 test.describe('chapter 15 two-lane highway calculator', () => {

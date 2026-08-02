@@ -83,6 +83,23 @@
     { key: 'WB', label: 'Westbound' },
   ];
 
+  // On-diagram volume editors, one cluster per approach, placed in the free
+  // corner beside that approach's leg.
+  const CW = 104;
+  const CH = 24;
+  $: clusterPos = {
+    NB: { x: boxE + 6, y: H - CH - 6 },
+    SB: { x: boxW - CW - 6, y: 6 },
+    EB: { x: 6, y: boxS + 6 },
+    WB: { x: W - CW - 6, y: boxN - CH - 6 },
+  };
+
+  // Reassigning the array pushes the edit back through the two-way prop
+  // binding so the form inputs follow the diagram.
+  function touch() {
+    approaches = approaches;
+  }
+
   function cls(h, key) {
     if (h == null) return 'sd-move';
     return h === key ? 'sd-move active' : 'sd-move dim';
@@ -143,6 +160,21 @@
       <path d={dLeft[o.key]} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`}
             stroke-dasharray={protectedLeft(o.key) ? null : '6 5'} />
       <path d={dRight[o.key]} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`} />
+    {/each}
+
+    <!-- ══ on-diagram volume editors ══ -->
+    {#each approaches || [] as a (a.key)}
+      {#if clusterPos[a.key]}
+        <foreignObject x={clusterPos[a.key].x} y={clusterPos[a.key].y} width={CW} height={CH}>
+          <div class="sd-cluster {a.key.toLowerCase()}" xmlns="http://www.w3.org/1999/xhtml"
+               on:mouseenter={() => (hovered = a.key)} on:mouseleave={() => (hovered = null)}>
+            <span class="sd-cluster-title"><span class="swatch {a.key.toLowerCase()}"></span>{a.key}</span>
+            <input type="number" min="0" title="{a.key} left-turn volume (veh/h)" aria-label="{a.key} left-turn volume" bind:value={a.v_left} on:input={touch} />
+            <input type="number" min="0" title="{a.key} through volume (veh/h)" aria-label="{a.key} through volume" bind:value={a.v_thru} on:input={touch} />
+            <input type="number" min="0" title="{a.key} right-turn volume (veh/h)" aria-label="{a.key} right-turn volume" bind:value={a.v_right} on:input={touch} />
+          </div>
+        </foreignObject>
+      {/if}
     {/each}
   </svg>
 
@@ -238,4 +270,51 @@
     color: #64748b;
     margin-top: 0.35rem;
   }
+
+  .sd-cluster {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+    width: 100%;
+    height: 100%;
+    font-size: 8px;
+    line-height: 1;
+    color: #475569;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 2px 3px;
+    overflow: hidden;
+  }
+  .sd-cluster-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 7px;
+    font-weight: 600;
+    flex: none;
+  }
+  .sd-cluster input {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 0;
+    font-size: 8px;
+    line-height: 1;
+    padding: 2px 1px;
+    border: 1px solid #cbd5e1;
+    border-radius: 3px;
+    background: #ffffff;
+    color: #0f172a;
+    text-align: center;
+  }
+  .sd-cluster input::-webkit-outer-spin-button,
+  .sd-cluster input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .sd-cluster input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
+  .sd-cluster .swatch { width: 6px; height: 6px; }
 </style>
