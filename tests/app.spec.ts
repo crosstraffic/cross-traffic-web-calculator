@@ -25,6 +25,8 @@ test.describe('navigation and route gating', () => {
     await expect(page).toHaveURL(/\/hcm20$/);
     await page.goto('/hcm21');
     await expect(page).toHaveURL(/\/hcm21$/);
+    await page.goto('/hcm22');
+    await expect(page).toHaveURL(/\/hcm22$/);
   });
 
   test('desktop shows the horizontal menu, phones get the hamburger', async ({ page }) => {
@@ -82,6 +84,7 @@ test.describe('navigation and route gating', () => {
     await expect(nav.locator('a[href="/hcm19"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm20"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm21"]')).toHaveCount(1);
+    await expect(nav.locator('a[href="/hcm22"]')).toHaveCount(1);
   });
 
   test('the theme toggle flips to dark and persists across reloads', async ({ page }) => {
@@ -101,11 +104,11 @@ test.describe('navigation and route gating', () => {
   });
 
   test('unreleased chapter routes redirect home', async ({ page }) => {
-    // hcm16 and hcm22 exist in the repo but are not in the RELEASED set of
+    // hcm16 and hcm23 exist in the repo but are not in the RELEASED set of
     // src/routes/+layout.js; a direct visit must land on the home page.
     await page.goto('/hcm16');
     await expect(page).toHaveURL(/\/$/);
-    await page.goto('/hcm22');
+    await page.goto('/hcm23');
     await expect(page).toHaveURL(/\/$/);
   });
 });
@@ -620,6 +623,59 @@ test.describe('chapter 21 AWSC calculator', () => {
     // The 3D toggle swaps in the projected view.
     await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
     await expect(page.locator('.awsc-diagram-3d svg')).toHaveAttribute('aria-label', /all-way stop-controlled intersection, 3D view/);
+  });
+});
+
+test.describe('chapter 22 roundabout calculator', () => {
+  test('reproduces the published single-lane example problem on defaults', async ({ page }) => {
+    // The page defaults are HCM Chapter 33, Roundabout Example Problem 1.
+    // Published (Exhibit 33-8): c_NB 597, c_SB 618, c_EB 824, c_WB 694,
+    // c_bypass,WB 851 veh/h; delays 22.6/14.0/22.0/26.8 with LOS C/B/C/D;
+    // WB bypass 20.2 C; d_A,SB 4.7 A; intersection 17.5 s LOS C. The engine
+    // prints 596/617/822/693/850 and 22.7/14.0/22.1/27.2, bypass 20.3,
+    // intersection 17.7 C, all inside the chapter tolerances (5 veh/h,
+    // 0.5 s/veh).
+    await page.goto('/hcm22');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+    await calculate.click();
+
+    const row = (label) => page.locator('.results-panel tr', { hasText: label }).first();
+    await expect(row('NB')).toContainText('596');
+    await expect(row('NB')).toContainText('22.7');
+    await expect(row('NB')).toContainText('C');
+    await expect(row('SB')).toContainText('617');
+    await expect(row('EB')).toContainText('822');
+    await expect(row('WB')).toContainText('693');
+    await expect(page.getByText(/17\.7/).first()).toBeVisible();
+
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page.locator('.report-title')).toHaveText('Roundabouts');
+    await expect(page.locator('.report-diagram .rb-diagram svg')).toBeVisible();
+  });
+
+  test('the roundabout diagram highlights entries and edits volumes', async ({ page }) => {
+    await page.goto('/hcm22');
+    const diagram = page.locator('.rb-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /four-leg roundabout, 1 circulating lane/);
+
+    // EP1 has two bypasses: WB yielding (dashed), SB nonyielding (solid).
+    await expect(page.locator('path.rb-bypass')).toHaveCount(2);
+    await expect(page.locator('path.rb-bypass.mv-wb')).toHaveAttribute('stroke-dasharray', '6 5');
+    await expect(page.locator('path.rb-bypass.mv-sb')).not.toHaveAttribute('stroke-dasharray', '6 5');
+
+    await page.locator('.rb-chip.eb').hover();
+    await expect(page.locator('path.mv-eb').first()).toHaveClass(/active/);
+    await expect(page.locator('path.mv-nb').first()).toHaveClass(/dim/);
+
+    // On-diagram editing two-way binds to the form (NB through input).
+    await page.locator('input[aria-label="NB through volume"]').fill('260');
+    await expect(page.locator('#T_nb_input')).toHaveValue('260');
+
+    // The 3D toggle swaps in the projected view.
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
+    await expect(page.locator('.rb-diagram-3d svg')).toHaveAttribute('aria-label', /four-leg roundabout, 3D view/);
   });
 });
 

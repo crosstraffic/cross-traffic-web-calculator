@@ -12,6 +12,7 @@
   import SignalizedDiagram from '$lib/SignalizedDiagram.svelte';
   import TwscDiagram from '$lib/TwscDiagram.svelte';
   import AwscDiagram from '$lib/AwscDiagram.svelte';
+  import RoundaboutDiagram from '$lib/RoundaboutDiagram.svelte';
 
   onMount(() => { if (!Object.keys($reports).length) loadReports(); });
 
@@ -149,6 +150,8 @@
               <TwscDiagram {...current.diagram.props} editable={false} />
             {:else if current.diagram.kind === 'awsc'}
               <AwscDiagram approaches={current.diagram.props.approaches} editable={false} />
+            {:else if current.diagram.kind === 'roundabout'}
+              <RoundaboutDiagram entries={current.diagram.props.entries} editable={false} />
             {/if}
           </div>
         </section>
