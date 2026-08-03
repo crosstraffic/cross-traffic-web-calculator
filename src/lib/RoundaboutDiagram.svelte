@@ -67,14 +67,14 @@
   // Stub endpoints at the canvas edge for a leg at world angle `deg`
   // (the leg lies along that compass direction from the center).
   // In svg coordinates the entry half (right of an approaching driver) is side -1, the exit half +1.
-  function stub(deg, side, off) {
+  function stub(deg, side, off, nearR = RO - 2) {
     // Perpendicular offset direction: rotate the leg direction -90° (driver's
     // right side approaching the ring).
     const a = (deg * Math.PI) / 180;
     const ux = Math.cos(a), uy = -Math.sin(a);          // svg unit toward the leg
     const px = -uy * side, py = ux * side;              // perpendicular
     const x0 = cx + ux * EXT + px * off, y0 = cy + uy * EXT + py * off;
-    const x1 = cx + ux * (RO - 2) + px * off, y1 = cy + uy * (RO - 2) + py * off;
+    const x1 = cx + ux * nearR + px * off, y1 = cy + uy * nearR + py * off;
     return { far: `${x0.toFixed(1)},${y0.toFixed(1)}`, near: `${x1.toFixed(1)},${y1.toFixed(1)}` };
   }
 
@@ -90,18 +90,20 @@
     return `M ${enter.far} L ${enter.near} L ${arc} L ${exit.near} L ${exit.far}`;
   }
 
-  // Right-turn bypass band: shortcuts the corner outside the ring, in the
-  // same counterclockwise sense as circulation (entry leg to the adjacent
-  // exit leg, e.g. an east entry bypassing to the north exit crosses the
-  // northeast corner).
+  // Right-turn bypass: runs straight along the outside of its entry leg, cuts
+  // the corner with one tight curve, and continues straight out the exit leg.
+  // It stays clear of the circulating roadway entirely, which is the point of
+  // a bypass lane.
   function bypassPath(key) {
     const leg = LEG[key];
     const exitAngle = leg.exits.R;
-    const enter = stub(leg.entry, -1, LANE * 1.35);
-    const exit = stub(exitAngle, +1, LANE * 1.35);
-    const rB = RO + LANE * 0.75;
-    const arc = ccwArc(cx, cy, rB, leg.entry + 6, exitAngle - 6, 16);
-    return `M ${enter.far} L ${arc} L ${exit.far}`;
+    const off = LANE * 1.35;
+    const kneeR = RO + LANE * 1.5;
+    const enter = stub(leg.entry, -1, off, kneeR);
+    const exit = stub(exitAngle, +1, off, kneeR);
+    // Corner control point on the diagonal between the two legs.
+    const corner = pt(cx, cy, kneeR + LANE * 1.4, leg.entry + 45);
+    return `M ${enter.far} L ${enter.near} Q ${corner} ${exit.near} L ${exit.far}`;
   }
 
   $: order = [
