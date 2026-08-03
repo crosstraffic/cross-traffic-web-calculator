@@ -4,6 +4,8 @@
 
 <script>
   import init, { WasmInterchange } from "HCM-middleware";
+  import DiamondDiagram from '$lib/DiamondDiagram.svelte';
+  import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
   let ready = false;
@@ -62,6 +64,11 @@
   let results = null;
   let hasError = false;
   let errMessage = '';
+
+  // Per-O-D LOS map for the diagram animation.
+  $: losByOd = results
+    ? Object.fromEntries(results.od_results.filter((o) => o.los).map((o) => [o.movement, o.los]))
+    : {};
 
   function buildConfig() {
     const od = {};
@@ -129,6 +136,36 @@
         los: ix.get_interchange_los(),
         od_results: ix.od_results_to_js_value()
       };
+
+      setReport({
+        chapter: 'Ramp Terminals and Alternative Intersections',
+        chapterRef: 'HCM Chapter 23',
+        href: '/hcm23',
+        generatedAt: new Date().toLocaleString(),
+        headline: { label: 'Interchange LOS', value: results.los },
+        inputs: [
+          { label: 'Interchange form', value: 'Conventional diamond, pretimed signals' },
+          { label: 'Cycle length', value: `${cycle_length} s` },
+          { label: 'Distance between terminals', value: `${distance} ft` },
+          { label: 'Peak hour factor', value: phf },
+          { label: 'Heavy vehicles (arterial)', value: `${phv} %` },
+          { label: 'Ramp grade', value: `${ramp_grade} %` },
+          { label: 'O-D demands (A-N)', value: odDemands.map((d) => `${d.key.toUpperCase()} ${d.value}`).join(', ') + ' veh/h' },
+        ],
+        resultTable: {
+          columns: ['O-D', 'Demand (veh/h)', 'Control delay (s/veh)', 'EDTT (s/veh)', 'ETT (s/veh)', 'LOS'],
+          rows: results.od_results.map((o) => [
+            o.movement, o.demand.toFixed(0), o.control_delay_s.toFixed(1), o.edtt_s.toFixed(1), o.ett_s.toFixed(1), o.los ?? '',
+          ]),
+        },
+        summary: [
+          { label: 'Interchange ETT (demand-weighted)', value: `${results.ett.toFixed(1)} s/veh` },
+          { label: 'Interchange LOS (Exhibit 23-10)', value: results.los },
+        ],
+        methodology: [
+          'HCM Chapter 23 Part B interchange methodology: lane-group analysis per Chapter 19 at both ramp terminals, extra distance travel time by O-D (Exhibit 23-8 sign convention), experienced travel time per O-D (Equation 23-1), and interchange LOS from the demand-weighted ETT (Exhibit 23-10).',
+        ],
+      });
     } catch (err) {
       console.error('Chapter 23 analysis failed:', err);
       hasError = true;
@@ -156,7 +193,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">HCM Chapter 23 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">HCM Chapter 23</span>
     <h1 class="page-title">Ramp Terminals and Alternative Intersections</h1>
     <p class="page-sub">
       Estimate experienced travel time and level of service for a signalized
@@ -165,12 +202,14 @@
     </p>
   </header>
 
-  <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
+  <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> This chapter is newly implemented and its results have
-      not yet been validated against the full set of published HCM worked examples.
-      Verify results independently before relying on them in engineering work, and
-      please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      The compute engine reproduces the published HCM Chapter 34 interchange
+      example problems within the library's documented tolerances. This page
+      evaluates a conventional diamond with pretimed signals; the diverging
+      diamond and the Part C alternative intersections (RCUT, MUT, DLT) are
+      implemented in the engine but not yet exposed here. Verify results
+      independently before relying on them in engineering work, and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
 
@@ -276,6 +315,16 @@
     <section class="panel">
       <div class="panel-head">
         <div>
+          <h2 class="panel-title">Interchange</h2>
+          <p class="panel-sub">O-D movements per Exhibit 23-8. Hover the legend to isolate a group; demands are editable on the picture, and the traffic animation slows per O-D LOS after a run.</p>
+        </div>
+      </div>
+      <DiamondDiagram bind:odDemands odLos={losByOd} />
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
           <h2 class="panel-title">Origin-Destination Demands</h2>
           <p class="panel-sub">Hourly demand volumes for the fourteen O-D movements of HCM Exhibit 23-20. Frontage-road and U-turn movements are usually 0.</p>
         </div>
@@ -339,11 +388,16 @@
   </form>
 
   <section class="panel results-panel">
-    <div class="panel-head">
+    <div class="panel-head with-actions">
       <div>
         <h2 class="panel-title">Outputs</h2>
         <p class="panel-sub">Results populate after pressing Calculate.</p>
       </div>
+      {#if results}
+        <div class="panel-actions">
+          <a class="btn btn-outline btn-sm" href="/report">Open printable report</a>
+        </div>
+      {/if}
     </div>
     <div class="los overflow-x-auto">
       <table class="table w-full">
