@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
 
+// Defense in depth for the phantom-user incident: even if the app-level
+// hostname gate ever regresses, no test traffic may reach third-party
+// analytics. Blocked at the network layer for every test.
+test.beforeEach(async ({ context }) => {
+  await context.route(/googletagmanager|google-analytics|analytics\.google/, (route) => route.abort());
+});
+
 test.describe('navigation and route gating', () => {
   test('homepage has HCM Calculator in the title', async ({ page }) => {
     await page.goto('/');
