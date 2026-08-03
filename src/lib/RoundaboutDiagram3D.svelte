@@ -73,11 +73,11 @@
       for (const mv of ['R', 'T', 'L']) {
         const exitAngle = leg.exits[mv];
         moves[key][mv] = [
-          stubPt(leg.entry, -1, LANE * 0.55, EXT),
-          stubPt(leg.entry, -1, LANE * 0.55, RO - 0.1),
+          stubPt(leg.entry, +1, LANE * 0.55, EXT),
+          stubPt(leg.entry, +1, LANE * 0.55, RO - 0.1),
           ...arcPts(leg.entry + 12, exitAngle - 12, RC),
-          stubPt(exitAngle, +1, LANE * 0.55, RO - 0.1),
-          stubPt(exitAngle, +1, LANE * 0.55, EXT),
+          stubPt(exitAngle, -1, LANE * 0.55, RO - 0.1),
+          stubPt(exitAngle, -1, LANE * 0.55, EXT),
         ];
       }
     }
@@ -87,7 +87,7 @@
       const ux = Math.cos(a), uy = Math.sin(a);
       const px = -uy, py = ux;
       const r = RO + 0.15;
-      return [[ux * r - px * 0.1, uy * r - py * 0.1], [ux * r - px * (LANE * 1.6), uy * r - py * (LANE * 1.6)]];
+      return [[ux * r + px * 0.1, uy * r + py * 0.1], [ux * r + px * (LANE * 1.6), uy * r + py * (LANE * 1.6)]];
     });
 
     return {
