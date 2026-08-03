@@ -97,12 +97,12 @@
   function bypassPath(key) {
     const leg = LEG[key];
     const exitAngle = leg.exits.R;
-    const off = LANE * 1.35;
-    const kneeR = RO + LANE * 1.5;
+    const off = LANE * 2.15;
+    const kneeR = RO + LANE * 2.0;
     const enter = stub(leg.entry, -1, off, kneeR);
     const exit = stub(exitAngle, +1, off, kneeR);
     // Corner control point on the diagonal between the two legs.
-    const corner = pt(cx, cy, kneeR + LANE * 1.4, leg.entry + 45);
+    const corner = pt(cx, cy, kneeR + LANE * 1.7, leg.entry + 45);
     return `M ${enter.far} L ${enter.near} Q ${corner} ${exit.near} L ${exit.far}`;
   }
 
@@ -217,6 +217,12 @@
     {#if circLanes > 1}
       <circle {cx} {cy} r={RI + LANE} class="rb-lane-circle" />
     {/if}
+
+    <!-- ══ bypass lane beds (pavement under the movement stroke) ══ -->
+    {#each bypasses as b}
+      <path d={bypassPath(b.key)} class="rb-bypass-bed-edge" />
+      <path d={bypassPath(b.key)} class="rb-bypass-bed" />
+    {/each}
 
     <!-- ══ bypass bands ══ -->
     {#each bypasses as b}
@@ -334,6 +340,9 @@
   .rb-chip.active { border-color: var(--diag-edge); }
   .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
   .rb-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; }
+
+  .rb-bypass-bed-edge { fill: none; stroke: var(--diag-edge); stroke-width: 19; stroke-linecap: butt; }
+  .rb-bypass-bed { fill: none; stroke: var(--diag-pavement); stroke-width: 16; stroke-linecap: butt; }
 
   .rb-veh rect { stroke: rgba(15, 23, 42, 0.35); stroke-width: 0.6; }
   .rb-veh { transition: opacity 120ms ease; }
