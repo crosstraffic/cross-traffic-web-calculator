@@ -15,6 +15,22 @@
     try { localStorage.setItem('hcm-theme', theme); } catch (e) { /* private mode */ }
   }
 
+  // Google Analytics, production hostname only: localhost runs (dev, tests,
+  // screenshot automation) were inflating active-user counts, since every
+  // fresh automation context looks like a new user to GA4.
+  onMount(() => {
+    const h = location.hostname;
+    if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local') || h.endsWith('.vercel.app')) return;
+    const s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://www.googletagmanager.com/gtag/js?id=G-LMH583TV33';
+    document.head.appendChild(s);
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { window.dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-LMH583TV33');
+  });
+
   // Native <details> dropdowns don't close on an outside click. Close any open
   // nav dropdown when the click lands outside it, or on a link inside it (so the
   // menu doesn't stay open after navigating).
@@ -31,16 +47,6 @@
 <svelte:window on:click={closeNavDropdowns} />
 
 <header>
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-LMH583TV33"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-
-    gtag('config', 'G-LMH583TV33');
-  </script>
-
   <div class="navbar bg-base-100 shadow-md">
     <div class="navbar-start">
       <div class="dropdown">
