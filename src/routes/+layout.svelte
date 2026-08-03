@@ -74,6 +74,7 @@
                 <li><a href="/hcm20">Two-Way STOP Control</a></li>
                 <li><a href="/hcm21">All-Way STOP Control</a></li>
                 <li><a href="/hcm22">Roundabouts</a></li>
+                <li><a href="/hcm23">Interchange Ramp Terminals</a></li>
               </ul>
             </details>
           </li>
@@ -105,6 +106,7 @@
               <li><a href="/hcm20">Two-Way STOP Control</a></li>
               <li><a href="/hcm21">All-Way STOP Control</a></li>
               <li><a href="/hcm22">Roundabouts</a></li>
+              <li><a href="/hcm23">Interchange Ramp Terminals</a></li>
             </ul>
           </details>
         </li>

@@ -27,6 +27,8 @@ test.describe('navigation and route gating', () => {
     await expect(page).toHaveURL(/\/hcm21$/);
     await page.goto('/hcm22');
     await expect(page).toHaveURL(/\/hcm22$/);
+    await page.goto('/hcm23');
+    await expect(page).toHaveURL(/\/hcm23$/);
   });
 
   test('desktop shows the horizontal menu, phones get the hamburger', async ({ page }) => {
@@ -85,6 +87,7 @@ test.describe('navigation and route gating', () => {
     await expect(nav.locator('a[href="/hcm20"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm21"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm22"]')).toHaveCount(1);
+    await expect(nav.locator('a[href="/hcm23"]')).toHaveCount(1);
   });
 
   test('the theme toggle flips to dark and persists across reloads', async ({ page }) => {
@@ -104,11 +107,11 @@ test.describe('navigation and route gating', () => {
   });
 
   test('unreleased chapter routes redirect home', async ({ page }) => {
-    // hcm16 and hcm23 exist in the repo but are not in the RELEASED set of
+    // hcm16 and hcm24 exist in the repo but are not in the RELEASED set of
     // src/routes/+layout.js; a direct visit must land on the home page.
     await page.goto('/hcm16');
     await expect(page).toHaveURL(/\/$/);
-    await page.goto('/hcm23');
+    await page.goto('/hcm24');
     await expect(page).toHaveURL(/\/$/);
   });
 });
@@ -711,6 +714,80 @@ test.describe('chapter 22 roundabout calculator', () => {
 
     await page.getByRole('button', { name: 'Stop traffic' }).click();
     await expect(vehicles).toHaveCount(0);
+  });
+});
+
+test.describe('chapter 23 interchange calculator', () => {
+  test('reproduces the published diamond example problem on defaults', async ({ page }) => {
+    // The page defaults are HCM Chapter 34, Example Problem 1 (conventional
+    // diamond). The library integration suite holds the O-D delays and ETTs
+    // within 1.0 s/veh of Exhibit 34-16 with LOS exact; the engine prints an
+    // interchange ETT of 52.4 s/veh, LOS C, and O-D A at 47.9 s ETT LOS C.
+    await page.goto('/hcm23');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+    await calculate.click();
+
+    const rowA = page.locator('.results-panel tbody tr', { has: page.locator('th:text-is("A")') }).first();
+    await expect(rowA).toContainText('47.9');
+    await expect(rowA).toContainText('C');
+    await expect(page.getByText(/Interchange LOS: C/)).toBeVisible();
+    await expect(page.getByText(/52\.4/).first()).toBeVisible();
+
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page.locator('.report-title')).toHaveText('Ramp Terminals and Alternative Intersections');
+  });
+
+  test('the DDI form loads Example Problem 5 and reproduces its answer', async ({ page }) => {
+    // Switching to the diverging diamond loads Chapter 34 Example Problem 5
+    // as defaults. The engine's demand-weighted interchange ETT is 34.8 s/veh
+    // LOS C against the published 34.9 C (library-documented delta), with the
+    // known O-D E band difference recorded in the library suite.
+    await page.goto('/hcm23');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#FORM_input').selectOption('Ddi');
+    await expect(page.locator('#CYCLE_input')).toHaveValue('70');
+    await expect(page.locator('.dd-diagram svg')).toHaveAttribute('aria-label', /diverging diamond/);
+    await calculate.click();
+
+    await expect(page.getByText(/Interchange LOS: C/)).toBeVisible();
+    await expect(page.getByText(/34\.8/).first()).toBeVisible();
+
+    // Lane configuration drives the geometry: dropping EB to two shared
+    // lanes removes a lane line and merges the E left onto the through lane.
+    const before = await page.locator('line.dd-lane-line').count();
+    await page.locator('#DDIEB_input').selectOption('TwoLaneShared');
+    expect(await page.locator('line.dd-lane-line').count()).toBe(before - 2);
+    await page.locator('#DDIEB_input').selectOption('ThreeLaneExclusive');
+
+    // 3D view carries the form and the overpass deck.
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
+    await expect(page.locator('.dd-diagram-3d svg')).toHaveAttribute('aria-label', /diverging diamond interchange, 3D view/);
+    await expect(page.locator('.dd-diagram-3d path.dd3-deck')).toHaveCount(1);
+  });
+
+  test('the diamond diagram groups O-Ds, edits demands, and animates', async ({ page }) => {
+    await page.goto('/hcm23');
+    const diagram = page.locator('.dd-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /conventional diamond interchange/);
+
+    // Hovering a group chip isolates its O-D paths.
+    await page.locator('.dd-chip.ebg').hover();
+    await expect(page.locator('path.mv-ebg').first()).toHaveClass(/active/);
+    await expect(page.locator('path.mv-wbg').first()).toHaveClass(/dim/);
+
+    // On-diagram O-D editing two-way binds to the form.
+    await page.locator('input[aria-label="O-D I demand"]').fill('700');
+    await expect(page.locator('#OD_i_input')).toHaveValue('700');
+
+    // Animation runs and stops.
+    await page.getByRole('button', { name: 'Animate traffic' }).click();
+    expect(await page.locator('g.dd-veh').count()).toBeGreaterThan(8);
+    await page.getByRole('button', { name: 'Stop traffic' }).click();
+    await expect(page.locator('g.dd-veh')).toHaveCount(0);
   });
 });
 
