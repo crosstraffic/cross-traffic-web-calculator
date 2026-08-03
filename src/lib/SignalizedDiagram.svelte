@@ -13,6 +13,10 @@
   // False renders a read-only picture (no on-diagram volume editors), used by
   // the printable report.
   export let editable = true;
+  // Cycle length (s) for the signal-timed traffic animation and per-approach
+  // LOS letters from the last run; congested approaches discharge slower.
+  export let cycleLength = 100;
+  export let approachLos = {};
 
   let hovered = null; // 'NB' | 'SB' | 'EB' | 'WB' | null
 
@@ -103,6 +107,59 @@
     approaches = approaches;
   }
 
+  // ── signal-timed traffic animation ──
+  // Each approach's vehicles move only during its green window inside a
+  // scaled visual cycle: the NB/SB street runs first, EB/WB second, split by
+  // the entered phase durations. Platoons discharge at green onset; after a
+  // run, worse LOS stretches the discharge (down to a crawl at F). This is a
+  // timed illustration, not a queueing simulation.
+  let animating = false;
+  const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.55, E: 0.38, F: 0.2 };
+  const VIS_CYCLE = 9; // seconds per visual cycle
+
+  $: vehiclePlan = (() => {
+    if (!animating) return [];
+    const C = Math.max(30, Number(cycleLength) || 100);
+    const nsPhase = Math.max(5, Number(byKey.NB?.thru_phase) || 50);
+    const nsFrac = Math.min(0.85, Math.max(0.15, nsPhase / C));
+    // Green windows as fractions of the visual cycle, with a small clearance gap.
+    const windows = {
+      NB: [0.02, nsFrac - 0.02], SB: [0.02, nsFrac - 0.02],
+      EB: [nsFrac + 0.02, 0.98], WB: [nsFrac + 0.02, 0.98],
+    };
+    const paths = { L: dLeft, T: dThru, R: dRight };
+    const items = [];
+    let totalVol = 0;
+    const raw = [];
+    for (const o of order) {
+      const a = byKey[o.key] ?? fallback;
+      const slow = LOS_SPEED[approachLos?.[o.key]] ?? 1;
+      for (const mv of ['L', 'T', 'R']) {
+        const vol = Number(a[{ L: 'v_left', T: 'v_thru', R: 'v_right' }[mv]]) || 0;
+        if (vol <= 0) continue;
+        raw.push({ key: o.key, d: paths[mv][o.key], vol, slow, win: windows[o.key] });
+        totalVol += vol;
+      }
+    }
+    const BUDGET = 24;
+    for (const it of raw) {
+      const n = Math.max(1, Math.min(6, Math.round((BUDGET * it.vol) / (totalVol || 1))));
+      const [g0, g1] = it.win;
+      const travel = Math.min(0.9, (g1 - g0) * 0.55) / it.slow;
+      for (let k = 0; k < n; k++) {
+        const start = Math.min(g1 - 0.05, g0 + k * 0.045);
+        const end = Math.min(0.995, start + travel);
+        items.push({
+          id: `${it.key}${it.d.length}${k}`,
+          key: it.key,
+          d: it.d,
+          keyTimes: `0;${start.toFixed(3)};${end.toFixed(3)};1`,
+        });
+      }
+    }
+    return items;
+  })();
+
   function cls(h, key) {
     if (h == null) return 'sd-move';
     return h === key ? 'sd-move active' : 'sd-move dim';
@@ -165,6 +222,17 @@
       <path d={dRight[o.key]} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`} />
     {/each}
 
+    <!-- ══ signal-timed vehicles ══ -->
+    {#if animating}
+      {#each vehiclePlan as v (v.id)}
+        <g class="sd-veh veh-{v.key.toLowerCase()}" class:dim={hovered != null && hovered !== v.key}>
+          <rect x="-5" y="-2.6" width="10" height="5.2" rx="1.5" />
+          <animateMotion dur="{VIS_CYCLE}s" repeatCount="indefinite" rotate="auto"
+                         calcMode="linear" keyPoints="0;0;1;1" keyTimes={v.keyTimes} path={v.d} />
+        </g>
+      {/each}
+    {/if}
+
     <!-- ══ on-diagram volume editors ══ -->
     {#each editable ? approaches || [] : [] as a (a.key)}
       {#if clusterPos[a.key]}
@@ -182,6 +250,10 @@
   </svg>
 
   <div class="sd-legend" role="list">
+    <button type="button" class="sd-chip sd-animate" class:active={animating}
+            aria-pressed={animating} on:click={() => (animating = !animating)}>
+      {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
+    </button>
     {#each order as o}
       <button
         type="button"
@@ -199,7 +271,7 @@
       </button>
     {/each}
   </div>
-  <p class="sd-note">Movement volumes are left / through / right. A dashed left-turn path runs permitted; a solid one has a protected phase.</p>
+  <p class="sd-note">Movement volumes are left / through / right. A dashed left-turn path runs permitted; a solid one has a protected phase. Animated platoons discharge on their street's green and, after a run, stretch with the approach LOS. A timed illustration, not a simulation.</p>
 </div>
 
 <style>
@@ -268,6 +340,15 @@
     border-radius: 2px;
     display: inline-block;
   }
+  .sd-veh rect { stroke: rgba(15, 23, 42, 0.35); stroke-width: 0.6; }
+  .sd-veh { transition: opacity 120ms ease; }
+  .sd-veh.dim { opacity: 0.08; }
+  .veh-nb rect { fill: #2563eb; }
+  .veh-sb rect { fill: #16a34a; }
+  .veh-eb rect { fill: #ea7317; }
+  .veh-wb rect { fill: #dc2626; }
+  .sd-animate { cursor: pointer; font-weight: 600; }
+
   .sd-note {
     font-size: 0.72rem;
     color: var(--diag-wall-edge);

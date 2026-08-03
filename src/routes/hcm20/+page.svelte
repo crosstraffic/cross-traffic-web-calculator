@@ -50,6 +50,14 @@
   let hasError = false;
   let errMessage = '';
 
+  // Worst minor-lane LOS per approach, for the diagram's animation.
+  $: losByApproach = results
+    ? results.laneRows.reduce((m, l) => {
+        if (l.los && (!m[l.approach] || l.los > m[l.approach])) m[l.approach] = l.los;
+        return m;
+      }, {})
+    : {};
+
   function fmt(v, digits = 1) {
     return v === null || v === undefined ? '' : Number(v).toFixed(digits);
   }
@@ -296,6 +304,7 @@
           />
         {:else}
           <TwscDiagram
+            approachLos={losByApproach}
             threeLeg={intersection_type === 'three_leg'}
             majorLanes={major_lanes}
             rtEB={rt_eb}

@@ -46,6 +46,11 @@
   let hasError = false;
   let errMessage = '';
 
+  // Approach LOS map for the diagram's animation.
+  $: losByApproach = results
+    ? Object.fromEntries(results.approachRows.filter((a) => a.los).map((a) => [a.label, a.los]))
+    : {};
+
   function setLaneCount(key, n) {
     const a = approaches[key];
     const lanes = a.lanes.slice(0, n);
@@ -187,7 +192,7 @@
       {#if diagramMode === '3d'}
         <AwscDiagram3D {approaches} />
       {:else}
-        <AwscDiagram bind:approaches />
+        <AwscDiagram bind:approaches approachLos={losByApproach} />
       {/if}
     </section>
 
