@@ -5,6 +5,10 @@
 <script>
   import init, { WasmInterchange } from "HCM-middleware";
   import DiamondDiagram from '$lib/DiamondDiagram.svelte';
+  import DiamondDiagram3D from '$lib/DiamondDiagram3D.svelte';
+  import ViewToggle from '$lib/ViewToggle.svelte';
+
+  let diagramMode = '2d';
   import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
@@ -15,8 +19,13 @@
     ready = true;
   });
 
-  // Inputs (defaults follow HCM Chapter 34 Example Problem 1, a pretimed
-  // three-phase conventional diamond interchange)
+  // Interchange form. Diamond defaults follow HCM Chapter 34 Example
+  // Problem 1; switching to the DDI loads Example Problem 5 (Exhibits 34-58
+  // through 34-65).
+  let form = 'Diamond';
+  let ddi_eb_config = 'ThreeLaneExclusive';
+  let ddi_wb_config = 'TwoLaneShared';
+
   let cycle_length = 160;
   let phf = 0.90;
   let base_sat_flow = 1900;
@@ -58,8 +67,57 @@
     { movement: 'SbRampRight', label: 'SB off-ramp right', lanes: 1, begin: 116, green: 39, is_ramp: true, turn_radius: 50, shared_right_radius: null, arrival: 3, storage: 400 }
   ]);
 
+  const ddiOd = () => ([
+    { key: 'a', label: 'A · NB off-ramp left (to WB)', value: 350 },
+    { key: 'b', label: 'B · NB off-ramp right (to EB)', value: 200 },
+    { key: 'c', label: 'C · SB off-ramp right (to WB)', value: 200 },
+    { key: 'd', label: 'D · SB off-ramp left (to EB)', value: 300 },
+    { key: 'e', label: 'E · EB left to NB on-ramp', value: 600 },
+    { key: 'f', label: 'F · EB right to SB on-ramp', value: 200 },
+    { key: 'g', label: 'G · WB right to NB on-ramp', value: 300 },
+    { key: 'h', label: 'H · WB left to SB on-ramp', value: 300 },
+    { key: 'i', label: 'I · EB arterial through', value: 700 },
+    { key: 'j', label: 'J · WB arterial through', value: 150 },
+    { key: 'k', label: 'K · NB frontage through', value: 0 },
+    { key: 'l', label: 'L · SB frontage through', value: 0 },
+    { key: 'm', label: 'M · NB freeway U-turn', value: 0 },
+    { key: 'n', label: 'N · SB freeway U-turn', value: 0 }
+  ]);
+
+  // Chapter 34 Example Problem 5 lane groups. hv/grade/overlap/dq are carried
+  // per row because the DDI example sets them per lane group.
+  const ddiLaneGroups = () => ([
+    { movement: 'EbExtThrough', label: 'EB external crossover', lanes: 3, begin: 0, green: 35, is_ramp: false, turn_radius: null, shared_right_radius: null, arrival: 3, storage: null, hv: 6.1, grade: 0, overlap: 0, dq: 4, speed: 35 },
+    { movement: 'EbIntThrough', label: 'EB internal crossover', lanes: 2, begin: 0, green: 35, is_ramp: false, turn_radius: null, shared_right_radius: null, arrival: 3, storage: null, hv: 6.1, grade: 0, overlap: 0, dq: null, speed: 35, lu: 1 },
+    { movement: 'WbExtThrough', label: 'WB external crossover', lanes: 2, begin: 35, green: 25, is_ramp: false, turn_radius: null, shared_right_radius: null, arrival: 3, storage: null, hv: 6.1, grade: 0, overlap: 0, dq: 4, speed: 35 },
+    { movement: 'WbIntThrough', label: 'WB internal crossover', lanes: 2, begin: 35, green: 25, is_ramp: false, turn_radius: null, shared_right_radius: null, arrival: 3, storage: null, hv: 6.1, grade: 0, overlap: 0, dq: null, speed: 35, lu: 1 },
+    { movement: 'NbRampLeft', label: 'NB off-ramp left', lanes: 1, begin: 35, green: 35, is_ramp: true, turn_radius: 150, shared_right_radius: null, arrival: 3, storage: null, hv: 6.1, grade: 0, overlap: 6.5, dq: 4, speed: 35 },
+    { movement: 'NbRampRight', label: 'NB off-ramp right', lanes: 1, begin: 0, green: 25, is_ramp: true, turn_radius: 75, shared_right_radius: null, arrival: 3, storage: null, hv: 6.1, grade: 0, overlap: 4.9, dq: null, speed: 35 },
+    { movement: 'SbRampLeft', label: 'SB off-ramp left', lanes: 1, begin: 0, green: 25, is_ramp: true, turn_radius: 150, shared_right_radius: null, arrival: 3, storage: null, hv: 6.1, grade: 0, overlap: 6.5, dq: 4, speed: 35 },
+    { movement: 'SbRampRight', label: 'SB off-ramp right', lanes: 1, begin: 35, green: 35, is_ramp: true, turn_radius: 75, shared_right_radius: null, arrival: 3, storage: null, hv: 6.1, grade: 0, overlap: 4.9, dq: null, speed: 35 }
+  ]);
+
   let odDemands = defaultOd();
   let laneGroups = defaultLaneGroups();
+
+  // Switching forms loads that form's published example as the new defaults.
+  function applyForm(next) {
+    form = next;
+    if (form === 'Ddi') {
+      odDemands = ddiOd();
+      laneGroups = ddiLaneGroups();
+      cycle_length = 70;
+      phf = 1.0;
+      distance = 500;
+    } else {
+      odDemands = defaultOd();
+      laneGroups = defaultLaneGroups();
+      cycle_length = 160;
+      phf = 0.90;
+      distance = 500;
+    }
+    results = null;
+  }
 
   let results = null;
   let hasError = false;
@@ -78,10 +136,12 @@
     // Extra travel distances per O-D letter A..N (Exhibit 23-8 sign
     // convention: positive for left turns, negative for right turns).
     const dt = Number(extra_dist);
-    const signed = [dt, -dt, -dt, dt, dt, -dt, -dt, dt, 0, 0, 0, 0, 0, 0];
+    const signed = form === 'Ddi'
+      ? [dt, -dt, -dt, dt, dt, 0, 0, dt, 40, 40, 0, 0, 0, 0]
+      : [dt, -dt, -dt, dt, dt, -dt, -dt, dt, 0, 0, 0, 0, 0, 0];
 
     return {
-      form: 'Diamond',
+      form,
       cycle_length_s: Number(cycle_length),
       analysis_period_h: 0.25,
       base_saturation_flow: Number(base_sat_flow),
@@ -90,10 +150,10 @@
       distance_between_intersections_ft: Number(distance),
       queue_spacing_ft: 25.0,
       od,
-      eb_external_right_shared: true,
-      wb_external_right_shared: true,
-      ddi_eb_lane_config: null,
-      ddi_wb_lane_config: null,
+      eb_external_right_shared: form !== 'Ddi',
+      wb_external_right_shared: form !== 'Ddi',
+      ddi_eb_lane_config: form === 'Ddi' ? ddi_eb_config : null,
+      ddi_wb_lane_config: form === 'Ddi' ? ddi_wb_config : null,
       extra_distances: signed.map((d) => ({ distance_ft: d, accel_decel_s: 0.0 })),
       extra_distance_speed_mph: Number(design_speed),
       lane_groups: laneGroups.map((g) => ({
@@ -104,20 +164,20 @@
         control: 'Signalized',
         turn_radius_ft: g.turn_radius,
         shared_right_turn_radius_ft: g.shared_right_radius,
-        pct_heavy_vehicles: g.is_ramp ? 0.0 : Number(phv),
-        grade_pct: g.is_ramp ? Number(ramp_grade) : 0.0,
+        pct_heavy_vehicles: g.hv ?? (g.is_ramp ? 0.0 : Number(phv)),
+        grade_pct: g.grade ?? (g.is_ramp ? Number(ramp_grade) : 0.0),
         lane_width_ft: 12.0,
         parking_maneuvers_h: null,
         bus_stops_h: 0.0,
         arrival_type: g.arrival,
         storage_ft: g.storage,
-        lane_utilization_override: null,
-        downstream_queue_lost_time_s: null,
-        overlap_lost_time_s: 0.0,
+        lane_utilization_override: g.lu ?? null,
+        downstream_queue_lost_time_s: g.dq ?? null,
+        overlap_lost_time_s: g.overlap ?? 0.0,
         start_up_lost_time_s: 2.0,
         extension_of_green_s: 2.0,
         upstream_filtering_override: null,
-        speed_limit_mph: 40.0,
+        speed_limit_mph: g.speed ?? 40.0,
         initial_queue_veh: 0.0,
         demand_override_veh_h: null
       }))
@@ -144,7 +204,7 @@
         generatedAt: new Date().toLocaleString(),
         headline: { label: 'Interchange LOS', value: results.los },
         inputs: [
-          { label: 'Interchange form', value: 'Conventional diamond, pretimed signals' },
+          { label: 'Interchange form', value: form === 'Ddi' ? 'Diverging diamond (DDI), pretimed signals' : 'Conventional diamond, pretimed signals' },
           { label: 'Cycle length', value: `${cycle_length} s` },
           { label: 'Distance between terminals', value: `${distance} ft` },
           { label: 'Peak hour factor', value: phf },
@@ -174,20 +234,17 @@
   }
 
   function resetParams() {
-    cycle_length = 160;
-    phf = 0.90;
+    // Reload the current form's published-example defaults plus the shared
+    // site parameters.
     base_sat_flow = 1900;
     area_type = 'other';
-    distance = 500;
     yellow_all_red = 5;
     phv = 6.1;
     ramp_grade = 2;
     extra_dist = 100;
     design_speed = 35;
-    odDemands = defaultOd();
-    laneGroups = defaultLaneGroups();
-    results = null;
     hasError = false;
+    applyForm(form);
   }
 </script>
 
@@ -206,9 +263,10 @@
     <span>
       The compute engine reproduces the published HCM Chapter 34 interchange
       example problems within the library's documented tolerances. This page
-      evaluates a conventional diamond with pretimed signals; the diverging
-      diamond and the Part C alternative intersections (RCUT, MUT, DLT) are
-      implemented in the engine but not yet exposed here. Verify results
+      evaluates the conventional diamond and the diverging diamond with
+      pretimed signals; the Part C alternative intersections (RCUT, MUT, DLT)
+      are implemented and validated in the engine and will be exposed once
+      their input surfaces are built. Verify results
       independently before relying on them in engineering work, and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
@@ -229,6 +287,36 @@
         </div>
       </div>
       <div class="param-grid">
+        <div class="param-field">
+          <label for="FORM_input">Interchange Form</label>
+          <select id="FORM_input" class="select select-bordered select-sm" value={form} on:change={(e) => applyForm(e.target.value)}>
+            <option value="Diamond">Conventional diamond</option>
+            <option value="Ddi">Diverging diamond (DDI)</option>
+          </select>
+          <p class="param-hint">Switching loads that form's published example as defaults.</p>
+        </div>
+
+        {#if form === 'Ddi'}
+          <div class="param-field">
+            <label for="DDIEB_input">EB Crossover Lane Configuration</label>
+            <select id="DDIEB_input" class="select select-bordered select-sm" bind:value={ddi_eb_config}>
+              <option value="TwoLaneShared">2 lanes, shared left</option>
+              <option value="ThreeLaneShared">3 lanes, shared left</option>
+              <option value="ThreeLaneExclusive">3 lanes, exclusive left</option>
+              <option value="ThreeLaneExclusiveMiddleShared">3 lanes, exclusive left + middle shared</option>
+            </select>
+          </div>
+          <div class="param-field">
+            <label for="DDIWB_input">WB Crossover Lane Configuration</label>
+            <select id="DDIWB_input" class="select select-bordered select-sm" bind:value={ddi_wb_config}>
+              <option value="TwoLaneShared">2 lanes, shared left</option>
+              <option value="ThreeLaneShared">3 lanes, shared left</option>
+              <option value="ThreeLaneExclusive">3 lanes, exclusive left</option>
+              <option value="ThreeLaneExclusiveMiddleShared">3 lanes, exclusive left + middle shared</option>
+            </select>
+          </div>
+        {/if}
+
         <div class="param-field">
           <label for="CYCLE_input">Cycle Length</label>
           <div class="cell-field">
@@ -316,10 +404,17 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Interchange</h2>
-          <p class="panel-sub">O-D movements per Exhibit 23-8. Hover the legend to isolate a group; demands are editable on the picture, and the traffic animation slows per O-D LOS after a run.</p>
+          <p class="panel-sub">O-D movements per Exhibit 23-8. Hover the legend to isolate a group; demands are editable on the 2D picture, and the traffic animation slows per O-D LOS after a run.</p>
+        </div>
+        <div class="panel-actions">
+          <ViewToggle bind:mode={diagramMode} label="Interchange view mode" />
         </div>
       </div>
-      <DiamondDiagram bind:odDemands odLos={losByOd} />
+      {#if diagramMode === '3d'}
+        <DiamondDiagram3D {odDemands} odLos={losByOd} {form} />
+      {:else}
+        <DiamondDiagram bind:odDemands odLos={losByOd} {form} />
+      {/if}
     </section>
 
     <section class="panel">

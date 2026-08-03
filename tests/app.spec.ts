@@ -738,6 +738,29 @@ test.describe('chapter 23 interchange calculator', () => {
     await expect(page.locator('.report-title')).toHaveText('Ramp Terminals and Alternative Intersections');
   });
 
+  test('the DDI form loads Example Problem 5 and reproduces its answer', async ({ page }) => {
+    // Switching to the diverging diamond loads Chapter 34 Example Problem 5
+    // as defaults. The engine's demand-weighted interchange ETT is 34.8 s/veh
+    // LOS C against the published 34.9 C (library-documented delta), with the
+    // known O-D E band difference recorded in the library suite.
+    await page.goto('/hcm23');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#FORM_input').selectOption('Ddi');
+    await expect(page.locator('#CYCLE_input')).toHaveValue('70');
+    await expect(page.locator('.dd-diagram svg')).toHaveAttribute('aria-label', /diverging diamond/);
+    await calculate.click();
+
+    await expect(page.getByText(/Interchange LOS: C/)).toBeVisible();
+    await expect(page.getByText(/34\.8/).first()).toBeVisible();
+
+    // 3D view carries the form and the overpass deck.
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
+    await expect(page.locator('.dd-diagram-3d svg')).toHaveAttribute('aria-label', /diverging diamond interchange, 3D view/);
+    await expect(page.locator('.dd-diagram-3d path.dd3-deck')).toHaveCount(2);
+  });
+
   test('the diamond diagram groups O-Ds, edits demands, and animates', async ({ page }) => {
     await page.goto('/hcm23');
     const diagram = page.locator('.dd-diagram svg');

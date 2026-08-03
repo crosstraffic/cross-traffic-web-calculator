@@ -8,6 +8,10 @@
   // on the picture, and animate traffic that slows per O-D LOS after a run.
   export let odDemands = [];
   export let editable = true;
+  // 'Diamond' or 'Ddi': the DDI crosses the arterial throughs to the left
+  // side between the terminals, so its internal paths swap sides at both
+  // crossovers.
+  export let form = 'Diamond';
   // Per-O-D LOS letters from the last run ({ A: 'C', ... }).
   export let odLos = {};
 
@@ -37,8 +41,25 @@
   };
   const along = (s, t) => `${(s.x0 + (s.x1 - s.x0) * t).toFixed(1)},${(s.y0 + (s.y1 - s.y0) * t).toFixed(1)}`;
 
-  // O-D paths. Straight legs with quarter curves at the nodes.
-  const P = {
+  // Internal-side lane centers for the DDI crossovers.
+  const ebN = cy - 10, wbS = cy + 10;
+
+  // O-D paths. Straight legs with quarter curves at the nodes; the DDI set
+  // crosses the throughs between the terminals.
+  const P_DDI = {
+    A: `M ${along(stubs.nbOff, 1)} L ${along(stubs.nbOff, 0.1)} Q ${xE - 2},${wbS} ${xE - 26},${wbS} L ${xW + 30},${wbS} C ${xW + 6},${wbS} ${xW + 18},${wbIn} ${xW - 26},${wbIn} L 0,${wbIn}`,
+    B: `M ${along(stubs.nbOff, 1)} L ${along(stubs.nbOff, 0.15)} Q ${xE + 4},${ebOut} ${xE + 26},${ebOut} L ${W},${ebOut}`,
+    C: `M ${along(stubs.sbOff, 1)} L ${along(stubs.sbOff, 0.15)} Q ${xW - 4},${wbOut} ${xW - 26},${wbOut} L 0,${wbOut}`,
+    D: `M ${along(stubs.sbOff, 1)} L ${along(stubs.sbOff, 0.1)} Q ${xW + 2},${ebN} ${xW + 26},${ebN} L ${xE - 30},${ebN} C ${xE - 6},${ebN} ${xE - 18},${ebIn} ${xE + 26},${ebIn} L ${W},${ebIn}`,
+    E: `M 0,${ebIn} L ${xW - 30},${ebIn} C ${xW - 6},${ebIn} ${xW - 18},${ebN} ${xW + 26},${ebN} L ${xE - 30},${ebN} Q ${xE - 4},${ebN} ${along(stubs.nbOn, 0.14)} L ${along(stubs.nbOn, 1)}`,
+    F: `M 0,${ebOut} L ${xW - 26},${ebOut} Q ${xW + 2},${ebOut} ${along(stubs.sbOn, 0.15)} L ${along(stubs.sbOn, 1)}`,
+    I: `M 0,${cy + 17} L ${xW - 30},${cy + 17} C ${xW - 6},${cy + 17} ${xW - 18},${ebN - 6} ${xW + 26},${ebN - 6} L ${xE - 30},${ebN - 6} C ${xE - 6},${ebN - 6} ${xE - 18},${cy + 17} ${xE + 26},${cy + 17} L ${W},${cy + 17}`,
+    G: `M ${W},${wbOut} L ${xE + 26},${wbOut} Q ${xE - 2},${wbOut} ${along(stubs.nbOn, 0.15)} L ${along(stubs.nbOn, 1)}`,
+    H: `M ${W},${wbIn} L ${xE + 30},${wbIn} C ${xE + 6},${wbIn} ${xE + 18},${wbS} ${xE - 26},${wbS} L ${xW + 30},${wbS} Q ${xW + 4},${wbS} ${along(stubs.sbOn, 0.13)} L ${along(stubs.sbOn, 1)}`,
+    J: `M ${W},${cy - 17} L ${xE + 30},${cy - 17} C ${xE + 6},${cy - 17} ${xE + 18},${wbS + 6} ${xE - 26},${wbS + 6} L ${xW + 30},${wbS + 6} C ${xW + 6},${wbS + 6} ${xW + 18},${cy - 17} ${xW - 26},${cy - 17} L 0,${cy - 17}`,
+  };
+
+  const P_DIAMOND = {
     // NB off-ramp (east terminal, south leg)
     A: `M ${along(stubs.nbOff, 1)} L ${along(stubs.nbOff, 0.1)} Q ${xE},${wbIn} ${xE - 24},${wbIn} L 0,${wbIn}`,
     B: `M ${along(stubs.nbOff, 1)} L ${along(stubs.nbOff, 0.15)} Q ${xE + 4},${ebOut} ${xE + 26},${ebOut} L ${W},${ebOut}`,
@@ -54,6 +75,7 @@
     H: `M ${W},${wbIn} L ${xW + 26},${wbIn} Q ${xW},${wbIn} ${along(stubs.sbOn, 0.12)} L ${along(stubs.sbOn, 1)}`,
     J: `M ${W},${cy - 14} L 0,${cy - 14}`,
   };
+  $: P = form === 'Ddi' ? P_DDI : P_DIAMOND;
 
   const GROUPS = [
     { key: 'NBOFF', label: 'NB off-ramp (A, B)', ods: ['a', 'b'], cls: 'nboff' },
@@ -117,7 +139,7 @@
 
 <div class="dd-diagram">
   <svg viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet" role="img"
-       aria-label="conventional diamond interchange, two signalized ramp terminals">
+       aria-label={form === 'Ddi' ? 'diverging diamond interchange, two signalized crossovers' : 'conventional diamond interchange, two signalized ramp terminals'}>
 
     <!-- ══ pavement ══ -->
     <rect x="0" y={cy - 28} width={W} height="56" class="dd-pavement" />
