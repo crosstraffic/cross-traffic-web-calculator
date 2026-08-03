@@ -3,11 +3,46 @@
   // with thickness, the central island cut out on top, yield lines, and the
   // counterclockwise movement arcs in the approach colors.
   import Camera3DSvg from '$lib/Camera3DSvg.svelte';
-  import { planProjector, fitTransform, makeDrawers } from '$lib/proj3d.js';
+  import { planProjector, fitTransform, makeDrawers, qSample } from '$lib/proj3d.js';
 
   export let entries = {};
+  // Per-approach LOS letters from the last run; the animation slows and
+  // thickens with worse LOS, same response as the 2D view.
+  export let approachLos = {};
 
   let hovered = null;
+  let animating = false;
+  const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
+  const LOS_FLEET = { A: 1, B: 1, C: 1.1, D: 1.3, E: 1.7, F: 2.3 };
+  const dirOf = { NB: 'nb', SB: 'sb', EB: 'eb', WB: 'wb' };
+  const spanOf = { R: 90, T: 180, L: 270 };
+
+  // Volume-weighted fleet per movement; paths get projected in the template
+  // so vehicles ride the same polylines the movement strokes use.
+  $: vehiclePlan = (() => {
+    if (!animating) return [];
+    const items = [];
+    for (const key of ['NB', 'SB', 'EB', 'WB']) {
+      const e = entries?.[dirOf[key]] || {};
+      const slow = LOS_SPEED[approachLos?.[key]] ?? 1;
+      const crowd = LOS_FLEET[approachLos?.[key]] ?? 1;
+      for (const mv of ['R', 'T', 'L']) {
+        const vol = Number(e[{ R: 'r', T: 't', L: 'l' }[mv]]) || 0;
+        if (vol <= 0) continue;
+        const freeFlow = mv === 'R' && e.bypass === 'nonyielding';
+        items.push({
+          key, mv, vol,
+          dur: (4 + spanOf[mv] / 55) / (freeFlow ? 1 : slow),
+          crowd: freeFlow ? 1 : crowd,
+        });
+      }
+    }
+    const total = items.reduce((s, it) => s + it.vol, 0) || 1;
+    for (const it of items) {
+      it.n = Math.max(1, Math.min(8, Math.round((26 * it.vol * it.crowd) / total)));
+    }
+    return items;
+  })();
 
   const VIEW_W = 520, VIEW_H = 340, PAD = 24, THICK = 9;
   const LANE = 1, RUN = 4.6, RI = 1.7;
@@ -16,9 +51,14 @@
     Math.max(Number(entries?.nb?.circLanes) || 1, Number(entries?.sb?.circLanes) || 1,
              Number(entries?.eb?.circLanes) || 1, Number(entries?.wb?.circLanes) || 1)));
 
-  $: model = build(circLanes);
+  // Bypass modes read directly so Svelte tracks them.
+  $: bNB = entries?.nb?.bypass || 'none';
+  $: bSB = entries?.sb?.bypass || 'none';
+  $: bEB = entries?.eb?.bypass || 'none';
+  $: bWB = entries?.wb?.bypass || 'none';
+  $: model = build(circLanes, bNB, bSB, bEB, bWB);
 
-  function build(circLanes) {
+  function build(circLanes, bNB, bSB, bEB, bWB) {
     const RO = RI + circLanes * LANE + 0.35;
     const RC = (RI + RO) / 2;
     const EXT = RO + RUN;
@@ -90,9 +130,38 @@
       return [[ux * r + px * 0.1, uy * r + py * 0.1], [ux * r + px * (LANE * 1.6), uy * r + py * (LANE * 1.6)]];
     });
 
+    // Right-turn bypass slip lanes: sampled centerline (straight along the
+    // entry leg, one curve across the corner, straight out the exit leg) and
+    // an offset polygon for the pavement slab. Right turns reroute onto it.
+    const modes = { NB: bNB, SB: bSB, EB: bEB, WB: bWB };
+    const bypassSlabs = [];
+    for (const key of Object.keys(LEG)) {
+      if (modes[key] === 'none') continue;
+      const leg = LEG[key];
+      const A = leg.entry, B = leg.exits.R;
+      const o = LANE * 2.15, kneeR = RO + LANE * 2.0;
+      const pIn0 = stubPt(A, +1, o, EXT), pIn1 = stubPt(A, +1, o, kneeR);
+      const pOut1 = stubPt(B, -1, o, kneeR), pOut0 = stubPt(B, -1, o, EXT);
+      const ca = ((A + 45) * Math.PI) / 180;
+      const cr = kneeR + LANE * 1.7;
+      const corner = [cr * Math.cos(ca), cr * Math.sin(ca)];
+      const center = [pIn0, pIn1, ...qSample(pIn1, corner, pOut1, 12), pOut0];
+      const w = LANE * 0.55;
+      const left = [], right = [];
+      for (let i = 0; i < center.length; i++) {
+        const a2 = center[Math.max(0, i - 1)], b2 = center[Math.min(center.length - 1, i + 1)];
+        const dx = b2[0] - a2[0], dy = b2[1] - a2[1];
+        const len = Math.hypot(dx, dy) || 1;
+        left.push([center[i][0] - (dy / len) * w, center[i][1] + (dx / len) * w]);
+        right.push([center[i][0] + (dy / len) * w, center[i][1] - (dx / len) * w]);
+      }
+      bypassSlabs.push({ key, mode: modes[key], center, slab: [...left, ...right.reverse()] });
+      moves[key].R = center;
+    }
+
     return {
       outer: ring(RO), island: ring(RI), circLine: circLanes > 1 ? ring(RI + LANE) : null,
-      legs, moves, yields, fit: ring(EXT, 8),
+      legs, moves, yields, bypassSlabs, fit: ring(EXT, 8),
     };
   }
 
@@ -133,6 +202,13 @@
       <path d={d.polygon(leg)} class="rb3-top" />
     {/each}
     <path d={d.polygon(model.outer)} class="rb3-top" />
+    {#each model.bypassSlabs as b}
+      <path d={d.shadow(b.slab)} class="rb3-shadow" />
+      {#each d.walls(b.slab) as w}
+        <path d={w} class="rb3-wall" />
+      {/each}
+      <path d={d.polygon(b.slab)} class="rb3-top" />
+    {/each}
     <path d={d.polygon(model.island)} class="rb3-island" />
     {#if model.circLine}
       <path d={d.polygon(model.circLine)} class="rb3-lane-circle" />
@@ -143,12 +219,31 @@
 
     {#each order as o}
       {#each ['R', 'T', 'L'] as mv}
-        <path d={d.polyline(model.moves[o.key][mv])} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`} />
+        {@const byp = model.bypassSlabs.find((b) => b.key === o.key)}
+        <path d={d.polyline(model.moves[o.key][mv])} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`}
+              stroke-dasharray={mv === 'R' && byp && byp.mode === 'yielding' ? '6 5' : null} />
       {/each}
     {/each}
+
+    {#if animating}
+      {#each vehiclePlan as v (v.key + v.mv)}
+        {#each Array.from({ length: v.n }) as _, k}
+          <g class="rb3-veh veh-{v.key.toLowerCase()}" class:dim={hovered != null && hovered !== v.key}>
+            <rect x="-4" y="-2.1" width="8" height="4.2" rx="1.2" />
+            <animateMotion dur="{v.dur}s" repeatCount="indefinite" rotate="auto"
+                           begin="{(-(k + 0.37 * (k % 2)) / v.n) * v.dur}s"
+                           path={d.polyline(model.moves[v.key][v.mv])} />
+          </g>
+        {/each}
+      {/each}
+    {/if}
   </Camera3DSvg>
 
   <div class="rb3-legend" role="list">
+    <button type="button" class="rb3-chip rb3-animate" class:active={animating}
+            aria-pressed={animating} on:click={() => (animating = !animating)}>
+      {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
+    </button>
     {#each order as o}
       <button
         type="button"
@@ -207,5 +302,13 @@
     cursor: default;
   }
   .rb3-chip.active { border-color: var(--diag-edge); }
+  .rb3-animate { cursor: pointer; font-weight: 600; }
+  .rb3-veh rect { stroke: rgba(15, 23, 42, 0.35); stroke-width: 0.6; }
+  .rb3-veh { transition: opacity 120ms ease; }
+  .rb3-veh.dim { opacity: 0.08; }
+  .veh-nb rect { fill: #2563eb; }
+  .veh-sb rect { fill: #16a34a; }
+  .veh-eb rect { fill: #ea7317; }
+  .veh-wb rect { fill: #dc2626; }
   .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
 </style>

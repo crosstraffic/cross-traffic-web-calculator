@@ -46,6 +46,11 @@
   let hasError = false;
   let errMessage = '';
 
+  // Approach LOS map for the diagram's congestion-responsive animation.
+  $: losByApproach = results
+    ? Object.fromEntries(results.approachRows.filter((a) => a.los).map((a) => [a.label, a.los]))
+    : {};
+
   function fmt(v, digits = 1) {
     return v === null || v === undefined ? '' : Number(v).toFixed(digits);
   }
@@ -194,9 +199,9 @@
         </div>
       </div>
       {#if diagramMode === '3d'}
-        <RoundaboutDiagram3D {entries} />
+        <RoundaboutDiagram3D {entries} approachLos={losByApproach} />
       {:else}
-        <RoundaboutDiagram bind:entries />
+        <RoundaboutDiagram bind:entries approachLos={losByApproach} />
       {/if}
     </section>
 

@@ -11,6 +11,9 @@
   // circLanes, exitLanes, bypass, laneAssignment, nped } }.
   export let entries = {};
   export let editable = true;
+  // Per-approach LOS letters from the last run ({ NB: 'C', ... }); when
+  // present, the traffic animation slows and thickens with worse LOS.
+  export let approachLos = {};
 
   let hovered = null; // 'NB' | 'SB' | 'EB' | 'WB' | null
 
@@ -156,27 +159,36 @@
   // be the real thing.
   let animating = false;
   const spanOf = { R: 90, T: 180, L: 270 };
+  // Congestion response: speed multiplier and fleet multiplier by LOS letter.
+  const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
+  const LOS_FLEET = { A: 1, B: 1, C: 1.1, D: 1.3, E: 1.7, F: 2.3 };
   $: vehiclePlan = (() => {
     if (!animating) return [];
     const items = [];
     for (const o of order) {
       const e = entries?.[dirOf[o.key]] || {};
+      const los = approachLos?.[o.key];
+      const slow = LOS_SPEED[los] ?? 1;
+      const crowd = LOS_FLEET[los] ?? 1;
       for (const mv of ['R', 'T', 'L']) {
         const vol = Number(e[{ R: 'r', T: 't', L: 'l' }[mv]]) || 0;
         if (vol <= 0) continue;
         const useBypass = mv === 'R' && e.bypass && e.bypass !== 'none';
+        // A nonyielding bypass never queues, so it ignores the approach LOS.
+        const freeFlow = useBypass && e.bypass === 'nonyielding';
         items.push({
           key: o.key,
           d: useBypass ? bypassPath(o.key) : movePath(o.key, mv),
           vol,
-          dur: useBypass ? 5 : 4 + spanOf[mv] / 55,
+          dur: (useBypass ? 5 : 4 + spanOf[mv] / 55) / (freeFlow ? 1 : slow),
+          crowd: freeFlow ? 1 : crowd,
         });
       }
     }
     const total = items.reduce((s, it) => s + it.vol, 0) || 1;
     const BUDGET = 26;
     for (const it of items) {
-      it.n = Math.max(1, Math.min(6, Math.round((BUDGET * it.vol) / total)));
+      it.n = Math.max(1, Math.min(8, Math.round((BUDGET * it.vol * it.crowd) / total)));
     }
     return items;
   })();
@@ -288,7 +300,7 @@
       </button>
     {/each}
   </div>
-  <p class="rb-note">Circulation is counterclockwise and entries yield at the dashed line. Volume boxes are U-turn / left / through / right. A dashed bypass yields at its exit leg; a solid one merges without yielding. Animated vehicles are an illustration at constant speed, weighted by the entered volumes, not a simulation.</p>
+  <p class="rb-note">Circulation is counterclockwise and entries yield at the dashed line. Volume boxes are U-turn / left / through / right. A dashed bypass yields at its exit leg; a solid one merges without yielding. Animated vehicles are an illustration weighted by the entered volumes; after a run they slow and bunch with each approach's LOS. Not a simulation.</p>
 </div>
 
 <style>
