@@ -4,7 +4,13 @@
 
 <script>
   import init, { WasmTwsc } from "HCM-middleware";
+  import TwscDiagram from '$lib/TwscDiagram.svelte';
+  import TwscDiagram3D from '$lib/TwscDiagram3D.svelte';
+  import ViewToggle from '$lib/ViewToggle.svelte';
+  import { setReport } from '$lib/report';
   import { onMount } from "svelte";
+
+  let diagramMode = '2d';
 
   let ready = false;
 
@@ -97,6 +103,48 @@
         approachRows,
         intersectionDelay: res.intersection_delay
       };
+
+      // Worst minor-approach lane sets the headline, since the HCM assigns
+      // TWSC LOS by lane/movement rather than for the whole intersection.
+      const worst = results.laneRows.reduce((w, l) => (l.los > w ? l.los : w), 'A');
+      setReport({
+        chapter: 'Two-Way STOP-Controlled Intersections',
+        chapterRef: 'HCM Chapter 20',
+        href: '/hcm20',
+        generatedAt: new Date().toLocaleString(),
+        headline: { label: 'Worst minor-lane LOS', value: worst },
+        inputs: [
+          { label: 'Intersection type', value: intersection_type === 'three_leg' ? 'Three-leg (T), minor stem northbound' : 'Four-leg' },
+          { label: 'Major lanes per direction', value: major_lanes },
+          { label: 'Major right turns (EB / WB)', value: `${rt_eb} / ${rt_wb}` },
+          { label: 'Minor lanes (NB)', value: minor_nb.replace(/_/g, ' ') },
+          ...(intersection_type === 'three_leg' ? [] : [{ label: 'Minor lanes (SB)', value: minor_sb.replace(/_/g, ' ') }]),
+          { label: 'Minor approach grades (NB / SB)', value: `${grade_nb} / ${grade_sb} %` },
+          { label: 'Major EB volumes L/T/R', value: `${v1} / ${v2} / ${v3} veh/h` },
+          { label: 'Major WB volumes L/T/R', value: `${v4} / ${v5} / ${v6} veh/h` },
+          { label: 'Minor NB volumes L/T/R', value: `${v7} / ${v8} / ${v9} veh/h` },
+          ...(intersection_type === 'three_leg' ? [] : [{ label: 'Minor SB volumes L/T/R', value: `${v10} / ${v11} / ${v12} veh/h` }]),
+          { label: 'Peak hour factor', value: phf === '' ? 'volumes are flow rates' : phf },
+          { label: 'Heavy vehicles', value: `${phv} %` },
+        ],
+        resultTable: {
+          columns: ['Movement or lane', 'Capacity (veh/h)', 'v/c', 'Delay (s/veh)', 'LOS', '95% queue (veh)'],
+          rows: [
+            ...results.movementRows.map((m) => [m.name, fmt(m.movement_capacity, 0), fmt(m.vc_ratio, 2), fmt(m.control_delay), m.los ?? '', fmt(m.queue_95)]),
+            ...results.laneRows.map((l) => [`${l.approach} minor lane ${l.lane}`, fmt(l.capacity, 0), fmt(l.vc_ratio, 2), fmt(l.control_delay), l.los ?? '', fmt(l.queue_95)]),
+          ],
+        },
+        summary: [
+          ...results.approachRows.filter((a) => a.delay != null).map((a) => ({ label: `Approach delay, ${a.label}`, value: `${fmt(a.delay)} s/veh` })),
+          { label: 'Intersection delay (Equation 20-65)', value: `${fmt(results.intersectionDelay)} s/veh` },
+        ],
+        methodology: [
+          'HCM Chapter 20 gap-acceptance methodology: conflicting flows per movement rank (Exhibits 20-4 through 20-8), potential and movement capacities (Equations 20-32 through 20-47), shared-lane capacity, delay (Equation 20-61), and LOS (Exhibit 20-2).',
+          'Applies the December 2022 HCM corrections, including the corrected Stage II conflicting movements and the Exhibit 20-14 swap.',
+          'The HCM defines TWSC LOS per movement and minor lane. Major through movements are unimpeded and carry no delay or LOS.',
+        ],
+        diagram: { kind: 'twsc', props: { threeLeg: intersection_type === 'three_leg', majorLanes: major_lanes, rtEB: rt_eb, rtWB: rt_wb, minorNB: minor_nb, minorSB: minor_sb, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12 } },
+      });
     } catch (err) {
       console.error('Chapter 20 analysis failed:', err);
       hasError = true;
@@ -127,7 +175,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">HCM Chapter 20 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">HCM Chapter 20</span>
     <h1 class="page-title">Two-Way STOP-Controlled Intersections</h1>
     <p class="page-sub">
       Estimate movement capacities, control delay, queues, and level of service
@@ -135,12 +183,13 @@
     </p>
   </header>
 
-  <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
+  <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> This chapter is newly implemented and its results have
-      not yet been validated against the full set of published HCM worked examples.
-      Verify results independently before relying on them in engineering work, and
-      please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      The compute engine reproduces the published HCM worked examples for this
+      chapter and applies the December 2022 HCM corrections, including the
+      corrected Stage II conflicting movements and the Exhibit 20-14 swap.
+      Verify results independently before relying on them in engineering work,
+      and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
 
@@ -229,6 +278,34 @@
             <span class="unit">%</span>
           </div>
         </div>
+      </div>
+
+      <div class="diagram-block">
+        <div class="diagram-head">
+          <p class="panel-sub">Hover the legend to highlight an approach. The dash pattern shows each movement's HCM rank, and in the 2D view the movement volumes can be edited directly on the diagram.</p>
+          <ViewToggle bind:mode={diagramMode} label="Intersection view mode" />
+        </div>
+        {#if diagramMode === '3d'}
+          <TwscDiagram3D
+            threeLeg={intersection_type === 'three_leg'}
+            majorLanes={major_lanes}
+            rtEB={rt_eb}
+            rtWB={rt_wb}
+            minorNB={minor_nb}
+            minorSB={minor_sb}
+          />
+        {:else}
+          <TwscDiagram
+            threeLeg={intersection_type === 'three_leg'}
+            majorLanes={major_lanes}
+            rtEB={rt_eb}
+            rtWB={rt_wb}
+            minorNB={minor_nb}
+            minorSB={minor_sb}
+            bind:v1 bind:v2 bind:v3 bind:v4 bind:v5 bind:v6
+            bind:v7 bind:v8 bind:v9 bind:v10 bind:v11 bind:v12
+          />
+        {/if}
       </div>
     </section>
 
@@ -398,11 +475,16 @@
   </form>
 
   <section class="panel results-panel">
-    <div class="panel-head">
+    <div class="panel-head with-actions">
       <div>
         <h2 class="panel-title">Outputs</h2>
         <p class="panel-sub">Results populate after pressing Calculate.</p>
       </div>
+      {#if results}
+        <div class="panel-actions">
+          <a class="btn btn-outline btn-sm" href="/report">Open printable report</a>
+        </div>
+      {/if}
     </div>
     <div class="los overflow-x-auto">
       <table class="table w-full">

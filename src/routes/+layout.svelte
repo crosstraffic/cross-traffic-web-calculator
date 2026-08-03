@@ -65,6 +65,7 @@
                 <li><a href="/hcm14">Freeway Merge and Diverge Segments</a></li>
                 <li><a href="/hcm15">Two-Lane Highways</a></li>
                 <li><a href="/hcm19">Signalized Intersections</a></li>
+                <li><a href="/hcm20">Two-Way STOP Control</a></li>
               </ul>
             </details>
           </li>
@@ -93,6 +94,7 @@
                 <li><a href="/hcm14">Freeway Merge and Diverge Segments</a></li>
               <li><a href="/hcm15">Two-Lane Highways</a></li>
               <li><a href="/hcm19">Signalized Intersections</a></li>
+              <li><a href="/hcm20">Two-Way STOP Control</a></li>
             </ul>
           </details>
         </li>
