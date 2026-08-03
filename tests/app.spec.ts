@@ -677,6 +677,25 @@ test.describe('chapter 22 roundabout calculator', () => {
     await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
     await expect(page.locator('.rb-diagram-3d svg')).toHaveAttribute('aria-label', /four-leg roundabout, 3D view/);
   });
+
+  test('the traffic animation runs volume-weighted vehicles', async ({ page }) => {
+    await page.goto('/hcm22');
+    await expect(page.locator('.rb-diagram svg')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Animate traffic' }).click();
+    const vehicles = page.locator('g.rb-veh');
+    await expect(vehicles.first()).toBeVisible();
+    expect(await vehicles.count()).toBeGreaterThan(10);
+
+    // Vehicles actually move: the same element's position changes over time.
+    const before = await vehicles.first().boundingBox();
+    await page.waitForTimeout(900);
+    const after = await vehicles.first().boundingBox();
+    expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(3);
+
+    await page.getByRole('button', { name: 'Stop traffic' }).click();
+    await expect(vehicles).toHaveCount(0);
+  });
 });
 
 test.describe('chapter 15 two-lane highway calculator', () => {

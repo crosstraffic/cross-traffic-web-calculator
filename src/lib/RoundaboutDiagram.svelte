@@ -147,6 +147,39 @@
   $: bypasses = order
     .map((o) => ({ key: o.key, mode: entries?.[dirOf[o.key]]?.bypass || 'none' }))
     .filter((b) => b.mode !== 'none');
+
+  // ── illustrative traffic animation ──
+  // Small vehicles flow along the movement paths, count weighted by the
+  // entered volumes, right turns using the bypass where one exists. This is a
+  // schematic illustration at constant speed, not a simulation: no gap
+  // acceptance, no queuing. A microsimulation bridge (SUMO or similar) would
+  // be the real thing.
+  let animating = false;
+  const spanOf = { R: 90, T: 180, L: 270 };
+  $: vehiclePlan = (() => {
+    if (!animating) return [];
+    const items = [];
+    for (const o of order) {
+      const e = entries?.[dirOf[o.key]] || {};
+      for (const mv of ['R', 'T', 'L']) {
+        const vol = Number(e[{ R: 'r', T: 't', L: 'l' }[mv]]) || 0;
+        if (vol <= 0) continue;
+        const useBypass = mv === 'R' && e.bypass && e.bypass !== 'none';
+        items.push({
+          key: o.key,
+          d: useBypass ? bypassPath(o.key) : movePath(o.key, mv),
+          vol,
+          dur: useBypass ? 5 : 4 + spanOf[mv] / 55,
+        });
+      }
+    }
+    const total = items.reduce((s, it) => s + it.vol, 0) || 1;
+    const BUDGET = 26;
+    for (const it of items) {
+      it.n = Math.max(1, Math.min(6, Math.round((BUDGET * it.vol) / total)));
+    }
+    return items;
+  })();
 </script>
 
 <div class="rb-diagram">
@@ -198,6 +231,19 @@
       {/each}
     {/each}
 
+    <!-- ══ illustrative vehicles ══ -->
+    {#if animating}
+      {#each vehiclePlan as v (v.key + v.d)}
+        {#each Array.from({ length: v.n }) as _, k}
+          <g class="rb-veh veh-{v.key.toLowerCase()}" class:dim={hovered != null && hovered !== v.key}>
+            <rect x="-4.5" y="-2.4" width="9" height="4.8" rx="1.4" />
+            <animateMotion dur="{v.dur}s" repeatCount="indefinite" rotate="auto"
+                           begin="{(-(k + 0.37 * (k % 2)) / v.n) * v.dur}s" path={v.d} />
+          </g>
+        {/each}
+      {/each}
+    {/if}
+
     <!-- ══ on-diagram volume editors (U/L/T/R) ══ -->
     {#each editable ? order : [] as o (o.key)}
       <foreignObject x={clusterPos[o.key].x} y={clusterPos[o.key].y} width={CW} height={CH}>
@@ -216,6 +262,10 @@
   </svg>
 
   <div class="rb-legend" role="list">
+    <button type="button" class="rb-chip rb-animate" class:active={animating}
+            aria-pressed={animating} on:click={() => (animating = !animating)}>
+      {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
+    </button>
     {#each order as o}
       <button
         type="button"
@@ -232,7 +282,7 @@
       </button>
     {/each}
   </div>
-  <p class="rb-note">Circulation is counterclockwise and entries yield at the dashed line. Volume boxes are U-turn / left / through / right. A dashed bypass yields at its exit leg; a solid one merges without yielding.</p>
+  <p class="rb-note">Circulation is counterclockwise and entries yield at the dashed line. Volume boxes are U-turn / left / through / right. A dashed bypass yields at its exit leg; a solid one merges without yielding. Animated vehicles are an illustration at constant speed, weighted by the entered volumes, not a simulation.</p>
 </div>
 
 <style>
@@ -284,6 +334,15 @@
   .rb-chip.active { border-color: var(--diag-edge); }
   .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
   .rb-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; }
+
+  .rb-veh rect { stroke: rgba(15, 23, 42, 0.35); stroke-width: 0.6; }
+  .rb-veh { transition: opacity 120ms ease; }
+  .rb-veh.dim { opacity: 0.08; }
+  .veh-nb rect { fill: #2563eb; }
+  .veh-sb rect { fill: #16a34a; }
+  .veh-eb rect { fill: #ea7317; }
+  .veh-wb rect { fill: #dc2626; }
+  .rb-animate { cursor: pointer; font-weight: 600; }
 
   .rb-cluster {
     box-sizing: border-box;
