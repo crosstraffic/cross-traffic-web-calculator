@@ -52,8 +52,13 @@
     return [[s.x0 - dx, s.y0], [s.x0 + dx, s.y0], [s.x1 + dx, s.y1], [s.x1 - dx, s.y1]];
   };
 
-  const fwyWest = [[cx - FWY - GAP / 2, 0], [cx - GAP / 2, 0], [cx - GAP / 2, H], [cx - FWY - GAP / 2, H]];
-  const fwyEast = [[cx + GAP / 2, 0], [cx + FWY + GAP / 2, 0], [cx + FWY + GAP / 2, H], [cx + GAP / 2, H]];
+  // One deck spanning both carriageways and the median, so the overpass reads
+  // as a single structure rather than two floating slabs.
+  const fwyDeck = [[cx - FWY - GAP / 2, 0], [cx + FWY + GAP / 2, 0], [cx + FWY + GAP / 2, H], [cx - FWY - GAP / 2, H]];
+  const medianW = [[cx - GAP / 2, 0], [cx - GAP / 2, H]];
+  const medianE = [[cx + GAP / 2, 0], [cx + GAP / 2, H]];
+  // Pier stations along the deck, clear of the arterial opening.
+  const PIERS = [34, 96, H - 96, H - 34];
 
   // O-D paths as point arrays; node curves sampled with qSample.
   function buildPaths(form, ebOut, ebIn, wbOut, wbIn, yI, yJ, stubs) {
@@ -140,7 +145,7 @@
     {@const tf = fitTransform(project, fitPts, VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK, 1.02)}
     {@const tfUp = (x, y) => { const p = tf(x, y); return { x: p.x, y: p.y - ELEV }; }}
     {@const d = makeDrawers(tf, THICK)}
-    {@const dUp = makeDrawers(tfUp, THICK + ELEV - 6)}
+    {@const dUp = makeDrawers(tfUp, 10)}
 
     <!-- at-grade: arterial and ramp stubs -->
     <path d={d.shadow(flip(arterial))} class="dd3-shadow" />
@@ -177,13 +182,18 @@
     {/if}
 
     <!-- elevated freeway deck, drawn last so it crosses over everything -->
-    {#each [fwyWest, fwyEast] as f}
-      <path d={d.shadow(flip(f))} class="dd3-shadow" />
-      {#each dUp.walls(flip(f)) as w}
-        <path d={w} class="dd3-deckwall" />
-      {/each}
-      <path d={dUp.polygon(flip(f))} class="dd3-deck" />
+    <path d={d.shadow(flip(fwyDeck))} class="dd3-shadow" />
+    {#each PIERS as py}
+      {@const g = tf(cx, -py)}
+      {@const u = tfUp(cx, -py)}
+      <line x1={g.x} y1={g.y} x2={u.x} y2={u.y + 9} class="dd3-pier" />
     {/each}
+    {#each dUp.walls(flip(fwyDeck)) as w}
+      <path d={w} class="dd3-deckwall" />
+    {/each}
+    <path d={dUp.polygon(flip(fwyDeck))} class="dd3-deck" />
+    <path d={dUp.polyline(flip(medianW))} class="dd3-median" />
+    <path d={dUp.polyline(flip(medianE))} class="dd3-median" />
   </Camera3DSvg>
 
   <div class="dd3-legend" role="list">
@@ -214,6 +224,8 @@
   .dd3-wall { fill: var(--diag-wall); stroke: var(--diag-wall-edge); stroke-width: 0.5; }
   .dd3-top { fill: var(--diag-pavement); stroke: var(--diag-edge); stroke-width: 1.25; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
   .dd3-deckwall { fill: var(--diag-wall); stroke: var(--diag-wall-edge); stroke-width: 0.5; opacity: 0.92; }
+  .dd3-pier { stroke: var(--diag-wall); stroke-width: 7; stroke-linecap: butt; }
+  .dd3-median { fill: none; stroke: var(--diag-center); stroke-width: 1.1; vector-effect: non-scaling-stroke; opacity: 0.8; }
   .dd3-deck { fill: var(--diag-pavement-alt); stroke: var(--diag-edge); stroke-width: 1.25; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 
   .dd3-move {

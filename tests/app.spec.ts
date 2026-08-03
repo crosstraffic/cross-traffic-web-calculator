@@ -765,7 +765,7 @@ test.describe('chapter 23 interchange calculator', () => {
     // 3D view carries the form and the overpass deck.
     await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
     await expect(page.locator('.dd-diagram-3d svg')).toHaveAttribute('aria-label', /diverging diamond interchange, 3D view/);
-    await expect(page.locator('.dd-diagram-3d path.dd3-deck')).toHaveCount(2);
+    await expect(page.locator('.dd-diagram-3d path.dd3-deck')).toHaveCount(1);
   });
 
   test('the diamond diagram groups O-Ds, edits demands, and animates', async ({ page }) => {
