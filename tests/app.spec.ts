@@ -21,6 +21,8 @@ test.describe('navigation and route gating', () => {
     await expect(page).toHaveURL(/\/hcm15$/);
     await page.goto('/hcm19');
     await expect(page).toHaveURL(/\/hcm19$/);
+    await page.goto('/hcm20');
+    await expect(page).toHaveURL(/\/hcm20$/);
   });
 
   test('desktop shows the horizontal menu, phones get the hamburger', async ({ page }) => {
@@ -76,6 +78,7 @@ test.describe('navigation and route gating', () => {
     await expect(nav.locator('a[href="/hcm14"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm15"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm19"]')).toHaveCount(1);
+    await expect(nav.locator('a[href="/hcm20"]')).toHaveCount(1);
   });
 
   test('the theme toggle flips to dark and persists across reloads', async ({ page }) => {
@@ -95,11 +98,11 @@ test.describe('navigation and route gating', () => {
   });
 
   test('unreleased chapter routes redirect home', async ({ page }) => {
-    // hcm16 and hcm20 exist in the repo but are not in the RELEASED set of
+    // hcm16 and hcm21 exist in the repo but are not in the RELEASED set of
     // src/routes/+layout.js; a direct visit must land on the home page.
     await page.goto('/hcm16');
     await expect(page).toHaveURL(/\/$/);
-    await page.goto('/hcm20');
+    await page.goto('/hcm21');
     await expect(page).toHaveURL(/\/$/);
   });
 });
@@ -515,6 +518,60 @@ test.describe('chapter 19 signalized intersection calculator', () => {
     // Toggling back restores the editable plan view with the edited value.
     await page.locator('.view-toggle .vt-btn', { hasText: '2D' }).click();
     await expect(page.locator('input[aria-label="NB through volume"]')).toHaveValue('750');
+  });
+});
+
+test.describe('chapter 20 TWSC calculator', () => {
+  test('reproduces the published three-leg example problem on defaults', async ({ page }) => {
+    // The page defaults are HCM Chapter 32, TWSC Example Problem 1. Published
+    // answers: c_m,4 = 1,238, c_m,7 = 268, c_m,9 = 760, c_SH,NB = 521 veh/h;
+    // d_4 = 8.3 s LOS A; NB lane 14.9 s LOS B (engine prints 15.0, within the
+    // book's 0.5 s tolerance); d_A,WB = 2.9; d_I = 4.1 s/veh.
+    await page.goto('/hcm20');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+    await calculate.click();
+
+    const row = (label) => page.locator('.results-panel tr', { hasText: label }).first();
+    await expect(row('Major WB left').locator('td').nth(2)).toHaveText('1238');
+    await expect(row('Major WB left')).toContainText('8.3');
+    await expect(row('Minor NB left').locator('td').nth(2)).toHaveText('268');
+    await expect(row('Minor NB right').locator('td').nth(2)).toHaveText('760');
+    await expect(row('NB lane 1').locator('td').nth(2)).toHaveText('521');
+    await expect(row('NB lane 1')).toContainText('B');
+    await expect(page.getByText(/Intersection Delay.*4\.1|4\.1 s\/veh/).first()).toBeVisible();
+
+    // The run publishes a printable report with the TWSC diagram.
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page.locator('.report-title')).toHaveText('Two-Way STOP-Controlled Intersections');
+    await expect(page.locator('.report-diagram .twsc-diagram svg')).toBeVisible();
+  });
+
+  test('the TWSC diagram follows the inputs and shows ranks', async ({ page }) => {
+    await page.goto('/hcm20');
+    const diagram = page.locator('.twsc-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /three-leg two-way stop-controlled/);
+
+    // Rank in the dash pattern: NB left is rank 3 on a T (dash 6 5), NB right
+    // rank 2 (dash 10 6), major through rank 1 (no dash attribute).
+    await expect(page.locator('path.mv-nb[stroke-dasharray="6 5"]')).toHaveCount(1);
+    await expect(page.locator('path.mv-nb[stroke-dasharray="10 6"]')).toHaveCount(1);
+
+    // On-diagram editing two-way binds to the form.
+    await page.locator('input[aria-label="EB through volume"]').fill('480');
+    await expect(page.locator('#V2_input')).toHaveValue('480');
+
+    // Switching to four-leg redraws with the SB approach and its stop bar.
+    await page.locator('#TYPE_input').selectOption('four_leg');
+    await expect(diagram).toHaveAttribute('aria-label', /four-leg/);
+    await expect(page.locator('.tw-chip.sb')).toBeVisible();
+
+    // The 3D toggle swaps in the projected view.
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
+    const svg3d = page.locator('.twsc-diagram-3d svg');
+    await expect(svg3d).toBeVisible();
+    await expect(svg3d).toHaveAttribute('aria-label', /four-leg two-way stop-controlled intersection, 3D view/);
   });
 });
 

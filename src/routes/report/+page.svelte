@@ -10,6 +10,7 @@
   import WeavingDiagram from '$lib/WeavingDiagram.svelte';
   import RampDiagram from '$lib/RampDiagram.svelte';
   import SignalizedDiagram from '$lib/SignalizedDiagram.svelte';
+  import TwscDiagram from '$lib/TwscDiagram.svelte';
 
   onMount(() => { if (!Object.keys($reports).length) loadReports(); });
 
@@ -143,6 +144,8 @@
               />
             {:else if current.diagram.kind === 'signalized'}
               <SignalizedDiagram approaches={current.diagram.props.approaches} editable={false} />
+            {:else if current.diagram.kind === 'twsc'}
+              <TwscDiagram {...current.diagram.props} editable={false} />
             {/if}
           </div>
         </section>
