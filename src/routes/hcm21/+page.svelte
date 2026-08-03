@@ -4,7 +4,13 @@
 
 <script>
   import init, { WasmAwsc } from "HCM-middleware";
+  import AwscDiagram from '$lib/AwscDiagram.svelte';
+  import AwscDiagram3D from '$lib/AwscDiagram3D.svelte';
+  import ViewToggle from '$lib/ViewToggle.svelte';
+  import { setReport } from '$lib/report';
   import { onMount } from "svelte";
+
+  let diagramMode = '2d';
 
   let ready = false;
 
@@ -93,6 +99,39 @@
         intersectionLos: res.intersection_los,
         iterations: res.iterations
       };
+
+      setReport({
+        chapter: 'All-Way STOP-Controlled Intersections',
+        chapterRef: 'HCM Chapter 21',
+        href: '/hcm21',
+        generatedAt: new Date().toLocaleString(),
+        headline: { label: 'Intersection LOS', value: results.intersectionLos },
+        inputs: [
+          ...dirs.filter((d) => approaches[d.key].laneCount > 0).map((d) => ({
+            label: `${d.label}`,
+            value: approaches[d.key].lanes.map((l, i) => `lane ${i + 1}: ${l.left}/${l.through}/${l.right} veh/h`).join(', ') + `, HV ${approaches[d.key].hv}%`,
+          })),
+          ...dirs.filter((d) => approaches[d.key].laneCount === 0).map((d) => ({ label: d.label, value: 'no approach' })),
+          { label: 'Peak hour factor', value: phf === '' ? 'volumes are flow rates' : phf },
+          { label: 'Analysis period', value: `${analysis_period} h` },
+        ],
+        resultTable: {
+          columns: ['Lane', 'Flow rate (veh/h)', 'Departure headway (s)', 'Utilization x', 'Delay (s/veh)', 'LOS', '95% queue (veh)'],
+          rows: results.laneRows.map((l) => [
+            `${l.approach} lane ${l.lane}`, fmt(l.flow_rate, 0), fmt(l.departure_headway, 2), fmt(l.degree_of_utilization, 3), fmt(l.control_delay), l.los ?? '', fmt(l.queue_95),
+          ]),
+        },
+        summary: [
+          ...results.approachRows.map((a) => ({ label: `Approach delay, ${a.label}`, value: `${fmt(a.delay)} s/veh (LOS ${a.los})` })),
+          { label: 'Intersection delay', value: `${fmt(results.intersectionDelay)} s/veh` },
+          { label: 'Intersection LOS (Exhibit 21-8)', value: results.intersectionLos },
+          { label: 'Departure-headway iterations to convergence', value: results.iterations },
+        ],
+        methodology: [
+          'HCM Chapter 21 methodology: saturation headways from the degree-of-conflict cases and headway adjustments (Exhibits 21-11 through 21-14), iterated departure headways until convergence, service times, control delay (Equation 21-30), and LOS (Exhibit 21-8).',
+        ],
+        diagram: { kind: 'awsc', props: { approaches: JSON.parse(JSON.stringify(approaches)) } },
+      });
     } catch (err) {
       console.error('Chapter 21 analysis failed:', err);
       hasError = true;
@@ -111,7 +150,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">HCM Chapter 21 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">HCM Chapter 21</span>
     <h1 class="page-title">All-Way STOP-Controlled Intersections</h1>
     <p class="page-sub">
       Estimate departure headways, control delay, queues, and level of service
@@ -119,12 +158,12 @@
     </p>
   </header>
 
-  <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
+  <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> This chapter is newly implemented and its results have
-      not yet been validated against the full set of published HCM worked examples.
-      Verify results independently before relying on them in engineering work, and
-      please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      The compute engine reproduces the published HCM worked examples for this
+      chapter, including the iterative departure-headway convergence of the
+      Chapter 21 method. Verify results independently before relying on them in
+      engineering work, and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
 
@@ -135,6 +174,23 @@
   {/if}
 
   <form id="hcm21" on:submit|preventDefault={runAnalysis}>
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">Intersection</h2>
+          <p class="panel-sub">The picture follows the approach lane counts below. Hover the legend to highlight an approach, and in the 2D view single-lane approach volumes can be edited directly on the diagram.</p>
+        </div>
+        <div class="panel-actions">
+          <ViewToggle bind:mode={diagramMode} label="Intersection view mode" />
+        </div>
+      </div>
+      {#if diagramMode === '3d'}
+        <AwscDiagram3D {approaches} />
+      {:else}
+        <AwscDiagram bind:approaches />
+      {/if}
+    </section>
+
     {#each dirs as d}
       <section class="panel">
         <div class="panel-head">
@@ -224,11 +280,16 @@
   </form>
 
   <section class="panel results-panel">
-    <div class="panel-head">
+    <div class="panel-head with-actions">
       <div>
         <h2 class="panel-title">Outputs</h2>
         <p class="panel-sub">Results populate after pressing Calculate.</p>
       </div>
+      {#if results}
+        <div class="panel-actions">
+          <a class="btn btn-outline btn-sm" href="/report">Open printable report</a>
+        </div>
+      {/if}
     </div>
     <div class="los overflow-x-auto">
       <table class="table w-full">
