@@ -93,6 +93,19 @@ test.describe('navigation and route gating', () => {
     await expect(nav.locator('a[href="/hcm24"]')).toHaveCount(1);
   });
 
+  test('analytics never loads from localhost', async ({ page }) => {
+    // Guard for the phantom-user incident: automation traffic must not reach
+    // Google Analytics. The tag only injects on the production hostname.
+    const hits = [];
+    page.on('request', (r) => {
+      if (r.url().includes('googletagmanager') || r.url().includes('google-analytics')) hits.push(r.url());
+    });
+    await page.goto('/');
+    await page.goto('/hcm22');
+    await page.waitForTimeout(1500);
+    expect(hits).toHaveLength(0);
+  });
+
   test('the theme toggle flips to dark and persists across reloads', async ({ page }) => {
     await page.goto('/');
     const html = page.locator('html');
