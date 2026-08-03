@@ -285,6 +285,7 @@ test.describe('chapter 13 weaving calculator', () => {
 
   test('the movement diagram follows the inputs and highlights on hover', async ({ page }) => {
     await page.goto('/hcm13');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     const diagram = page.locator('.weave-diagram svg');
     await expect(diagram).toBeVisible();
     await expect(diagram).toHaveAttribute('aria-label', /one-sided weaving segment/);
@@ -382,6 +383,7 @@ test.describe('chapter 14 merge and diverge calculator', () => {
 
   test('the junction diagram follows the inputs', async ({ page }) => {
     await page.goto('/hcm14');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     const diagram = page.locator('.ramp-diagram svg');
     await expect(diagram).toBeVisible();
     await expect(diagram).toHaveAttribute('aria-label', /right-side on ramp/);
@@ -507,6 +509,7 @@ test.describe('chapter 19 signalized intersection calculator', () => {
 
   test('the intersection diagram follows the inputs and highlights on hover', async ({ page }) => {
     await page.goto('/hcm19');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     const diagram = page.locator('.signal-diagram svg');
     await expect(diagram).toBeVisible();
     await expect(diagram).toHaveAttribute('aria-label', /four-leg signalized intersection/);
@@ -532,6 +535,7 @@ test.describe('chapter 19 signalized intersection calculator', () => {
 
   test('signal-timed traffic animation pulses with the phases', async ({ page }) => {
     await page.goto('/hcm19');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     await expect(page.locator('.signal-diagram svg')).toBeVisible();
     await page.getByRole('button', { name: 'Animate traffic' }).click();
     const vehicles = page.locator('g.sd-veh');
@@ -548,6 +552,7 @@ test.describe('chapter 19 signalized intersection calculator', () => {
 
   test('volumes can be edited on the diagram and the 3D view toggles', async ({ page }) => {
     await page.goto('/hcm19');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
 
     // The on-diagram editors two-way bind to the same state as the form.
     await page.locator('input[aria-label="NB through volume"]').fill('750');
@@ -599,6 +604,7 @@ test.describe('chapter 20 TWSC calculator', () => {
 
   test('the TWSC diagram follows the inputs and shows ranks', async ({ page }) => {
     await page.goto('/hcm20');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     const diagram = page.locator('.twsc-diagram svg');
     await expect(diagram).toBeVisible();
     await expect(diagram).toHaveAttribute('aria-label', /three-leg two-way stop-controlled/);
@@ -651,6 +657,7 @@ test.describe('chapter 21 AWSC calculator', () => {
 
   test('the AWSC diagram follows the leg configuration', async ({ page }) => {
     await page.goto('/hcm21');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     const diagram = page.locator('.awsc-diagram svg');
     await expect(diagram).toBeVisible();
     // EP1 defaults: NB has zero lanes, so three legs.
@@ -700,6 +707,7 @@ test.describe('chapter 22 roundabout calculator', () => {
 
   test('the roundabout diagram highlights entries and edits volumes', async ({ page }) => {
     await page.goto('/hcm22');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     const diagram = page.locator('.rb-diagram svg');
     await expect(diagram).toBeVisible();
     await expect(diagram).toHaveAttribute('aria-label', /four-leg roundabout, 1 circulating lane/);
@@ -724,6 +732,7 @@ test.describe('chapter 22 roundabout calculator', () => {
 
   test('the traffic animation runs volume-weighted vehicles', async ({ page }) => {
     await page.goto('/hcm22');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     await expect(page.locator('.rb-diagram svg')).toBeVisible();
 
     await page.getByRole('button', { name: 'Animate traffic' }).click();
@@ -795,6 +804,7 @@ test.describe('chapter 23 interchange calculator', () => {
 
   test('the diamond diagram groups O-Ds, edits demands, and animates', async ({ page }) => {
     await page.goto('/hcm23');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     const diagram = page.locator('.dd-diagram svg');
     await expect(diagram).toBeVisible();
     await expect(diagram).toHaveAttribute('aria-label', /conventional diamond interchange/);
@@ -864,6 +874,7 @@ test.describe('chapter 24 pedestrian and bicycle path calculator', () => {
 
   test('the path diagram mixes modes and edits demand', async ({ page }) => {
     await page.goto('/hcm24');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     await page.locator('#KIND_input').selectOption('bicycle');
     const diagram = page.locator('.path-diagram svg');
     await expect(diagram).toBeVisible();
