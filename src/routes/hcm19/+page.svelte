@@ -46,6 +46,11 @@
   let hasError = false;
   let errMessage = '';
 
+  // Approach LOS map for the diagram's congestion-responsive animation.
+  $: losByApproach = results
+    ? Object.fromEntries(results.approaches.map((a) => [a.direction, a.los]))
+    : {};
+
   function runAnalysis() {
     hasError = false;
     results = null;
@@ -273,7 +278,7 @@
         {#if diagramMode === '3d'}
           <SignalizedDiagram3D {approaches} />
         {:else}
-          <SignalizedDiagram bind:approaches />
+          <SignalizedDiagram bind:approaches cycleLength={cycle_length} approachLos={losByApproach} />
         {/if}
       </div>
     </section>

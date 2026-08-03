@@ -11,6 +11,9 @@
   // authoritative.
   export let approaches = {};
   export let editable = true;
+  // Approach LOS letters from the last run; each approach's traffic slows
+  // and bunches with its LOS (everyone stops at an AWSC).
+  export let approachLos = {};
 
   let hovered = null; // 'EB' | 'WB' | 'NB' | 'SB' | null
 
@@ -99,6 +102,38 @@
     WB: { x: W - CW - 6, y: boxN - CH - 6 },
   };
 
+  // ── illustrative traffic, LOS-responsive per approach ──
+  let animating = false;
+  const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
+  const LOS_FLEET = { A: 1, B: 1, C: 1.1, D: 1.3, E: 1.7, F: 2.3 };
+  $: vehiclePlan = (() => {
+    if (!animating) return [];
+    const items = [];
+    let total = 0;
+    const raw = [];
+    for (const o of order) {
+      const a = approaches?.[o.key.toLowerCase()];
+      if (!a || !a.lanes?.length) continue;
+      const slow = LOS_SPEED[approachLos?.[o.key]] ?? 1;
+      const crowd = LOS_FLEET[approachLos?.[o.key]] ?? 1;
+      const sums = a.lanes.reduce((s, l) => [s[0] + (Number(l.left) || 0), s[1] + (Number(l.through) || 0), s[2] + (Number(l.right) || 0)], [0, 0, 0]);
+      ['L', 'T', 'R'].forEach((mv, i) => {
+        const vol = sums[i];
+        const d = paths[o.key][mv];
+        if (vol <= 0 || !d) return;
+        raw.push({ key: o.key, d, vol, dur: (mv === 'T' ? 6 : 5) / slow, crowd });
+        total += vol;
+      });
+    }
+    for (const it of raw) {
+      const n = Math.max(1, Math.min(7, Math.round((24 * it.vol * it.crowd) / (total || 1))));
+      for (let k = 0; k < n; k++) {
+        items.push({ id: it.key + it.d.length + k, key: it.key, d: it.d, dur: it.dur, begin: (-(k + 0.4 * (k % 2)) / n) * it.dur });
+      }
+    }
+    return items;
+  })();
+
   function cls(h, key) {
     if (h == null) return 'aw-move';
     return h === key ? 'aw-move active' : 'aw-move dim';
@@ -166,6 +201,16 @@
       {/each}
     {/each}
 
+    <!-- ══ illustrative vehicles ══ -->
+    {#if animating}
+      {#each vehiclePlan as v (v.id)}
+        <g class="aw-veh veh-{v.key.toLowerCase()}" class:dim={hovered != null && hovered !== v.key}>
+          <rect x="-5" y="-2.6" width="10" height="5.2" rx="1.5" />
+          <animateMotion dur="{v.dur}s" repeatCount="indefinite" rotate="auto" begin="{v.begin}s" path={v.d} />
+        </g>
+      {/each}
+    {/if}
+
     <!-- ══ on-diagram volume editors (lane 1; multi-lane approaches edit in the form) ══ -->
     {#each editable ? order : [] as o (o.key)}
       {#if clusterPos[o.key]}
@@ -188,6 +233,10 @@
   </svg>
 
   <div class="aw-legend" role="list">
+    <button type="button" class="aw-chip aw-animate" class:active={animating}
+            aria-pressed={animating} on:click={() => (animating = !animating)}>
+      {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
+    </button>
     {#each order as o}
       <button
         type="button"
@@ -204,7 +253,7 @@
       </button>
     {/each}
   </div>
-  <p class="aw-note">Every approach stops. An approach with zero lanes removes its leg, matching the three-leg worked examples.</p>
+  <p class="aw-note">Every approach stops. An approach with zero lanes removes its leg, matching the three-leg worked examples. Animated traffic slows and bunches with each approach LOS after a run. An illustration, not a simulation.</p>
 </div>
 
 <style>
@@ -255,6 +304,14 @@
   .aw-chip.active { border-color: var(--diag-edge); }
   .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
   .aw-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; }
+  .aw-veh rect { stroke: rgba(15, 23, 42, 0.35); stroke-width: 0.6; }
+  .aw-veh { transition: opacity 120ms ease; }
+  .aw-veh.dim { opacity: 0.08; }
+  .veh-eb rect { fill: #ea7317; }
+  .veh-wb rect { fill: #dc2626; }
+  .veh-nb rect { fill: #2563eb; }
+  .veh-sb rect { fill: #16a34a; }
+  .aw-animate { cursor: pointer; font-weight: 600; }
 
   .aw-cluster {
     box-sizing: border-box;

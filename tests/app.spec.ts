@@ -502,6 +502,22 @@ test.describe('chapter 19 signalized intersection calculator', () => {
     await expect(page.locator('line.sd-lane-line')).toHaveCount(before + 4);
   });
 
+  test('signal-timed traffic animation pulses with the phases', async ({ page }) => {
+    await page.goto('/hcm19');
+    await expect(page.locator('.signal-diagram svg')).toBeVisible();
+    await page.getByRole('button', { name: 'Animate traffic' }).click();
+    const vehicles = page.locator('g.sd-veh');
+    expect(await vehicles.count()).toBeGreaterThan(8);
+    // A vehicle progresses over time (during some green window).
+    const el = vehicles.first();
+    const a = await el.boundingBox();
+    await page.waitForTimeout(2500);
+    const b = await el.boundingBox();
+    expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeGreaterThan(2);
+    await page.getByRole('button', { name: 'Stop traffic' }).click();
+    await expect(vehicles).toHaveCount(0);
+  });
+
   test('volumes can be edited on the diagram and the 3D view toggles', async ({ page }) => {
     await page.goto('/hcm19');
 

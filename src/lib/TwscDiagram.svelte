@@ -23,6 +23,9 @@
   export let v10 = 0, v11 = 0, v12 = 0;
   // False renders a read-only picture, used by the printable report.
   export let editable = true;
+  // Minor-approach LOS letters from the last run ({ NB: 'B', SB: ... });
+  // minor traffic crawls and bunches with worse LOS, major flows free.
+  export let approachLos = {};
 
   let hovered = null; // 'EB' | 'WB' | 'NB' | 'SB' | null
 
@@ -125,6 +128,38 @@
     WB: { x: W - CW - 6, y: boxN - CH - 6 },
   };
 
+  // ── illustrative traffic ── major streams run free (rank 1 yields to
+  // nothing); minor streams slow and bunch with their computed LOS.
+  let animating = false;
+  const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
+  const LOS_FLEET = { A: 1, B: 1, C: 1.1, D: 1.3, E: 1.7, F: 2.3 };
+  $: vehiclePlan = (() => {
+    if (!animating) return [];
+    const volsOf = { EB: [v1, v2, v3], WB: [v4, v5, v6], NB: [v7, v8, v9], SB: [v10, v11, v12] };
+    const items = [];
+    let total = 0;
+    const raw = [];
+    for (const o of order) {
+      const minor = o.key === 'NB' || o.key === 'SB';
+      const slow = minor ? (LOS_SPEED[approachLos?.[o.key]] ?? 0.8) : 1;
+      const crowd = minor ? (LOS_FLEET[approachLos?.[o.key]] ?? 1) : 1;
+      ['L', 'T', 'R'].forEach((mv, i) => {
+        const vol = Number(volsOf[o.key][i]) || 0;
+        const d = paths[o.key][mv];
+        if (vol <= 0 || !d) return;
+        raw.push({ key: o.key, d, vol, dur: (mv === 'T' ? 6 : 5) / slow, crowd });
+        total += vol;
+      });
+    }
+    for (const it of raw) {
+      const n = Math.max(1, Math.min(7, Math.round((24 * it.vol * it.crowd) / (total || 1))));
+      for (let k = 0; k < n; k++) {
+        items.push({ id: it.key + it.d.length + k, key: it.key, d: it.d, dur: it.dur, begin: (-(k + 0.4 * (k % 2)) / n) * it.dur });
+      }
+    }
+    return items;
+  })();
+
   function cls(h, key) {
     if (h == null) return 'tw-move';
     return h === key ? 'tw-move active' : 'tw-move dim';
@@ -198,6 +233,16 @@
       {/each}
     {/each}
 
+    <!-- ══ illustrative vehicles ══ -->
+    {#if animating}
+      {#each vehiclePlan as v (v.id)}
+        <g class="tw-veh veh-{v.key.toLowerCase()}" class:dim={hovered != null && hovered !== v.key}>
+          <rect x="-5" y="-2.6" width="10" height="5.2" rx="1.5" />
+          <animateMotion dur="{v.dur}s" repeatCount="indefinite" rotate="auto" begin="{v.begin}s" path={v.d} />
+        </g>
+      {/each}
+    {/if}
+
     <!-- ══ on-diagram volume editors ══ -->
     {#each editable ? order : [] as o (o.key)}
       {#if clusterPos[o.key]}
@@ -219,6 +264,10 @@
   </svg>
 
   <div class="tw-legend" role="list">
+    <button type="button" class="tw-chip tw-animate" class:active={animating}
+            aria-pressed={animating} on:click={() => (animating = !animating)}>
+      {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
+    </button>
     {#each order as o}
       <button
         type="button"
@@ -235,7 +284,7 @@
       </button>
     {/each}
   </div>
-  <p class="tw-note">The dash pattern shows the HCM rank: solid rank 1 (major through and right), long dashes rank 2 (major left, minor right), short dashes rank 3, dotted rank 4. Lower rank yields to everything above it.</p>
+  <p class="tw-note">The dash pattern shows the HCM rank: solid rank 1 (major through and right), long dashes rank 2 (major left, minor right), short dashes rank 3, dotted rank 4. Lower rank yields to everything above it. Animated traffic runs the major street free and, after a run, crawls the minor approaches by their LOS. An illustration, not a simulation.</p>
 </div>
 
 <style>
@@ -286,6 +335,14 @@
   .tw-chip.active { border-color: var(--diag-edge); }
   .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
   .tw-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; }
+  .tw-veh rect { stroke: rgba(15, 23, 42, 0.35); stroke-width: 0.6; }
+  .tw-veh { transition: opacity 120ms ease; }
+  .tw-veh.dim { opacity: 0.08; }
+  .veh-eb rect { fill: #ea7317; }
+  .veh-wb rect { fill: #dc2626; }
+  .veh-nb rect { fill: #2563eb; }
+  .veh-sb rect { fill: #16a34a; }
+  .tw-animate { cursor: pointer; font-weight: 600; }
 
   .tw-cluster {
     box-sizing: border-box;
