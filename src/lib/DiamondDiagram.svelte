@@ -25,15 +25,37 @@
   const GAP = 12;                    // median
   const LEAN = 46;                   // ramp lean toward the freeway
 
-  // Arterial lane centers.
-  const ebOut = cy + 21, ebIn = cy + 7, wbIn = cy - 7, wbOut = cy - 21;
+  // Lane-reactive arterial geometry. The DDI crossover lane configurations
+  // set each direction's lane count (2 or 3) and whether the left turn
+  // launches from a shared or an exclusive lane; the diamond stays 2+2.
+  export let ddiEb = 'ThreeLaneExclusive';
+  export let ddiWb = 'TwoLaneShared';
+  $: nEbLanes = form === 'Ddi' ? (String(ddiEb).startsWith('Two') ? 2 : 3) : 2;
+  $: nWbLanes = form === 'Ddi' ? (String(ddiWb).startsWith('Two') ? 2 : 3) : 2;
+  $: sharedEb = form === 'Ddi' && (ddiEb === 'TwoLaneShared' || ddiEb === 'ThreeLaneShared');
+  $: sharedWb = form === 'Ddi' && (ddiWb === 'TwoLaneShared' || ddiWb === 'ThreeLaneShared');
+  $: hEB = nEbLanes * LANE;
+  $: hWB = nWbLanes * LANE;
+  $: edgeS = cy + hEB;
+  $: edgeN = cy - hWB;
+  // Lane centers, index 0 at the curb.
+  $: ebLane = (i) => cy + hEB - (i + 0.5) * LANE;
+  $: wbLane = (i) => cy - hWB + (i + 0.5) * LANE;
+  $: ebOut = ebLane(0);
+  $: ebIn = ebLane(nEbLanes - 1);
+  $: wbOut = wbLane(0);
+  $: wbIn = wbLane(nWbLanes - 1);
+  // Through start lanes: shared-left configs run the through in the same
+  // lane the left departs from; exclusive configs push it one lane out.
+  $: yI = sharedEb ? ebIn : ebLane(nEbLanes - 2);
+  $: yJ = sharedWb ? wbIn : wbLane(nWbLanes - 2);
 
   // Ramp stubs: [xAtTerminal, yAtArterial] to [xAtFreewayEnd, yEdge].
-  const stubs = {
-    sbOff: { x0: xW, y0: cy - 28, x1: xW + LEAN, y1: 16 },      // west terminal, north leg (down toward node)
-    sbOn: { x0: xW, y0: cy + 28, x1: xW + LEAN, y1: H - 16 },   // west terminal, south leg
-    nbOn: { x0: xE, y0: cy - 28, x1: xE - LEAN, y1: 16 },       // east terminal, north leg
-    nbOff: { x0: xE, y0: cy + 28, x1: xE - LEAN, y1: H - 16 },  // east terminal, south leg
+  $: stubs = {
+    sbOff: { x0: xW, y0: edgeN, x1: xW + LEAN, y1: 16 },      // west terminal, north leg (down toward node)
+    sbOn: { x0: xW, y0: edgeS, x1: xW + LEAN, y1: H - 16 },   // west terminal, south leg
+    nbOn: { x0: xE, y0: edgeN, x1: xE - LEAN, y1: 16 },       // east terminal, north leg
+    nbOff: { x0: xE, y0: edgeS, x1: xE - LEAN, y1: H - 16 },  // east terminal, south leg
   };
   const stubBand = (s) => {
     const dx = 11;
@@ -46,20 +68,20 @@
 
   // O-D paths. Straight legs with quarter curves at the nodes; the DDI set
   // crosses the throughs between the terminals.
-  const P_DDI = {
+  $: P_DDI = {
     A: `M ${along(stubs.nbOff, 1)} L ${along(stubs.nbOff, 0.1)} Q ${xE - 2},${wbS} ${xE - 26},${wbS} L ${xW + 30},${wbS} C ${xW + 6},${wbS} ${xW + 18},${wbIn} ${xW - 26},${wbIn} L 0,${wbIn}`,
     B: `M ${along(stubs.nbOff, 1)} L ${along(stubs.nbOff, 0.15)} Q ${xE + 4},${ebOut} ${xE + 26},${ebOut} L ${W},${ebOut}`,
     C: `M ${along(stubs.sbOff, 1)} L ${along(stubs.sbOff, 0.15)} Q ${xW - 4},${wbOut} ${xW - 26},${wbOut} L 0,${wbOut}`,
     D: `M ${along(stubs.sbOff, 1)} L ${along(stubs.sbOff, 0.1)} Q ${xW + 2},${ebN} ${xW + 26},${ebN} L ${xE - 30},${ebN} C ${xE - 6},${ebN} ${xE - 18},${ebIn} ${xE + 26},${ebIn} L ${W},${ebIn}`,
     E: `M 0,${ebIn} L ${xW - 30},${ebIn} C ${xW - 6},${ebIn} ${xW - 18},${ebN} ${xW + 26},${ebN} L ${xE - 30},${ebN} Q ${xE - 4},${ebN} ${along(stubs.nbOn, 0.14)} L ${along(stubs.nbOn, 1)}`,
     F: `M 0,${ebOut} L ${xW - 26},${ebOut} Q ${xW + 2},${ebOut} ${along(stubs.sbOn, 0.15)} L ${along(stubs.sbOn, 1)}`,
-    I: `M 0,${cy + 17} L ${xW - 30},${cy + 17} C ${xW - 6},${cy + 17} ${xW - 18},${ebN - 6} ${xW + 26},${ebN - 6} L ${xE - 30},${ebN - 6} C ${xE - 6},${ebN - 6} ${xE - 18},${cy + 17} ${xE + 26},${cy + 17} L ${W},${cy + 17}`,
+    I: `M 0,${yI} L ${xW - 30},${yI} C ${xW - 6},${yI} ${xW - 18},${ebN - 6} ${xW + 26},${ebN - 6} L ${xE - 30},${ebN - 6} C ${xE - 6},${ebN - 6} ${xE - 18},${yI} ${xE + 26},${yI} L ${W},${yI}`,
     G: `M ${W},${wbOut} L ${xE + 26},${wbOut} Q ${xE - 2},${wbOut} ${along(stubs.nbOn, 0.15)} L ${along(stubs.nbOn, 1)}`,
     H: `M ${W},${wbIn} L ${xE + 30},${wbIn} C ${xE + 6},${wbIn} ${xE + 18},${wbS} ${xE - 26},${wbS} L ${xW + 30},${wbS} Q ${xW + 4},${wbS} ${along(stubs.sbOn, 0.13)} L ${along(stubs.sbOn, 1)}`,
-    J: `M ${W},${cy - 17} L ${xE + 30},${cy - 17} C ${xE + 6},${cy - 17} ${xE + 18},${wbS + 6} ${xE - 26},${wbS + 6} L ${xW + 30},${wbS + 6} C ${xW + 6},${wbS + 6} ${xW + 18},${cy - 17} ${xW - 26},${cy - 17} L 0,${cy - 17}`,
+    J: `M ${W},${yJ} L ${xE + 30},${yJ} C ${xE + 6},${yJ} ${xE + 18},${wbS + 6} ${xE - 26},${wbS + 6} L ${xW + 30},${wbS + 6} C ${xW + 6},${wbS + 6} ${xW + 18},${yJ} ${xW - 26},${yJ} L 0,${yJ}`,
   };
 
-  const P_DIAMOND = {
+  $: P_DIAMOND = {
     // NB off-ramp (east terminal, south leg)
     A: `M ${along(stubs.nbOff, 1)} L ${along(stubs.nbOff, 0.1)} Q ${xE},${wbIn} ${xE - 24},${wbIn} L 0,${wbIn}`,
     B: `M ${along(stubs.nbOff, 1)} L ${along(stubs.nbOff, 0.15)} Q ${xE + 4},${ebOut} ${xE + 26},${ebOut} L ${W},${ebOut}`,
@@ -69,11 +91,11 @@
     // EB arterial
     E: `M 0,${ebIn} L ${xE - 26},${ebIn} Q ${xE},${ebIn} ${along(stubs.nbOn, 0.12)} L ${along(stubs.nbOn, 1)}`,
     F: `M 0,${ebOut} L ${xW - 26},${ebOut} Q ${xW + 2},${ebOut} ${along(stubs.sbOn, 0.15)} L ${along(stubs.sbOn, 1)}`,
-    I: `M 0,${cy + 14} L ${W},${cy + 14}`,
+    I: `M 0,${(ebIn + ebOut) / 2} L ${W},${(ebIn + ebOut) / 2}`,
     // WB arterial
     G: `M ${W},${wbOut} L ${xE + 26},${wbOut} Q ${xE - 2},${wbOut} ${along(stubs.nbOn, 0.15)} L ${along(stubs.nbOn, 1)}`,
     H: `M ${W},${wbIn} L ${xW + 26},${wbIn} Q ${xW},${wbIn} ${along(stubs.sbOn, 0.12)} L ${along(stubs.sbOn, 1)}`,
-    J: `M ${W},${cy - 14} L 0,${cy - 14}`,
+    J: `M ${W},${(wbIn + wbOut) / 2} L 0,${(wbIn + wbOut) / 2}`,
   };
   $: P = form === 'Ddi' ? P_DDI : P_DIAMOND;
 
@@ -142,7 +164,7 @@
        aria-label={form === 'Ddi' ? 'diverging diamond interchange, two signalized crossovers' : 'conventional diamond interchange, two signalized ramp terminals'}>
 
     <!-- ══ pavement ══ -->
-    <rect x="0" y={cy - 28} width={W} height="56" class="dd-pavement" />
+    <rect x="0" y={edgeN} width={W} height={hEB + hWB} class="dd-pavement" />
     {#each Object.values(stubs) as s}
       <polygon points={stubBand(s)} class="dd-pavement" />
     {/each}
@@ -155,10 +177,20 @@
     <line x1={cx + FWY + GAP / 2} y1="0" x2={cx + FWY + GAP / 2} y2={H} class="dd-edge" />
 
     <!-- arterial edges and centerline (outside the freeway shadow) -->
-    <line x1="0" y1={cy - 28} x2={cx - FWY - GAP / 2} y2={cy - 28} class="dd-edge" />
-    <line x1={cx + FWY + GAP / 2} y1={cy - 28} x2={W} y2={cy - 28} class="dd-edge" />
-    <line x1="0" y1={cy + 28} x2={cx - FWY - GAP / 2} y2={cy + 28} class="dd-edge" />
-    <line x1={cx + FWY + GAP / 2} y1={cy + 28} x2={W} y2={cy + 28} class="dd-edge" />
+    <line x1="0" y1={edgeN} x2={cx - FWY - GAP / 2} y2={edgeN} class="dd-edge" />
+    <line x1={cx + FWY + GAP / 2} y1={edgeN} x2={W} y2={edgeN} class="dd-edge" />
+    <line x1="0" y1={edgeS} x2={cx - FWY - GAP / 2} y2={edgeS} class="dd-edge" />
+    <line x1={cx + FWY + GAP / 2} y1={edgeS} x2={W} y2={edgeS} class="dd-edge" />
+
+    <!-- lane lines on the external approaches, per lane configuration -->
+    {#each Array.from({ length: nEbLanes - 1 }) as _, i}
+      <line x1="0" y1={cy + hEB - LANE * (i + 1)} x2={xW - 30} y2={cy + hEB - LANE * (i + 1)} class="dd-lane-line" />
+      <line x1={xE + 30} y1={cy + hEB - LANE * (i + 1)} x2={W} y2={cy + hEB - LANE * (i + 1)} class="dd-lane-line" />
+    {/each}
+    {#each Array.from({ length: nWbLanes - 1 }) as _, i}
+      <line x1="0" y1={cy - hWB + LANE * (i + 1)} x2={xW - 30} y2={cy - hWB + LANE * (i + 1)} class="dd-lane-line" />
+      <line x1={xE + 30} y1={cy - hWB + LANE * (i + 1)} x2={W} y2={cy - hWB + LANE * (i + 1)} class="dd-lane-line" />
+    {/each}
     <line x1="0" y1={cy} x2={xW - 10} y2={cy} class="dd-center" />
     <line x1={xW + 10} y1={cy} x2={xE - 10} y2={cy} class="dd-center" />
     <line x1={xE + 10} y1={cy} x2={W} y2={cy} class="dd-center" />
@@ -237,6 +269,7 @@
   .dd-freeway { fill: var(--diag-pavement-alt); }
   .dd-edge { stroke: var(--diag-edge); stroke-width: 2; stroke-linecap: round; vector-effect: non-scaling-stroke; }
   .dd-center { stroke: var(--diag-center); stroke-width: 1.25; vector-effect: non-scaling-stroke; }
+  .dd-lane-line { stroke: var(--diag-lane-line); stroke-width: 1.25; stroke-dasharray: 8 6; vector-effect: non-scaling-stroke; }
   .dd-signal { fill: var(--diag-center); stroke: var(--diag-edge); stroke-width: 1.25; }
 
   .dd-move {

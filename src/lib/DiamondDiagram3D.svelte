@@ -10,6 +10,8 @@
   export let odDemands = [];
   export let odLos = {};
   export let form = 'Diamond';
+  export let ddiEb = 'ThreeLaneExclusive';
+  export let ddiWb = 'TwoLaneShared';
 
   let hovered = null;
 
@@ -19,26 +21,42 @@
   // world (y north) when handed to the projector.
   const W = 520, H = 320, cy = 160, cx = 260;
   const xW = 165, xE = 355, FWY = 38, GAP = 12, LEAN = 46;
-  const ebOut = cy + 21, ebIn = cy + 7, wbIn = cy - 7, wbOut = cy - 21;
   const ebN = cy - 10, wbS = cy + 10;
-  const stubs = {
-    sbOff: { x0: xW, y0: cy - 28, x1: xW + LEAN, y1: 16 },
-    sbOn: { x0: xW, y0: cy + 28, x1: xW + LEAN, y1: H - 16 },
-    nbOn: { x0: xE, y0: cy - 28, x1: xE - LEAN, y1: 16 },
-    nbOff: { x0: xE, y0: cy + 28, x1: xE - LEAN, y1: H - 16 },
+  // Lane-reactive halves mirroring the 2D view.
+  $: nEbLanes = form === 'Ddi' ? (String(ddiEb).startsWith('Two') ? 2 : 3) : 2;
+  $: nWbLanes = form === 'Ddi' ? (String(ddiWb).startsWith('Two') ? 2 : 3) : 2;
+  $: sharedEb = form === 'Ddi' && (ddiEb === 'TwoLaneShared' || ddiEb === 'ThreeLaneShared');
+  $: sharedWb = form === 'Ddi' && (ddiWb === 'TwoLaneShared' || ddiWb === 'ThreeLaneShared');
+  $: hEB = nEbLanes * 14;
+  $: hWB = nWbLanes * 14;
+  $: edgeS = cy + hEB;
+  $: edgeN = cy - hWB;
+  $: ebLane = (i) => cy + hEB - (i + 0.5) * 14;
+  $: wbLane = (i) => cy - hWB + (i + 0.5) * 14;
+  $: ebOut = ebLane(0);
+  $: ebIn = ebLane(nEbLanes - 1);
+  $: wbOut = wbLane(0);
+  $: wbIn = wbLane(nWbLanes - 1);
+  $: yI = sharedEb ? ebIn : ebLane(nEbLanes - 2);
+  $: yJ = sharedWb ? wbIn : wbLane(nWbLanes - 2);
+  $: stubs = {
+    sbOff: { x0: xW, y0: edgeN, x1: xW + LEAN, y1: 16 },
+    sbOn: { x0: xW, y0: edgeS, x1: xW + LEAN, y1: H - 16 },
+    nbOn: { x0: xE, y0: edgeN, x1: xE - LEAN, y1: 16 },
+    nbOff: { x0: xE, y0: edgeS, x1: xE - LEAN, y1: H - 16 },
   };
+  $: arterial = [[0, edgeN], [W, edgeN], [W, edgeS], [0, edgeS]];
   const at = (s, t) => [s.x0 + (s.x1 - s.x0) * t, s.y0 + (s.y1 - s.y0) * t];
   const stubPoly = (s) => {
     const dx = 11;
     return [[s.x0 - dx, s.y0], [s.x0 + dx, s.y0], [s.x1 + dx, s.y1], [s.x1 - dx, s.y1]];
   };
 
-  const arterial = [[0, cy - 28], [W, cy - 28], [W, cy + 28], [0, cy + 28]];
   const fwyWest = [[cx - FWY - GAP / 2, 0], [cx - GAP / 2, 0], [cx - GAP / 2, H], [cx - FWY - GAP / 2, H]];
   const fwyEast = [[cx + GAP / 2, 0], [cx + FWY + GAP / 2, 0], [cx + FWY + GAP / 2, H], [cx + GAP / 2, H]];
 
   // O-D paths as point arrays; node curves sampled with qSample.
-  function buildPaths(form) {
+  function buildPaths(form, ebOut, ebIn, wbOut, wbIn, yI, yJ, stubs) {
     const q = (p0, pc, p1) => qSample(p0, pc, p1, 10);
     const common = {
       B: [at(stubs.nbOff, 1), at(stubs.nbOff, 0.15), ...q(at(stubs.nbOff, 0.15), [xE + 4, ebOut], [xE + 26, ebOut]), [W, ebOut]],
@@ -53,8 +71,8 @@
         D: [at(stubs.sbOff, 1), at(stubs.sbOff, 0.1), ...q(at(stubs.sbOff, 0.1), [xW + 2, ebN], [xW + 26, ebN]), [xE - 30, ebN], ...q([xE - 30, ebN], [xE - 6, ebN + (ebIn - ebN) / 2], [xE + 26, ebIn]), [W, ebIn]],
         E: [[0, ebIn], [xW - 30, ebIn], ...q([xW - 30, ebIn], [xW - 6, (ebIn + ebN) / 2], [xW + 26, ebN]), [xE - 30, ebN], ...q([xE - 30, ebN], [xE - 4, ebN], at(stubs.nbOn, 0.14)), at(stubs.nbOn, 1)],
         H: [[W, wbIn], [xE + 30, wbIn], ...q([xE + 30, wbIn], [xE + 6, (wbIn + wbS) / 2], [xE - 26, wbS]), [xW + 30, wbS], ...q([xW + 30, wbS], [xW + 4, wbS], at(stubs.sbOn, 0.13)), at(stubs.sbOn, 1)],
-        I: [[0, cy + 17], [xW - 30, cy + 17], ...q([xW - 30, cy + 17], [xW - 6, (cy + 17 + ebN - 6) / 2], [xW + 26, ebN - 6]), [xE - 30, ebN - 6], ...q([xE - 30, ebN - 6], [xE - 6, (cy + 17 + ebN - 6) / 2], [xE + 26, cy + 17]), [W, cy + 17]],
-        J: [[W, cy - 17], [xE + 30, cy - 17], ...q([xE + 30, cy - 17], [xE + 6, (cy - 17 + wbS + 6) / 2], [xE - 26, wbS + 6]), [xW + 30, wbS + 6], ...q([xW + 30, wbS + 6], [xW + 6, (cy - 17 + wbS + 6) / 2], [xW - 26, cy - 17]), [0, cy - 17]],
+        I: [[0, yI], [xW - 30, yI], ...q([xW - 30, yI], [xW - 6, (yI + ebN - 6) / 2], [xW + 26, ebN - 6]), [xE - 30, ebN - 6], ...q([xE - 30, ebN - 6], [xE - 6, (yI + ebN - 6) / 2], [xE + 26, yI]), [W, yI]],
+        J: [[W, yJ], [xE + 30, yJ], ...q([xE + 30, yJ], [xE + 6, (yJ + wbS + 6) / 2], [xE - 26, wbS + 6]), [xW + 30, wbS + 6], ...q([xW + 30, wbS + 6], [xW + 6, (yJ + wbS + 6) / 2], [xW - 26, yJ]), [0, yJ]],
       };
     }
     return {
@@ -63,11 +81,11 @@
       D: [at(stubs.sbOff, 1), at(stubs.sbOff, 0.1), ...q(at(stubs.sbOff, 0.1), [xW, ebIn], [xW + 24, ebIn]), [W, ebIn]],
       E: [[0, ebIn], [xE - 26, ebIn], ...q([xE - 26, ebIn], [xE, ebIn], at(stubs.nbOn, 0.12)), at(stubs.nbOn, 1)],
       H: [[W, wbIn], [xW + 26, wbIn], ...q([xW + 26, wbIn], [xW, wbIn], at(stubs.sbOn, 0.12)), at(stubs.sbOn, 1)],
-      I: [[0, cy + 14], [W, cy + 14]],
-      J: [[W, cy - 14], [0, cy - 14]],
+      I: [[0, (ebIn + ebOut) / 2], [W, (ebIn + ebOut) / 2]],
+      J: [[W, (wbIn + wbOut) / 2], [0, (wbIn + wbOut) / 2]],
     };
   }
-  $: paths = buildPaths(form);
+  $: paths = buildPaths(form, ebOut, ebIn, wbOut, wbIn, yI, yJ, stubs);
 
   const groupOf = { A: 'NBOFF', B: 'NBOFF', C: 'SBOFF', D: 'SBOFF', E: 'EB', F: 'EB', I: 'EB', G: 'WB', H: 'WB', J: 'WB' };
   const clsOf = { NBOFF: 'nboff', SBOFF: 'sboff', EB: 'ebg', WB: 'wbg' };

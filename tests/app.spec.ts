@@ -755,6 +755,13 @@ test.describe('chapter 23 interchange calculator', () => {
     await expect(page.getByText(/Interchange LOS: C/)).toBeVisible();
     await expect(page.getByText(/34\.8/).first()).toBeVisible();
 
+    // Lane configuration drives the geometry: dropping EB to two shared
+    // lanes removes a lane line and merges the E left onto the through lane.
+    const before = await page.locator('line.dd-lane-line').count();
+    await page.locator('#DDIEB_input').selectOption('TwoLaneShared');
+    expect(await page.locator('line.dd-lane-line').count()).toBe(before - 2);
+    await page.locator('#DDIEB_input').selectOption('ThreeLaneExclusive');
+
     // 3D view carries the form and the overpass deck.
     await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
     await expect(page.locator('.dd-diagram-3d svg')).toHaveAttribute('aria-label', /diverging diamond interchange, 3D view/);

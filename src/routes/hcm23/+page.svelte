@@ -411,9 +411,9 @@
         </div>
       </div>
       {#if diagramMode === '3d'}
-        <DiamondDiagram3D {odDemands} odLos={losByOd} {form} />
+        <DiamondDiagram3D {odDemands} odLos={losByOd} {form} ddiEb={ddi_eb_config} ddiWb={ddi_wb_config} />
       {:else}
-        <DiamondDiagram bind:odDemands odLos={losByOd} {form} />
+        <DiamondDiagram bind:odDemands odLos={losByOd} {form} ddiEb={ddi_eb_config} ddiWb={ddi_wb_config} />
       {/if}
     </section>
 
