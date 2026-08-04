@@ -3,6 +3,8 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import init, { WasmAwsc } from "HCM-middleware";
   import AwscDiagram from '$lib/AwscDiagram.svelte';
   import AwscDiagram3D from '$lib/AwscDiagram3D.svelte';
@@ -10,9 +12,9 @@
   import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
-  let diagramMode = '2d';
+  let diagramMode = $state('2d');
 
-  let ready = false;
+  let ready = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -38,18 +40,18 @@
     };
   }
 
-  let approaches = defaultApproaches();
-  let phf = 0.95;
-  let analysis_period = 0.25;
+  let approaches = $state(defaultApproaches());
+  let phf = $state(0.95);
+  let analysis_period = $state(0.25);
 
-  let results = null;
-  let hasError = false;
-  let errMessage = '';
+  let results = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
 
   // Approach LOS map for the diagram's animation.
-  $: losByApproach = results
+  let losByApproach = $derived(results
     ? Object.fromEntries(results.approachRows.filter((a) => a.los).map((a) => [a.label, a.los]))
-    : {};
+    : {});
 
   function setLaneCount(key, n) {
     const a = approaches[key];
@@ -178,7 +180,7 @@
     </div>
   {/if}
 
-  <form id="hcm21" on:submit|preventDefault={runAnalysis}>
+  <form id="hcm21" onsubmit={preventDefault(runAnalysis)}>
     <section class="panel">
       <div class="panel-head">
         <div>
@@ -207,7 +209,7 @@
         <div class="param-grid">
           <div class="param-field">
             <label for="LC_{d.key}_input">Lanes</label>
-            <select id="LC_{d.key}_input" class="select select-bordered select-sm" value={approaches[d.key].laneCount} on:change={(e) => setLaneCount(d.key, Number(e.target.value))}>
+            <select id="LC_{d.key}_input" class="select select-bordered select-sm" value={approaches[d.key].laneCount} onchange={(e) => setLaneCount(d.key, Number(e.target.value))}>
               <option value={0}>0 (no approach)</option>
               <option value={1}>1</option>
               <option value={2}>2</option>
@@ -279,7 +281,7 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
       <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
     </div>
   </form>

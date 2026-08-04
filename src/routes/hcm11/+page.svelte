@@ -3,11 +3,13 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import init, { WasmFacilitySegment, WasmFreewayReliability } from "HCM-middleware";
   import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
-  let ready = false;
+  let ready = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -15,11 +17,11 @@
   });
 
   // Facility inputs (Chapter 10 seed dataset for the reliability run)
-  let ffs = 60;
-  let hv_pct = 5;
-  let terrain = 'level';
-  let city_type = 'urban';
-  let mainline_demand = '4000, 4400, 4800, 4400';
+  let ffs = $state(60);
+  let hv_pct = $state(5);
+  let terrain = $state('level');
+  let city_type = $state('urban');
+  let mainline_demand = $state('4000, 4400, 4800, 4400');
 
   function defaultSegments() {
     return [
@@ -29,17 +31,17 @@
     ];
   }
 
-  let segments = defaultSegments();
+  let segments = $state(defaultSegments());
 
   // Reliability inputs (Chapter 11 scenario generation)
-  let replications = 4;
-  let seed_month = 1;
-  let seed_weekday = 'monday';
-  let include_incidents = true;
-  let crash_rate = 150;
-  let incident_crash_ratio = 4.9;
-  let rng_seed = 1;
-  let target_speed = 45;
+  let replications = $state(4);
+  let seed_month = $state(1);
+  let seed_weekday = $state('monday');
+  let include_incidents = $state(true);
+  let crash_rate = $state(150);
+  let incident_crash_ratio = $state(4.9);
+  let rng_seed = $state(1);
+  let target_speed = $state(45);
 
   function addSegment() {
     segments = [
@@ -63,10 +65,10 @@
       .filter((v) => Number.isFinite(v));
   }
 
-  let results = null;
-  let hasError = false;
-  let errMessage = '';
-  let running = false;
+  let results = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
+  let running = $state(false);
 
   function runAnalysis() {
     hasError = false;
@@ -237,7 +239,7 @@
     </div>
   {/if}
 
-  <form id="hcm11" on:submit|preventDefault={runAnalysis}>
+  <form id="hcm11" onsubmit={preventDefault(runAnalysis)}>
     <!-- Facility -->
     <section class="panel">
       <div class="panel-head">
@@ -299,8 +301,8 @@
           <p class="panel-sub">Ordered upstream to downstream. The facility must begin and end with a basic segment. Weaving details are not exposed on this page, use the Chapter 10 page to study a weaving-heavy facility first.</p>
         </div>
         <div class="panel-actions">
-          <button class="btn btn-outline btn-sm" on:click={addSegment} type="button">+ Add Segment</button>
-          <button class="btn btn-ghost btn-sm" on:click={removeSegment} type="button">Remove</button>
+          <button class="btn btn-outline btn-sm" onclick={addSegment} type="button">+ Add Segment</button>
+          <button class="btn btn-ghost btn-sm" onclick={removeSegment} type="button">Remove</button>
         </div>
       </div>
       <div class="w-full overflow-x-auto">
@@ -424,7 +426,7 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
       <button class="btn btn-primary" type="submit" disabled={!ready || running}>{running ? 'Running…' : 'Calculate'}</button>
     </div>
   </form>

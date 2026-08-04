@@ -3,6 +3,8 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import init, { WasmTwsc } from "HCM-middleware";
   import TwscDiagram from '$lib/TwscDiagram.svelte';
   import TwscDiagram3D from '$lib/TwscDiagram3D.svelte';
@@ -10,9 +12,9 @@
   import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
-  let diagramMode = '2d';
+  let diagramMode = $state('2d');
 
-  let ready = false;
+  let ready = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -21,23 +23,23 @@
 
   // Inputs (defaults follow HCM Chapter 32 TWSC Example Problem 1, a
   // three-leg intersection with the minor stem northbound)
-  let intersection_type = 'three_leg';
-  let major_lanes = 1;
-  let rt_eb = 'shared';
-  let rt_wb = 'shared';
-  let minor_nb = 'single_shared';
-  let minor_sb = 'single_shared';
-  let grade_nb = 0;
-  let grade_sb = 0;
+  let intersection_type = $state('three_leg');
+  let major_lanes = $state(1);
+  let rt_eb = $state('shared');
+  let rt_wb = $state('shared');
+  let minor_nb = $state('single_shared');
+  let minor_sb = $state('single_shared');
+  let grade_nb = $state(0);
+  let grade_sb = $state(0);
 
-  let v1 = 0, v1u = 0, v2 = 240, v3 = 40;
-  let v4 = 160, v4u = 0, v5 = 300, v6 = 0;
-  let v7 = 40, v8 = 0, v9 = 120;
-  let v10 = 0, v11 = 0, v12 = 0;
+  let v1 = $state(0), v1u = $state(0), v2 = $state(240), v3 = $state(40);
+  let v4 = $state(160), v4u = $state(0), v5 = $state(300), v6 = $state(0);
+  let v7 = $state(40), v8 = $state(0), v9 = $state(120);
+  let v10 = $state(0), v11 = $state(0), v12 = $state(0);
 
-  let phf = '';
-  let phv = 10;
-  let analysis_period = 0.25;
+  let phf = $state('');
+  let phv = $state(10);
+  let analysis_period = $state(0.25);
 
   const movementNames = {
     '1': 'Major EB left', '1U': 'Major EB U-turn',
@@ -46,17 +48,17 @@
     '10': 'Minor SB left', '11': 'Minor SB through', '12': 'Minor SB right'
   };
 
-  let results = null;
-  let hasError = false;
-  let errMessage = '';
+  let results = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
 
   // Worst minor-lane LOS per approach, for the diagram's animation.
-  $: losByApproach = results
+  let losByApproach = $derived(results
     ? results.laneRows.reduce((m, l) => {
         if (l.los && (!m[l.approach] || l.los > m[l.approach])) m[l.approach] = l.los;
         return m;
       }, {})
-    : {};
+    : {});
 
   function fmt(v, digits = 1) {
     return v === null || v === undefined ? '' : Number(v).toFixed(digits);
@@ -207,7 +209,7 @@
     </div>
   {/if}
 
-  <form id="hcm20" on:submit|preventDefault={runAnalysis}>
+  <form id="hcm20" onsubmit={preventDefault(runAnalysis)}>
     <!-- Geometry -->
     <section class="panel">
       <div class="panel-head">
@@ -478,7 +480,7 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
       <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
     </div>
   </form>

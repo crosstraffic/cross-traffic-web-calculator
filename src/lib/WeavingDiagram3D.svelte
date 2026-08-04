@@ -5,22 +5,32 @@
   import Camera3DSvg from '$lib/Camera3DSvg.svelte';
   import { planProjector, fitTransform, makeDrawers, qSample, cSample } from '$lib/proj3d.js';
 
-  export let weavingType = 'one_sided';
-  export let numLanes = 4;
-  export let vFF = 0;
-  export let vFR = 0;
-  export let vRF = 0;
-  export let vRR = 0;
+  /**
+   * @typedef {Object} Props
+   * @property {string} [weavingType]
+   * @property {number} [numLanes]
+   * @property {number} [vFF]
+   * @property {number} [vFR]
+   * @property {number} [vRF]
+   * @property {number} [vRR]
+   */
 
-  let hovered = null;
+  /** @type {Props} */
+  let {
+    weavingType = 'one_sided',
+    numLanes = 4,
+    vFF = 0,
+    vFR = 0,
+    vRF = 0,
+    vRR = 0
+  } = $props();
+
+  let hovered = $state(null);
 
   const VIEW_W = 560, VIEW_H = 300, PAD = 24, THICK = 8;
   const LANE = 16, gIn = 78, gOut = 246, RAMP = 84, DROP = 46, X1 = 332;
 
-  $: twoSided = weavingType === 'two_sided';
-  $: mainLanes = Math.max(2, Math.min(6, (Number(numLanes) || 4) - (twoSided ? 0 : 1)));
 
-  $: model = build(twoSided, mainLanes);
 
   function build(twoSided, mainLanes) {
     const mainTop = twoSided ? DROP + LANE + 14 : 16;
@@ -75,44 +85,49 @@
     { key: 'fr', label: 'v_FR freeway → ramp' },
     { key: 'rr', label: 'v_RR ramp → ramp' },
   ];
-  $: volumes = { ff: vFF, rf: vRF, fr: vFR, rr: vRR };
 
   function cls(h, key) {
     if (h == null) return 'w3-move';
     return h === key ? 'w3-move active' : 'w3-move dim';
   }
+  let twoSided = $derived(weavingType === 'two_sided');
+  let mainLanes = $derived(Math.max(2, Math.min(6, (Number(numLanes) || 4) - (twoSided ? 0 : 1))));
+  let model = $derived(build(twoSided, mainLanes));
+  let volumes = $derived({ ff: vFF, rf: vRF, fr: vFR, rr: vRR });
 </script>
 
 <div class="weave-diagram-3d">
   <Camera3DSvg viewW={VIEW_W} viewH={VIEW_H} defYaw={16} defPitch={48}
       ariaLabel={`${Number(numLanes) || 4}-lane ${twoSided ? 'two-sided' : 'one-sided'} weaving segment, 3D view`}
-      let:yaw let:pitch let:zoom let:panX let:panY>
-    {@const project = planProjector(yaw, pitch)}
-    {@const fitPts = flip(model.slabs.flat())}
-    {@const tf = fitTransform(project, fitPts, VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK)}
-    {@const d = makeDrawers(tf, THICK)}
+          >
+    {#snippet children({ yaw, pitch, zoom, panX, panY })}
+        {@const project = planProjector(yaw, pitch)}
+      {@const fitPts = flip(model.slabs.flat())}
+      {@const tf = fitTransform(project, fitPts, VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK)}
+      {@const d = makeDrawers(tf, THICK)}
 
-    {#each model.slabs as s}
-      <path d={d.shadow(flip(s))} class="w3-shadow" />
-    {/each}
-    {#each model.slabs as s}
-      {#each d.walls(flip(s)) as w}
-        <path d={w} class="w3-wall" />
+      {#each model.slabs as s}
+        <path d={d.shadow(flip(s))} class="w3-shadow" />
       {/each}
-    {/each}
-    {#each model.slabs as s}
-      <path d={d.polygon(flip(s))} class="w3-top" />
-    {/each}
-    {#each model.laneLines as l}
-      <path d={d.polyline(flip(l))} class="w3-lane-line" />
-    {/each}
+      {#each model.slabs as s}
+        {#each d.walls(flip(s)) as w}
+          <path d={w} class="w3-wall" />
+        {/each}
+      {/each}
+      {#each model.slabs as s}
+        <path d={d.polygon(flip(s))} class="w3-top" />
+      {/each}
+      {#each model.laneLines as l}
+        <path d={d.polyline(flip(l))} class="w3-lane-line" />
+      {/each}
 
-    {#each movements as m}
-      {#if model.moves[m.key]}
-        <path d={d.polyline(flip(model.moves[m.key]))} class={`mv-${m.key} ${cls(hovered, m.key)}`} />
-      {/if}
-    {/each}
-  </Camera3DSvg>
+      {#each movements as m}
+        {#if model.moves[m.key]}
+          <path d={d.polyline(flip(model.moves[m.key]))} class={`mv-${m.key} ${cls(hovered, m.key)}`} />
+        {/if}
+      {/each}
+          {/snippet}
+    </Camera3DSvg>
 
   <div class="w3-legend" role="list">
     {#each movements as m}
@@ -121,10 +136,10 @@
         role="listitem"
         class="w3-chip {m.key}"
         class:active={hovered === m.key}
-        on:mouseenter={() => (hovered = m.key)}
-        on:mouseleave={() => (hovered = null)}
-        on:focus={() => (hovered = m.key)}
-        on:blur={() => (hovered = null)}
+        onmouseenter={() => (hovered = m.key)}
+        onmouseleave={() => (hovered = null)}
+        onfocus={() => (hovered = m.key)}
+        onblur={() => (hovered = null)}
       >
         <span class="swatch {m.key}"></span>
         {m.label}: {Number(volumes[m.key]) || 0} veh/h

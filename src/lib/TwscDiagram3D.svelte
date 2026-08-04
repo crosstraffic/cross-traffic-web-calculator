@@ -5,26 +5,34 @@
   import Camera3DSvg from '$lib/Camera3DSvg.svelte';
   import { planProjector, fitTransform, makeDrawers, qSample } from '$lib/proj3d.js';
 
-  export let threeLeg = false;
-  export let majorLanes = 1;
-  export let rtEB = 'shared';
-  export let rtWB = 'shared';
-  export let minorNB = 'single_shared';
-  export let minorSB = 'single_shared';
+  /**
+   * @typedef {Object} Props
+   * @property {boolean} [threeLeg]
+   * @property {number} [majorLanes]
+   * @property {string} [rtEB]
+   * @property {string} [rtWB]
+   * @property {string} [minorNB]
+   * @property {string} [minorSB]
+   */
 
-  let hovered = null;
+  /** @type {Props} */
+  let {
+    threeLeg = false,
+    majorLanes = 1,
+    rtEB = 'shared',
+    rtWB = 'shared',
+    minorNB = 'single_shared',
+    minorSB = 'single_shared'
+  } = $props();
+
+  let hovered = $state(null);
 
   const VIEW_W = 520, VIEW_H = 320, PAD = 24, THICK = 9;
   const LANE = 1, RUN = 5.2;
 
   const minorCount = (cfg) => ({ single_shared: 1, shared_lt_exclusive_r: 2, exclusive_l_shared_tr: 2, separate: 3 }[cfg] || 1);
 
-  $: nEB = Math.max(1, Number(majorLanes) || 1) + (rtEB !== 'shared' ? 1 : 0);
-  $: nWB = Math.max(1, Number(majorLanes) || 1) + (rtWB !== 'shared' ? 1 : 0);
-  $: nNB = minorCount(minorNB);
-  $: nSB = threeLeg ? 1 : minorCount(minorSB);
 
-  $: model = build(threeLeg, nEB, nWB, nNB, nSB);
 
   function build(threeLeg, nEB, nWB, nNB, nSB) {
     const wEB = nEB * LANE, wWB = nWB * LANE, wNB = nNB * LANE, wSB = nSB * LANE;
@@ -85,60 +93,67 @@
     return { outline, centers, laneLines, stops, moves };
   }
 
-  $: rank = {
-    EB: { L: 2, T: 1, R: 1 },
-    WB: { L: 2, T: 1, R: 1 },
-    NB: { L: threeLeg ? 3 : 4, T: 3, R: 2 },
-    SB: { L: 4, T: 3, R: 2 },
-  };
   const DASH = { 1: null, 2: '10 6', 3: '6 5', 4: '2 5' };
 
-  $: order = [
-    { key: 'EB', label: 'Eastbound (major)' },
-    { key: 'WB', label: 'Westbound (major)' },
-    { key: 'NB', label: 'Northbound (minor)' },
-    ...(threeLeg ? [] : [{ key: 'SB', label: 'Southbound (minor)' }]),
-  ];
 
   function cls(h, key) {
     if (h == null) return 'tw3-move';
     return h === key ? 'tw3-move active' : 'tw3-move dim';
   }
+  let nEB = $derived(Math.max(1, Number(majorLanes) || 1) + (rtEB !== 'shared' ? 1 : 0));
+  let nWB = $derived(Math.max(1, Number(majorLanes) || 1) + (rtWB !== 'shared' ? 1 : 0));
+  let nNB = $derived(minorCount(minorNB));
+  let nSB = $derived(threeLeg ? 1 : minorCount(minorSB));
+  let model = $derived(build(threeLeg, nEB, nWB, nNB, nSB));
+  let rank = $derived({
+    EB: { L: 2, T: 1, R: 1 },
+    WB: { L: 2, T: 1, R: 1 },
+    NB: { L: threeLeg ? 3 : 4, T: 3, R: 2 },
+    SB: { L: 4, T: 3, R: 2 },
+  });
+  let order = $derived([
+    { key: 'EB', label: 'Eastbound (major)' },
+    { key: 'WB', label: 'Westbound (major)' },
+    { key: 'NB', label: 'Northbound (minor)' },
+    ...(threeLeg ? [] : [{ key: 'SB', label: 'Southbound (minor)' }]),
+  ]);
 </script>
 
 <div class="twsc-diagram-3d">
   <Camera3DSvg viewW={VIEW_W} viewH={VIEW_H} defYaw={24} defPitch={42}
       ariaLabel={`${threeLeg ? 'three-leg' : 'four-leg'} two-way stop-controlled intersection, 3D view`}
-      let:yaw let:pitch let:zoom let:panX let:panY>
-    {@const project = planProjector(yaw, pitch)}
-    {@const tf = fitTransform(project, model.outline, VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK)}
-    {@const d = makeDrawers(tf, THICK)}
+          >
+    {#snippet children({ yaw, pitch, zoom, panX, panY })}
+        {@const project = planProjector(yaw, pitch)}
+      {@const tf = fitTransform(project, model.outline, VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK)}
+      {@const d = makeDrawers(tf, THICK)}
 
-    <path d={d.shadow(model.outline)} class="tw3-shadow" />
-    {#each d.walls(model.outline) as w}
-      <path d={w} class="tw3-wall" />
-    {/each}
-    <path d={d.polygon(model.outline)} class="tw3-top" />
-
-    {#each model.centers as c}
-      <path d={d.polyline(c)} class="tw3-center" />
-    {/each}
-    {#each model.laneLines as l}
-      <path d={d.polyline(l)} class="tw3-lane-line" />
-    {/each}
-    {#each model.stops as s}
-      <path d={d.polyline(s)} class="tw3-stop" />
-    {/each}
-
-    {#each order as o}
-      {#each ['T', 'L', 'R'] as mv}
-        {#if model.moves[o.key][mv]}
-          <path d={d.polyline(model.moves[o.key][mv])} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`}
-                stroke-dasharray={DASH[rank[o.key][mv]]} />
-        {/if}
+      <path d={d.shadow(model.outline)} class="tw3-shadow" />
+      {#each d.walls(model.outline) as w}
+        <path d={w} class="tw3-wall" />
       {/each}
-    {/each}
-  </Camera3DSvg>
+      <path d={d.polygon(model.outline)} class="tw3-top" />
+
+      {#each model.centers as c}
+        <path d={d.polyline(c)} class="tw3-center" />
+      {/each}
+      {#each model.laneLines as l}
+        <path d={d.polyline(l)} class="tw3-lane-line" />
+      {/each}
+      {#each model.stops as s}
+        <path d={d.polyline(s)} class="tw3-stop" />
+      {/each}
+
+      {#each order as o}
+        {#each ['T', 'L', 'R'] as mv}
+          {#if model.moves[o.key][mv]}
+            <path d={d.polyline(model.moves[o.key][mv])} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`}
+                  stroke-dasharray={DASH[rank[o.key][mv]]} />
+          {/if}
+        {/each}
+      {/each}
+          {/snippet}
+    </Camera3DSvg>
 
   <div class="tw3-legend" role="list">
     {#each order as o}
@@ -147,10 +162,10 @@
         role="listitem"
         class="tw3-chip {o.key.toLowerCase()}"
         class:active={hovered === o.key}
-        on:mouseenter={() => (hovered = o.key)}
-        on:mouseleave={() => (hovered = null)}
-        on:focus={() => (hovered = o.key)}
-        on:blur={() => (hovered = null)}
+        onmouseenter={() => (hovered = o.key)}
+        onmouseleave={() => (hovered = null)}
+        onfocus={() => (hovered = o.key)}
+        onblur={() => (hovered = null)}
       >
         <span class="swatch {o.key.toLowerCase()}"></span>
         {o.label}

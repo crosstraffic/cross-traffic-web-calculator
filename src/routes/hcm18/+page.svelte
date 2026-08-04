@@ -3,10 +3,12 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import init, { WasmUrbanSegment } from "HCM-middleware";
   import { onMount } from "svelte";
 
-  let ready = false;
+  let ready = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -14,36 +16,36 @@
   });
 
   // Inputs (defaults describe a signalized 0.25-mi arterial segment)
-  let segment_length = 1320;
-  let n_through_lanes = 2;
-  let speed_limit = 35;
-  let upstream_width = 0;
-  let restrictive_median_length = 0;
-  let pct_curb = 100;
-  let pct_parking = 0;
-  let access_points_subject = 2;
-  let access_points_opposing = 2;
-  let pct_opposing_left_accessible = 100;
-  let signal_spacing = '';
-  let ffs_override = '';
+  let segment_length = $state(1320);
+  let n_through_lanes = $state(2);
+  let speed_limit = $state(35);
+  let upstream_width = $state(0);
+  let restrictive_median_length = $state(0);
+  let pct_curb = $state(100);
+  let pct_parking = $state(0);
+  let access_points_subject = $state(2);
+  let access_points_opposing = $state(2);
+  let pct_opposing_left_accessible = $state(100);
+  let signal_spacing = $state('');
+  let ffs_override = $state('');
 
-  let through_demand = 800;
-  let midsegment_flow = '';
+  let through_demand = $state(800);
+  let midsegment_flow = $state('');
 
-  let control = 'signalized';
-  let through_delay = 20;
-  let through_capacity = 1600;
-  let cycle_length = 100;
-  let effective_green = 45;
-  let platoon_ratio = 1.333;
-  let sat_flow = 1800;
-  let stop_rate_override = 0.5;
+  let control = $state('signalized');
+  let through_delay = $state(20);
+  let through_capacity = $state(1600);
+  let cycle_length = $state(100);
+  let effective_green = $state(45);
+  let platoon_ratio = $state(1.333);
+  let sat_flow = $state(1800);
+  let stop_rate_override = $state(0.5);
 
-  let pct_left_turn_lanes = 100;
+  let pct_left_turn_lanes = $state(100);
 
-  let results = null;
-  let hasError = false;
-  let errMessage = '';
+  let results = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
 
   // Blank optional inputs become undefined so the engine applies its defaults.
   function opt(v) {
@@ -164,7 +166,7 @@
     </div>
   {/if}
 
-  <form id="hcm18" on:submit|preventDefault={runAnalysis}>
+  <form id="hcm18" onsubmit={preventDefault(runAnalysis)}>
     <!-- Geometry -->
     <section class="panel">
       <div class="panel-head">
@@ -398,7 +400,7 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
       <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
     </div>
   </form>

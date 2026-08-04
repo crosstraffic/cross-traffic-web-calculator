@@ -5,19 +5,14 @@
   import Camera3DSvg from '$lib/Camera3DSvg.svelte';
   import { planProjector, fitTransform, makeDrawers, qSample } from '$lib/proj3d.js';
 
-  export let approaches = {};
+  let { approaches = {} } = $props();
 
-  let hovered = null;
+  let hovered = $state(null);
 
   const VIEW_W = 520, VIEW_H = 320, PAD = 24, THICK = 9;
   const LANE = 1, RUN = 5.2;
 
-  $: nEB = Math.max(0, Number(approaches?.eb?.laneCount) || 0);
-  $: nWB = Math.max(0, Number(approaches?.wb?.laneCount) || 0);
-  $: nNB = Math.max(0, Number(approaches?.nb?.laneCount) || 0);
-  $: nSB = Math.max(0, Number(approaches?.sb?.laneCount) || 0);
 
-  $: model = build(nEB, nWB, nNB, nSB);
 
   function build(nEB, nWB, nNB, nSB) {
     const legW = nEB > 0, legE = nWB > 0, legS = nNB > 0, legN = nSB > 0;
@@ -82,51 +77,58 @@
     return { outline: pts, centers, laneLines, stops, moves, present };
   }
 
-  $: order = [
-    { key: 'EB', label: 'Eastbound' },
-    { key: 'WB', label: 'Westbound' },
-    { key: 'NB', label: 'Northbound' },
-    { key: 'SB', label: 'Southbound' },
-  ].filter((o) => model.present[o.key]);
 
   function cls(h, key) {
     if (h == null) return 'aw3-move';
     return h === key ? 'aw3-move active' : 'aw3-move dim';
   }
+  let nEB = $derived(Math.max(0, Number(approaches?.eb?.laneCount) || 0));
+  let nWB = $derived(Math.max(0, Number(approaches?.wb?.laneCount) || 0));
+  let nNB = $derived(Math.max(0, Number(approaches?.nb?.laneCount) || 0));
+  let nSB = $derived(Math.max(0, Number(approaches?.sb?.laneCount) || 0));
+  let model = $derived(build(nEB, nWB, nNB, nSB));
+  let order = $derived([
+    { key: 'EB', label: 'Eastbound' },
+    { key: 'WB', label: 'Westbound' },
+    { key: 'NB', label: 'Northbound' },
+    { key: 'SB', label: 'Southbound' },
+  ].filter((o) => model.present[o.key]));
 </script>
 
 <div class="awsc-diagram-3d">
   <Camera3DSvg viewW={VIEW_W} viewH={VIEW_H} defYaw={24} defPitch={42}
       ariaLabel={`${order.length}-leg all-way stop-controlled intersection, 3D view`}
-      let:yaw let:pitch let:zoom let:panX let:panY>
-    {@const project = planProjector(yaw, pitch)}
-    {@const tf = fitTransform(project, model.outline, VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK)}
-    {@const d = makeDrawers(tf, THICK)}
+          >
+    {#snippet children({ yaw, pitch, zoom, panX, panY })}
+        {@const project = planProjector(yaw, pitch)}
+      {@const tf = fitTransform(project, model.outline, VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK)}
+      {@const d = makeDrawers(tf, THICK)}
 
-    <path d={d.shadow(model.outline)} class="aw3-shadow" />
-    {#each d.walls(model.outline) as w}
-      <path d={w} class="aw3-wall" />
-    {/each}
-    <path d={d.polygon(model.outline)} class="aw3-top" />
-
-    {#each model.centers as c}
-      <path d={d.polyline(c)} class="aw3-center" />
-    {/each}
-    {#each model.laneLines as l}
-      <path d={d.polyline(l)} class="aw3-lane-line" />
-    {/each}
-    {#each model.stops as s}
-      <path d={d.polyline(s)} class="aw3-stop" />
-    {/each}
-
-    {#each order as o}
-      {#each ['T', 'L', 'R'] as mv}
-        {#if model.moves[o.key][mv]}
-          <path d={d.polyline(model.moves[o.key][mv])} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`} />
-        {/if}
+      <path d={d.shadow(model.outline)} class="aw3-shadow" />
+      {#each d.walls(model.outline) as w}
+        <path d={w} class="aw3-wall" />
       {/each}
-    {/each}
-  </Camera3DSvg>
+      <path d={d.polygon(model.outline)} class="aw3-top" />
+
+      {#each model.centers as c}
+        <path d={d.polyline(c)} class="aw3-center" />
+      {/each}
+      {#each model.laneLines as l}
+        <path d={d.polyline(l)} class="aw3-lane-line" />
+      {/each}
+      {#each model.stops as s}
+        <path d={d.polyline(s)} class="aw3-stop" />
+      {/each}
+
+      {#each order as o}
+        {#each ['T', 'L', 'R'] as mv}
+          {#if model.moves[o.key][mv]}
+            <path d={d.polyline(model.moves[o.key][mv])} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`} />
+          {/if}
+        {/each}
+      {/each}
+          {/snippet}
+    </Camera3DSvg>
 
   <div class="aw3-legend" role="list">
     {#each order as o}
@@ -135,10 +137,10 @@
         role="listitem"
         class="aw3-chip {o.key.toLowerCase()}"
         class:active={hovered === o.key}
-        on:mouseenter={() => (hovered = o.key)}
-        on:mouseleave={() => (hovered = null)}
-        on:focus={() => (hovered = o.key)}
-        on:blur={() => (hovered = null)}
+        onmouseenter={() => (hovered = o.key)}
+        onmouseleave={() => (hovered = null)}
+        onfocus={() => (hovered = o.key)}
+        onblur={() => (hovered = null)}
       >
         <span class="swatch {o.key.toLowerCase()}"></span>
         {o.label}

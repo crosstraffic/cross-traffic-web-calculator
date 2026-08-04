@@ -1,30 +1,39 @@
 <script>
   import { SERVICE_MEASURES, LOS_COLORS, bandsFor, letterFor } from './los.js';
 
-  /** Key into SERVICE_MEASURES, e.g. "density_pc" or "control_delay_signal". */
-  export let measure;
-  /** The computed service measure value. */
-  export let value = null;
+  
+  
+  
+  
   /**
-   * LOS letter as reported by the library. Usually equal to the letter the value earns, but the
-   * HCM overrides it in places: a v/c above 1.0 forces F at a signal regardless of delay. When the
-   * two disagree the strip says so rather than quietly contradicting the engine.
+   * @typedef {Object} Props
+   * @property {any} measure - Key into SERVICE_MEASURES, e.g. "density_pc" or "control_delay_signal".
+   * @property {any} [value] - The computed service measure value.
+   * @property {any} [los] - LOS letter as reported by the library. Usually equal to the letter the value earns, but the
+HCM overrides it in places: a v/c above 1.0 forces F at a signal regardless of delay. When the
+two disagree the strip says so rather than quietly contradicting the engine.
+   * @property {any} [title] - Optional label above the strip; defaults to the measure's own name.
    */
-  export let los = null;
-  /** Optional label above the strip; defaults to the measure's own name. */
-  export let title = null;
 
-  $: m = SERVICE_MEASURES[measure];
-  $: bands = bandsFor(measure);
-  $: earned = letterFor(measure, value);
-  $: reported = los || earned;
-  $: overridden = earned && reported && earned !== reported;
-  $: hasValue = Number.isFinite(value);
+  /** @type {Props} */
+  let {
+    measure,
+    value = null,
+    los = null,
+    title = null
+  } = $props();
+
+  let m = $derived(SERVICE_MEASURES[measure]);
+  let bands = $derived(bandsFor(measure));
+  let earned = $derived(letterFor(measure, value));
+  let reported = $derived(los || earned);
+  let overridden = $derived(earned && reported && earned !== reported);
+  let hasValue = $derived(Number.isFinite(value));
 
   // Where the marker sits inside its band, so a value near a threshold visibly sits near the edge
   // instead of snapping to the middle. The open-ended final band has no upper edge to scale
   // against, so it uses the width of the previous band as a stand-in.
-  $: markerPct = (() => {
+  let markerPct = $derived((() => {
     if (!hasValue || !earned) return null;
     const i = bands.findIndex((b) => b.letter === earned);
     if (i < 0) return null;
@@ -39,7 +48,7 @@
       frac = Math.abs(value - b.from) / Math.abs(b.to - b.from);
     }
     return (i + Math.min(Math.max(frac, 0), 1)) * bandWidth;
-  })();
+  })());
 
   function fmtValue(v) {
     if (!Number.isFinite(v)) return '—';

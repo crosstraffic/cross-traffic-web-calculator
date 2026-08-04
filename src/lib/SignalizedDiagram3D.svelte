@@ -6,25 +6,15 @@
   import Camera3DSvg from '$lib/Camera3DSvg.svelte';
   import { planProjector, fitTransform, makeDrawers, qSample } from '$lib/proj3d.js';
 
-  export let approaches = [];
+  let { approaches = [] } = $props();
 
-  let hovered = null;
+  let hovered = $state(null);
 
   const VIEW_W = 520, VIEW_H = 340, PAD = 24, THICK = 9;
   const LANE = 1, RUN = 5.2;
 
   const fallback = { ln_left: 1, ln_thru: 1, ln_right: 0, left_phase: 0 };
-  $: byKey = Object.fromEntries((approaches || []).map((a) => [a.key, a]));
-  $: ap = (key) => byKey[key] ?? fallback;
-  $: nL = (key) => Math.max(0, Number(ap(key).ln_left) || 0);
-  $: nT = (key) => Math.max(1, Number(ap(key).ln_thru) || 1);
-  $: nR = (key) => Math.max(0, Number(ap(key).ln_right) || 0);
-  $: lanes = (key) => nL(key) + nT(key) + nR(key);
-  $: protectedLeft = (key) => (Number(ap(key).left_phase) || 0) > 0 && nL(key) > 0;
 
-  $: model = build(lanes('NB'), lanes('SB'), lanes('EB'), lanes('WB'),
-    nL('NB') + Math.floor((nT('NB') - 1) / 2), nL('SB') + Math.floor((nT('SB') - 1) / 2),
-    nL('EB') + Math.floor((nT('EB') - 1) / 2), nL('WB') + Math.floor((nT('WB') - 1) / 2));
 
   function build(lNB, lSB, lEB, lWB, tNB, tSB, tEB, tWB) {
     const wNB = lNB * LANE, wSB = lSB * LANE, wEB = lEB * LANE, wWB = lWB * LANE;
@@ -91,39 +81,51 @@
     if (h == null) return 'sd3-move';
     return h === key ? 'sd3-move active' : 'sd3-move dim';
   }
+  let byKey = $derived(Object.fromEntries((approaches || []).map((a) => [a.key, a])));
+  let ap = $derived((key) => byKey[key] ?? fallback);
+  let nL = $derived((key) => Math.max(0, Number(ap(key).ln_left) || 0));
+  let nT = $derived((key) => Math.max(1, Number(ap(key).ln_thru) || 1));
+  let nR = $derived((key) => Math.max(0, Number(ap(key).ln_right) || 0));
+  let lanes = $derived((key) => nL(key) + nT(key) + nR(key));
+  let protectedLeft = $derived((key) => (Number(ap(key).left_phase) || 0) > 0 && nL(key) > 0);
+  let model = $derived(build(lanes('NB'), lanes('SB'), lanes('EB'), lanes('WB'),
+    nL('NB') + Math.floor((nT('NB') - 1) / 2), nL('SB') + Math.floor((nT('SB') - 1) / 2),
+    nL('EB') + Math.floor((nT('EB') - 1) / 2), nL('WB') + Math.floor((nT('WB') - 1) / 2)));
 </script>
 
 <div class="signal-diagram-3d">
   <Camera3DSvg viewW={VIEW_W} viewH={VIEW_H} defYaw={24} defPitch={42}
       ariaLabel="four-leg signalized intersection, 3D view"
-      let:yaw let:pitch let:zoom let:panX let:panY>
-    {@const project = planProjector(yaw, pitch)}
-    {@const tf = fitTransform(project, model.cross, VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK)}
-    {@const d = makeDrawers(tf, THICK)}
+          >
+    {#snippet children({ yaw, pitch, zoom, panX, panY })}
+        {@const project = planProjector(yaw, pitch)}
+      {@const tf = fitTransform(project, model.cross, VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK)}
+      {@const d = makeDrawers(tf, THICK)}
 
-    <path d={d.shadow(model.cross)} class="sd3-shadow" />
-    {#each d.walls(model.cross) as w}
-      <path d={w} class="sd3-wall" />
-    {/each}
-    <path d={d.polygon(model.cross)} class="sd3-top" />
+      <path d={d.shadow(model.cross)} class="sd3-shadow" />
+      {#each d.walls(model.cross) as w}
+        <path d={w} class="sd3-wall" />
+      {/each}
+      <path d={d.polygon(model.cross)} class="sd3-top" />
 
-    {#each model.centers as c}
-      <path d={d.polyline(c)} class="sd3-center" />
-    {/each}
-    {#each model.laneLines as l}
-      <path d={d.polyline(l)} class="sd3-lane-line" />
-    {/each}
-    {#each model.stops as s}
-      <path d={d.polyline(s)} class="sd3-stop" />
-    {/each}
+      {#each model.centers as c}
+        <path d={d.polyline(c)} class="sd3-center" />
+      {/each}
+      {#each model.laneLines as l}
+        <path d={d.polyline(l)} class="sd3-lane-line" />
+      {/each}
+      {#each model.stops as s}
+        <path d={d.polyline(s)} class="sd3-stop" />
+      {/each}
 
-    {#each order as o}
-      <path d={d.polyline(model.moves[o.key].thru)} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`} />
-      <path d={d.polyline(model.moves[o.key].left)} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`}
-            stroke-dasharray={protectedLeft(o.key) ? null : '6 5'} />
-      <path d={d.polyline(model.moves[o.key].right)} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`} />
-    {/each}
-  </Camera3DSvg>
+      {#each order as o}
+        <path d={d.polyline(model.moves[o.key].thru)} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`} />
+        <path d={d.polyline(model.moves[o.key].left)} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`}
+              stroke-dasharray={protectedLeft(o.key) ? null : '6 5'} />
+        <path d={d.polyline(model.moves[o.key].right)} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`} />
+      {/each}
+          {/snippet}
+    </Camera3DSvg>
 
   <div class="sd3-legend" role="list">
     {#each order as o}
@@ -132,10 +134,10 @@
         role="listitem"
         class="sd3-chip {o.key.toLowerCase()}"
         class:active={hovered === o.key}
-        on:mouseenter={() => (hovered = o.key)}
-        on:mouseleave={() => (hovered = null)}
-        on:focus={() => (hovered = o.key)}
-        on:blur={() => (hovered = null)}
+        onmouseenter={() => (hovered = o.key)}
+        onmouseleave={() => (hovered = null)}
+        onfocus={() => (hovered = o.key)}
+        onblur={() => (hovered = null)}
       >
         <span class="swatch {o.key.toLowerCase()}"></span>
         {o.label}

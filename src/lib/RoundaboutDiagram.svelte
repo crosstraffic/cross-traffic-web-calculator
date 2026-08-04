@@ -8,35 +8,41 @@
   // nonyielding.
   //
   // `entries` is the page's object: { nb|sb|eb|wb: { u,l,t,r, hv, entryLanes,
-  // circLanes, exitLanes, bypass, laneAssignment, nped } }.
-  export let entries = {};
-  export let editable = true;
+  
   // Per-approach LOS letters from the last run ({ NB: 'C', ... }); when
-  // present, the traffic animation slows and thickens with worse LOS.
-  export let approachLos = {};
+  
+  /**
+   * @typedef {Object} Props
+   * @property {any} [entries] - circLanes, exitLanes, bypass, laneAssignment, nped } }.
+   * @property {boolean} [editable]
+   * @property {any} [approachLos] - present, the traffic animation slows and thickens with worse LOS.
+   */
 
-  let hovered = null; // 'NB' | 'SB' | 'EB' | 'WB' | null
+  /** @type {Props} */
+  let { entries = $bindable({}), editable = true, approachLos = {} } = $props();
+
+  let hovered = $state(null); // 'NB' | 'SB' | 'EB' | 'WB' | null
 
   const LANE = 16;
   const RUN = 92;      // leg length outside the ring
   const RI = 34;       // central island radius
 
-  $: eNB = Math.max(1, Number(entries?.nb?.entryLanes) || 1);
-  $: eSB = Math.max(1, Number(entries?.sb?.entryLanes) || 1);
-  $: eEB = Math.max(1, Number(entries?.eb?.entryLanes) || 1);
-  $: eWB = Math.max(1, Number(entries?.wb?.entryLanes) || 1);
-  $: circLanes = Math.max(1, Math.min(2,
+  let eNB = $derived(Math.max(1, Number(entries?.nb?.entryLanes) || 1));
+  let eSB = $derived(Math.max(1, Number(entries?.sb?.entryLanes) || 1));
+  let eEB = $derived(Math.max(1, Number(entries?.eb?.entryLanes) || 1));
+  let eWB = $derived(Math.max(1, Number(entries?.wb?.entryLanes) || 1));
+  let circLanes = $derived(Math.max(1, Math.min(2,
     Math.max(Number(entries?.nb?.circLanes) || 1, Number(entries?.sb?.circLanes) || 1,
-             Number(entries?.eb?.circLanes) || 1, Number(entries?.wb?.circLanes) || 1)));
+             Number(entries?.eb?.circLanes) || 1, Number(entries?.wb?.circLanes) || 1))));
 
-  $: RO = RI + circLanes * LANE + 6;      // outer edge of the circulating roadway
-  $: RC = (RI + RO) / 2;                  // circulating centerline
-  $: maxLeg = Math.max(eNB, eSB, eEB, eWB);
-  $: EXT = RO + RUN;
-  $: cx = EXT;
-  $: cy = EXT;
-  $: W = 2 * EXT;
-  $: H = 2 * EXT;
+  let RO = $derived(RI + circLanes * LANE + 6);      // outer edge of the circulating roadway
+  let RC = $derived((RI + RO) / 2);                  // circulating centerline
+  let maxLeg = $derived(Math.max(eNB, eSB, eEB, eWB));
+  let EXT = $derived(RO + RUN);
+  let cx = $derived(EXT);
+  let cy = $derived(EXT);
+  let W = $derived(2 * EXT);
+  let H = $derived(2 * EXT);
 
   // World angle -> svg point (x east, y south; world y is north).
   const pt = (cx, cy, r, deg) => {
@@ -109,12 +115,12 @@
     return `M ${enter.far} L ${enter.near} Q ${corner} ${exit.near} L ${exit.far}`;
   }
 
-  $: order = [
+  let order = $derived([
     { key: 'NB', label: 'Northbound entry' },
     { key: 'SB', label: 'Southbound entry' },
     { key: 'EB', label: 'Eastbound entry' },
     { key: 'WB', label: 'Westbound entry' },
-  ];
+  ]);
   const dirOf = { NB: 'nb', SB: 'sb', EB: 'eb', WB: 'wb' };
 
   function setVol(key, field, raw) {
@@ -124,12 +130,12 @@
 
   const CW = 128;
   const CH = 24;
-  $: clusterPos = {
+  let clusterPos = $derived({
     NB: { x: W - CW - 4, y: H - CH - 4 },
     SB: { x: 4, y: 4 },
     EB: { x: 4, y: H - CH - 4 },
     WB: { x: W - CW - 4, y: 4 },
-  };
+  });
 
   function cls(h, key) {
     if (h == null) return 'rb-move';
@@ -147,9 +153,9 @@
     return `${(x0 + px * wHalf).toFixed(1)},${(y0 + py * wHalf).toFixed(1)} ${(x1 + px * wHalf).toFixed(1)},${(y1 + py * wHalf).toFixed(1)} ${(x1 - px * wHalf).toFixed(1)},${(y1 - py * wHalf).toFixed(1)} ${(x0 - px * wHalf).toFixed(1)},${(y0 - py * wHalf).toFixed(1)}`;
   }
 
-  $: bypasses = order
+  let bypasses = $derived(order
     .map((o) => ({ key: o.key, mode: entries?.[dirOf[o.key]]?.bypass || 'none' }))
-    .filter((b) => b.mode !== 'none');
+    .filter((b) => b.mode !== 'none'));
 
   // ── illustrative traffic animation ──
   // Small vehicles flow along the movement paths, count weighted by the
@@ -157,12 +163,12 @@
   // schematic illustration at constant speed, not a simulation: no gap
   // acceptance, no queuing. A microsimulation bridge (SUMO or similar) would
   // be the real thing.
-  let animating = false;
+  let animating = $state(false);
   const spanOf = { R: 90, T: 180, L: 270 };
   // Congestion response: speed multiplier and fleet multiplier by LOS letter.
   const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
   const LOS_FLEET = { A: 1, B: 1, C: 1.1, D: 1.3, E: 1.7, F: 2.3 };
-  $: vehiclePlan = (() => {
+  let vehiclePlan = $derived((() => {
     if (!animating) return [];
     const items = [];
     for (const o of order) {
@@ -191,7 +197,7 @@
       it.n = Math.max(1, Math.min(8, Math.round((BUDGET * it.vol * it.crowd) / total)));
     }
     return items;
-  })();
+  })());
 </script>
 
 <div class="rb-diagram">
@@ -266,13 +272,13 @@
     {#each editable ? order : [] as o (o.key)}
       <foreignObject x={clusterPos[o.key].x} y={clusterPos[o.key].y} width={CW} height={CH}>
         <div class="rb-cluster" xmlns="http://www.w3.org/1999/xhtml"
-             on:mouseenter={() => (hovered = o.key)} on:mouseleave={() => (hovered = null)}>
+             onmouseenter={() => (hovered = o.key)} onmouseleave={() => (hovered = null)}>
           <span class="rb-cluster-title"><span class="swatch {o.key.toLowerCase()}"></span>{o.key}</span>
           {#each [['u', 'U-turn'], ['l', 'left-turn'], ['t', 'through'], ['r', 'right-turn']] as [f, name]}
             <input type="number" min="0" title="{o.key} {name} volume (veh/h)"
                    aria-label="{o.key} {name} volume"
                    value={entries?.[dirOf[o.key]]?.[f] ?? 0}
-                   on:input={(e) => setVol(o.key, f, e.currentTarget.value)} />
+                   oninput={(e) => setVol(o.key, f, e.currentTarget.value)} />
           {/each}
         </div>
       </foreignObject>
@@ -281,7 +287,7 @@
 
   <div class="rb-legend" role="list">
     <button type="button" class="rb-chip rb-animate" class:active={animating}
-            aria-pressed={animating} on:click={() => (animating = !animating)}>
+            aria-pressed={animating} onclick={() => (animating = !animating)}>
       {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
     </button>
     {#each order as o}
@@ -290,10 +296,10 @@
         role="listitem"
         class="rb-chip {o.key.toLowerCase()}"
         class:active={hovered === o.key}
-        on:mouseenter={() => (hovered = o.key)}
-        on:mouseleave={() => (hovered = null)}
-        on:focus={() => (hovered = o.key)}
-        on:blur={() => (hovered = null)}
+        onmouseenter={() => (hovered = o.key)}
+        onmouseleave={() => (hovered = null)}
+        onfocus={() => (hovered = o.key)}
+        onblur={() => (hovered = null)}
       >
         <span class="swatch {o.key.toLowerCase()}"></span>
         {o.label}{entries?.[dirOf[o.key]]?.bypass && entries[dirOf[o.key]].bypass !== 'none' ? `, ${entries[dirOf[o.key]].bypass} bypass` : ''}

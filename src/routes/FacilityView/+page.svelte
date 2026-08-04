@@ -1,4 +1,6 @@
 <script>
+  import { nonpassive } from 'svelte/legacy';
+
   // Connected, static isometric view of the whole facility.
   // Geometry is derived from the segment data:
   //   length      -> longitudinal extent
@@ -6,9 +8,15 @@
   //   horizontal  -> heading change from design radius (the road bends)
   //   superelev.  -> cross-slope banking on curves
   //   passing lane-> the road widens by an extra lane
-  //   lane width  -> overall road width
-  export let rows = [];
-  export let laneWidth = 12;
+  
+  /**
+   * @typedef {Object} Props
+   * @property {any} [rows] - lane width  -> overall road width
+   * @property {number} [laneWidth]
+   */
+
+  /** @type {Props} */
+  let { rows = [], laneWidth = 12 } = $props();
 
   const VIEW_W = 720, VIEW_H = 230, PAD = 30;
   const STEPS = 190;
@@ -23,10 +31,10 @@
 
   // Camera: drag = rotate (yaw/pitch), Alt-drag = pan, scroll/pinch = zoom.
   const DEF_YAW = 35, DEF_PITCH = 30;
-  let yaw = DEF_YAW, pitch = DEF_PITCH;
-  let zoom = 1, panX = 0, panY = 0;
-  let dragging = false;
-  let svgEl;
+  let yaw = $state(DEF_YAW), pitch = $state(DEF_PITCH);
+  let zoom = $state(1), panX = $state(0), panY = $state(0);
+  let dragging = $state(false);
+  let svgEl = $state();
 
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const vbPerPx = () => (svgEl && svgEl.clientWidth ? VIEW_W / svgEl.clientWidth : 1);
@@ -96,7 +104,6 @@
 
   function resetView() { yaw = DEF_YAW; pitch = DEF_PITCH; zoom = 1; panX = 0; panY = 0; }
 
-  $: model = build(rows, laneWidth, yaw, pitch, zoom, panX, panY);
 
   function build(rows, laneWidth, yaw, pitch, zoom, panX, panY) {
     // yaw about the vertical axis, then tilt by pitch (orthographic)
@@ -279,6 +286,7 @@
       arrow: { x: b.x, y: b.y, ang },
     };
   }
+  let model = $derived(build(rows, laneWidth, yaw, pitch, zoom, panX, panY));
 </script>
 
 <div class="facility3d">
@@ -292,11 +300,11 @@
       class:grabbing={dragging}
       role="img"
       aria-label="Connected facility view — drag to rotate, Alt-drag to move, scroll to zoom"
-      on:pointerdown={onDown}
-      on:pointermove={onMove}
-      on:pointerup={onUp}
-      on:pointercancel={onUp}
-      on:wheel|nonpassive={onWheel}
+      onpointerdown={onDown}
+      onpointermove={onMove}
+      onpointerup={onUp}
+      onpointercancel={onUp}
+      use:nonpassive={['wheel', () => onWheel]}
     >
       <defs>
         <linearGradient id="roadGrad" x1="0" y1="0" x2="0" y2="1">
@@ -345,7 +353,7 @@
       <span class="facility3d-cap">
         Drag to rotate · Alt-drag to move · scroll / pinch to zoom.
       </span>
-      <button type="button" class="facility3d-reset" on:click={resetView}>Reset view</button>
+      <button type="button" class="facility3d-reset" onclick={resetView}>Reset view</button>
     </div>
   {/if}
 </div>

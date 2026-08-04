@@ -6,19 +6,32 @@
   // One-sided: on-ramp joins at the entry gore, an auxiliary lane runs the
   // short length, the off-ramp leaves at the exit gore, all on the right.
   // Two-sided: on-ramp on the right, off-ramp on the left, so the
-  // ramp-to-ramp movement crosses every mainline lane.
-  export let weavingType = 'one_sided';
-  export let numLanes = 4;
-  export let vFF = 0;
-  export let vFR = 0;
-  export let vRF = 0;
-  export let vRR = 0;
+  
+  /**
+   * @typedef {Object} Props
+   * @property {string} [weavingType] - ramp-to-ramp movement crosses every mainline lane.
+   * @property {number} [numLanes]
+   * @property {number} [vFF]
+   * @property {number} [vFR]
+   * @property {number} [vRF]
+   * @property {number} [vRR]
+   */
 
-  let hovered = null; // 'ff' | 'fr' | 'rf' | 'rr' | null
+  /** @type {Props} */
+  let {
+    weavingType = 'one_sided',
+    numLanes = 4,
+    vFF = $bindable(0),
+    vFR = $bindable(0),
+    vRF = $bindable(0),
+    vRR = $bindable(0)
+  } = $props();
 
-  $: twoSided = weavingType === 'two_sided';
+  let hovered = $state(null); // 'ff' | 'fr' | 'rf' | 'rr' | null
+
+  let twoSided = $derived(weavingType === 'two_sided');
   // One-sided: N includes the auxiliary lane, so draw N-1 mainline lanes.
-  $: mainLanes = Math.max(2, Math.min(6, (Number(numLanes) || 4) - (twoSided ? 0 : 1)));
+  let mainLanes = $derived(Math.max(2, Math.min(6, (Number(numLanes) || 4) - (twoSided ? 0 : 1))));
 
   const LANE = 16;      // lane height, px
   const gIn = 78;       // entry gore x
@@ -26,22 +39,22 @@
   const RAMP = 84;      // horizontal run of a ramp band
   const DROP = 46;      // vertical drop of a ramp band over that run
 
-  $: mainTop = twoSided ? DROP + LANE + 14 : 16;
-  $: mainBot = mainTop + LANE * mainLanes;
-  $: auxBot = mainBot + LANE;
-  $: viewH = (twoSided ? mainBot : auxBot) + DROP + LANE + 20;
+  let mainTop = $derived(twoSided ? DROP + LANE + 14 : 16);
+  let mainBot = $derived(mainTop + LANE * mainLanes);
+  let auxBot = $derived(mainBot + LANE);
+  let viewH = $derived((twoSided ? mainBot : auxBot) + DROP + LANE + 20);
 
-  $: yLane = (i) => mainTop + LANE * i + LANE / 2;
-  $: yBottom = yLane(mainLanes - 1);
-  $: yTop = yLane(0);
-  $: yAux = mainBot + LANE / 2;
+  let yLane = $derived((i) => mainTop + LANE * i + LANE / 2);
+  let yBottom = $derived(yLane(mainLanes - 1));
+  let yTop = $derived(yLane(0));
+  let yAux = $derived(mainBot + LANE / 2);
 
   // Ramp-band centerline points 14 px in from the band ends, so movement
   // paths enter and leave inside the pavement instead of overshooting it.
-  $: rampInlet = { x: gIn - RAMP + 14, y: auxBot + DROP - LANE / 2 - (DROP * 14) / RAMP };
-  $: rampOutlet = { x: gOut + RAMP - 14, y: auxBot - LANE / 2 + (DROP * (RAMP - 14)) / RAMP };
-  $: rampInlet2 = { x: gIn - RAMP + 14, y: mainBot + DROP + LANE / 2 - (DROP * 14) / RAMP };
-  $: rampOutlet2 = { x: gOut + RAMP - 14, y: mainTop - DROP - LANE / 2 + (DROP * 14) / RAMP };
+  let rampInlet = $derived({ x: gIn - RAMP + 14, y: auxBot + DROP - LANE / 2 - (DROP * 14) / RAMP });
+  let rampOutlet = $derived({ x: gOut + RAMP - 14, y: auxBot - LANE / 2 + (DROP * (RAMP - 14)) / RAMP });
+  let rampInlet2 = $derived({ x: gIn - RAMP + 14, y: mainBot + DROP + LANE / 2 - (DROP * 14) / RAMP });
+  let rampOutlet2 = $derived({ x: gOut + RAMP - 14, y: mainTop - DROP - LANE / 2 + (DROP * 14) / RAMP });
 
   const movements = [
     { key: 'ff', label: 'v_FF freeway → freeway' },
@@ -49,7 +62,7 @@
     { key: 'fr', label: 'v_FR freeway → ramp' },
     { key: 'rr', label: 'v_RR ramp → ramp' },
   ];
-  $: volumes = { ff: vFF, rf: vRF, fr: vFR, rr: vRR };
+  let volumes = $derived({ ff: vFF, rf: vRF, fr: vFR, rr: vRR });
 
   // The legend inputs assign back to the exported props, so a page that
   // binds vFF/vFR/vRF/vRR sees edits made on the diagram.
@@ -172,8 +185,8 @@
         role="listitem"
         class="wv-chip {m.key}"
         class:active={hovered === m.key}
-        on:mouseenter={() => (hovered = m.key)}
-        on:mouseleave={() => (hovered = null)}
+        onmouseenter={() => (hovered = m.key)}
+        onmouseleave={() => (hovered = null)}
       >
         <span class="swatch {m.key}"></span>
         {m.label}
@@ -182,9 +195,9 @@
           min="0"
           aria-label="{m.label} volume (veh/h)"
           value={volumes[m.key]}
-          on:input={(e) => setVol(m.key, e.currentTarget.value)}
-          on:focus={() => (hovered = m.key)}
-          on:blur={() => (hovered = null)}
+          oninput={(e) => setVol(m.key, e.currentTarget.value)}
+          onfocus={() => (hovered = m.key)}
+          onblur={() => (hovered = null)}
         />
         veh/h
       </label>

@@ -1,13 +1,19 @@
 <script>
   import { LOS_COLORS } from './los.js';
 
-  /** LOS letter, or null when the chapter defines none for this configuration. */
-  export let los = null;
-  export let size = 'md';
-  /** Shown under the badge when `los` is null, e.g. why the HCM assigns no letter here. */
-  export let undefinedNote = 'Not defined';
+  
+  
+  /**
+   * @typedef {Object} Props
+   * @property {any} [los] - LOS letter, or null when the chapter defines none for this configuration.
+   * @property {string} [size]
+   * @property {string} [undefinedNote] - Shown under the badge when `los` is null, e.g. why the HCM assigns no letter here.
+   */
 
-  $: color = los ? LOS_COLORS[los] : null;
+  /** @type {Props} */
+  let { los = null, size = 'md', undefinedNote = 'Not defined' } = $props();
+
+  let color = $derived(los ? LOS_COLORS[los] : null);
 </script>
 
 <div class="los-badge-wrap" class:sm={size === 'sm'} class:lg={size === 'lg'}>

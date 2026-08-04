@@ -9,30 +9,46 @@
   //
   // `kind`: 'pedestrian' (exclusive walkway, pedestrians only),
   // 'shared_path' (bicycle streams passing a probe pedestrian), or
-  // 'bicycle' (full five-mode mix).
-  export let kind = 'bicycle';
-  export let widthFt = 10;
-  export let objectWidthFt = 0;   // pedestrian kind: fixed-object strip
-  export let centerline = false;
-  export let oneWay = false;
+  
   // Demand knobs, meaning depends on kind: bicycle = two-way volume + split
   // via demandA only; shared_path = same-direction / opposing bikes; the
-  // pedestrian kind uses demandA as the hourly volume.
-  export let demandA = 200;
-  export let demandB = 0;
-  export let losLetter = null;
-  export let editable = true;
+  
+  /**
+   * @typedef {Object} Props
+   * @property {string} [kind] - 'bicycle' (full five-mode mix).
+   * @property {number} [widthFt]
+   * @property {number} [objectWidthFt] - pedestrian kind: fixed-object strip
+   * @property {boolean} [centerline]
+   * @property {boolean} [oneWay]
+   * @property {number} [demandA] - pedestrian kind uses demandA as the hourly volume.
+   * @property {number} [demandB]
+   * @property {any} [losLetter]
+   * @property {boolean} [editable]
+   */
 
-  let hovered = null;
-  let animating = true;
+  /** @type {Props} */
+  let {
+    kind = 'bicycle',
+    widthFt = 10,
+    objectWidthFt = 0,
+    centerline = false,
+    oneWay = false,
+    demandA = $bindable(200),
+    demandB = $bindable(0),
+    losLetter = null,
+    editable = true
+  } = $props();
+
+  let hovered = $state(null);
+  let animating = $state(true);
 
   const W = 520, H = 170, cy = 85, FT = 5.4;
 
-  $: bandH = Math.max(4, Math.min(20, Number(widthFt) || 10)) * FT;
-  $: top = cy - bandH / 2;
-  $: bot = cy + bandH / 2;
+  let bandH = $derived(Math.max(4, Math.min(20, Number(widthFt) || 10)) * FT);
+  let top = $derived(cy - bandH / 2);
+  let bot = $derived(cy + bandH / 2);
   // Fixed objects claim a strip along the north edge (shy distance shading).
-  $: objH = Math.max(0, Math.min(6, Number(objectWidthFt) || 0)) * FT;
+  let objH = $derived(Math.max(0, Math.min(6, Number(objectWidthFt) || 0)) * FT);
 
   const MODES = [
     { key: 'bike', label: 'Bicycles', split: 0.55, speed: 12.8, cls: 'u-bike' },
@@ -45,15 +61,15 @@
   // constrained.
   const DELAYED = { A: 0, B: 0.1, C: 0.25, D: 0.45, E: 0.65, F: 0.85 };
 
-  $: activeModes = kind === 'pedestrian' ? MODES.filter((m) => m.key === 'ped')
+  let activeModes = $derived(kind === 'pedestrian' ? MODES.filter((m) => m.key === 'ped')
     : kind === 'shared_path' ? MODES.filter((m) => m.key === 'bike')
-    : MODES;
+    : MODES);
 
   // Lane y per direction; users scatter across their half.
-  $: yEast = (f) => cy + (bandH / 2 - 6) * (0.35 + 0.6 * f);   // south half
-  $: yWest = (f) => cy - (bandH / 2 - 6) * (0.35 + 0.6 * f);   // north half
+  let yEast = $derived((f) => cy + (bandH / 2 - 6) * (0.35 + 0.6 * f));   // south half
+  let yWest = $derived((f) => cy - (bandH / 2 - 6) * (0.35 + 0.6 * f));   // north half
 
-  $: vehiclePlan = (() => {
+  let vehiclePlan = $derived((() => {
     if (!animating) return [];
     const items = [];
     const dirDemand = kind === 'shared_path'
@@ -92,7 +108,7 @@
       items.push({ id: 'probe', mode: MODES[1], probe: true, delayed: false, dur: 34 / 3.4, begin: -3, path: `M -12,${yEast(0.5).toFixed(1)} L ${W + 12},${yEast(0.5).toFixed(1)}` });
     }
     return items;
-  })();
+  })());
 
   function cls(h, key) {
     if (h == null) return 'pd-user';
@@ -125,10 +141,10 @@
         <div class="pd-cluster" xmlns="http://www.w3.org/1999/xhtml">
           <span class="pd-cluster-title">{kind === 'shared_path' ? 'bikes same/opp' : kind === 'pedestrian' ? 'peds/h' : 'users/h'}</span>
           <input type="number" min="0" aria-label="primary demand (per hour)"
-                 value={demandA} on:input={(e) => (demandA = e.currentTarget.value === '' ? '' : Number(e.currentTarget.value))} />
+                 value={demandA} oninput={(e) => (demandA = e.currentTarget.value === '' ? '' : Number(e.currentTarget.value))} />
           {#if kind === 'shared_path' && !oneWay}
             <input type="number" min="0" aria-label="opposing demand (per hour)"
-                   value={demandB} on:input={(e) => (demandB = e.currentTarget.value === '' ? '' : Number(e.currentTarget.value))} />
+                   value={demandB} oninput={(e) => (demandB = e.currentTarget.value === '' ? '' : Number(e.currentTarget.value))} />
           {/if}
         </div>
       </foreignObject>
@@ -151,7 +167,7 @@
 
   <div class="pd-legend" role="list">
     <button type="button" class="pd-chip pd-animate" class:active={animating}
-            aria-pressed={animating} on:click={() => (animating = !animating)}>
+            aria-pressed={animating} onclick={() => (animating = !animating)}>
       {animating ? '⏸ Stop' : '▶ Animate'}
     </button>
     {#each activeModes as m}
@@ -160,10 +176,10 @@
         role="listitem"
         class="pd-chip {m.cls}"
         class:active={hovered === m.key}
-        on:mouseenter={() => (hovered = m.key)}
-        on:mouseleave={() => (hovered = null)}
-        on:focus={() => (hovered = m.key)}
-        on:blur={() => (hovered = null)}
+        onmouseenter={() => (hovered = m.key)}
+        onmouseleave={() => (hovered = null)}
+        onfocus={() => (hovered = m.key)}
+        onblur={() => (hovered = null)}
       >
         <span class="swatch {m.cls}"></span>
         {m.label}{kind === 'bicycle' ? ` (${Math.round(m.split * 100)}%)` : ''} · {m.speed} mi/h

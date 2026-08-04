@@ -3,13 +3,26 @@
   import Error from "../+error.svelte";
   import { setReport } from '$lib/report';
 
-    // Export variables
-    export let lane_width;
-    export let shoulder_width;
-    export let apd;
-    export let pmhvfl;
-    export let rows_len;
-    export let rows;
+    
+  /**
+   * @typedef {Object} Props
+   * @property {any} lane_width - Export variables
+   * @property {any} shoulder_width
+   * @property {any} apd
+   * @property {any} pmhvfl
+   * @property {any} rows_len
+   * @property {any} rows
+   */
+
+  /** @type {Props} */
+  let {
+    lane_width,
+    shoulder_width,
+    apd,
+    pmhvfl,
+    rows_len,
+    rows
+  } = $props();
 
     function callingFunc(){
         calculate(rows_len, rows);
@@ -244,7 +257,7 @@
 
 </script>
 
-<button type="submit" class="btn btn-primary calc-btn" on:click={() => callingFunc()}>Calculate</button>
+<button type="submit" class="btn btn-primary calc-btn" onclick={() => callingFunc()}>Calculate</button>
 
 <style>
   .calc-btn {

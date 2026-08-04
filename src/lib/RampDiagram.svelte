@@ -5,64 +5,78 @@
   //
   // The speed-change lane is drawn as a parallel lane: an on-ramp joins at
   // the gore, runs alongside, and tapers out downstream; an off-ramp mirrors
-  // that upstream. Left-side ramps mirror the whole junction vertically.
-  export let rampType = 'on_ramp';
-  export let rampSide = 'right';
-  export let rampLanes = 1;
-  export let freewayLanes = 3;
-  export let accelLen = 800;
-  export let decelLen = 400;
+  
+  /**
+   * @typedef {Object} Props
+   * @property {string} [rampType] - that upstream. Left-side ramps mirror the whole junction vertically.
+   * @property {string} [rampSide]
+   * @property {number} [rampLanes]
+   * @property {number} [freewayLanes]
+   * @property {number} [accelLen]
+   * @property {number} [decelLen]
+   */
 
-  let hovered = null; // 'ramp' | 'influence' | null
+  /** @type {Props} */
+  let {
+    rampType = 'on_ramp',
+    rampSide = 'right',
+    rampLanes = 1,
+    freewayLanes = 3,
+    accelLen = $bindable(800),
+    decelLen = $bindable(400)
+  } = $props();
+
+  let hovered = $state(null); // 'ramp' | 'influence' | null
 
   const LANE = 16;   // lane height, px
   const RAMP = 74;   // horizontal run of the ramp band
   const DROP = 42;   // vertical drop of the ramp band over that run
   const TAPER = 32;  // length of the speed-change lane end taper
 
-  $: lanes = Math.max(2, Math.min(5, Number(freewayLanes) || 3));
-  $: isOn = rampType === 'on_ramp' || rampType === 'major_merge';
-  $: isMajor = rampType === 'major_merge' || rampType === 'major_diverge';
-  $: onRight = rampSide !== 'left';
-  $: nRamp = Math.max(1, Math.min(2, Number(rampLanes) || 1));
+  let lanes = $derived(Math.max(2, Math.min(5, Number(freewayLanes) || 3)));
+  let isOn = $derived(rampType === 'on_ramp' || rampType === 'major_merge');
+  let isMajor = $derived(rampType === 'major_merge' || rampType === 'major_diverge');
+  let onRight = $derived(rampSide !== 'left');
+  let nRamp = $derived(Math.max(1, Math.min(2, Number(rampLanes) || 1)));
 
   // Speed-change lane length: 300..1,500 ft maps to 70..170 px.
-  $: scl = Math.max(300, Math.min(1500, Number(isOn ? accelLen : decelLen) || 500));
-  $: sclPx = 70 + ((scl - 300) / 1200) * 100;
+  let scl = $derived(Math.max(300, Math.min(1500, Number(isOn ? accelLen : decelLen) || 500)));
+  let sclPx = $derived(70 + ((scl - 300) / 1200) * 100);
 
   // Gore x: where the ramp band meets the parallel lane.
-  $: gore = isOn ? 84 : 236;
+  let gore = $derived(isOn ? 84 : 236);
 
-  $: mainTop = onRight ? 20 : DROP + LANE + 30;
-  $: mainH = LANE * lanes;
-  $: mainBot = mainTop + mainH;
-  $: viewH = mainBot + (onRight ? DROP + LANE + 30 : 20);
+  let mainTop = $derived(onRight ? 20 : DROP + LANE + 30);
+  let mainH = $derived(LANE * lanes);
+  let mainBot = $derived(mainTop + mainH);
+  let viewH = $derived(mainBot + (onRight ? DROP + LANE + 30 : 20));
 
   // Vertical mirror for left-side ramps: offsets grow away from `edgeY`.
-  $: dir = onRight ? 1 : -1;
-  $: edgeY = onRight ? mainBot : mainTop;
-  $: ry = (offset) => edgeY + dir * offset;
+  let dir = $derived(onRight ? 1 : -1);
+  let edgeY = $derived(onRight ? mainBot : mainTop);
+  let ry = $derived((offset) => edgeY + dir * offset);
 
   // Parallel-lane span along the mainline edge.
-  $: laneX0 = isOn ? gore : gore - sclPx;
-  $: laneX1 = isOn ? gore + sclPx : gore;
-  $: taperTip = isOn ? laneX1 + TAPER : laneX0 - TAPER;
+  let laneX0 = $derived(isOn ? gore : gore - sclPx);
+  let laneX1 = $derived(isOn ? gore + sclPx : gore);
+  let taperTip = $derived(isOn ? laneX1 + TAPER : laneX0 - TAPER);
 
   // Influence area: the two lanes nearest the ramp, 1,500 ft from the gore
   // (downstream of a merge, upstream of a diverge).
-  $: inflLanes = Math.min(2, lanes);
-  $: inflY = onRight ? mainBot - LANE * inflLanes : mainTop;
-  $: inflX = isOn ? gore : Math.max(0, gore - 170);
-  $: inflW = 170;
+  const inflW = 170;
+  let inflLanes = $derived(Math.min(2, lanes));
+  let inflY = $derived(onRight ? mainBot - LANE * inflLanes : mainTop);
+  let inflX = $derived(isOn ? gore : Math.max(0, gore - 170));
+  
 
-  $: dimY = ry(LANE + 18);
-  $: labelY = ry(LANE + 30) + (onRight ? 0 : 4);
+  let dimY = $derived(ry(LANE + 18));
+  let labelY = $derived(ry(LANE + 30) + (onRight ? 0 : 4));
 
   // Speed-change lane outline: gore-side end is full width, the other end
   // tapers back to the mainline edge.
-  $: sclPoints = isOn
+  let sclPoints = $derived(isOn
     ? `${laneX0},${ry(0)} ${taperTip},${ry(0)} ${laneX1},${ry(LANE * nRamp)} ${laneX0},${ry(LANE * nRamp)}`
-    : `${taperTip},${ry(0)} ${laneX1},${ry(0)} ${laneX1},${ry(LANE * nRamp)} ${laneX0},${ry(LANE * nRamp)}`;
+    : `${taperTip},${ry(0)} ${laneX1},${ry(0)} ${laneX1},${ry(LANE * nRamp)} ${laneX0},${ry(LANE * nRamp)}`);
 </script>
 
 <div class="ramp-diagram">
@@ -125,14 +139,14 @@
 
   <div class="rd-legend">
     <button type="button" class="rd-chip" class:active={hovered === 'ramp'}
-      on:mouseenter={() => (hovered = 'ramp')} on:mouseleave={() => (hovered = null)}
-      on:focus={() => (hovered = 'ramp')} on:blur={() => (hovered = null)}>
+      onmouseenter={() => (hovered = 'ramp')} onmouseleave={() => (hovered = null)}
+      onfocus={() => (hovered = 'ramp')} onblur={() => (hovered = null)}>
       <span class="swatch ramp"></span>
       {isOn ? (isMajor ? 'Major merge roadway' : 'On-ramp and acceleration lane') : (isMajor ? 'Major diverge roadway' : 'Deceleration lane and off-ramp')} ({nRamp} lane{nRamp === 1 ? '' : 's'}, {onRight ? 'right' : 'left'} side)
     </button>
     <button type="button" class="rd-chip" class:active={hovered === 'influence'}
-      on:mouseenter={() => (hovered = 'influence')} on:mouseleave={() => (hovered = null)}
-      on:focus={() => (hovered = 'influence')} on:blur={() => (hovered = null)}>
+      onmouseenter={() => (hovered = 'influence')} onmouseleave={() => (hovered = null)}
+      onfocus={() => (hovered = 'influence')} onblur={() => (hovered = null)}>
       <span class="swatch influence"></span>
       Ramp influence area (lanes 1–2, 1,500 ft {isOn ? 'downstream' : 'upstream'} of the gore)
     </button>

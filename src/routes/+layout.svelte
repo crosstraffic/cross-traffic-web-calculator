@@ -1,10 +1,17 @@
 <script>
   import '../app.css';
   import { onMount } from 'svelte';
+  /**
+   * @typedef {Object} Props
+   * @property {import('svelte').Snippet} [children]
+   */
+
+  /** @type {Props} */
+  let { children } = $props();
 
   // Theme: the inline script in app.html applies the saved or system theme
   // before first paint; this toggle just flips and persists it.
-  let theme = 'light';
+  let theme = $state('light');
   onMount(() => {
     theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
   });
@@ -44,7 +51,7 @@
   }
 </script>
 
-<svelte:window on:click={closeNavDropdowns} />
+<svelte:window onclick={closeNavDropdowns} />
 
 <header>
   <div class="navbar bg-base-100 shadow-md">
@@ -121,7 +128,7 @@
       <button
         type="button"
         class="nav-theme-toggle"
-        on:click={toggleTheme}
+        onclick={toggleTheme}
         aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
         title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
       >
@@ -155,7 +162,7 @@
 </header>
 
 <main>
-  <slot />
+  {@render children?.()}
 </main>
 
 <footer class="site-footer">

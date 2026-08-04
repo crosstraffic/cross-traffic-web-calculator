@@ -5,26 +5,32 @@
   import Camera3DSvg from '$lib/Camera3DSvg.svelte';
   import { planProjector, fitTransform, makeDrawers } from '$lib/proj3d.js';
 
-  export let rampType = 'on_ramp';
-  export let rampSide = 'right';
-  export let rampLanes = 1;
-  export let freewayLanes = 3;
-  export let accelLen = 800;
-  export let decelLen = 400;
+  /**
+   * @typedef {Object} Props
+   * @property {string} [rampType]
+   * @property {string} [rampSide]
+   * @property {number} [rampLanes]
+   * @property {number} [freewayLanes]
+   * @property {number} [accelLen]
+   * @property {number} [decelLen]
+   */
 
-  let hovered = null; // 'ramp' | 'influence' | null
+  /** @type {Props} */
+  let {
+    rampType = 'on_ramp',
+    rampSide = 'right',
+    rampLanes = 1,
+    freewayLanes = 3,
+    accelLen = 800,
+    decelLen = 400
+  } = $props();
+
+  let hovered = $state(null); // 'ramp' | 'influence' | null
 
   const VIEW_W = 560, VIEW_H = 280, PAD = 24, THICK = 8;
   const LANE = 16, RAMP = 74, DROP = 42, TAPER = 32, X1 = 320;
 
-  $: lanes = Math.max(2, Math.min(5, Number(freewayLanes) || 3));
-  $: isOn = rampType === 'on_ramp' || rampType === 'major_merge';
-  $: onRight = rampSide !== 'left';
-  $: nRamp = Math.max(1, Math.min(2, Number(rampLanes) || 1));
-  $: scl = Math.max(300, Math.min(1500, Number(isOn ? accelLen : decelLen) || 500));
-  $: sclPx = 70 + ((scl - 300) / 1200) * 100;
 
-  $: model = build(lanes, isOn, onRight, nRamp, sclPx);
 
   function build(lanes, isOn, onRight, nRamp, sclPx) {
     const gore = isOn ? 84 : 236;
@@ -73,33 +79,42 @@
     { key: 'ramp', label: 'ramp and speed-change lane' },
     { key: 'influence', label: 'ramp influence area (lanes 1-2, 1,500 ft)' },
   ];
+  let lanes = $derived(Math.max(2, Math.min(5, Number(freewayLanes) || 3)));
+  let isOn = $derived(rampType === 'on_ramp' || rampType === 'major_merge');
+  let onRight = $derived(rampSide !== 'left');
+  let nRamp = $derived(Math.max(1, Math.min(2, Number(rampLanes) || 1)));
+  let scl = $derived(Math.max(300, Math.min(1500, Number(isOn ? accelLen : decelLen) || 500)));
+  let sclPx = $derived(70 + ((scl - 300) / 1200) * 100);
+  let model = $derived(build(lanes, isOn, onRight, nRamp, sclPx));
 </script>
 
 <div class="ramp-diagram-3d">
   <Camera3DSvg viewW={VIEW_W} viewH={VIEW_H} defYaw={16} defPitch={48}
       ariaLabel={`${lanes}-lane freeway with a ${nRamp}-lane ${onRight ? 'right' : 'left'}-side ${rampType.replace('_', ' ')}, 3D view`}
-      let:yaw let:pitch let:zoom let:panX let:panY>
-    {@const project = planProjector(yaw, pitch)}
-    {@const tf = fitTransform(project, flip(model.slabs.flat()), VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK)}
-    {@const d = makeDrawers(tf, THICK)}
+          >
+    {#snippet children({ yaw, pitch, zoom, panX, panY })}
+        {@const project = planProjector(yaw, pitch)}
+      {@const tf = fitTransform(project, flip(model.slabs.flat()), VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK)}
+      {@const d = makeDrawers(tf, THICK)}
 
-    {#each model.slabs as s}
-      <path d={d.shadow(flip(s))} class="r3-shadow" />
-    {/each}
-    {#each model.slabs as s}
-      {#each d.walls(flip(s)) as w}
-        <path d={w} class="r3-wall" />
+      {#each model.slabs as s}
+        <path d={d.shadow(flip(s))} class="r3-shadow" />
       {/each}
-    {/each}
-    {#each model.rampSlabs as s}
-      <path d={d.polygon(flip(s))} class="r3-scl" class:active={hovered === 'ramp'} />
-    {/each}
-    <path d={d.polygon(flip(model.slabs[2]))} class="r3-top" />
-    <path d={d.polygon(flip(model.infl))} class="r3-influence" class:active={hovered === 'influence'} />
-    {#each model.laneLines as l}
-      <path d={d.polyline(flip(l))} class="r3-lane-line" />
-    {/each}
-  </Camera3DSvg>
+      {#each model.slabs as s}
+        {#each d.walls(flip(s)) as w}
+          <path d={w} class="r3-wall" />
+        {/each}
+      {/each}
+      {#each model.rampSlabs as s}
+        <path d={d.polygon(flip(s))} class="r3-scl" class:active={hovered === 'ramp'} />
+      {/each}
+      <path d={d.polygon(flip(model.slabs[2]))} class="r3-top" />
+      <path d={d.polygon(flip(model.infl))} class="r3-influence" class:active={hovered === 'influence'} />
+      {#each model.laneLines as l}
+        <path d={d.polyline(flip(l))} class="r3-lane-line" />
+      {/each}
+          {/snippet}
+    </Camera3DSvg>
 
   <div class="r3-legend" role="list">
     {#each items as it}
@@ -108,10 +123,10 @@
         role="listitem"
         class="r3-chip {it.key}"
         class:active={hovered === it.key}
-        on:mouseenter={() => (hovered = it.key)}
-        on:mouseleave={() => (hovered = null)}
-        on:focus={() => (hovered = it.key)}
-        on:blur={() => (hovered = null)}
+        onmouseenter={() => (hovered = it.key)}
+        onmouseleave={() => (hovered = null)}
+        onfocus={() => (hovered = it.key)}
+        onblur={() => (hovered = null)}
       >
         <span class="swatch {it.key}"></span>
         {it.label}

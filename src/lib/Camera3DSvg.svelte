@@ -1,19 +1,36 @@
 <script>
+  import { createBubbler, preventDefault } from 'svelte/legacy';
+
+  const bubble = createBubbler();
   // Shared camera shell for the 3D diagram views: owns the yaw/pitch/zoom/pan
   // state and the pointer interactions (drag = rotate, Alt-drag = pan,
   // scroll/pinch = zoom), and hands the camera values to the slot so each
   // diagram only writes its own projection model. Same interaction contract
-  // as FreewaySegment3D and FacilityView.
-  export let viewW = 520;
-  export let viewH = 340;
-  export let ariaLabel = '3D view';
-  export let defYaw = 24;
-  export let defPitch = 42;
+  
+  /**
+   * @typedef {Object} Props
+   * @property {number} [viewW] - as FreewaySegment3D and FacilityView.
+   * @property {number} [viewH]
+   * @property {string} [ariaLabel]
+   * @property {number} [defYaw]
+   * @property {number} [defPitch]
+   * @property {import('svelte').Snippet<[any]>} [children]
+   */
 
-  let yaw = defYaw, pitch = defPitch;
-  let zoom = 1, panX = 0, panY = 0;
-  let dragging = false;
-  let svgEl;
+  /** @type {Props} */
+  let {
+    viewW = 520,
+    viewH = 340,
+    ariaLabel = '3D view',
+    defYaw = 24,
+    defPitch = 42,
+    children
+  } = $props();
+
+  let yaw = $state(defYaw), pitch = $state(defPitch);
+  let zoom = $state(1), panX = $state(0), panY = $state(0);
+  let dragging = $state(false);
+  let svgEl = $state();
 
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const vbPerPx = () => (svgEl && svgEl.clientWidth ? viewW / svgEl.clientWidth : 1);
@@ -83,19 +100,19 @@
   function resetView() { yaw = defYaw; pitch = defPitch; zoom = 1; panX = 0; panY = 0; }
 </script>
 
-<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <svg bind:this={svgEl} viewBox="0 0 {viewW} {viewH}" preserveAspectRatio="xMidYMid meet" role="img"
      aria-label={ariaLabel}
      class="cam3d"
      class:dragging
-     on:pointerdown={onDown} on:pointermove={onMove} on:pointerup={onUp}
-     on:pointercancel={onUp} on:wheel={onWheel} on:contextmenu|preventDefault>
-  <slot {yaw} {pitch} {zoom} {panX} {panY} />
+     onpointerdown={onDown} onpointermove={onMove} onpointerup={onUp}
+     onpointercancel={onUp} onwheel={onWheel} oncontextmenu={preventDefault(bubble('contextmenu'))}>
+  {@render children?.({ yaw, pitch, zoom, panX, panY, })}
 </svg>
 
 <div class="cam3d-bar">
   <span class="cam3d-hint">Drag to rotate, Alt-drag to pan, scroll to zoom.</span>
-  <button type="button" class="btn btn-ghost btn-xs" on:click={resetView}>Reset view</button>
+  <button type="button" class="btn btn-ghost btn-xs" onclick={resetView}>Reset view</button>
 </div>
 
 <style>

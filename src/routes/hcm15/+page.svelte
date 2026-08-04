@@ -3,6 +3,8 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import Row from '../Row/+page.svelte';
   import SubRow from '../SubRow/+page.svelte';
   import Calc from '../Calc/+page.svelte';
@@ -12,11 +14,11 @@
   import init, { WasmSegment, WasmSubSegment, WasmTwoLaneHighways } from "HCM-middleware";
   import { onMount } from "svelte";
 
-  let lane_width = 12;
-  let shoulder_width = 6;
-  let apd = 2;
-  let pmhvfl = 0;
-  let localRows = [];
+  let lane_width = $state(12);
+  let shoulder_width = $state(6);
+  let apd = $state(2);
+  let pmhvfl = $state(0);
+  let localRows = $state([]);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -42,8 +44,8 @@
   });
 
   let toggle_seg = -1;
-  let facilityExpanded = false;
-  let facilityMode = '2d';
+  let facilityExpanded = $state(false);
+  let facilityMode = $state('2d');
 
   // Show microsimulation
   // function simResults() {
@@ -176,10 +178,10 @@
     });
   }
 
-  let hasError = false;
+  let hasError = $state(false);
   let isSuccessVisible = false;
   let submitted = false;
-  let errMessage = "Here is the error";
+  let errMessage = $state("Here is the error");
 
   function handleSubmit(){
     submitted = true;
@@ -372,7 +374,7 @@
   <form
     id="hcm15"
     class="submitted:opacity-50 transition-opacity duration-300"
-    on:submit|preventDefault={handleSubmit}
+    onsubmit={preventDefault(handleSubmit)}
   >
     <!-- Import -->
     <section class="panel">
@@ -386,7 +388,7 @@
       <input
         type="file"
         id="jsonInput"
-        on:change={jsonInputHandler}
+        onchange={jsonInputHandler}
         class="file-input file-input-bordered w-full max-w-xs"
         accept=".json"
       />
@@ -400,8 +402,8 @@
           <p class="panel-sub">Define the passing type and traffic characteristics of each segment.</p>
         </div>
         <div class="panel-actions">
-          <button class="btn btn-outline btn-sm" on:click={addSegment} type="button">+ Add Segment</button>
-          <button class="btn btn-ghost btn-sm" on:click={removeSegment} type="button">Remove</button>
+          <button class="btn btn-outline btn-sm" onclick={addSegment} type="button">+ Add Segment</button>
+          <button class="btn btn-ghost btn-sm" onclick={removeSegment} type="button">Remove</button>
         </div>
       </div>
       <div class="w-full overflow-x-auto">
@@ -516,8 +518,8 @@
               <div class="hc-card-head">
                 <h3>Segment {row.seg_num} · Horizontal Curves</h3>
                 <div class="flex gap-2">
-                  <button class="btn btn-outline btn-sm" on:click={() => addSubSegment(row.seg_num)} type="button">Add</button>
-                  <button class="btn btn-ghost btn-sm" on:click={() => removeSubSegment(row.seg_num)} type="button">Remove</button>
+                  <button class="btn btn-outline btn-sm" onclick={() => addSubSegment(row.seg_num)} type="button">Add</button>
+                  <button class="btn btn-ghost btn-sm" onclick={() => removeSubSegment(row.seg_num)} type="button">Remove</button>
                 </div>
               </div>
 
@@ -531,8 +533,8 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {#each row.subrows as subrow}
-                    <SubRow bind:subrow={subrow} subseg_num={subrow.subseg_num} />
+                  {#each row.subrows as subrow, si}
+                    <SubRow bind:subrow={row.subrows[si]} subseg_num={subrow.subseg_num} />
                   {/each}
                 </tbody>
               </table>
@@ -556,14 +558,14 @@
         <div class="panel-actions">
           <ViewToggle bind:mode={facilityMode} label="Facility view mode" />
           {#if facilityExpanded}
-            <button class="btn btn-outline btn-sm" on:click={addSegment} type="button">+ Add Segment</button>
-            <button class="btn btn-ghost btn-sm" on:click={removeSegment} type="button">Remove</button>
+            <button class="btn btn-outline btn-sm" onclick={addSegment} type="button">+ Add Segment</button>
+            <button class="btn btn-ghost btn-sm" onclick={removeSegment} type="button">Remove</button>
           {/if}
           <button
             type="button"
             class="btn btn-outline btn-sm"
             aria-expanded={facilityExpanded}
-            on:click={() => (facilityExpanded = !facilityExpanded)}
+            onclick={() => (facilityExpanded = !facilityExpanded)}
           >
             {facilityExpanded ? 'Collapse' : 'Expand & Edit'}
           </button>
@@ -602,7 +604,7 @@
                 <select
                   class="select select-bordered select-sm"
                   bind:value={localRows[i].passing_type}
-                  on:change={() => changeSegment(row.seg_num)}
+                  onchange={() => changeSegment(row.seg_num)}
                 >
                   <option value="" disabled>Select type</option>
                   <option>Passing Constrained</option>
@@ -675,7 +677,7 @@
                     type="checkbox"
                     class="checkbox checkbox-sm"
                     bind:checked={localRows[i].is_hc}
-                    on:change={(e) => changeHC(row.seg_num, e.target.checked)}
+                    onchange={(e) => changeHC(row.seg_num, e.target.checked)}
                   />
                   <span>Horizontal curves</span>
                 </label>
@@ -688,8 +690,8 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
-      <button class="btn btn-outline" on:click={jsonOutputHandler} id="jsonOutput" type="button">Export as JSON</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-outline" onclick={jsonOutputHandler} id="jsonOutput" type="button">Export as JSON</button>
       <Calc {lane_width} {shoulder_width} {apd} {pmhvfl} rows_len={localRows.length} rows={localRows}/>
     </div>
 

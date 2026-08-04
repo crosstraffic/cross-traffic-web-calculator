@@ -3,16 +3,18 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import init, { WasmWeavingSegment } from "HCM-middleware";
   import WeavingDiagram from '$lib/WeavingDiagram.svelte';
   import WeavingDiagram3D from '$lib/WeavingDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
 
-  let diagramMode = '2d';
+  let diagramMode = $state('2d');
   import { onMount } from "svelte";
 
-  let ready = false;
+  let ready = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -20,35 +22,35 @@
   });
 
   // Inputs (defaults follow the HCM Chapter 13 base conditions)
-  let version = '7';
-  let weaving_type = 'one_sided';
-  let facility_type = 'freeway';
-  let length_short = 1500;
-  let num_lanes = 4;
-  let num_weaving_lanes = 2;
-  let lc_rf = 1;
-  let lc_fr = 1;
-  let lc_rr = 0;
-  let nw_rf = 1;
-  let nw_fr = 1;
-  let nw_rr = 0;
-  let interchange_density = 0.8;
-  let terrain = 'level';
-  let ffs = 70;
-  let v_ff = 3000;
-  let v_fr = 500;
-  let v_rf = 500;
-  let v_rr = 100;
-  let phf = 0.94;
-  let phv = 5;
-  let basic_freeway_capacity = 2400;
-  let caf = 1.0;
-  let saf = 1.0;
+  let version = $state('7');
+  let weaving_type = $state('one_sided');
+  let facility_type = $state('freeway');
+  let length_short = $state(1500);
+  let num_lanes = $state(4);
+  let num_weaving_lanes = $state(2);
+  let lc_rf = $state(1);
+  let lc_fr = $state(1);
+  let lc_rr = $state(0);
+  let nw_rf = $state(1);
+  let nw_fr = $state(1);
+  let nw_rr = $state(0);
+  let interchange_density = $state(0.8);
+  let terrain = $state('level');
+  let ffs = $state(70);
+  let v_ff = $state(3000);
+  let v_fr = $state(500);
+  let v_rf = $state(500);
+  let v_rr = $state(100);
+  let phf = $state(0.94);
+  let phv = $state(5);
+  let basic_freeway_capacity = $state(2400);
+  let caf = $state(1.0);
+  let saf = $state(1.0);
 
-  let results = null;
-  let results71 = null;
-  let hasError = false;
-  let errMessage = '';
+  let results = $state(null);
+  let results71 = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
 
   function runAnalysis() {
     hasError = false;
@@ -235,7 +237,7 @@
     </div>
   {/if}
 
-  <form id="hcm13" on:submit|preventDefault={runAnalysis}>
+  <form id="hcm13" onsubmit={preventDefault(runAnalysis)}>
     <!-- Geometry / Configuration -->
     <section class="panel">
       <div class="panel-head">
@@ -480,7 +482,7 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
       <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
     </div>
   </form>
