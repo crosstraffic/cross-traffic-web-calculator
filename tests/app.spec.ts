@@ -234,9 +234,63 @@ test.describe('chapter 10 freeway facilities calculator', () => {
     await expect(page.getByText('Overall Density: 28.5 veh/mi/ln')).toBeVisible();
     await expect(page.getByText(/Oversaturated: No/)).toBeVisible();
   });
+
+  test('facility builder diagram colors segments by per-period LOS and syncs selection', async ({ page }) => {
+    await page.goto('/hcm10');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    // Geometry mode before a run: three default segments, no period chips.
+    const diagram = page.locator('.fd-diagram');
+    await expect(diagram.locator('.fd-seg')).toHaveCount(3);
+    await expect(diagram.locator('.fd-chip')).toHaveCount(0);
+    await expect(diagram.getByText(/press Calculate/)).toBeVisible();
+
+    // Adding a segment extends the chain reactively.
+    await page.getByRole('button', { name: '+ Add Segment' }).click();
+    await expect(diagram.locator('.fd-seg')).toHaveCount(4);
+    await page.getByRole('button', { name: 'Remove' }).click();
+
+    await calculate.click();
+
+    // Four demand values give four period chips, and every mainline rect
+    // carries a concrete LOS fill instead of the pavement token.
+    await expect(diagram.locator('.fd-chip')).toHaveCount(4);
+    const firstRect = diagram.locator('.fd-main').first();
+    await expect(firstRect).toHaveAttribute('fill', /^#/);
+    await expect(diagram.locator('.fd-los')).toHaveCount(3);
+
+    // Switching the period keeps the chain scored.
+    await diagram.locator('.fd-chip', { hasText: 'P3' }).click();
+    await expect(firstRect).toHaveAttribute('fill', /^#/);
+
+    // Clicking a diagram segment highlights the matching table row.
+    await diagram.locator('.fd-seg').nth(1).click();
+    await expect(page.locator('.seg-table tbody tr').nth(1)).toHaveClass(/seg-selected/);
+
+    // The 3D ribbon shares the toggle and the period chips.
+    await page.getByRole('button', { name: '3D' }).click();
+    await expect(page.locator('.fd3-chip')).toHaveCount(4);
+    await expect(page.locator('path.fd3-top').first()).toBeVisible();
+  });
 });
 
 test.describe('chapter 11 freeway reliability calculator', () => {
+  test('seed facility diagram renders in both views without LOS coloring', async ({ page }) => {
+    await page.goto('/hcm11');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    const diagram = page.locator('.fd-diagram');
+    await expect(diagram.locator('.fd-seg')).toHaveCount(3);
+    await expect(diagram.locator('.fd-chip')).toHaveCount(0);
+    await expect(diagram.getByText(/not LOS-colored here/)).toBeVisible();
+
+    await page.getByRole('button', { name: '3D' }).click();
+    await expect(page.locator('path.fd3-top').first()).toBeVisible();
+    await expect(page.locator('.fd3-chip')).toHaveCount(0);
+  });
+
   test('default inputs run a deterministic whole-year scenario set', async ({ page }) => {
     test.slow(); // 240 scenarios of wasm compute; tight under parallel load
 

@@ -264,6 +264,14 @@
       domain.
     </p>
     <p>
+      The facility view above the table draws the segment chain as you build it, with ramp
+      wedges on merge, diverge, weaving, and overlapping-ramp segments. After a run each
+      segment fills with its LOS color for the selected analysis period (the P1, P2, ...
+      chips), which is the time-space domain made visible: pick a period, read the bottleneck.
+      Click a segment to highlight its table row, or switch to the 3D ribbon with the same
+      period chips.
+    </p>
+    <p>
       <a href="/hcm11">Freeway Reliability</a> (Beta) wraps that engine in a whole-year weekday
       scenario generator: monthly and weekday demand ratios plus randomly generated incidents
       from your crash rate. Keep the same <strong>Random Seed</strong> to reproduce a scenario

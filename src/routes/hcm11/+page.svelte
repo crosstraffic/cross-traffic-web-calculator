@@ -7,7 +7,12 @@
 
   import init, { WasmFacilitySegment, WasmFreewayReliability } from "HCM-middleware";
   import { setReport } from '$lib/report';
+  import ViewToggle from '$lib/ViewToggle.svelte';
+  import FacilityDiagram from '$lib/FacilityDiagram.svelte';
+  import FacilityDiagram3D from '$lib/FacilityDiagram3D.svelte';
   import { onMount } from "svelte";
+
+  let diagramMode = $state('2d');
 
   let ready = $state(false);
 
@@ -305,6 +310,20 @@
           <button class="btn btn-ghost btn-sm" onclick={removeSegment} type="button">Remove</button>
         </div>
       </div>
+
+      <!-- Seed facility view. Reliability results are travel-time distributions
+           across scenarios, not per-segment LOS, so the chain stays geometric. -->
+      <div class="diagram-block">
+        <div class="diagram-toggle-row">
+          <ViewToggle bind:mode={diagramMode} label="Facility view" />
+        </div>
+        {#if diagramMode === '2d'}
+          <FacilityDiagram {segments} note="Seed facility, upstream to downstream. Widths follow segment length. Reliability results describe the whole facility across scenarios, so segments are not LOS-colored here." />
+        {:else}
+          <FacilityDiagram3D {segments} />
+        {/if}
+      </div>
+
       <div class="w-full overflow-x-auto">
         <table class="table seg-table w-full">
           <thead>
@@ -498,3 +517,8 @@
     </div>
   </section>
 </div>
+
+<style>
+  .diagram-block { margin: 1rem auto 0; max-width: 640px; }
+  .diagram-toggle-row { margin-bottom: 0.75rem; text-align: center; }
+</style>

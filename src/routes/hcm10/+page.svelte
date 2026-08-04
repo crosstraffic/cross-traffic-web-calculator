@@ -7,6 +7,9 @@
 
   import init, { WasmFacilitySegment, WasmFreewayFacility } from "HCM-middleware";
   import { setReport } from '$lib/report';
+  import ViewToggle from '$lib/ViewToggle.svelte';
+  import FacilityDiagram from '$lib/FacilityDiagram.svelte';
+  import FacilityDiagram3D from '$lib/FacilityDiagram3D.svelte';
   import { onMount } from "svelte";
 
   let ready = $state(false);
@@ -65,6 +68,9 @@
   let results = $state(null);
   let hasError = $state(false);
   let errMessage = $state('');
+
+  let diagramMode = $state('2d');
+  let selectedSeg = $state(-1);
 
   function runAnalysis() {
     hasError = false;
@@ -338,6 +344,26 @@
           <button class="btn btn-ghost btn-sm" onclick={removeSegment} type="button">Remove</button>
         </div>
       </div>
+
+      <!-- Facility builder view: the segment chain drawn upstream to downstream,
+           colored per-segment LOS by analysis period after a run. -->
+      <div class="diagram-block">
+        <div class="diagram-toggle-row">
+          <ViewToggle bind:mode={diagramMode} label="Facility view" />
+        </div>
+        {#if diagramMode === '2d'}
+          <FacilityDiagram
+            {segments}
+            losMatrix={results ? results.losMatrix : null}
+            densityMatrix={results ? results.densityMatrix : null}
+            selected={selectedSeg}
+            onselect={(i) => (selectedSeg = selectedSeg === i ? -1 : i)}
+          />
+        {:else}
+          <FacilityDiagram3D {segments} losMatrix={results ? results.losMatrix : null} />
+        {/if}
+      </div>
+
       <div class="w-full overflow-x-auto">
         <table class="table seg-table w-full">
           <thead>
@@ -355,7 +381,7 @@
           </thead>
           <tbody>
             {#each segments as row, i (row.seg_num)}
-              <tr>
+              <tr class:seg-selected={selectedSeg === i} onclick={() => (selectedSeg = i)}>
                 <td>{row.seg_num}</td>
                 <td>
                   <select class="select select-bordered select-sm" bind:value={segments[i].seg_type}>
@@ -519,3 +545,13 @@
     </div>
   </section>
 </div>
+
+<style>
+  .diagram-block { margin: 1rem auto 0; max-width: 640px; }
+  .diagram-toggle-row { margin-bottom: 0.75rem; text-align: center; }
+  .seg-table tbody tr { cursor: pointer; }
+  .seg-table tbody tr.seg-selected td,
+  .seg-table tbody tr.seg-selected {
+    background: var(--accent-soft);
+  }
+</style>
