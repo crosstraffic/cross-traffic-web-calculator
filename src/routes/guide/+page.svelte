@@ -24,6 +24,12 @@
         <a href="#facility-layout">Facility layout</a>
         <a href="#outputs">Outputs &amp; LOS</a>
         <a href="#basic-freeway">Basic Freeway Segments</a>
+        <a href="#facilities-guide">Facilities &amp; Reliability</a>
+        <a href="#weaving-ramps-guide">Weaving &amp; Ramps</a>
+        <a href="#intersections-guide">Intersections</a>
+        <a href="#interchange-guide">Interchanges</a>
+        <a href="#paths-guide">Ped &amp; Bike Paths</a>
+        <a href="#reports-guide">Reports</a>
         <a href="#open-source">Open source</a>
       </nav>
     </aside>
@@ -239,6 +245,125 @@
       far end. Drag to rotate, <strong>Alt-drag</strong> to pan, scroll / pinch to zoom.
     </p>
     <a href="/hcm12" class="guide-cta">Open Basic Freeway Segments <span aria-hidden="true">→</span></a>
+  </section>
+
+  <!-- Freeway facilities and reliability -->
+  <section id="facilities-guide" class="guide-section">
+    <h2>Freeway Facilities (10) and Reliability (11)</h2>
+    <p>
+      <a href="/hcm10">Freeway Facilities</a> analyzes a whole directional freeway over
+      consecutive 15-min periods. Build the <strong>Segments</strong> table upstream to
+      downstream (the facility must begin and end with a basic segment), give each merge,
+      diverge, or weaving segment its ramp demands as a comma-separated list with one value per
+      period, and enter the <strong>Mainline Entry Demand</strong> the same way. The number of
+      demand values sets the number of analysis periods. Weaving segments open a details card
+      for short length, weaving lanes, and lane-changing minima. Set the
+      <strong>Interchange Density</strong> when it differs from the total ramp density. Results
+      report speed, density, and LOS per segment and period plus facility totals; the
+      Oversaturated line tells you when demand exceeded capacity somewhere in the time-space
+      domain.
+    </p>
+    <p>
+      <a href="/hcm11">Freeway Reliability</a> (Beta) wraps that engine in a whole-year weekday
+      scenario generator: monthly and weekday demand ratios plus randomly generated incidents
+      from your crash rate. Keep the same <strong>Random Seed</strong> to reproduce a scenario
+      set exactly. The run takes a few seconds because every scenario is a full Chapter 10
+      analysis. Read the Beta note on the page for what the tail measures (PTI) can and cannot
+      reproduce.
+    </p>
+  </section>
+
+  <!-- Weaving and ramps -->
+  <section id="weaving-ramps-guide" class="guide-section">
+    <h2>Weaving (13) and Merge/Diverge (14)</h2>
+    <p>
+      Both chapters carry the <strong>HCM Edition</strong> picker. The 7th Edition uses the
+      lane-changing methodology; Edition 7.1 (2025) replaced it with an equivalent
+      basic-segment speed less an impedance, and the two report different speeds, capacities,
+      and LOS bands. Under 7.1 the <a href="/hcm13">weaving</a> page asks for the per-movement
+      weaving lane counts (N<sub>W,RF</sub>, N<sub>W,FR</sub>) instead of N<sub>WL</sub>.
+    </p>
+    <p>
+      On <a href="/hcm14">merge/diverge</a>, the acceleration or deceleration lane length is
+      editable directly on the diagram and stretches the drawn speed-change lane. A major merge
+      operating under capacity reports no LOS, because the HCM defines none there; the page
+      says so instead of inventing a letter. Speeds past capacity report as not defined under
+      7.1 for the same honesty.
+    </p>
+  </section>
+
+  <!-- Intersections -->
+  <section id="intersections-guide" class="guide-section">
+    <h2>Intersections (19 to 22)</h2>
+    <p>
+      <a href="/hcm19">Signalized</a>: a pretimed four-leg signal where phase durations
+      <strong>include the change period</strong> (G + Y + Rc), the north-south approaches share
+      one street phase pair and east-west the other, and a left runs protected only when you
+      give it a phase duration and an exclusive lane. Parking, bus stops, grades, and actuated
+      timing sit at base values on this page.
+    </p>
+    <p>
+      <a href="/hcm20">Two-way STOP</a>: the minor street stops, and every movement carries an
+      HCM rank shown in the diagram's dash pattern. Pick three-leg and the minor stem is
+      northbound; volumes for movements that do not exist on a T are ignored. Leave PHF blank
+      when your volumes are already flow rates. The engine applies the December 2022 HCM
+      corrections.
+    </p>
+    <p>
+      <a href="/hcm21">All-way STOP</a>: describe each approach as lanes with per-lane L/T/R
+      volumes; set an approach to zero lanes to remove that leg entirely, matching three-leg
+      sites. Results are per lane, since the method assigns LOS by lane.
+    </p>
+    <p>
+      <a href="/hcm22">Roundabouts</a>: per-entry U/L/T/R demands, circulating and exiting
+      lanes, and optional right-turn bypasses. A <strong>yielding</strong> bypass yields at the
+      exit leg and gets its own capacity and delay; a <strong>nonyielding</strong> bypass adds
+      a lane and reports zero delay. Conflicting pedestrians reduce entry capacity.
+    </p>
+  </section>
+
+  <!-- Interchanges -->
+  <section id="interchange-guide" class="guide-section">
+    <h2>Interchange Ramp Terminals (23)</h2>
+    <p>
+      <a href="/hcm23">Chapter 23</a> evaluates the interchange by O-D movement, lettered A
+      through N per Exhibit 23-8: the off-ramp lefts and rights, the arterial turns onto the
+      on-ramps, and the arterial throughs. Choose the <strong>Interchange Form</strong> first;
+      switching between the conventional diamond and the diverging diamond loads that form's
+      published example as fresh defaults. Each lane group needs its green window (begin time
+      and duration within the cycle); the DDI additionally asks for its crossover lane
+      configurations, which the diagram mirrors. Results are control delay, extra distance
+      travel time, and experienced travel time per O-D, with interchange LOS from the
+      demand-weighted ETT.
+    </p>
+  </section>
+
+  <!-- Paths -->
+  <section id="paths-guide" class="guide-section">
+    <h2>Off-Street Pedestrian and Bicycle Facilities (24)</h2>
+    <p>
+      <a href="/hcm24">Chapter 24</a> bundles three analyses behind one facility selector.
+      <strong>Exclusive pedestrian</strong>: walkway width, fixed-object width, and hourly
+      demand give pedestrian space and LOS; note the walking speed is in
+      <strong>ft/min</strong> here. <strong>Shared-use path</strong>: bicycle volumes by
+      direction score the pedestrian experience through passing and meeting events, with
+      speeds in mi/h. <strong>Off-street bicycle</strong>: path width, centerline, segment
+      length, and total two-way demand feed the BLOS score, using the Exhibit 24-6 default
+      mode mix of bicycles, pedestrians, runners, inline skaters, and child bicyclists.
+    </p>
+  </section>
+
+  <!-- Reports -->
+  <section id="reports-guide" class="guide-section">
+    <h2>Printable reports</h2>
+    <p>
+      Every successful run publishes to the <a href="/report">Report</a> page automatically:
+      the input echo, the results tables, methodology notes with each chapter's caveats, and
+      the facility diagram. Reports from different chapters are kept side by side for the
+      session (they survive a refresh, and clear when the tab closes). Use
+      <strong>Print / Save as PDF</strong> for a submittal-style sheet; printing always uses
+      the light palette regardless of your theme.
+    </p>
   </section>
 
   <!-- Source -->
