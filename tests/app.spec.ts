@@ -100,6 +100,37 @@ test.describe('navigation and route gating', () => {
     await expect(nav.locator('a[href="/hcm24"]')).toHaveCount(1);
   });
 
+  test('the consent banner gates analytics and remembers the choice', async ({ page }) => {
+    // The banner only appears where analytics is eligible; the debug flag
+    // simulates the production hostname from localhost.
+    await page.addInitScript(() => localStorage.setItem('hcm-consent-debug', '1'));
+    await page.goto('/');
+    const banner = page.locator('.consent-banner');
+    await expect(banner).toBeVisible();
+
+    await banner.getByRole('button', { name: 'Decline' }).click();
+    await expect(banner).toHaveCount(0);
+
+    // The choice persists across reloads.
+    await page.reload();
+    await expect(page.locator('.consent-banner')).toHaveCount(0);
+
+    // Accept path: banner reappears when unset, accepting dismisses it.
+    await page.evaluate(() => localStorage.removeItem('hcm-analytics-consent'));
+    await page.reload();
+    await expect(page.locator('.consent-banner')).toBeVisible();
+    await page.locator('.consent-banner').getByRole('button', { name: 'Accept analytics' }).click();
+    await expect(page.locator('.consent-banner')).toHaveCount(0);
+  });
+
+  test('terms page states the personal, no-revenue scope', async ({ page }) => {
+    await page.goto('/terms');
+    await expect(page.locator('.page-title')).toHaveText(/Terms/);
+    await expect(page.getByText('independent, personal work')).toBeVisible();
+    await expect(page.getByText('no sale or')).toBeVisible();
+    await expect(page.getByText('hcm-calculator.com', { exact: false }).first()).toBeVisible();
+  });
+
   test('analytics never loads from localhost', async ({ page }) => {
     // Guard for the phantom-user incident: automation traffic must not reach
     // Google Analytics. The tag only injects on the production hostname.

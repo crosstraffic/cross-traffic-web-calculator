@@ -1,152 +1,122 @@
-<div class="term content-center">
-<h2><strong>Terms and Conditions</strong></h2>
+<svelte:head>
+  <title>Terms &amp; Privacy · HCM Calculator</title>
+</svelte:head>
 
-<p>Welcome to HCM Calculator!</p>
-<br/>
+<div class="hcm-page terms-page">
+  <header class="page-header">
+    <p class="eyebrow">Terms of use and privacy</p>
+    <h1 class="page-title">Terms &amp; Privacy</h1>
+    <p class="page-sub">Last updated August 3, 2026. Using hcm-calculator.com means you accept these terms.</p>
+  </header>
 
-<p>These terms and conditions outline the rules and regulations for the use of HCM Calculator's Website, located at https://localhost:3000.</p>
-<br/>
+  <section class="terms-section">
+    <h2>What this site is</h2>
+    <p>
+      HCM Calculator (https://hcm-calculator.com) is a browser-based implementation of analysis
+      procedures from the Highway Capacity Manual, 7th Edition. All computation runs locally in
+      your browser through a WebAssembly engine; your inputs are never sent to a server for
+      processing.
+    </p>
+  </section>
 
-<p>By accessing this website we assume you accept these terms and conditions. Do not continue to use HCM Calculator if you do not agree to take all of the terms and conditions stated on this page.</p>
-<br/>
+  <section class="terms-section">
+    <h2>A personal project, not a company product</h2>
+    <p>
+      This site is the independent, personal work of Rei Tamaru and Jonathan Riel. It is not
+      affiliated with, endorsed by, or connected to any employer, company, or organization of
+      its authors, and it does not represent the views or products of any such organization.
+      It is likewise not affiliated with the Transportation Research Board or the National
+      Academies, publishers of the Highway Capacity Manual. The HCM itself is a copyrighted
+      publication; this tool implements published procedures but does not reproduce the manual,
+      and you need your own copy of the HCM for the authoritative text, exhibits, and
+      thresholds.
+    </p>
+  </section>
 
-<p>The following terminology applies to these Terms and Conditions, Privacy Statement and Disclaimer Notice and all Agreements: "Client", "You" and "Your" refers to you, the person log on this website and compliant to the our terms and conditions. "Ourselves", "We", "Our" and "Us", refers to Rei Tamaru and Jonathan Riel. "Party", "Parties", or "Us", refers to both the Client and ourselves. All terms refer to the offer, acceptance and consideration of payment necessary to undertake the process of our assistance to the Client in the most appropriate manner for the express purpose of meeting the Client’s needs in respect of provision of the our stated services, in accordance with and subject to, prevailing law of Netherlands. Any use of the above terminology or other words in the singular, plural, capitalization and/or he/she or they, are taken as interchangeable and therefore as referring to same.</p>
-<br/>
-<!-- 
-<h3><strong>Cookies</strong></h3>
+  <section class="terms-section">
+    <h2>No revenue</h2>
+    <p>
+      This site is free. We collect no revenue from it in any form: no payments, no
+      subscriptions, no advertising, no sponsored content, no affiliate links, and no sale or
+      monetization of user data.
+    </p>
+  </section>
 
-<p>We employ the use of cookies. By accessing HCM Calculator, you agreed to use cookies in agreement with the HCM Calculator's Privacy Policy. </p>
+  <section class="terms-section">
+    <h2>Engineering disclaimer</h2>
+    <p>
+      Results from this calculator are provided for informational and educational purposes.
+      Although the compute engine is validated against the HCM's published example problems,
+      software defects, methodology interpretation differences, and input errors are always
+      possible. Results are not engineering advice, and no professional engineer reviews your
+      analysis through this site. Verify all results independently before relying on them in
+      design, operations, or any decision affecting public safety, and engage a licensed
+      professional engineer where the law or the stakes require one.
+    </p>
+  </section>
 
-<p>Most interactive websites use cookies to let us retrieve the user’s details for each visit. Cookies are used by our website to enable the functionality of certain areas to make it easier for people visiting our website. Some of our affiliate/advertising partners may also use cookies.</p> -->
+  <section class="terms-section">
+    <h2>No warranty and limitation of liability</h2>
+    <p>
+      The site and its results are provided as is, without warranty of any kind, express or
+      implied, including fitness for a particular purpose. To the maximum extent permitted by
+      law, the authors are not liable for any damages arising from use of this site or reliance
+      on its results.
+    </p>
+  </section>
 
-<h3><strong>License</strong></h3>
+  <section class="terms-section">
+    <h2>Privacy, cookies, and analytics</h2>
+    <p>
+      Your analysis inputs and results stay on your device. The site stores a small number of
+      preferences in your browser: your theme choice, your analytics consent choice, and
+      session-scoped run reports that clear when the tab closes. These are functional storage,
+      not tracking.
+    </p>
+    <p>
+      With your consent, the site uses Google Analytics to count visits and understand which
+      chapters are used, which sets cookies from Google. Analytics loads only after you accept
+      the consent prompt, and declining it disables analytics entirely with no effect on any
+      feature. Google's processing of analytics data is described in Google's own privacy
+      documentation. We do not use any other tracking, and we never see your analysis data.
+    </p>
+  </section>
 
-<p>Unless otherwise stated, HCM Calculator and/or its licensors own the intellectual property rights for all material on HCM Calculator. All intellectual property rights are reserved. You may access this from HCM Calculator for your own personal use subjected to restrictions set in these terms and conditions.</p>
-<br/>
+  <section class="terms-section">
+    <h2>Open source</h2>
+    <p>
+      The calculator's source code is public in the
+      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator" target="_blank" rel="noreferrer">crosstraffic GitHub organization</a>
+      under its repository licenses. You are welcome to read it, file issues, and contribute.
+      The site's name and logo are not licensed for use in a way that implies endorsement.
+    </p>
+  </section>
 
-<p>You must not:</p>
-<ul>
-    <li>Republish material from HCM Calculator</li>
-    <li>Sell, rent or sub-license material from HCM Calculator</li>
-    <li>Reproduce, duplicate or copy material from HCM Calculator</li>
-    <li>Redistribute content from HCM Calculator</li>
-</ul>
-<br/>
-
-<p>This Agreement shall begin on the date hereof. Our Terms and Conditions were created with the help of the <a href="https://www.termsandconditionsgenerator.com/">Free Terms and Conditions Generator</a>.</p>
-<br/>
-
-<!-- <p>Parts of this website offer an opportunity for users to post and exchange opinions and information in certain areas of the website. HCM Calculator does not filter, edit, publish or review Comments prior to their presence on the website. Comments do not reflect the views and opinions of HCM Calculator,its agents and/or affiliates. Comments reflect the views and opinions of the person who post their views and opinions. To the extent permitted by applicable laws, HCM Calculator shall not be liable for the Comments or for any liability, damages or expenses caused and/or suffered as a result of any use of and/or posting of and/or appearance of the Comments on this website.</p> -->
-
-<!-- <p>HCM Calculator reserves the right to monitor all Comments and to remove any Comments which can be considered inappropriate, offensive or causes breach of these Terms and Conditions.</p> -->
-
-<p>You warrant and represent that:</p>
-
-<ul>
-    <li>You are entitled to post the Comments on our website and have all necessary licenses and consents to do so;</li>
-    <li>The Comments do not invade any intellectual property right, including without limitation copyright, patent or trademark of any third party;</li>
-    <li>The Comments do not contain any defamatory, libelous, offensive, indecent or otherwise unlawful material which is an invasion of privacy</li>
-    <li>The Comments will not be used to solicit or promote business or custom or present commercial activities or unlawful activity.</li>
-</ul>
-<br/>
-
-<p>You hereby grant HCM Calculator a non-exclusive license to use, reproduce, edit and authorize others to use, reproduce and edit any of your Comments in any and all forms, formats or media.</p>
-<br/>
-
-<h3><strong>Hyperlinking to our Content</strong></h3>
-
-<p>The following organizations may link to our Website without prior written approval:</p>
-<br/>
-
-<ul>
-    <li>Government agencies;</li>
-    <li>Search engines;</li>
-    <li>News organizations;</li>
-    <li>Online directory distributors may link to our Website in the same manner as they hyperlink to the Websites of other listed businesses; and</li>
-    <li>System wide Accredited Businesses except soliciting non-profit organizations, charity shopping malls, and charity fundraising groups which may not hyperlink to our Web site.</li>
-</ul>
-
-<p>These organizations may link to our home page, to publications or to other Website information so long as the link: (a) is not in any way deceptive; (b) does not falsely imply sponsorship, endorsement or approval of the linking party and its products and/or services; and (c) fits within the context of the linking party’s site.</p>
-<br/>
-
-<p>We may consider and approve other link requests from the following types of organizations:</p>
-
-<ul>
-    <li>commonly-known consumer and/or business information sources;</li>
-    <li>dot.com community sites;</li>
-    <li>associations or other groups representing charities;</li>
-    <li>online directory distributors;</li>
-    <li>internet portals;</li>
-    <li>accounting, law and consulting firms; and</li>
-    <li>educational institutions and trade associations.</li>
-</ul>
-<br/>
-
-<p>We will approve link requests from these organizations if we decide that: (a) the link would not make us look unfavorably to ourselves or to our accredited businesses; (b) the organization does not have any negative records with us; (c) the benefit to us from the visibility of the hyperlink compensates the absence of HCM Calculator; and (d) the link is in the context of general resource information.</p>
-<br/>
-
-<p>These organizations may link to our home page so long as the link: (a) is not in any way deceptive; (b) does not falsely imply sponsorship, endorsement or approval of the linking party and its products or services; and (c) fits within the context of the linking party’s site.</p>
-<br/>
-
-<p>If you are one of the organizations listed in paragraph 2 above and are interested in linking to our website, you must inform us by sending an e-mail to HCM Calculator. Please include your name, your organization name, contact information as well as the URL of your site, a list of any URLs from which you intend to link to our Website, and a list of the URLs on our site to which you would like to link. Wait 2-3 weeks for a response.</p>
-<br/>
-
-<p>Approved organizations may hyperlink to our Website as follows:</p>
-
-<ul>
-    <li>By use of our corporate name; or</li>
-    <li>By use of the uniform resource locator being linked to; or</li>
-    <li>By use of any other description of our Website being linked to that makes sense within the context and format of content on the linking party’s site.</li>
-</ul>
-<br/>
-
-<p>No use of HCM Calculator's logo or other artwork will be allowed for linking absent a trademark license agreement.</p>
-<br/>
-
-<h3><strong>iFrames</strong></h3>
-
-<p>Without prior approval and written permission, you may not create frames around our Webpages that alter in any way the visual presentation or appearance of our Website.</p>
-<br/>
-
-<h3><strong>Content Liability</strong></h3>
-
-<p>We shall not be hold responsible for any content that appears on your Website. You agree to protect and defend us against all claims that is rising on your Website. No link(s) should appear on any Website that may be interpreted as libelous, obscene or criminal, or which infringes, otherwise violates, or advocates the infringement or other violation of, any third party rights.</p>
-<br/>
-
-<h3><strong>Your Privacy</strong></h3>
-
-<p>Please read Privacy Policy</p>
-<br/>
-
-<h3><strong>Reservation of Rights</strong></h3>
-
-<p>We reserve the right to request that you remove all links or any particular link to our Website. You approve to immediately remove all links to our Website upon request. We also reserve the right to amen these terms and conditions and it’s linking policy at any time. By continuously linking to our Website, you agree to be bound to and follow these linking terms and conditions.</p>
-<br/>
-
-<h3><strong>Removal of links from our website</strong></h3>
-
-<p>If you find any link on our Website that is offensive for any reason, you are free to contact and inform us any moment. We will consider requests to remove links but we are not obligated to or so or to respond to you directly.</p>
-<br/>
-
-<p>We do not ensure that the information on this website is correct, we do not warrant its completeness or accuracy; nor do we promise to ensure that the website remains available or that the material on the website is kept up to date.</p>
-<br/>
-
-<h3><strong>Disclaimer</strong></h3>
-
-<p>To the maximum extent permitted by applicable law, we exclude all representations, warranties and conditions relating to our website and the use of this website. Nothing in this disclaimer will:</p>
-
-<ul>
-    <li>limit or exclude our or your liability for death or personal injury;</li>
-    <li>limit or exclude our or your liability for fraud or fraudulent misrepresentation;</li>
-    <li>limit any of our or your liabilities in any way that is not permitted under applicable law; or</li>
-    <li>exclude any of our or your liabilities that may not be excluded under applicable law.</li>
-</ul>
-<br/>
-
-<p>The limitations and prohibitions of liability set in this Section and elsewhere in this disclaimer: (a) are subject to the preceding paragraph; and (b) govern all liabilities arising under the disclaimer, including liabilities arising in contract, in tort and for breach of statutory duty.</p>
-<br/>
-
-<p>As long as the website and the information and services on the website are provided free of charge, we will not be liable for any loss or damage of any nature.</p>
-<br/>
-
+  <section class="terms-section">
+    <h2>Changes and contact</h2>
+    <p>
+      These terms may be updated as the site evolves; the date above reflects the current
+      version. Questions or concerns are welcome as
+      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">GitHub issues</a>.
+    </p>
+  </section>
 </div>
+
+<style>
+  .terms-page {
+    max-width: 46rem;
+  }
+  .terms-section {
+    margin-bottom: 1.75rem;
+  }
+  .terms-section h2 {
+    font-size: 1.15rem;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+  }
+  .terms-section p {
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin-bottom: 0.6rem;
+  }
+</style>
