@@ -22,12 +22,14 @@
     try { localStorage.setItem('hcm-theme', theme); } catch (e) { /* private mode */ }
   }
 
-  // Google Analytics, production hostname only: localhost runs (dev, tests,
-  // screenshot automation) were inflating active-user counts, since every
-  // fresh automation context looks like a new user to GA4.
-  onMount(() => {
-    const h = location.hostname;
-    if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local') || h.endsWith('.vercel.app')) return;
+  // Google Analytics loads only on the production hostname (localhost runs
+  // from dev, tests, and screenshot automation were inflating active-user
+  // counts) AND only after the visitor accepts the consent prompt. Declining
+  // disables analytics entirely; the choice persists in localStorage.
+  let consent = $state('unset'); // 'unset' | 'granted' | 'denied'
+  let analyticsEligible = $state(false);
+
+  function loadAnalytics() {
     const s = document.createElement('script');
     s.async = true;
     s.src = 'https://www.googletagmanager.com/gtag/js?id=G-LMH583TV33';
@@ -35,8 +37,26 @@
     window.dataLayer = window.dataLayer || [];
     function gtag() { window.dataLayer.push(arguments); }
     gtag('js', new Date());
-    gtag('config', 'G-LMH583TV33');
+    gtag('config', 'G-LMH583TV33', { anonymize_ip: true });
+  }
+
+  onMount(() => {
+    const h = location.hostname;
+    analyticsEligible = !(h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local') || h.endsWith('.vercel.app'));
+    // Test hook: lets the suite exercise the banner from localhost.
+    if (localStorage.getItem('hcm-consent-debug') === '1') analyticsEligible = true;
+    try {
+      const saved = localStorage.getItem('hcm-analytics-consent');
+      if (saved === 'granted' || saved === 'denied') consent = saved;
+    } catch (e) { /* private mode */ }
+    if (analyticsEligible && consent === 'granted') loadAnalytics();
   });
+
+  function decideConsent(choice) {
+    consent = choice;
+    try { localStorage.setItem('hcm-analytics-consent', choice); } catch (e) { /* private mode */ }
+    if (choice === 'granted' && analyticsEligible && localStorage.getItem('hcm-consent-debug') !== '1') loadAnalytics();
+  }
 
   // Native <details> dropdowns don't close on an outside click. Close any open
   // nav dropdown when the click lands outside it, or on a link inside it (so the
@@ -164,6 +184,21 @@
 <main>
   {@render children?.()}
 </main>
+
+{#if analyticsEligible && consent === 'unset'}
+  <div class="consent-banner" role="dialog" aria-label="Analytics consent">
+    <p class="consent-text">
+      This site would like to use Google Analytics to count visits and see which chapters get
+      used. Nothing loads unless you accept, declining changes nothing about the calculator,
+      and your analysis data never leaves your browser either way.
+      <a href="/terms">Details</a>
+    </p>
+    <div class="consent-actions">
+      <button type="button" class="btn btn-sm btn-primary" onclick={() => decideConsent('granted')}>Accept analytics</button>
+      <button type="button" class="btn btn-sm btn-ghost" onclick={() => decideConsent('denied')}>Decline</button>
+    </div>
+  </div>
+{/if}
 
 <footer class="site-footer">
   <div class="site-footer-inner">
