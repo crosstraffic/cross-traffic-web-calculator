@@ -7,8 +7,9 @@
     <p class="eyebrow">How to use the HCM Calculator</p>
     <h1 class="page-title">Guide</h1>
     <p class="page-sub">
-      A quick walkthrough of the HCM Chapter 15 (Two-Lane Highways) and Chapter 12
-      (Basic Freeway Segments) analyses — from defining inputs to reading the results.
+      How to use the calculator: the features every chapter page shares, a
+      reference to all twelve available chapters, and detailed walkthroughs of
+      the Two-Lane Highways and Basic Freeway analyses.
     </p>
   </header>
 
@@ -16,7 +17,9 @@
     <aside class="guide-sidenav">
       <nav aria-label="Guide sections">
         <p class="guide-sidenav-title">On this page</p>
-        <a href="#getting-started">Getting started</a>
+        <a href="#everywhere">Features on every page</a>
+        <a href="#chapters-ref">Chapter reference</a>
+        <a href="#getting-started">Two-Lane walkthrough</a>
         <a href="#two-lane-inputs">Inputs · Two-Lane</a>
         <a href="#facility-layout">Facility layout</a>
         <a href="#outputs">Outputs &amp; LOS</a>
@@ -26,9 +29,67 @@
     </aside>
     <div class="guide-body">
 
+  <!-- Universal features -->
+  <section id="everywhere" class="guide-section">
+    <h2>Features on every chapter page</h2>
+    <ul class="guide-list">
+      <li><strong>Published-example defaults.</strong> Most pages open pre-filled with an HCM
+        worked example, so pressing <strong>Calculate</strong> immediately reproduces a number
+        you can check against the book. Every chapter's engine is validated against its
+        published example problems.</li>
+      <li><strong>Interactive diagrams.</strong> Each page draws its facility and redraws as you
+        change lanes, legs, or geometry. Hover the legend to isolate a movement or approach, and
+        edit key demands directly on the picture. The <strong>2D / 3D</strong> toggle switches
+        to a rotatable projected view (drag to rotate, <strong>Alt-drag</strong> to pan, scroll
+        or pinch to zoom).</li>
+      <li><strong>Traffic animation.</strong> The <strong>Animate traffic</strong> chip flows
+        vehicles along the movement paths, weighted by your entered volumes. Signals pulse with
+        the phase splits you enter; after a run, congested approaches slow and bunch with their
+        computed LOS. It is a timed illustration, not a simulation.</li>
+      <li><strong>HCM edition picker.</strong> The weaving and merge/diverge chapters analyze
+        under the 7th Edition or Edition 7.1, which replaced those methodologies in 2025. The
+        editions report different speeds, capacities, and LOS bands, so results are only
+        comparable within one edition.</li>
+      <li><strong>Printable reports.</strong> Every successful run publishes to the
+        <a href="/report">Report</a> page: the full input echo, results, methodology notes, and
+        the facility diagram, ready for <strong>Print / Save as PDF</strong>. Reports from
+        several chapters are kept side by side for the session.</li>
+      <li><strong>Offline and installable.</strong> Once visited, the whole calculator works
+        with no connection, since every computation runs locally in WebAssembly. Your browser
+        can also install it as an app (look for the install icon in the address bar, or Add to
+        Home Screen on a phone).</li>
+      <li><strong>Dark mode.</strong> The sun/moon toggle in the navigation follows your choice
+        across visits; printing always uses the light palette.</li>
+    </ul>
+  </section>
+
+  <!-- Chapter reference -->
+  <section id="chapters-ref" class="guide-section">
+    <h2>Chapter reference</h2>
+    <table class="guide-table">
+      <thead><tr><th>Chapter</th><th>What it computes</th><th>Service measure</th></tr></thead>
+      <tbody>
+        <tr><td><a href="/hcm10">10 Freeway Facilities</a></td><td>Whole-facility analysis over 15-min periods, composing basic, merge, diverge, and weaving segments, with oversaturated queue tracking</td><td>Density and LOS per segment and period</td></tr>
+        <tr><td><a href="/hcm11">11 Freeway Reliability</a> (Beta)</td><td>Whole-year weekday travel time reliability with demand variation and random incidents</td><td>TTI distribution, PTI, reliability rating</td></tr>
+        <tr><td><a href="/hcm12">12 Basic Freeway Segments</a></td><td>Single directional segment: FFS, capacity, speed, density</td><td>Density (pc/mi/ln)</td></tr>
+        <tr><td><a href="/hcm13">13 Freeway Weaving</a></td><td>Weaving segment speeds and capacity, 7th Edition or Edition 7.1</td><td>Density (pc/mi/ln)</td></tr>
+        <tr><td><a href="/hcm14">14 Merge and Diverge</a></td><td>Ramp influence area speeds and capacity, 7th Edition or Edition 7.1</td><td>Influence area density</td></tr>
+        <tr><td><a href="/hcm15">15 Two-Lane Highways</a></td><td>Segment-by-segment facility with passing configuration and horizontal curves</td><td>Follower density</td></tr>
+        <tr><td><a href="/hcm19">19 Signalized Intersections</a></td><td>Pretimed four-leg signal: saturation flows, capacities, delay by approach</td><td>Control delay (s/veh)</td></tr>
+        <tr><td><a href="/hcm20">20 Two-Way STOP Control</a></td><td>Gap-acceptance capacities and delay by movement rank, with the December 2022 HCM corrections</td><td>Control delay per movement and lane</td></tr>
+        <tr><td><a href="/hcm21">21 All-Way STOP Control</a></td><td>Iterated departure headways, service times, delay per lane</td><td>Control delay (s/veh)</td></tr>
+        <tr><td><a href="/hcm22">22 Roundabouts</a></td><td>Entry capacities and delay, including yielding and nonyielding right-turn bypasses</td><td>Control delay (s/veh)</td></tr>
+        <tr><td><a href="/hcm23">23 Interchange Ramp Terminals</a></td><td>Conventional diamond and diverging diamond, per O-D movement</td><td>Experienced travel time (s/veh)</td></tr>
+        <tr><td><a href="/hcm24">24 Off-Street Ped and Bike</a></td><td>Exclusive walkways, shared-use path pedestrian events, bicycle BLOS</td><td>Space, events per hour, BLOS score</td></tr>
+      </tbody>
+    </table>
+    <p>Chapters 16 to 18 (urban street facilities, reliability, and segments) are implemented in
+      the compute engine and will be released after validation review.</p>
+  </section>
+
   <!-- Getting started -->
   <section id="getting-started" class="guide-section">
-    <h2>Getting started</h2>
+    <h2>Getting started with Two-Lane Highways</h2>
     <ol class="guide-steps">
       <li>Open <a href="/hcm15">Two-Lane Highways</a> from the navigation.</li>
       <li>
@@ -223,12 +284,12 @@
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: #94a3b8;
+    color: var(--text-faint);
     margin: 0 0 0.4rem 0.6rem;
   }
   .guide-sidenav a {
     font-size: 0.85rem;
-    color: #475569;
+    color: var(--text-secondary);
     padding: 0.3rem 0.6rem;
     border-left: 2px solid transparent;
     border-radius: 0 6px 6px 0;
@@ -236,9 +297,9 @@
     transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
   }
   .guide-sidenav a:hover {
-    color: #ea7317;
-    background: #fff5ec;
-    border-left-color: #f4c08a;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-left-color: var(--accent-muted);
   }
   .guide-body { min-width: 0; }
 
@@ -249,9 +310,9 @@
       flex-flow: row wrap;
       gap: 0.3rem;
       padding-bottom: 0.5rem;
-      border-bottom: 1px solid #f1f5f9;
+      border-bottom: 1px solid var(--border);
     }
     .guide-sidenav-title { display: none; }
-    .guide-sidenav a { border-left: none; border: 1px solid #e2e8f0; border-radius: 999px; }
+    .guide-sidenav a { border-left: none; border: 1px solid var(--border-strong); border-radius: 999px; }
   }
 </style>
