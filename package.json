@@ -10,6 +10,7 @@
     "package": "svelte-kit package",
     "preview": "vite preview",
     "test": "playwright test",
+    "test:boundary": "for f in tests/boundary/ch*.mjs; do node \"$f\" || exit 1; done",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-check --tsconfig ./tsconfig.json --watch",
     "lint": "prettier --ignore-path .gitignore --check --plugin-search-dir=. . && eslint .",

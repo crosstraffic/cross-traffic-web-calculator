@@ -26,6 +26,12 @@ jobs:
       
       - name: Build Vite app
         run: npm run build
+
+      - name: Fetch library fixtures for the boundary suite
+        run: git clone --depth 1 https://github.com/crosstraffic/transportations-library ../transportations-library
+
+      - name: Boundary validation against published HCM examples
+        run: npm run test:boundary
       
       - name: Start Vite preview server
         run: npm run preview &
