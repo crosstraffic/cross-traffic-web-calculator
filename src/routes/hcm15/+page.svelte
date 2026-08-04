@@ -46,6 +46,7 @@
   let toggle_seg = -1;
   let facilityExpanded = $state(false);
   let facilityMode = $state('2d');
+  let selectedSeg = $state(-1);
 
   // Show microsimulation
   // function simResults() {
@@ -427,7 +428,8 @@
         </thead>
         <tbody>
           {#each localRows as row, i (row.seg_num)}
-            <Row bind:row={localRows[i]} seg_num={row.seg_num} changeSegment={changeSegment} changeHC={changeHC} toggleHCParams={toggleHCParams} />
+            <Row bind:row={localRows[i]} seg_num={row.seg_num} changeSegment={changeSegment} changeHC={changeHC} toggleHCParams={toggleHCParams}
+                 selected={selectedSeg === i} onselect={() => (selectedSeg = i)} />
           {/each}
         </tbody>
       </table>
@@ -577,8 +579,12 @@
           <FacilityView rows={localRows} laneWidth={lane_width} />
         {:else}
           <div class="facility-strip" id="seg_imgs">
-            {#each localRows as row}
-              <div class="facility-seg" style="flex: {Number(row.seg_length) > 0 ? Number(row.seg_length) : 1} 1 0;">
+            {#each localRows as row, i}
+              <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+              <div class="facility-seg" class:seg-selected={selectedSeg === i}
+                   style="flex: {Number(row.seg_length) > 0 ? Number(row.seg_length) : 1} 1 0;"
+                   role="button" tabindex="-1"
+                   onclick={() => (selectedSeg = selectedSeg === i ? -1 : i)}>
                 <div class="facility-seg-head">
                   <span class="seg-no">{row.seg_num}</span>
                   <span class="facility-seg-type">{row.passing_type || 'Not set'}</span>
