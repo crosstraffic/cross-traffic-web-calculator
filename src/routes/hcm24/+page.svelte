@@ -6,6 +6,8 @@
   import LosScale from '$lib/LosScale.svelte';
   import LosBadge from '$lib/LosBadge.svelte';
   import init, { WasmExclusivePedestrianFacility, WasmSharedUsePathPedestrian, WasmOffStreetBicycleFacility } from "HCM-middleware";
+  import PathDiagram from '$lib/PathDiagram.svelte';
+  import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
   let ready = false;
@@ -48,6 +50,10 @@
   let results = null;
   let hasError = false;
   let errMessage = '';
+
+  // LOS drives the diagram's delayed-passing effect once the run matches the
+  // selected facility kind.
+  $: losForDiagram = results && results.kind === facility_kind ? results.los : null;
 
   function runAnalysis() {
     hasError = false;
@@ -98,6 +104,69 @@
         const r = fac.results_to_js_value();
         results = { kind: 'bicycle', los, ...r };
       }
+
+      const kindLabel = { pedestrian: 'Exclusive pedestrian facility', shared_path: 'Shared-use path (pedestrian LOS)', bicycle: 'Off-street bicycle facility (BLOS)' }[results.kind];
+      const inputs = results.kind === 'pedestrian' ? [
+        { label: 'Facility', value: kindLabel },
+        { label: 'Total width', value: `${ped_total_width} ft` },
+        { label: 'Fixed-object width', value: `${ped_object_width} ft` },
+        { label: 'Hourly demand', value: `${ped_demand} p/h` },
+        { label: 'Peak hour factor', value: ped_phf },
+        { label: 'Walking speed', value: `${ped_speed} ft/min` },
+        { label: 'Facility type / flow', value: `${ped_facility_type}, ${ped_flow_type}` },
+      ] : results.kind === 'shared_path' ? [
+        { label: 'Facility', value: kindLabel },
+        { label: 'Bicycles same direction / opposing', value: `${sup_bike_same} / ${sup_bike_opposing} bikes/h` },
+        { label: 'Peak hour factor', value: sup_phf },
+        { label: 'Pedestrian / bicycle speed', value: `${sup_ped_speed} / ${sup_bike_speed} mi/h` },
+        { label: 'One-way', value: sup_one_way },
+      ] : [
+        { label: 'Facility', value: kindLabel },
+        { label: 'Path width', value: `${bike_path_width} ft` },
+        { label: 'Segment length', value: `${bike_segment_length} mi` },
+        { label: 'Centerline', value: bike_centerline },
+        { label: 'Two-way demand', value: `${bike_two_way_demand} users/h` },
+        { label: 'Directional split', value: bike_dir_split },
+        { label: 'Peak hour factor', value: bike_phf },
+        { label: 'Mode split and speeds', value: 'Exhibit 24-6 defaults' },
+      ];
+      const rows = results.kind === 'pedestrian' ? [
+        ['Effective width', `${results.effective_width?.toFixed(1)} ft`],
+        ['Unit flow rate', `${results.unit_flow_rate?.toFixed(2)} p/ft/min`],
+        ['Pedestrian space', `${results.pedestrian_space?.toFixed(0)} ft²/p`],
+        ['LOS (Exhibit 24-1/24-2)', results.los],
+      ] : results.kind === 'shared_path' ? [
+        ['Passing events', `${results.passing_events?.toFixed(0)} events/h`],
+        ['Meeting events', `${results.meeting_events?.toFixed(0)} events/h`],
+        ['Total weighted events', `${results.total_events?.toFixed(0)} events/h`],
+        ['LOS (Exhibit 24-4)', results.los],
+      ] : [
+        ['Active passings', `${results.active_passings_per_minute?.toFixed(2)} /min`],
+        ['Meetings', `${results.meetings_per_minute?.toFixed(2)} /min`],
+        ['Effective lanes', `${results.effective_lanes}`],
+        ['Probability of delayed passing', `${(results.probability_delayed_passing * 100)?.toFixed(1)} %`],
+        ['Delayed passings', `${results.delayed_passings_per_minute?.toFixed(2)} /min`],
+        ['BLOS score', `${results.blos_score?.toFixed(2)}`],
+        ['LOS (Exhibit 24-5)', results.los],
+      ];
+      setReport({
+        chapter: 'Off-Street Pedestrian and Bicycle Facilities',
+        chapterRef: 'HCM Chapter 24',
+        href: '/hcm24',
+        generatedAt: new Date().toLocaleString(),
+        headline: { label: `${kindLabel} LOS`, value: results.los },
+        inputs,
+        resultTable: { columns: ['Quantity', 'Value'], rows },
+        summary: [],
+        methodology: [
+          results.kind === 'pedestrian'
+            ? 'Exclusive pedestrian facility: effective width after fixed objects, unit flow rate, pedestrian space, and LOS per Exhibits 24-1 and 24-2 with the platooned-flow adjustment where selected.'
+            : results.kind === 'shared_path'
+              ? 'Shared-use path pedestrian method: bicycle passing and meeting events against the average pedestrian (Equations 24-8 through 24-10), weighted total events, and LOS per Exhibit 24-4.'
+              : 'Off-street bicycle BLOS: directional mode flows from the Exhibit 24-6 splits and speeds, active passings and meetings, effective lanes (Exhibit 24-14), delayed passing probability, and the BLOS score of Equation 24-35 with LOS per Exhibit 24-5.',
+        ],
+        diagram: { kind: 'path', props: { kind: results.kind, widthFt: results.kind === 'bicycle' ? bike_path_width : results.kind === 'pedestrian' ? ped_total_width : 10, objectWidthFt: results.kind === 'pedestrian' ? ped_object_width : 0, centerline: bike_centerline === 'yes', oneWay: false, demandA: results.kind === 'shared_path' ? sup_bike_same : results.kind === 'pedestrian' ? ped_demand : bike_two_way_demand, demandB: results.kind === 'shared_path' ? sup_bike_opposing : 0, losLetter: results.los } },
+      });
     } catch (err) {
       console.error('Chapter 24 analysis failed:', err);
       hasError = true;
@@ -134,7 +203,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">HCM Chapter 24 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">HCM Chapter 24</span>
     <h1 class="page-title">Off-Street Pedestrian and Bicycle Facilities</h1>
     <p class="page-sub">
       Estimate level of service for exclusive pedestrian facilities, for
@@ -142,12 +211,12 @@
     </p>
   </header>
 
-  <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
+  <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> This chapter is newly implemented and its results have
-      not yet been validated against the full set of published HCM worked examples.
-      Verify results independently before relying on them in engineering work, and
-      please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      The compute engine reproduces the published HCM worked examples for this
+      chapter: the shared-use path pedestrian events, the exclusive-facility
+      pedestrian space, and the bicycle BLOS score. Verify results
+      independently before relying on them in engineering work, and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
 
@@ -175,6 +244,19 @@
             <option value="bicycle">Off-Street Bicycle (BLOS)</option>
           </select>
         </div>
+      </div>
+    
+      <div class="diagram-block">
+        {#if facility_kind === 'pedestrian'}
+          <PathDiagram kind="pedestrian" widthFt={ped_total_width} objectWidthFt={ped_object_width}
+                       bind:demandA={ped_demand} losLetter={losForDiagram} />
+        {:else if facility_kind === 'shared_path'}
+          <PathDiagram kind="shared_path" widthFt={10} oneWay={sup_one_way === 'yes'}
+                       bind:demandA={sup_bike_same} bind:demandB={sup_bike_opposing} losLetter={losForDiagram} />
+        {:else}
+          <PathDiagram kind="bicycle" widthFt={bike_path_width} centerline={bike_centerline === 'yes'}
+                       oneWay={bike_one_way === 'yes'} bind:demandA={bike_two_way_demand} losLetter={losForDiagram} />
+        {/if}
       </div>
     </section>
 
@@ -386,11 +468,16 @@
   </form>
 
   <section class="panel results-panel">
-    <div class="panel-head">
+    <div class="panel-head with-actions">
       <div>
         <h2 class="panel-title">Outputs</h2>
         <p class="panel-sub">Results populate after pressing Calculate.</p>
       </div>
+      {#if results}
+        <div class="panel-actions">
+          <a class="btn btn-outline btn-sm" href="/report">Open printable report</a>
+        </div>
+      {/if}
     </div>
     <div class="los overflow-x-auto">
       <table class="table w-full">

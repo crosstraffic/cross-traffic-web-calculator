@@ -75,6 +75,7 @@
                 <li><a href="/hcm21">All-Way STOP Control</a></li>
                 <li><a href="/hcm22">Roundabouts</a></li>
                 <li><a href="/hcm23">Interchange Ramp Terminals</a></li>
+                <li><a href="/hcm24">Pedestrian and Bicycle Paths</a></li>
               </ul>
             </details>
           </li>
@@ -107,6 +108,7 @@
               <li><a href="/hcm21">All-Way STOP Control</a></li>
               <li><a href="/hcm22">Roundabouts</a></li>
               <li><a href="/hcm23">Interchange Ramp Terminals</a></li>
+              <li><a href="/hcm24">Pedestrian and Bicycle Paths</a></li>
             </ul>
           </details>
         </li>

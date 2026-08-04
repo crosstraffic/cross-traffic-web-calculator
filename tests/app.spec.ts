@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
 
+// Defense in depth for the phantom-user incident: even if the app-level
+// hostname gate ever regresses, no test traffic may reach third-party
+// analytics. Blocked at the network layer for every test.
+test.beforeEach(async ({ context }) => {
+  await context.route(/googletagmanager|google-analytics|analytics\.google/, (route) => route.abort());
+});
+
 test.describe('navigation and route gating', () => {
   test('homepage has HCM Calculator in the title', async ({ page }) => {
     await page.goto('/');
@@ -29,6 +36,8 @@ test.describe('navigation and route gating', () => {
     await expect(page).toHaveURL(/\/hcm22$/);
     await page.goto('/hcm23');
     await expect(page).toHaveURL(/\/hcm23$/);
+    await page.goto('/hcm24');
+    await expect(page).toHaveURL(/\/hcm24$/);
   });
 
   test('desktop shows the horizontal menu, phones get the hamburger', async ({ page }) => {
@@ -88,6 +97,20 @@ test.describe('navigation and route gating', () => {
     await expect(nav.locator('a[href="/hcm21"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm22"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm23"]')).toHaveCount(1);
+    await expect(nav.locator('a[href="/hcm24"]')).toHaveCount(1);
+  });
+
+  test('analytics never loads from localhost', async ({ page }) => {
+    // Guard for the phantom-user incident: automation traffic must not reach
+    // Google Analytics. The tag only injects on the production hostname.
+    const hits = [];
+    page.on('request', (r) => {
+      if (r.url().includes('googletagmanager') || r.url().includes('google-analytics')) hits.push(r.url());
+    });
+    await page.goto('/');
+    await page.goto('/hcm22');
+    await page.waitForTimeout(1500);
+    expect(hits).toHaveLength(0);
   });
 
   test('the theme toggle flips to dark and persists across reloads', async ({ page }) => {
@@ -107,11 +130,11 @@ test.describe('navigation and route gating', () => {
   });
 
   test('unreleased chapter routes redirect home', async ({ page }) => {
-    // hcm16 and hcm24 exist in the repo but are not in the RELEASED set of
+    // hcm16 and hcm18 exist in the repo but are not in the RELEASED set of
     // src/routes/+layout.js; a direct visit must land on the home page.
     await page.goto('/hcm16');
     await expect(page).toHaveURL(/\/$/);
-    await page.goto('/hcm24');
+    await page.goto('/hcm18');
     await expect(page).toHaveURL(/\/$/);
   });
 });
@@ -184,6 +207,8 @@ test.describe('chapter 10 freeway facilities calculator', () => {
 
 test.describe('chapter 11 freeway reliability calculator', () => {
   test('default inputs run a deterministic whole-year scenario set', async ({ page }) => {
+    test.slow(); // 240 scenarios of wasm compute; tight under parallel load
+
     // No published example fits this page's reduced scope (no weather model, no
     // custom demand multipliers), so this pins the engine's deterministic output
     // for the default facility with rng seed 1: 12 months x 5 weekdays x 4
@@ -260,6 +285,7 @@ test.describe('chapter 13 weaving calculator', () => {
 
   test('the movement diagram follows the inputs and highlights on hover', async ({ page }) => {
     await page.goto('/hcm13');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     const diagram = page.locator('.weave-diagram svg');
     await expect(diagram).toBeVisible();
     await expect(diagram).toHaveAttribute('aria-label', /one-sided weaving segment/);
@@ -357,6 +383,7 @@ test.describe('chapter 14 merge and diverge calculator', () => {
 
   test('the junction diagram follows the inputs', async ({ page }) => {
     await page.goto('/hcm14');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     const diagram = page.locator('.ramp-diagram svg');
     await expect(diagram).toBeVisible();
     await expect(diagram).toHaveAttribute('aria-label', /right-side on ramp/);
@@ -482,6 +509,7 @@ test.describe('chapter 19 signalized intersection calculator', () => {
 
   test('the intersection diagram follows the inputs and highlights on hover', async ({ page }) => {
     await page.goto('/hcm19');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     const diagram = page.locator('.signal-diagram svg');
     await expect(diagram).toBeVisible();
     await expect(diagram).toHaveAttribute('aria-label', /four-leg signalized intersection/);
@@ -507,6 +535,7 @@ test.describe('chapter 19 signalized intersection calculator', () => {
 
   test('signal-timed traffic animation pulses with the phases', async ({ page }) => {
     await page.goto('/hcm19');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     await expect(page.locator('.signal-diagram svg')).toBeVisible();
     await page.getByRole('button', { name: 'Animate traffic' }).click();
     const vehicles = page.locator('g.sd-veh');
@@ -523,6 +552,7 @@ test.describe('chapter 19 signalized intersection calculator', () => {
 
   test('volumes can be edited on the diagram and the 3D view toggles', async ({ page }) => {
     await page.goto('/hcm19');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
 
     // The on-diagram editors two-way bind to the same state as the form.
     await page.locator('input[aria-label="NB through volume"]').fill('750');
@@ -574,6 +604,7 @@ test.describe('chapter 20 TWSC calculator', () => {
 
   test('the TWSC diagram follows the inputs and shows ranks', async ({ page }) => {
     await page.goto('/hcm20');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     const diagram = page.locator('.twsc-diagram svg');
     await expect(diagram).toBeVisible();
     await expect(diagram).toHaveAttribute('aria-label', /three-leg two-way stop-controlled/);
@@ -626,6 +657,7 @@ test.describe('chapter 21 AWSC calculator', () => {
 
   test('the AWSC diagram follows the leg configuration', async ({ page }) => {
     await page.goto('/hcm21');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     const diagram = page.locator('.awsc-diagram svg');
     await expect(diagram).toBeVisible();
     // EP1 defaults: NB has zero lanes, so three legs.
@@ -675,6 +707,7 @@ test.describe('chapter 22 roundabout calculator', () => {
 
   test('the roundabout diagram highlights entries and edits volumes', async ({ page }) => {
     await page.goto('/hcm22');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     const diagram = page.locator('.rb-diagram svg');
     await expect(diagram).toBeVisible();
     await expect(diagram).toHaveAttribute('aria-label', /four-leg roundabout, 1 circulating lane/);
@@ -699,6 +732,7 @@ test.describe('chapter 22 roundabout calculator', () => {
 
   test('the traffic animation runs volume-weighted vehicles', async ({ page }) => {
     await page.goto('/hcm22');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     await expect(page.locator('.rb-diagram svg')).toBeVisible();
 
     await page.getByRole('button', { name: 'Animate traffic' }).click();
@@ -770,6 +804,7 @@ test.describe('chapter 23 interchange calculator', () => {
 
   test('the diamond diagram groups O-Ds, edits demands, and animates', async ({ page }) => {
     await page.goto('/hcm23');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     const diagram = page.locator('.dd-diagram svg');
     await expect(diagram).toBeVisible();
     await expect(diagram).toHaveAttribute('aria-label', /conventional diamond interchange/);
@@ -788,6 +823,76 @@ test.describe('chapter 23 interchange calculator', () => {
     expect(await page.locator('g.dd-veh').count()).toBeGreaterThan(8);
     await page.getByRole('button', { name: 'Stop traffic' }).click();
     await expect(page.locator('g.dd-veh')).toHaveCount(0);
+  });
+});
+
+test.describe('chapter 24 pedestrian and bicycle path calculator', () => {
+  test('reproduces the published shared-use path pedestrian example', async ({ page }) => {
+    // HCM Chapter 35, Example Problem 1 part 1: 100 bikes/h each direction,
+    // PHF 0.83, 4.0 mi/h pedestrian and 16.0 mi/h bicycle speeds. Published:
+    // F_p = 90, F_m = 151, F = 166 events/h, LOS E (Exhibit 24-4).
+    await page.goto('/hcm24');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#KIND_input').selectOption('shared_path');
+    await page.locator('#SBS_input').fill('100');
+    await page.locator('#SBO_input').fill('100');
+    await page.locator('#SPHF_input').fill('0.83');
+    await page.locator('#SPS_input').fill('4.0');
+    await page.locator('#SBSP_input').fill('16.0');
+    await calculate.click();
+
+    await expect(page.locator('.results-panel')).toContainText('90');
+    await expect(page.locator('.results-panel')).toContainText('151');
+    await expect(page.locator('.results-panel')).toContainText('166');
+    await expect(page.locator('.results-panel .los-badge').first()).toHaveAttribute('aria-label', /Level of service E/);
+  });
+
+  test('reproduces the published bicycle BLOS example', async ({ page }) => {
+    // HCM Chapter 35, Example Problem 2: 10-ft path, no centerline, 3-mi
+    // segment, 340 users/h two-way at a 50/50 split, PHF 0.90, Exhibit 24-6
+    // mode defaults. Published: 2 effective lanes, BLOS 2.69, LOS D.
+    await page.goto('/hcm24');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#KIND_input').selectOption('bicycle');
+    await page.locator('#BPW_input').fill('10');
+    await page.locator('#BSL_input').fill('3');
+    await page.locator('#BTD_input').fill('340');
+    await page.locator('#BPHF_input').fill('0.90');
+    await calculate.click();
+
+    await expect(page.locator('.results-panel')).toContainText('2.69');
+    await expect(page.locator('.results-panel .los-badge').first()).toHaveAttribute('aria-label', /Level of service D/);
+
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page.locator('.report-title')).toHaveText('Off-Street Pedestrian and Bicycle Facilities');
+    await expect(page.locator('.report-diagram .path-diagram svg')).toBeVisible();
+  });
+
+  test('the path diagram mixes modes and edits demand', async ({ page }) => {
+    await page.goto('/hcm24');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
+    await page.locator('#KIND_input').selectOption('bicycle');
+    const diagram = page.locator('.path-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /off-street bicycle path, 10 ft wide/);
+
+    // The five-mode animation runs by default.
+    expect(await page.locator('.path-diagram g.pd-user').count()).toBeGreaterThan(8);
+    await page.locator('.pd-chip.u-ped').hover();
+    await expect(page.locator('.path-diagram g.u-ped').first()).toHaveClass(/active/);
+    await expect(page.locator('.path-diagram g.u-bike').first()).toHaveClass(/dim/);
+
+    // On-diagram demand editing two-way binds to the form.
+    await page.locator('.path-diagram input[aria-label="primary demand (per hour)"]').fill('420');
+    await expect(page.locator('#BTD_input')).toHaveValue('420');
+
+    // Width follows the form.
+    await page.locator('#BPW_input').fill('14');
+    await expect(diagram).toHaveAttribute('aria-label', /14 ft wide/);
   });
 });
 

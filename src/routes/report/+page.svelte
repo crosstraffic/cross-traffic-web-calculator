@@ -13,6 +13,7 @@
   import TwscDiagram from '$lib/TwscDiagram.svelte';
   import AwscDiagram from '$lib/AwscDiagram.svelte';
   import RoundaboutDiagram from '$lib/RoundaboutDiagram.svelte';
+  import PathDiagram from '$lib/PathDiagram.svelte';
 
   onMount(() => { if (!Object.keys($reports).length) loadReports(); });
 
@@ -152,6 +153,8 @@
               <AwscDiagram approaches={current.diagram.props.approaches} editable={false} />
             {:else if current.diagram.kind === 'roundabout'}
               <RoundaboutDiagram entries={current.diagram.props.entries} editable={false} />
+            {:else if current.diagram.kind === 'path'}
+              <PathDiagram {...current.diagram.props} editable={false} />
             {/if}
           </div>
         </section>
