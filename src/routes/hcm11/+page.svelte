@@ -290,7 +290,7 @@
         <div class="param-field">
           <label for="DEMAND_input">Mainline Entry Demand</label>
           <div class="cell-field">
-            <input id="DEMAND_input" type="text" class="input input-bordered input-sm" bind:value={mainline_demand} placeholder="4000, 4400, 4800, 4400" required />
+            <input id="DEMAND_input" type="text" class="input input-bordered input-sm demand-wide" bind:value={mainline_demand} placeholder="4000, 4400, 4800, 4400" required />
             <span class="unit">veh/h</span>
           </div>
           <p class="param-hint">Comma-separated list, one value per 15-min analysis period. The list length sets the study period.</p>

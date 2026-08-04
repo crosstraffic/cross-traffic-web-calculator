@@ -4,11 +4,13 @@
         seg_num,
         changeSegment,
         changeHC,
-        toggleHCParams
+        toggleHCParams,
+        selected = false,
+        onselect = null
     } = $props();
 
 </script>
-<tr class="subseg{seg_num}">
+<tr class="subseg{seg_num}" class:seg-selected={selected} onclick={() => onselect?.()}>
     <td>
         <span class="seg-no">{seg_num}</span>
     </td>

@@ -324,7 +324,7 @@
         <div class="param-field">
           <label for="DEMAND_input">Mainline Entry Demand</label>
           <div class="cell-field">
-            <input id="DEMAND_input" type="text" class="input input-bordered input-sm" bind:value={mainline_demand} placeholder="4000, 4400, 4800, 4400" required />
+            <input id="DEMAND_input" type="text" class="input input-bordered input-sm demand-wide" bind:value={mainline_demand} placeholder="4000, 4400, 4800, 4400" required />
             <span class="unit">veh/h</span>
           </div>
           <p class="param-hint">Comma-separated list. The number of values sets the number of analysis periods.</p>
@@ -360,7 +360,9 @@
             onselect={(i) => (selectedSeg = selectedSeg === i ? -1 : i)}
           />
         {:else}
-          <FacilityDiagram3D {segments} losMatrix={results ? results.losMatrix : null} />
+          <FacilityDiagram3D {segments} losMatrix={results ? results.losMatrix : null}
+            selected={selectedSeg}
+            onselect={(i) => (selectedSeg = selectedSeg === i ? -1 : i)} />
         {/if}
       </div>
 
@@ -550,8 +552,4 @@
   .diagram-block { margin: 1rem auto 0; max-width: 640px; }
   .diagram-toggle-row { margin-bottom: 0.75rem; text-align: center; }
   .seg-table tbody tr { cursor: pointer; }
-  .seg-table tbody tr.seg-selected td,
-  .seg-table tbody tr.seg-selected {
-    background: var(--accent-soft);
-  }
 </style>

@@ -5,7 +5,22 @@
   import Camera3DSvg from '$lib/Camera3DSvg.svelte';
   import { planProjector, fitTransform, makeDrawers } from '$lib/proj3d.js';
 
-  let { segments = [], losMatrix = null } = $props();
+  let { segments = [], losMatrix = null, selected = -1, onselect = null } = $props();
+
+  // Tap-to-select without stealing the camera drag: the camera captures the
+  // pointer on drag, so pointerup retargets to the svg and no click fires on
+  // the slab. Record where a slab was pressed and treat a pointerup within a
+  // few pixels as a tap on it.
+  let pendingTap = null;
+  function pressTop(e, i) {
+    pendingTap = { i, x: e.clientX, y: e.clientY };
+  }
+  function release(e) {
+    if (pendingTap && Math.hypot(e.clientX - pendingTap.x, e.clientY - pendingTap.y) < 6) {
+      onselect?.(pendingTap.i);
+    }
+    pendingTap = null;
+  }
 
   let period = $state(0);
   let periods = $derived(losMatrix && losMatrix[0] ? losMatrix[0].length : 0);
@@ -59,22 +74,29 @@
     ];
   }
 
+  // Ramp geometry mirrors the 2D strip: an angled stub feeding an
+  // acceleration/deceleration lane that tapers into the deck edge.
   function ramps(p) {
     const yTop = maxLanes * LW;
     const yBot = yTop - p.lanes * LW;
     const w = p.x1 - p.x0;
+    const RL = LW * 0.75;
     const out = [];
     if (p.type === 'Merge') {
-      out.push([[p.x0 - 14, yBot - RAMP_D], [p.x0 + w * 0.45, yBot], [p.x0 + 4, yBot]]);
+      out.push([[p.x0 - 18, yBot - RAMP_D], [p.x0 - 6, yBot - RAMP_D], [p.x0 + 12, yBot - RL], [p.x0, yBot - RL]]);
+      out.push([[p.x0, yBot], [p.x0 + w * 0.78, yBot], [p.x0 + w * 0.55, yBot - RL], [p.x0, yBot - RL]]);
     } else if (p.type === 'Diverge') {
-      out.push([[p.x1 - 4, yBot], [p.x1 + 14, yBot - RAMP_D], [p.x1 - w * 0.45, yBot]]);
+      out.push([[p.x0 + w * 0.22, yBot], [p.x1, yBot], [p.x1, yBot - RL], [p.x0 + w * 0.45, yBot - RL]]);
+      out.push([[p.x1, yBot - RL], [p.x1 + 12, yBot - RL], [p.x1 + 18, yBot - RAMP_D], [p.x1 + 6, yBot - RAMP_D]]);
     } else if (p.type === 'Weaving') {
-      out.push([[p.x0, yBot - LW * 0.8], [p.x1, yBot - LW * 0.8], [p.x1, yBot], [p.x0, yBot]]);
-      out.push([[p.x0 - 14, yBot - RAMP_D], [p.x0, yBot], [p.x0, yBot - LW * 0.8]]);
-      out.push([[p.x1, yBot - LW * 0.8], [p.x1, yBot], [p.x1 + 14, yBot - RAMP_D]]);
+      out.push([[p.x0, yBot - RL], [p.x1, yBot - RL], [p.x1, yBot], [p.x0, yBot]]);
+      out.push([[p.x0 - 18, yBot - RAMP_D], [p.x0 - 6, yBot - RAMP_D], [p.x0 + 12, yBot - RL], [p.x0, yBot - RL]]);
+      out.push([[p.x1, yBot - RL], [p.x1 + 12, yBot - RL], [p.x1 + 18, yBot - RAMP_D], [p.x1 + 6, yBot - RAMP_D]]);
     } else if (p.type === 'OverlappingRamp') {
-      out.push([[p.x0 - 12, yBot - RAMP_D], [p.x0 + w * 0.4, yBot], [p.x0 + 2, yBot]]);
-      out.push([[p.x1 - 2, yBot], [p.x1 + 12, yBot - RAMP_D], [p.x1 - w * 0.4, yBot]]);
+      out.push([[p.x0 - 15, yBot - RAMP_D], [p.x0 - 3, yBot - RAMP_D], [p.x0 + 10, yBot - RL], [p.x0, yBot - RL]]);
+      out.push([[p.x0, yBot], [p.x0 + w * 0.62, yBot], [p.x0 + w * 0.62, yBot - RL], [p.x0, yBot - RL]]);
+      out.push([[p.x0 + w * 0.38, yBot], [p.x1, yBot], [p.x1, yBot - RL], [p.x0 + w * 0.38, yBot - RL]]);
+      out.push([[p.x1, yBot - RL], [p.x1 + 10, yBot - RL], [p.x1 + 15, yBot - RAMP_D], [p.x1 + 3, yBot - RAMP_D]]);
     }
     return out;
   }
@@ -89,7 +111,8 @@
   });
 </script>
 
-<div class="fd3-wrap">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="fd3-wrap" onpointerup={release} onpointercancel={() => (pendingTap = null)}>
   <Camera3DSvg viewW={VIEW_W} viewH={VIEW_H} defYaw={18} defPitch={44}
                ariaLabel="freeway facility 3D view, {segments.length} segments">
     {#snippet children({ yaw, pitch, zoom, panX, panY })}
@@ -113,7 +136,8 @@
           {/each}
         {/each}
         {#each ramps(p) as r}
-          <path d={d.polygon(r)} fill={topFill(i)} class="fd3-top" class:scored={losFor(i) != null} />
+          <path d={d.polygon(r)} fill={topFill(i)} class="fd3-top" class:scored={losFor(i) != null}
+                class:selected={selected === i} onpointerdown={(e) => pressTop(e, i)} />
         {/each}
       {/each}
 
@@ -124,7 +148,8 @@
         {/each}
       {/each}
       {#each plan as p, i}
-        <path d={d.polygon(slab(p))} fill={topFill(i)} class="fd3-top" class:scored={losFor(i) != null} />
+        <path d={d.polygon(slab(p))} fill={topFill(i)} class="fd3-top fd3-deck" class:scored={losFor(i) != null}
+              class:selected={selected === i} onpointerdown={(e) => pressTop(e, i)} />
         {#each Array.from({ length: p.lanes - 1 }) as _, li}
           <path d={d.seg([p.x0, maxLanes * LW - LW * (li + 1)], [p.x1, maxLanes * LW - LW * (li + 1)])} class="fd3-lane-line" />
         {/each}
@@ -165,7 +190,10 @@
   .fd3-wall { fill: var(--diag-wall, #94a3b8); stroke: var(--diag-edge); stroke-width: 0.5; }
   .fd3-top { stroke: var(--diag-edge); stroke-width: 1; vector-effect: non-scaling-stroke; transition: fill 150ms ease; }
   .fd3-top.scored { stroke: rgba(15, 23, 42, 0.4); }
+  .fd3-top.selected { stroke: var(--accent); stroke-width: 2.5; }
   .fd3-lane-line { stroke: var(--diag-lane-line); stroke-width: 1; stroke-dasharray: 5 4; fill: none; vector-effect: non-scaling-stroke; opacity: 0.8; }
+  /* Labels and markings must not swallow slab taps. */
+  .fd3-los, .fd3-num, .fd3-lane-line, .fd3-arrow { pointer-events: none; }
   .fd3-los { font-size: 9px; fill: #fff; font-weight: 700; paint-order: stroke; stroke: rgba(15, 23, 42, 0.45); stroke-width: 2px; }
   .fd3-num { font-size: 7.5px; fill: var(--text-muted); font-weight: 600; }
   .fd3-arrow { stroke: var(--diag-dim); stroke-width: 2; }

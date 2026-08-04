@@ -20,7 +20,8 @@
 
   const LANE = 10;
   const TOP = 22;
-  const RAMP_H = 16;
+  const RL = 7;         // acceleration/deceleration lane depth
+  const RAMP_H = 17;    // how far the ramp stubs reach below the mainline
 
   let periods = $derived(losMatrix && losMatrix[0] ? losMatrix[0].length : 0);
   $effect(() => {
@@ -79,18 +80,27 @@
           <line x1={seg.x} y1={TOP + LANE * (li + 1)} x2={seg.x + seg.w} y2={TOP + LANE * (li + 1)} class="fd-lane-line" />
         {/each}
 
-        <!-- ramp geometry below the mainline -->
+        <!-- ramp geometry below the mainline: an angled entry/exit stub feeding
+             an acceleration or deceleration lane that tapers into the mainline -->
         {#if seg.type === 'Merge'}
-          <polygon points="{seg.x - 12},{bot + RAMP_H} {seg.x + seg.w * 0.45},{bot} {seg.x + 4},{bot}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
+          <polygon points="{seg.x - 14},{bot + RAMP_H} {seg.x - 4},{bot + RAMP_H} {seg.x + 10},{bot + RL} {seg.x},{bot + RL}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
+          <polygon points="{seg.x},{bot} {seg.x},{bot + RL} {seg.x + seg.w * 0.55},{bot + RL} {seg.x + seg.w * 0.78},{bot}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
+          <line x1={seg.x} y1={bot} x2={seg.x + seg.w * 0.55} y2={bot} class="fd-lane-line" />
         {:else if seg.type === 'Diverge'}
-          <polygon points="{seg.x + seg.w - 4},{bot} {seg.x + seg.w + 12},{bot + RAMP_H} {seg.x + seg.w * 0.55},{bot}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
+          <polygon points="{seg.x + seg.w * 0.22},{bot} {seg.x + seg.w * 0.45},{bot + RL} {seg.x + seg.w},{bot + RL} {seg.x + seg.w},{bot}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
+          <polygon points="{seg.x + seg.w},{bot + RL} {seg.x + seg.w + 10},{bot + RL} {seg.x + seg.w + 14},{bot + RAMP_H} {seg.x + seg.w + 4},{bot + RAMP_H}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
+          <line x1={seg.x + seg.w * 0.45} y1={bot} x2={seg.x + seg.w} y2={bot} class="fd-lane-line" />
         {:else if seg.type === 'Weaving'}
-          <rect x={seg.x} y={bot} width={seg.w} height={LANE * 0.8} fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
-          <polygon points="{seg.x - 12},{bot + RAMP_H} {seg.x},{bot} {seg.x},{bot + LANE * 0.8}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
-          <polygon points="{seg.x + seg.w},{bot} {seg.x + seg.w + 12},{bot + RAMP_H} {seg.x + seg.w},{bot + LANE * 0.8}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
+          <rect x={seg.x} y={bot} width={seg.w} height={RL} fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
+          <polygon points="{seg.x - 14},{bot + RAMP_H} {seg.x - 4},{bot + RAMP_H} {seg.x + 10},{bot + RL} {seg.x},{bot + RL}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
+          <polygon points="{seg.x + seg.w},{bot + RL} {seg.x + seg.w + 10},{bot + RL} {seg.x + seg.w + 14},{bot + RAMP_H} {seg.x + seg.w + 4},{bot + RAMP_H}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
+          <line x1={seg.x} y1={bot} x2={seg.x + seg.w} y2={bot} class="fd-lane-line" />
         {:else if seg.type === 'OverlappingRamp'}
-          <polygon points="{seg.x - 10},{bot + RAMP_H} {seg.x + seg.w * 0.4},{bot} {seg.x + 2},{bot}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
-          <polygon points="{seg.x + seg.w - 2},{bot} {seg.x + seg.w + 10},{bot + RAMP_H} {seg.x + seg.w * 0.6},{bot}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
+          <polygon points="{seg.x - 12},{bot + RAMP_H} {seg.x - 2},{bot + RAMP_H} {seg.x + 8},{bot + RL} {seg.x},{bot + RL}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
+          <polygon points="{seg.x},{bot} {seg.x},{bot + RL} {seg.x + seg.w * 0.62},{bot + RL} {seg.x + seg.w * 0.62},{bot}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
+          <polygon points="{seg.x + seg.w * 0.38},{bot} {seg.x + seg.w * 0.38},{bot + RL} {seg.x + seg.w},{bot + RL} {seg.x + seg.w},{bot}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
+          <polygon points="{seg.x + seg.w},{bot + RL} {seg.x + seg.w + 8},{bot + RL} {seg.x + seg.w + 12},{bot + RAMP_H} {seg.x + seg.w + 2},{bot + RAMP_H}" fill={fillFor(i)} class="fd-ramp" class:scored={losFor(i) != null} />
+          <line x1={seg.x} y1={bot} x2={seg.x + seg.w} y2={bot} class="fd-lane-line" />
         {/if}
 
         <!-- labels -->
