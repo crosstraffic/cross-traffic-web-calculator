@@ -20,12 +20,15 @@
         <p class="eyebrow">Highway Capacity Manual · 7th Edition</p>
         <h1 class="hero-title">HCM Calculator</h1>
         <p class="hero-lead">
-          A browser-based implementation of HCM analysis procedures. Compute
-          level of service, follower density, and operating speeds segment by
-          segment, backed by a WebAssembly engine for exact, reproducible results.
+          A browser-based implementation of HCM analysis procedures across
+          twelve chapters: freeways, signalized and stop-controlled
+          intersections, roundabouts, interchanges, and multiuse paths. Every
+          chapter reproduces its published HCM worked examples, computed by a
+          WebAssembly engine that also works offline. Interactive 2D and 3D
+          diagrams, traffic animation, and printable run reports included.
         </p>
         <div class="hero-actions">
-          <a href="/hcm15" class="btn-cta">Open Two-Lane Highways <span aria-hidden="true">→</span></a>
+          <a href="#chapters" class="btn-cta">Browse chapters <span aria-hidden="true">→</span></a>
           <a
             href="https://nap.nationalacademies.org/catalog/26432/highway-capacity-manual-7th-edition-a-guide-for-multimodal-mobility"
             target="_blank"
@@ -83,11 +86,29 @@
   </section>
 
   <!-- Available chapters -->
-  <section class="chapters">
+  <section class="chapters" id="chapters">
     <div class="chapters-head">
       <h2>Available chapters</h2>
-      <span class="chapters-meta">Basic Freeway Segments and Two-Lane Highways</span>
+      <span class="chapters-meta">Twelve chapters, each validated against its published HCM worked examples</span>
     </div>
+
+    <a class="chapter-row" href="/hcm10">
+      <span class="chapter-no">10</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Freeway Facilities Core Methodology</span>
+        <span class="chapter-desc">Whole-facility analysis over 15-min periods, composing basic, merge, diverge, and weaving segments</span>
+      </span>
+      <span class="chapter-status available">Available</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm11">
+      <span class="chapter-no">11</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Freeway Reliability Analysis</span>
+        <span class="chapter-desc">Whole-year travel time reliability with demand variation and incident scenarios</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
 
     <a class="chapter-row" href="/hcm12">
       <span class="chapter-no">12</span>
@@ -98,11 +119,83 @@
       <span class="chapter-status available">Available</span>
     </a>
 
+    <a class="chapter-row" href="/hcm13">
+      <span class="chapter-no">13</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Freeway Weaving Segments</span>
+        <span class="chapter-desc">Weaving and nonweaving speeds, capacity, and LOS, under the 7th Edition or Edition 7.1</span>
+      </span>
+      <span class="chapter-status available">Available</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm14">
+      <span class="chapter-no">14</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Freeway Merge and Diverge Segments</span>
+        <span class="chapter-desc">Ramp influence area density, speeds, and LOS, under the 7th Edition or Edition 7.1</span>
+      </span>
+      <span class="chapter-status available">Available</span>
+    </a>
+
     <a class="chapter-row" href="/hcm15">
       <span class="chapter-no">15</span>
       <span class="chapter-body">
         <span class="chapter-name">Two-Lane Highways</span>
         <span class="chapter-desc">Level of service, follower density, average speed, and passing analysis</span>
+      </span>
+      <span class="chapter-status available">Available</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm19">
+      <span class="chapter-no">19</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Signalized Intersections</span>
+        <span class="chapter-desc">Control delay and LOS by approach for a pretimed four-leg signal</span>
+      </span>
+      <span class="chapter-status available">Available</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm20">
+      <span class="chapter-no">20</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Two-Way STOP-Controlled Intersections</span>
+        <span class="chapter-desc">Gap-acceptance capacities, delay, and LOS by movement rank, with the December 2022 corrections</span>
+      </span>
+      <span class="chapter-status available">Available</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm21">
+      <span class="chapter-no">21</span>
+      <span class="chapter-body">
+        <span class="chapter-name">All-Way STOP-Controlled Intersections</span>
+        <span class="chapter-desc">Departure headways, control delay, queues, and LOS per lane and approach</span>
+      </span>
+      <span class="chapter-status available">Available</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm22">
+      <span class="chapter-no">22</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Roundabouts</span>
+        <span class="chapter-desc">Entry capacities, delay, queues, and LOS, including right-turn bypass lanes</span>
+      </span>
+      <span class="chapter-status available">Available</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm23">
+      <span class="chapter-no">23</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Interchange Ramp Terminals</span>
+        <span class="chapter-desc">O-D experienced travel time and LOS for conventional diamond and diverging diamond interchanges</span>
+      </span>
+      <span class="chapter-status available">Available</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm24">
+      <span class="chapter-no">24</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Off-Street Pedestrian and Bicycle Facilities</span>
+        <span class="chapter-desc">Pedestrian space and events, and the bicycle BLOS score for shared-use paths</span>
       </span>
       <span class="chapter-status available">Available</span>
     </a>
