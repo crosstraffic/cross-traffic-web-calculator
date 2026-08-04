@@ -7,13 +7,25 @@
   import Camera3DSvg from '$lib/Camera3DSvg.svelte';
   import { planProjector, fitTransform, makeDrawers, qSample } from '$lib/proj3d.js';
 
-  export let odDemands = [];
-  export let odLos = {};
-  export let form = 'Diamond';
-  export let ddiEb = 'ThreeLaneExclusive';
-  export let ddiWb = 'TwoLaneShared';
+  /**
+   * @typedef {Object} Props
+   * @property {any} [odDemands]
+   * @property {any} [odLos]
+   * @property {string} [form]
+   * @property {string} [ddiEb]
+   * @property {string} [ddiWb]
+   */
 
-  let hovered = null;
+  /** @type {Props} */
+  let {
+    odDemands = [],
+    odLos = {},
+    form = 'Diamond',
+    ddiEb = 'ThreeLaneExclusive',
+    ddiWb = 'TwoLaneShared'
+  } = $props();
+
+  let hovered = $state(null);
 
   const VIEW_W = 560, VIEW_H = 330, PAD = 22, THICK = 8, ELEV = 26;
 
@@ -23,29 +35,29 @@
   const xW = 165, xE = 355, FWY = 38, GAP = 12, LEAN = 46;
   const ebN = cy - 10, wbS = cy + 10;
   // Lane-reactive halves mirroring the 2D view.
-  $: nEbLanes = form === 'Ddi' ? (String(ddiEb).startsWith('Two') ? 2 : 3) : 2;
-  $: nWbLanes = form === 'Ddi' ? (String(ddiWb).startsWith('Two') ? 2 : 3) : 2;
-  $: sharedEb = form === 'Ddi' && (ddiEb === 'TwoLaneShared' || ddiEb === 'ThreeLaneShared');
-  $: sharedWb = form === 'Ddi' && (ddiWb === 'TwoLaneShared' || ddiWb === 'ThreeLaneShared');
-  $: hEB = nEbLanes * 14;
-  $: hWB = nWbLanes * 14;
-  $: edgeS = cy + hEB;
-  $: edgeN = cy - hWB;
-  $: ebLane = (i) => cy + hEB - (i + 0.5) * 14;
-  $: wbLane = (i) => cy - hWB + (i + 0.5) * 14;
-  $: ebOut = ebLane(0);
-  $: ebIn = ebLane(nEbLanes - 1);
-  $: wbOut = wbLane(0);
-  $: wbIn = wbLane(nWbLanes - 1);
-  $: yI = sharedEb ? ebIn : ebLane(nEbLanes - 2);
-  $: yJ = sharedWb ? wbIn : wbLane(nWbLanes - 2);
-  $: stubs = {
+  let nEbLanes = $derived(form === 'Ddi' ? (String(ddiEb).startsWith('Two') ? 2 : 3) : 2);
+  let nWbLanes = $derived(form === 'Ddi' ? (String(ddiWb).startsWith('Two') ? 2 : 3) : 2);
+  let sharedEb = $derived(form === 'Ddi' && (ddiEb === 'TwoLaneShared' || ddiEb === 'ThreeLaneShared'));
+  let sharedWb = $derived(form === 'Ddi' && (ddiWb === 'TwoLaneShared' || ddiWb === 'ThreeLaneShared'));
+  let hEB = $derived(nEbLanes * 14);
+  let hWB = $derived(nWbLanes * 14);
+  let edgeS = $derived(cy + hEB);
+  let edgeN = $derived(cy - hWB);
+  let ebLane = $derived((i) => cy + hEB - (i + 0.5) * 14);
+  let wbLane = $derived((i) => cy - hWB + (i + 0.5) * 14);
+  let ebOut = $derived(ebLane(0));
+  let ebIn = $derived(ebLane(nEbLanes - 1));
+  let wbOut = $derived(wbLane(0));
+  let wbIn = $derived(wbLane(nWbLanes - 1));
+  let yI = $derived(sharedEb ? ebIn : ebLane(nEbLanes - 2));
+  let yJ = $derived(sharedWb ? wbIn : wbLane(nWbLanes - 2));
+  let stubs = $derived({
     sbOff: { x0: xW, y0: edgeN, x1: xW + LEAN, y1: 16 },
     sbOn: { x0: xW, y0: edgeS, x1: xW + LEAN, y1: H - 16 },
     nbOn: { x0: xE, y0: edgeN, x1: xE - LEAN, y1: 16 },
     nbOff: { x0: xE, y0: edgeS, x1: xE - LEAN, y1: H - 16 },
-  };
-  $: arterial = [[0, edgeN], [W, edgeN], [W, edgeS], [0, edgeS]];
+  });
+  let arterial = $derived([[0, edgeN], [W, edgeN], [W, edgeS], [0, edgeS]]);
   const at = (s, t) => [s.x0 + (s.x1 - s.x0) * t, s.y0 + (s.y1 - s.y0) * t];
   const stubPoly = (s) => {
     const dx = 11;
@@ -90,7 +102,7 @@
       J: [[W, (wbIn + wbOut) / 2], [0, (wbIn + wbOut) / 2]],
     };
   }
-  $: paths = buildPaths(form, ebOut, ebIn, wbOut, wbIn, yI, yJ, stubs);
+  let paths = $derived(buildPaths(form, ebOut, ebIn, wbOut, wbIn, yI, yJ, stubs));
 
   const groupOf = { A: 'NBOFF', B: 'NBOFF', C: 'SBOFF', D: 'SBOFF', E: 'EB', F: 'EB', I: 'EB', G: 'WB', H: 'WB', J: 'WB' };
   const clsOf = { NBOFF: 'nboff', SBOFF: 'sboff', EB: 'ebg', WB: 'wbg' };
@@ -101,12 +113,12 @@
     { key: 'WB', label: 'WB arterial' },
   ];
 
-  $: volOf = Object.fromEntries((odDemands || []).map((d) => [d.key, Number(d.value) || 0]));
+  let volOf = $derived(Object.fromEntries((odDemands || []).map((d) => [d.key, Number(d.value) || 0])));
 
-  let animating = false;
+  let animating = $state(false);
   const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
   const LOS_FLEET = { A: 1, B: 1, C: 1.1, D: 1.3, E: 1.7, F: 2.3 };
-  $: vehiclePlan = (() => {
+  let vehiclePlan = $derived((() => {
     if (!animating) return [];
     const raw = [];
     let total = 0;
@@ -126,10 +138,10 @@
       }
     }
     return items;
-  })();
+  })());
 
   const flip = (pts) => pts.map(([x, y]) => [x, -y]);
-  $: fitPts = flip([[0, 0], [W, 0], [W, H], [0, H]]);
+  let fitPts = $derived(flip([[0, 0], [W, 0], [W, H], [0, H]]));
 
   function cls(h, key) {
     if (h == null) return 'dd3-move';
@@ -140,65 +152,67 @@
 <div class="dd-diagram-3d">
   <Camera3DSvg viewW={VIEW_W} viewH={VIEW_H} defYaw={20} defPitch={44}
       ariaLabel={form === 'Ddi' ? 'diverging diamond interchange, 3D view' : 'conventional diamond interchange, 3D view'}
-      let:yaw let:pitch let:zoom let:panX let:panY>
-    {@const project = planProjector(yaw, pitch)}
-    {@const tf = fitTransform(project, fitPts, VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK, 1.02)}
-    {@const tfUp = (x, y) => { const p = tf(x, y); return { x: p.x, y: p.y - ELEV }; }}
-    {@const d = makeDrawers(tf, THICK)}
-    {@const dUp = makeDrawers(tfUp, 10)}
+          >
+    {#snippet children({ yaw, pitch, zoom, panX, panY })}
+        {@const project = planProjector(yaw, pitch)}
+      {@const tf = fitTransform(project, fitPts, VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK, 1.02)}
+      {@const tfUp = (x, y) => { const p = tf(x, y); return { x: p.x, y: p.y - ELEV }; }}
+      {@const d = makeDrawers(tf, THICK)}
+      {@const dUp = makeDrawers(tfUp, 10)}
 
-    <!-- at-grade: arterial and ramp stubs -->
-    <path d={d.shadow(flip(arterial))} class="dd3-shadow" />
-    {#each Object.values(stubs) as s}
-      <path d={d.shadow(flip(stubPoly(s)))} class="dd3-shadow" />
-    {/each}
-    {#each Object.values(stubs) as s}
-      {#each d.walls(flip(stubPoly(s))) as w}
+      <!-- at-grade: arterial and ramp stubs -->
+      <path d={d.shadow(flip(arterial))} class="dd3-shadow" />
+      {#each Object.values(stubs) as s}
+        <path d={d.shadow(flip(stubPoly(s)))} class="dd3-shadow" />
+      {/each}
+      {#each Object.values(stubs) as s}
+        {#each d.walls(flip(stubPoly(s))) as w}
+          <path d={w} class="dd3-wall" />
+        {/each}
+      {/each}
+      {#each d.walls(flip(arterial)) as w}
         <path d={w} class="dd3-wall" />
       {/each}
-    {/each}
-    {#each d.walls(flip(arterial)) as w}
-      <path d={w} class="dd3-wall" />
-    {/each}
-    {#each Object.values(stubs) as s}
-      <path d={d.polygon(flip(stubPoly(s)))} class="dd3-top" />
-    {/each}
-    <path d={d.polygon(flip(arterial))} class="dd3-top" />
-
-    <!-- movement paths and vehicles at grade -->
-    {#each Object.entries(paths) as [letter, pts]}
-      {#if (volOf[letter.toLowerCase()] || 0) > 0}
-        <path d={d.polyline(flip(pts))} class={`mv-${clsOf[groupOf[letter]]} ${cls(hovered, groupOf[letter])}`} />
-      {/if}
-    {/each}
-    {#if animating}
-      {#each vehiclePlan as v (v.id)}
-        <g class="dd3-veh veh-{clsOf[v.group]}" class:dim={hovered != null && hovered !== v.group}>
-          <rect x="-4" y="-2.1" width="8" height="4.2" rx="1.2" />
-          <animateMotion dur="{v.dur}s" repeatCount="indefinite" rotate="auto" begin="{v.begin}s"
-                         path={d.polyline(flip(paths[v.letter]))} />
-        </g>
+      {#each Object.values(stubs) as s}
+        <path d={d.polygon(flip(stubPoly(s)))} class="dd3-top" />
       {/each}
-    {/if}
+      <path d={d.polygon(flip(arterial))} class="dd3-top" />
 
-    <!-- elevated freeway deck, drawn last so it crosses over everything -->
-    <path d={d.shadow(flip(fwyDeck))} class="dd3-shadow" />
-    {#each PIERS as py}
-      {@const g = tf(cx, -py)}
-      {@const u = tfUp(cx, -py)}
-      <line x1={g.x} y1={g.y} x2={u.x} y2={u.y + 9} class="dd3-pier" />
-    {/each}
-    {#each dUp.walls(flip(fwyDeck)) as w}
-      <path d={w} class="dd3-deckwall" />
-    {/each}
-    <path d={dUp.polygon(flip(fwyDeck))} class="dd3-deck" />
-    <path d={dUp.polyline(flip(medianW))} class="dd3-median" />
-    <path d={dUp.polyline(flip(medianE))} class="dd3-median" />
-  </Camera3DSvg>
+      <!-- movement paths and vehicles at grade -->
+      {#each Object.entries(paths) as [letter, pts]}
+        {#if (volOf[letter.toLowerCase()] || 0) > 0}
+          <path d={d.polyline(flip(pts))} class={`mv-${clsOf[groupOf[letter]]} ${cls(hovered, groupOf[letter])}`} />
+        {/if}
+      {/each}
+      {#if animating}
+        {#each vehiclePlan as v (v.id)}
+          <g class="dd3-veh veh-{clsOf[v.group]}" class:dim={hovered != null && hovered !== v.group}>
+            <rect x="-4" y="-2.1" width="8" height="4.2" rx="1.2" />
+            <animateMotion dur="{v.dur}s" repeatCount="indefinite" rotate="auto" begin="{v.begin}s"
+                           path={d.polyline(flip(paths[v.letter]))} />
+          </g>
+        {/each}
+      {/if}
+
+      <!-- elevated freeway deck, drawn last so it crosses over everything -->
+      <path d={d.shadow(flip(fwyDeck))} class="dd3-shadow" />
+      {#each PIERS as py}
+        {@const g = tf(cx, -py)}
+        {@const u = tfUp(cx, -py)}
+        <line x1={g.x} y1={g.y} x2={u.x} y2={u.y + 9} class="dd3-pier" />
+      {/each}
+      {#each dUp.walls(flip(fwyDeck)) as w}
+        <path d={w} class="dd3-deckwall" />
+      {/each}
+      <path d={dUp.polygon(flip(fwyDeck))} class="dd3-deck" />
+      <path d={dUp.polyline(flip(medianW))} class="dd3-median" />
+      <path d={dUp.polyline(flip(medianE))} class="dd3-median" />
+          {/snippet}
+    </Camera3DSvg>
 
   <div class="dd3-legend" role="list">
     <button type="button" class="dd3-chip dd3-animate" class:active={animating}
-            aria-pressed={animating} on:click={() => (animating = !animating)}>
+            aria-pressed={animating} onclick={() => (animating = !animating)}>
       {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
     </button>
     {#each GROUPS as g}
@@ -207,10 +221,10 @@
         role="listitem"
         class="dd3-chip {clsOf[g.key]}"
         class:active={hovered === g.key}
-        on:mouseenter={() => (hovered = g.key)}
-        on:mouseleave={() => (hovered = null)}
-        on:focus={() => (hovered = g.key)}
-        on:blur={() => (hovered = null)}
+        onmouseenter={() => (hovered = g.key)}
+        onmouseleave={() => (hovered = null)}
+        onfocus={() => (hovered = g.key)}
+        onblur={() => (hovered = null)}
       >
         <span class="swatch {clsOf[g.key]}"></span>
         {g.label}

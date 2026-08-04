@@ -3,6 +3,8 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import LosScale from '$lib/LosScale.svelte';
   import LosBadge from '$lib/LosBadge.svelte';
   import init, { WasmExclusivePedestrianFacility, WasmSharedUsePathPedestrian, WasmOffStreetBicycleFacility } from "HCM-middleware";
@@ -10,7 +12,7 @@
   import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
-  let ready = false;
+  let ready = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -18,42 +20,42 @@
   });
 
   // Facility selector
-  let facility_kind = 'pedestrian';
+  let facility_kind = $state('pedestrian');
 
   // Exclusive pedestrian facility inputs (defaults follow HCM Exhibit 24-6)
-  let ped_total_width = 10;
-  let ped_object_width = 0;
-  let ped_demand = 1000;
-  let ped_phf = 0.85;
-  let ped_speed = 300;
-  let ped_facility_type = 'walkway';
-  let ped_flow_type = 'random';
+  let ped_total_width = $state(10);
+  let ped_object_width = $state(0);
+  let ped_demand = $state(1000);
+  let ped_phf = $state(0.85);
+  let ped_speed = $state(300);
+  let ped_facility_type = $state('walkway');
+  let ped_flow_type = $state('random');
 
   // Shared-use path pedestrian inputs
-  let sup_bike_same = 100;
-  let sup_bike_opposing = 100;
-  let sup_phf = 0.85;
-  let sup_ped_speed = 3.4;
-  let sup_bike_speed = 12.8;
-  let sup_one_way = 'no';
+  let sup_bike_same = $state(100);
+  let sup_bike_opposing = $state(100);
+  let sup_phf = $state(0.85);
+  let sup_ped_speed = $state(3.4);
+  let sup_bike_speed = $state(12.8);
+  let sup_one_way = $state('no');
 
   // Off-street bicycle facility inputs
-  let bike_path_width = 10;
-  let bike_segment_length = 1;
-  let bike_centerline = 'no';
-  let bike_two_way_demand = 200;
-  let bike_dir_split = 0.5;
-  let bike_phf = 0.85;
-  let bike_one_way = 'no';
-  let bike_exclusive = 'no';
+  let bike_path_width = $state(10);
+  let bike_segment_length = $state(1);
+  let bike_centerline = $state('no');
+  let bike_two_way_demand = $state(200);
+  let bike_dir_split = $state(0.5);
+  let bike_phf = $state(0.85);
+  let bike_one_way = $state('no');
+  let bike_exclusive = $state('no');
 
-  let results = null;
-  let hasError = false;
-  let errMessage = '';
+  let results = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
 
   // LOS drives the diagram's delayed-passing effect once the run matches the
   // selected facility kind.
-  $: losForDiagram = results && results.kind === facility_kind ? results.los : null;
+  let losForDiagram = $derived(results && results.kind === facility_kind ? results.los : null);
 
   function runAnalysis() {
     hasError = false;
@@ -226,7 +228,7 @@
     </div>
   {/if}
 
-  <form id="hcm24" on:submit|preventDefault={runAnalysis}>
+  <form id="hcm24" onsubmit={preventDefault(runAnalysis)}>
     <!-- Facility Type -->
     <section class="panel">
       <div class="panel-head">
@@ -238,7 +240,7 @@
       <div class="param-grid">
         <div class="param-field">
           <label for="KIND_input">Facility Type</label>
-          <select id="KIND_input" class="select select-bordered select-sm" bind:value={facility_kind} on:change={() => { results = null; }}>
+          <select id="KIND_input" class="select select-bordered select-sm" bind:value={facility_kind} onchange={() => { results = null; }}>
             <option value="pedestrian">Exclusive Pedestrian</option>
             <option value="shared_path">Shared-Use Path (pedestrian LOS)</option>
             <option value="bicycle">Off-Street Bicycle (BLOS)</option>
@@ -462,7 +464,7 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
       <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
     </div>
   </form>

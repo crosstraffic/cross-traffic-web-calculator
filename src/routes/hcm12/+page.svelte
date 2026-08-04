@@ -3,6 +3,8 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import LosScale from '$lib/LosScale.svelte';
   import LosBadge from '$lib/LosBadge.svelte';
   import SpeedFlowCurve from '$lib/SpeedFlowCurve.svelte';
@@ -12,7 +14,7 @@
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
 
-  let ready = false;
+  let ready = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -20,30 +22,30 @@
   });
 
   // Inputs (defaults follow the HCM Chapter 12 base conditions)
-  let bffs = 65;
-  let speed_limit = 65;
-  let lane_count = 2;
-  let lane_width = 12;
-  let lc_r = 6;
-  let trd = 0;
-  let grade = 0;
-  let terrain_type = 'level';
-  let length = 0.625;
-  let demand_flow_i = 1000;
-  let phf = 0.95;
-  let phv = 5;
-  let sut_percentage = 0;   // 0 = general terrain; 30/50/70 select the specific-upgrade exhibits
-  let city_type = 'urban';
+  let bffs = $state(65);
+  let speed_limit = $state(65);
+  let lane_count = $state(2);
+  let lane_width = $state(12);
+  let lc_r = $state(6);
+  let trd = $state(0);
+  let grade = $state(0);
+  let terrain_type = $state('level');
+  let length = $state(0.625);
+  let demand_flow_i = $state(1000);
+  let phf = $state(0.95);
+  let phv = $state(5);
+  let sut_percentage = $state(0);   // 0 = general terrain; 30/50/70 select the specific-upgrade exhibits
+  let city_type = $state('urban');
 
-  let results = null;
-  let hasError = false;
-  let errMessage = '';
-  let diagramMode = '2d';   // '2d' plan view | '3d' perspective view
+  let results = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
+  let diagramMode = $state('2d');   // '2d' plan view | '3d' perspective view
 
   // The specific-upgrade exhibits (12-26/27/28) are keyed on grade + length; the
   // general-terrain exhibit (12-25) is keyed on terrain and ignores them. Surface
   // that in the UI so the grade/length inputs don't look silently inert.
-  $: usesGrade = Number(sut_percentage) !== 0;
+  let usesGrade = $derived(Number(sut_percentage) !== 0);
 
   function runAnalysis() {
     hasError = false;
@@ -242,7 +244,7 @@
   }
 
   // Clamp the drawn lane count so the 2D plan diagram stays readable.
-  $: drawnLanes = Math.max(1, Math.min(6, Number(lane_count) || 1));
+  let drawnLanes = $derived(Math.max(1, Math.min(6, Number(lane_count) || 1)));
 </script>
 
 <div class="hcm-page">
@@ -261,7 +263,7 @@
     </div>
   {/if}
 
-  <form id="hcm12" on:submit|preventDefault={runAnalysis}>
+  <form id="hcm12" onsubmit={preventDefault(runAnalysis)}>
     <!-- Import -->
     <section class="panel">
       <div class="panel-head with-actions">
@@ -270,14 +272,14 @@
           <p class="panel-sub">Load a basic-freeway input file, or start from the bundled example.</p>
         </div>
         <div class="panel-actions">
-          <button class="btn btn-outline btn-sm" type="button" on:click={loadExample}>Load example</button>
+          <button class="btn btn-outline btn-sm" type="button" onclick={loadExample}>Load example</button>
         </div>
       </div>
       <label for="jsonInput" class="block text-sm font-medium mb-1">JSON file</label>
       <input
         type="file"
         id="jsonInput"
-        on:change={jsonInputHandler}
+        onchange={jsonInputHandler}
         class="file-input file-input-bordered w-full max-w-xs"
         accept=".json"
       />
@@ -457,8 +459,8 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
-      <button class="btn btn-outline" on:click={exportJson} type="button">Export JSON</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-outline" onclick={exportJson} type="button">Export JSON</button>
       <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
     </div>
   </form>

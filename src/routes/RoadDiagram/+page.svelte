@@ -1,7 +1,13 @@
 <script>
   // Draws the schematic for a two-lane highway segment based on its passing type.
-  // Driven directly by the Segments dropdown value.
-  export let type = '';
+  
+  /**
+   * @typedef {Object} Props
+   * @property {string} [type] - Driven directly by the Segments dropdown value.
+   */
+
+  /** @type {Props} */
+  let { type = '' } = $props();
 </script>
 
 <svg

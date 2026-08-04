@@ -5,58 +5,29 @@
   import Camera3DSvg from '$lib/Camera3DSvg.svelte';
   import { planProjector, fitTransform, makeDrawers, qSample } from '$lib/proj3d.js';
 
-  export let entries = {};
   // Per-approach LOS letters from the last run; the animation slows and
-  // thickens with worse LOS, same response as the 2D view.
-  export let approachLos = {};
+  
+  /**
+   * @typedef {Object} Props
+   * @property {any} [entries]
+   * @property {any} [approachLos] - thickens with worse LOS, same response as the 2D view.
+   */
 
-  let hovered = null;
-  let animating = false;
+  /** @type {Props} */
+  let { entries = {}, approachLos = {} } = $props();
+
+  let hovered = $state(null);
+  let animating = $state(false);
   const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
   const LOS_FLEET = { A: 1, B: 1, C: 1.1, D: 1.3, E: 1.7, F: 2.3 };
   const dirOf = { NB: 'nb', SB: 'sb', EB: 'eb', WB: 'wb' };
   const spanOf = { R: 90, T: 180, L: 270 };
 
-  // Volume-weighted fleet per movement; paths get projected in the template
-  // so vehicles ride the same polylines the movement strokes use.
-  $: vehiclePlan = (() => {
-    if (!animating) return [];
-    const items = [];
-    for (const key of ['NB', 'SB', 'EB', 'WB']) {
-      const e = entries?.[dirOf[key]] || {};
-      const slow = LOS_SPEED[approachLos?.[key]] ?? 1;
-      const crowd = LOS_FLEET[approachLos?.[key]] ?? 1;
-      for (const mv of ['R', 'T', 'L']) {
-        const vol = Number(e[{ R: 'r', T: 't', L: 'l' }[mv]]) || 0;
-        if (vol <= 0) continue;
-        const freeFlow = mv === 'R' && e.bypass === 'nonyielding';
-        items.push({
-          key, mv, vol,
-          dur: (4 + spanOf[mv] / 55) / (freeFlow ? 1 : slow),
-          crowd: freeFlow ? 1 : crowd,
-        });
-      }
-    }
-    const total = items.reduce((s, it) => s + it.vol, 0) || 1;
-    for (const it of items) {
-      it.n = Math.max(1, Math.min(8, Math.round((26 * it.vol * it.crowd) / total)));
-    }
-    return items;
-  })();
 
   const VIEW_W = 520, VIEW_H = 340, PAD = 24, THICK = 9;
   const LANE = 1, RUN = 4.6, RI = 1.7;
 
-  $: circLanes = Math.max(1, Math.min(2,
-    Math.max(Number(entries?.nb?.circLanes) || 1, Number(entries?.sb?.circLanes) || 1,
-             Number(entries?.eb?.circLanes) || 1, Number(entries?.wb?.circLanes) || 1)));
 
-  // Bypass modes read directly so Svelte tracks them.
-  $: bNB = entries?.nb?.bypass || 'none';
-  $: bSB = entries?.sb?.bypass || 'none';
-  $: bEB = entries?.eb?.bypass || 'none';
-  $: bWB = entries?.wb?.bypass || 'none';
-  $: model = build(circLanes, bNB, bSB, bEB, bWB);
 
   function build(circLanes, bNB, bSB, bEB, bWB) {
     const RO = RI + circLanes * LANE + 0.35;
@@ -165,83 +136,120 @@
     };
   }
 
-  $: order = [
-    { key: 'NB', label: 'Northbound' },
-    { key: 'SB', label: 'Southbound' },
-    { key: 'EB', label: 'Eastbound' },
-    { key: 'WB', label: 'Westbound' },
-  ];
 
   function cls(h, key) {
     if (h == null) return 'rb3-move';
     return h === key ? 'rb3-move active' : 'rb3-move dim';
   }
+  // Volume-weighted fleet per movement; paths get projected in the template
+  // so vehicles ride the same polylines the movement strokes use.
+  let vehiclePlan = $derived((() => {
+    if (!animating) return [];
+    const items = [];
+    for (const key of ['NB', 'SB', 'EB', 'WB']) {
+      const e = entries?.[dirOf[key]] || {};
+      const slow = LOS_SPEED[approachLos?.[key]] ?? 1;
+      const crowd = LOS_FLEET[approachLos?.[key]] ?? 1;
+      for (const mv of ['R', 'T', 'L']) {
+        const vol = Number(e[{ R: 'r', T: 't', L: 'l' }[mv]]) || 0;
+        if (vol <= 0) continue;
+        const freeFlow = mv === 'R' && e.bypass === 'nonyielding';
+        items.push({
+          key, mv, vol,
+          dur: (4 + spanOf[mv] / 55) / (freeFlow ? 1 : slow),
+          crowd: freeFlow ? 1 : crowd,
+        });
+      }
+    }
+    const total = items.reduce((s, it) => s + it.vol, 0) || 1;
+    for (const it of items) {
+      it.n = Math.max(1, Math.min(8, Math.round((26 * it.vol * it.crowd) / total)));
+    }
+    return items;
+  })());
+  let circLanes = $derived(Math.max(1, Math.min(2,
+    Math.max(Number(entries?.nb?.circLanes) || 1, Number(entries?.sb?.circLanes) || 1,
+             Number(entries?.eb?.circLanes) || 1, Number(entries?.wb?.circLanes) || 1))));
+  // Bypass modes read directly so Svelte tracks them.
+  let bNB = $derived(entries?.nb?.bypass || 'none');
+  let bSB = $derived(entries?.sb?.bypass || 'none');
+  let bEB = $derived(entries?.eb?.bypass || 'none');
+  let bWB = $derived(entries?.wb?.bypass || 'none');
+  let model = $derived(build(circLanes, bNB, bSB, bEB, bWB));
+  let order = $derived([
+    { key: 'NB', label: 'Northbound' },
+    { key: 'SB', label: 'Southbound' },
+    { key: 'EB', label: 'Eastbound' },
+    { key: 'WB', label: 'Westbound' },
+  ]);
 </script>
 
 <div class="rb-diagram-3d">
   <Camera3DSvg viewW={VIEW_W} viewH={VIEW_H} defYaw={18} defPitch={46}
       ariaLabel="four-leg roundabout, 3D view"
-      let:yaw let:pitch let:zoom let:panX let:panY>
-    {@const project = planProjector(yaw, pitch)}
-    {@const tf = fitTransform(project, model.fit, VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK, 1.0)}
-    {@const d = makeDrawers(tf, THICK)}
+          >
+    {#snippet children({ yaw, pitch, zoom, panX, panY })}
+        {@const project = planProjector(yaw, pitch)}
+      {@const tf = fitTransform(project, model.fit, VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK, 1.0)}
+      {@const d = makeDrawers(tf, THICK)}
 
-    {#each model.legs as leg}
-      <path d={d.shadow(leg)} class="rb3-shadow" />
-    {/each}
-    <path d={d.shadow(model.outer)} class="rb3-shadow" />
-    {#each model.legs as leg}
-      {#each d.walls(leg) as w}
-        <path d={w} class="rb3-wall" />
+      {#each model.legs as leg}
+        <path d={d.shadow(leg)} class="rb3-shadow" />
       {/each}
-    {/each}
-    {#each d.walls(model.outer) as w}
-      <path d={w} class="rb3-wall" />
-    {/each}
-    {#each model.legs as leg}
-      <path d={d.polygon(leg)} class="rb3-top" />
-    {/each}
-    <path d={d.polygon(model.outer)} class="rb3-top" />
-    {#each model.bypassSlabs as b}
-      <path d={d.shadow(b.slab)} class="rb3-shadow" />
-      {#each d.walls(b.slab) as w}
-        <path d={w} class="rb3-wall" />
-      {/each}
-      <path d={d.polygon(b.slab)} class="rb3-top" />
-    {/each}
-    <path d={d.polygon(model.island)} class="rb3-island" />
-    {#if model.circLine}
-      <path d={d.polygon(model.circLine)} class="rb3-lane-circle" />
-    {/if}
-    {#each model.yields as y}
-      <path d={d.polyline(y)} class="rb3-yield" />
-    {/each}
-
-    {#each order as o}
-      {#each ['R', 'T', 'L'] as mv}
-        {@const byp = model.bypassSlabs.find((b) => b.key === o.key)}
-        <path d={d.polyline(model.moves[o.key][mv])} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`}
-              stroke-dasharray={mv === 'R' && byp && byp.mode === 'yielding' ? '6 5' : null} />
-      {/each}
-    {/each}
-
-    {#if animating}
-      {#each vehiclePlan as v (v.key + v.mv)}
-        {#each Array.from({ length: v.n }) as _, k}
-          <g class="rb3-veh veh-{v.key.toLowerCase()}" class:dim={hovered != null && hovered !== v.key}>
-            <rect x="-4" y="-2.1" width="8" height="4.2" rx="1.2" />
-            <animateMotion dur="{v.dur}s" repeatCount="indefinite" rotate="auto"
-                           begin="{(-(k + 0.37 * (k % 2)) / v.n) * v.dur}s"
-                           path={d.polyline(model.moves[v.key][v.mv])} />
-          </g>
+      <path d={d.shadow(model.outer)} class="rb3-shadow" />
+      {#each model.legs as leg}
+        {#each d.walls(leg) as w}
+          <path d={w} class="rb3-wall" />
         {/each}
       {/each}
-    {/if}
-  </Camera3DSvg>
+      {#each d.walls(model.outer) as w}
+        <path d={w} class="rb3-wall" />
+      {/each}
+      {#each model.legs as leg}
+        <path d={d.polygon(leg)} class="rb3-top" />
+      {/each}
+      <path d={d.polygon(model.outer)} class="rb3-top" />
+      {#each model.bypassSlabs as b}
+        <path d={d.shadow(b.slab)} class="rb3-shadow" />
+        {#each d.walls(b.slab) as w}
+          <path d={w} class="rb3-wall" />
+        {/each}
+        <path d={d.polygon(b.slab)} class="rb3-top" />
+      {/each}
+      <path d={d.polygon(model.island)} class="rb3-island" />
+      {#if model.circLine}
+        <path d={d.polygon(model.circLine)} class="rb3-lane-circle" />
+      {/if}
+      {#each model.yields as y}
+        <path d={d.polyline(y)} class="rb3-yield" />
+      {/each}
+
+      {#each order as o}
+        {#each ['R', 'T', 'L'] as mv}
+          {@const byp = model.bypassSlabs.find((b) => b.key === o.key)}
+          <path d={d.polyline(model.moves[o.key][mv])} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`}
+                stroke-dasharray={mv === 'R' && byp && byp.mode === 'yielding' ? '6 5' : null} />
+        {/each}
+      {/each}
+
+      {#if animating}
+        {#each vehiclePlan as v (v.key + v.mv)}
+          {#each Array.from({ length: v.n }) as _, k}
+            <g class="rb3-veh veh-{v.key.toLowerCase()}" class:dim={hovered != null && hovered !== v.key}>
+              <rect x="-4" y="-2.1" width="8" height="4.2" rx="1.2" />
+              <animateMotion dur="{v.dur}s" repeatCount="indefinite" rotate="auto"
+                             begin="{(-(k + 0.37 * (k % 2)) / v.n) * v.dur}s"
+                             path={d.polyline(model.moves[v.key][v.mv])} />
+            </g>
+          {/each}
+        {/each}
+      {/if}
+          {/snippet}
+    </Camera3DSvg>
 
   <div class="rb3-legend" role="list">
     <button type="button" class="rb3-chip rb3-animate" class:active={animating}
-            aria-pressed={animating} on:click={() => (animating = !animating)}>
+            aria-pressed={animating} onclick={() => (animating = !animating)}>
       {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
     </button>
     {#each order as o}
@@ -250,10 +258,10 @@
         role="listitem"
         class="rb3-chip {o.key.toLowerCase()}"
         class:active={hovered === o.key}
-        on:mouseenter={() => (hovered = o.key)}
-        on:mouseleave={() => (hovered = null)}
-        on:focus={() => (hovered = o.key)}
-        on:blur={() => (hovered = null)}
+        onmouseenter={() => (hovered = o.key)}
+        onmouseleave={() => (hovered = null)}
+        onfocus={() => (hovered = o.key)}
+        onblur={() => (hovered = null)}
       >
         <span class="swatch {o.key.toLowerCase()}"></span>
         {o.label}

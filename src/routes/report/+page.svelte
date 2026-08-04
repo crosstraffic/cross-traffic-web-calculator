@@ -3,6 +3,8 @@
 </svelte:head>
 
 <script>
+  import { run } from 'svelte/legacy';
+
   import { onMount } from 'svelte';
   import { reports, lastKey, loadReports } from '$lib/report';
   import FreewaySegment3D from '../FreewaySegment3D/+page.svelte';
@@ -17,14 +19,16 @@
 
   onMount(() => { if (!Object.keys($reports).length) loadReports(); });
 
-  let selected = null;
+  let selected = $state(null);
   // Default to the most recent report; keep the user's tab choice while it's valid.
-  $: keys = Object.keys($reports);
-  $: if (selected === null || !$reports[selected]) {
-    selected = ($lastKey && $reports[$lastKey]) ? $lastKey : (keys[0] || null);
-  }
-  $: current = selected ? $reports[selected] : null;
-  $: tabs = keys.map((k) => ({ key: k, label: $reports[k].chapter }));
+  let keys = $derived(Object.keys($reports));
+  run(() => {
+    if (selected === null || !$reports[selected]) {
+      selected = ($lastKey && $reports[$lastKey]) ? $lastKey : (keys[0] || null);
+    }
+  });
+  let current = $derived(selected ? $reports[selected] : null);
+  let tabs = $derived(keys.map((k) => ({ key: k, label: $reports[k].chapter })));
 
   function printReport() { window.print(); }
 
@@ -53,13 +57,13 @@
       {#if tabs.length > 1}
         <div class="report-tabs" role="group" aria-label="Available reports">
           {#each tabs as t}
-            <button type="button" class:active={t.key === selected} on:click={() => selected = t.key}>{t.label}</button>
+            <button type="button" class:active={t.key === selected} onclick={() => selected = t.key}>{t.label}</button>
           {/each}
         </div>
       {:else}
         <a class="btn btn-ghost btn-sm" href={current.href}>← Back to {current.chapter}</a>
       {/if}
-      <button class="btn btn-primary btn-sm" type="button" on:click={printReport}>Print / Save as PDF</button>
+      <button class="btn btn-primary btn-sm" type="button" onclick={printReport}>Print / Save as PDF</button>
     </div>
 
     <article class="report-sheet">

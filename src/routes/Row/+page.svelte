@@ -1,9 +1,11 @@
 <script>
-    export let row;
-    export let seg_num;
-    export let changeSegment;
-    export let changeHC;
-    export let toggleHCParams;
+    let {
+        row = $bindable(),
+        seg_num,
+        changeSegment,
+        changeHC,
+        toggleHCParams
+    } = $props();
 
 </script>
 <tr class="subseg{seg_num}">
@@ -16,7 +18,7 @@
             id={"passing_type" + seg_num}
             name="pass_type"
             bind:value={row.passing_type}
-            on:change={() => changeSegment(seg_num)}
+            onchange={() => changeSegment(seg_num)}
             required
         >
             <option value="" disabled selected>Select type</option>
@@ -77,7 +79,7 @@
             id="is_hc{seg_num}"
             name="hor_cur"
             bind:checked={row.is_hc}
-            on:change={(e) => changeHC(seg_num, e.target.checked)}
+            onchange={(e) => changeHC(seg_num, e.target.checked)}
         />
     </td>
     <td class="cell-center">
@@ -88,7 +90,7 @@
             id="hc_param{seg_num}"
             name="hc_param"
             bind:checked={row.is_hc}
-            on:change={(e) => toggleHCParams(seg_num, e.target.checked)}
+            onchange={(e) => toggleHCParams(seg_num, e.target.checked)}
         />
     </td>
     <td>

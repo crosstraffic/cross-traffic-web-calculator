@@ -3,11 +3,13 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import init, { WasmFacilitySegment, WasmFreewayFacility } from "HCM-middleware";
   import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
-  let ready = false;
+  let ready = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -15,18 +17,18 @@
   });
 
   // Facility-wide inputs (defaults follow the HCM Chapter 10 base conditions)
-  let ffs = 60;
-  let hv_pct = 5;
-  let terrain = 'level';
-  let city_type = 'urban';
-  let phf = 1.0;
-  let jam_density = 190;
-  let queue_discharge_drop = 7;
-  let total_ramp_density = 1.0;
-  let interchange_density = '';
+  let ffs = $state(60);
+  let hv_pct = $state(5);
+  let terrain = $state('level');
+  let city_type = $state('urban');
+  let phf = $state(1.0);
+  let jam_density = $state(190);
+  let queue_discharge_drop = $state(7);
+  let total_ramp_density = $state(1.0);
+  let interchange_density = $state('');
 
   // Mainline entry demand, one value per 15-min analysis period
-  let mainline_demand = '4000, 4400, 4800, 4400';
+  let mainline_demand = $state('4000, 4400, 4800, 4400');
 
   function defaultSegments() {
     return [
@@ -36,7 +38,7 @@
     ];
   }
 
-  let segments = defaultSegments();
+  let segments = $state(defaultSegments());
 
   function addSegment() {
     segments = [
@@ -60,9 +62,9 @@
       .filter((v) => Number.isFinite(v));
   }
 
-  let results = null;
-  let hasError = false;
-  let errMessage = '';
+  let results = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
 
   function runAnalysis() {
     hasError = false;
@@ -218,7 +220,7 @@
     </div>
   {/if}
 
-  <form id="hcm10" on:submit|preventDefault={runAnalysis}>
+  <form id="hcm10" onsubmit={preventDefault(runAnalysis)}>
     <!-- Facility -->
     <section class="panel">
       <div class="panel-head">
@@ -332,8 +334,8 @@
           <p class="panel-sub">Ordered upstream to downstream. The facility must begin and end with a basic segment. Ramp demand lists carry one value per analysis period and missing values count as zero.</p>
         </div>
         <div class="panel-actions">
-          <button class="btn btn-outline btn-sm" on:click={addSegment} type="button">+ Add Segment</button>
-          <button class="btn btn-ghost btn-sm" on:click={removeSegment} type="button">Remove</button>
+          <button class="btn btn-outline btn-sm" onclick={addSegment} type="button">+ Add Segment</button>
+          <button class="btn btn-ghost btn-sm" onclick={removeSegment} type="button">Remove</button>
         </div>
       </div>
       <div class="w-full overflow-x-auto">
@@ -428,7 +430,7 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
       <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
     </div>
   </form>

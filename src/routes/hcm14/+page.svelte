@@ -3,16 +3,18 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import init, { WasmRampSegment } from "HCM-middleware";
   import RampDiagram from '$lib/RampDiagram.svelte';
   import RampDiagram3D from '$lib/RampDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
 
-  let diagramMode = '2d';
+  let diagramMode = $state('2d');
   import { onMount } from "svelte";
 
-  let ready = false;
+  let ready = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -20,28 +22,28 @@
   });
 
   // Inputs (defaults follow the HCM Chapter 14 base conditions)
-  let version = '7';
-  let ramp_type = 'on_ramp';
-  let ramp_side = 'right';
-  let ramp_lanes = 1;
-  let freeway_lanes = 3;
-  let terrain = 'level';
-  let accel_lane_length = 800;
-  let decel_lane_length = 400;
-  let freeway_ffs = 70;
-  let ramp_ffs = 35;
-  let freeway_demand = 4000;
-  let ramp_demand = 500;
-  let phf = 0.94;
-  let phv = 5;
-  let ramp_phv = 5;
-  let caf = 1.0;
-  let saf = 1.0;
+  let version = $state('7');
+  let ramp_type = $state('on_ramp');
+  let ramp_side = $state('right');
+  let ramp_lanes = $state(1);
+  let freeway_lanes = $state(3);
+  let terrain = $state('level');
+  let accel_lane_length = $state(800);
+  let decel_lane_length = $state(400);
+  let freeway_ffs = $state(70);
+  let ramp_ffs = $state(35);
+  let freeway_demand = $state(4000);
+  let ramp_demand = $state(500);
+  let phf = $state(0.94);
+  let phv = $state(5);
+  let ramp_phv = $state(5);
+  let caf = $state(1.0);
+  let saf = $state(1.0);
 
-  let results = null;
-  let results71 = null;
-  let hasError = false;
-  let errMessage = '';
+  let results = $state(null);
+  let results71 = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
 
   function runAnalysis() {
     hasError = false;
@@ -225,7 +227,7 @@
     </div>
   {/if}
 
-  <form id="hcm14" on:submit|preventDefault={runAnalysis}>
+  <form id="hcm14" onsubmit={preventDefault(runAnalysis)}>
     <!-- Configuration -->
     <section class="panel">
       <div class="panel-head">
@@ -417,7 +419,7 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
       <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
     </div>
   </form>

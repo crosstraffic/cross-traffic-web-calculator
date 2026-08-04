@@ -5,17 +5,13 @@
   // ramps lean toward the freeway in the diamond pattern. Each O-D movement
   // (Exhibit 23-8 letters A through J) draws as a path colored by its origin
   // group; hover the legend to isolate a group, edit the O-D demands directly
-  // on the picture, and animate traffic that slows per O-D LOS after a run.
-  export let odDemands = [];
-  export let editable = true;
+  
   // 'Diamond' or 'Ddi': the DDI crosses the arterial throughs to the left
   // side between the terminals, so its internal paths swap sides at both
-  // crossovers.
-  export let form = 'Diamond';
-  // Per-O-D LOS letters from the last run ({ A: 'C', ... }).
-  export let odLos = {};
+  
+  
 
-  let hovered = null; // 'NBOFF' | 'SBOFF' | 'EB' | 'WB' | null
+  let hovered = $state(null); // 'NBOFF' | 'SBOFF' | 'EB' | 'WB' | null
 
   const W = 520, H = 320;
   const LANE = 14;
@@ -27,36 +23,53 @@
 
   // Lane-reactive arterial geometry. The DDI crossover lane configurations
   // set each direction's lane count (2 or 3) and whether the left turn
-  // launches from a shared or an exclusive lane; the diamond stays 2+2.
-  export let ddiEb = 'ThreeLaneExclusive';
-  export let ddiWb = 'TwoLaneShared';
-  $: nEbLanes = form === 'Ddi' ? (String(ddiEb).startsWith('Two') ? 2 : 3) : 2;
-  $: nWbLanes = form === 'Ddi' ? (String(ddiWb).startsWith('Two') ? 2 : 3) : 2;
-  $: sharedEb = form === 'Ddi' && (ddiEb === 'TwoLaneShared' || ddiEb === 'ThreeLaneShared');
-  $: sharedWb = form === 'Ddi' && (ddiWb === 'TwoLaneShared' || ddiWb === 'ThreeLaneShared');
-  $: hEB = nEbLanes * LANE;
-  $: hWB = nWbLanes * LANE;
-  $: edgeS = cy + hEB;
-  $: edgeN = cy - hWB;
+  
+  /**
+   * @typedef {Object} Props
+   * @property {any} [odDemands] - on the picture, and animate traffic that slows per O-D LOS after a run.
+   * @property {boolean} [editable]
+   * @property {string} [form] - crossovers.
+   * @property {any} [odLos] - Per-O-D LOS letters from the last run ({ A: 'C', ... }).
+   * @property {string} [ddiEb] - launches from a shared or an exclusive lane; the diamond stays 2+2.
+   * @property {string} [ddiWb]
+   */
+
+  /** @type {Props} */
+  let {
+    odDemands = $bindable([]),
+    editable = true,
+    form = 'Diamond',
+    odLos = {},
+    ddiEb = 'ThreeLaneExclusive',
+    ddiWb = 'TwoLaneShared'
+  } = $props();
+  let nEbLanes = $derived(form === 'Ddi' ? (String(ddiEb).startsWith('Two') ? 2 : 3) : 2);
+  let nWbLanes = $derived(form === 'Ddi' ? (String(ddiWb).startsWith('Two') ? 2 : 3) : 2);
+  let sharedEb = $derived(form === 'Ddi' && (ddiEb === 'TwoLaneShared' || ddiEb === 'ThreeLaneShared'));
+  let sharedWb = $derived(form === 'Ddi' && (ddiWb === 'TwoLaneShared' || ddiWb === 'ThreeLaneShared'));
+  let hEB = $derived(nEbLanes * LANE);
+  let hWB = $derived(nWbLanes * LANE);
+  let edgeS = $derived(cy + hEB);
+  let edgeN = $derived(cy - hWB);
   // Lane centers, index 0 at the curb.
-  $: ebLane = (i) => cy + hEB - (i + 0.5) * LANE;
-  $: wbLane = (i) => cy - hWB + (i + 0.5) * LANE;
-  $: ebOut = ebLane(0);
-  $: ebIn = ebLane(nEbLanes - 1);
-  $: wbOut = wbLane(0);
-  $: wbIn = wbLane(nWbLanes - 1);
+  let ebLane = $derived((i) => cy + hEB - (i + 0.5) * LANE);
+  let wbLane = $derived((i) => cy - hWB + (i + 0.5) * LANE);
+  let ebOut = $derived(ebLane(0));
+  let ebIn = $derived(ebLane(nEbLanes - 1));
+  let wbOut = $derived(wbLane(0));
+  let wbIn = $derived(wbLane(nWbLanes - 1));
   // Through start lanes: shared-left configs run the through in the same
   // lane the left departs from; exclusive configs push it one lane out.
-  $: yI = sharedEb ? ebIn : ebLane(nEbLanes - 2);
-  $: yJ = sharedWb ? wbIn : wbLane(nWbLanes - 2);
+  let yI = $derived(sharedEb ? ebIn : ebLane(nEbLanes - 2));
+  let yJ = $derived(sharedWb ? wbIn : wbLane(nWbLanes - 2));
 
   // Ramp stubs: [xAtTerminal, yAtArterial] to [xAtFreewayEnd, yEdge].
-  $: stubs = {
+  let stubs = $derived({
     sbOff: { x0: xW, y0: edgeN, x1: xW + LEAN, y1: 16 },      // west terminal, north leg (down toward node)
     sbOn: { x0: xW, y0: edgeS, x1: xW + LEAN, y1: H - 16 },   // west terminal, south leg
     nbOn: { x0: xE, y0: edgeN, x1: xE - LEAN, y1: 16 },       // east terminal, north leg
     nbOff: { x0: xE, y0: edgeS, x1: xE - LEAN, y1: H - 16 },  // east terminal, south leg
-  };
+  });
   const stubBand = (s) => {
     const dx = 11;
     return `${s.x0 - dx},${s.y0} ${s.x0 + dx},${s.y0} ${s.x1 + dx},${s.y1} ${s.x1 - dx},${s.y1}`;
@@ -68,7 +81,7 @@
 
   // O-D paths. Straight legs with quarter curves at the nodes; the DDI set
   // crosses the throughs between the terminals.
-  $: P_DDI = {
+  let P_DDI = $derived({
     A: `M ${along(stubs.nbOff, 1)} L ${along(stubs.nbOff, 0.1)} Q ${xE - 2},${wbS} ${xE - 26},${wbS} L ${xW + 30},${wbS} C ${xW + 6},${wbS} ${xW + 18},${wbIn} ${xW - 26},${wbIn} L 0,${wbIn}`,
     B: `M ${along(stubs.nbOff, 1)} L ${along(stubs.nbOff, 0.15)} Q ${xE + 4},${ebOut} ${xE + 26},${ebOut} L ${W},${ebOut}`,
     C: `M ${along(stubs.sbOff, 1)} L ${along(stubs.sbOff, 0.15)} Q ${xW - 4},${wbOut} ${xW - 26},${wbOut} L 0,${wbOut}`,
@@ -79,9 +92,9 @@
     G: `M ${W},${wbOut} L ${xE + 26},${wbOut} Q ${xE - 2},${wbOut} ${along(stubs.nbOn, 0.15)} L ${along(stubs.nbOn, 1)}`,
     H: `M ${W},${wbIn} L ${xE + 30},${wbIn} C ${xE + 6},${wbIn} ${xE + 18},${wbS} ${xE - 26},${wbS} L ${xW + 30},${wbS} Q ${xW + 4},${wbS} ${along(stubs.sbOn, 0.13)} L ${along(stubs.sbOn, 1)}`,
     J: `M ${W},${yJ} L ${xE + 30},${yJ} C ${xE + 6},${yJ} ${xE + 18},${wbS + 6} ${xE - 26},${wbS + 6} L ${xW + 30},${wbS + 6} C ${xW + 6},${wbS + 6} ${xW + 18},${yJ} ${xW - 26},${yJ} L 0,${yJ}`,
-  };
+  });
 
-  $: P_DIAMOND = {
+  let P_DIAMOND = $derived({
     // NB off-ramp (east terminal, south leg)
     A: `M ${along(stubs.nbOff, 1)} L ${along(stubs.nbOff, 0.1)} Q ${xE},${wbIn} ${xE - 24},${wbIn} L 0,${wbIn}`,
     B: `M ${along(stubs.nbOff, 1)} L ${along(stubs.nbOff, 0.15)} Q ${xE + 4},${ebOut} ${xE + 26},${ebOut} L ${W},${ebOut}`,
@@ -96,8 +109,8 @@
     G: `M ${W},${wbOut} L ${xE + 26},${wbOut} Q ${xE - 2},${wbOut} ${along(stubs.nbOn, 0.15)} L ${along(stubs.nbOn, 1)}`,
     H: `M ${W},${wbIn} L ${xW + 26},${wbIn} Q ${xW},${wbIn} ${along(stubs.sbOn, 0.12)} L ${along(stubs.sbOn, 1)}`,
     J: `M ${W},${(wbIn + wbOut) / 2} L 0,${(wbIn + wbOut) / 2}`,
-  };
-  $: P = form === 'Ddi' ? P_DDI : P_DIAMOND;
+  });
+  let P = $derived(form === 'Ddi' ? P_DDI : P_DIAMOND);
 
   const GROUPS = [
     { key: 'NBOFF', label: 'NB off-ramp (A, B)', ods: ['a', 'b'], cls: 'nboff' },
@@ -108,7 +121,7 @@
   const groupOf = { a: 'NBOFF', b: 'NBOFF', c: 'SBOFF', d: 'SBOFF', e: 'EB', f: 'EB', i: 'EB', g: 'WB', h: 'WB', j: 'WB' };
   const clsOf = { NBOFF: 'nboff', SBOFF: 'sboff', EB: 'ebg', WB: 'wbg' };
 
-  $: volOf = Object.fromEntries((odDemands || []).map((d) => [d.key, Number(d.value) || 0]));
+  let volOf = $derived(Object.fromEntries((odDemands || []).map((d) => [d.key, Number(d.value) || 0])));
 
   function setOd(key, raw) {
     const d = odDemands.find((x) => x.key === key);
@@ -124,10 +137,10 @@
   }
 
   // ── illustrative traffic, per-O-D LOS ──
-  let animating = false;
+  let animating = $state(false);
   const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
   const LOS_FLEET = { A: 1, B: 1, C: 1.1, D: 1.3, E: 1.7, F: 2.3 };
-  $: vehiclePlan = (() => {
+  let vehiclePlan = $derived((() => {
     if (!animating) return [];
     const raw = [];
     let total = 0;
@@ -148,7 +161,7 @@
       }
     }
     return items;
-  })();
+  })());
 
   const CW = 118, CH = 24;
   const clusterPos = {
@@ -221,13 +234,13 @@
     {#each editable ? GROUPS : [] as g (g.key)}
       <foreignObject x={clusterPos[g.key].x} y={clusterPos[g.key].y} width={CW} height={CH}>
         <div class="dd-cluster" xmlns="http://www.w3.org/1999/xhtml"
-             on:mouseenter={() => (hovered = g.key)} on:mouseleave={() => (hovered = null)}>
+             onmouseenter={() => (hovered = g.key)} onmouseleave={() => (hovered = null)}>
           <span class="dd-cluster-title"><span class="swatch {g.cls}"></span>{g.key === 'NBOFF' ? 'NB' : g.key === 'SBOFF' ? 'SB' : g.key}</span>
           {#each g.ods as k}
             <input type="number" min="0" title="O-D {k.toUpperCase()} demand (veh/h)"
                    aria-label="O-D {k.toUpperCase()} demand"
                    value={volOf[k] ?? 0}
-                   on:input={(e) => setOd(k, e.currentTarget.value)} />
+                   oninput={(e) => setOd(k, e.currentTarget.value)} />
           {/each}
         </div>
       </foreignObject>
@@ -236,7 +249,7 @@
 
   <div class="dd-legend" role="list">
     <button type="button" class="dd-chip dd-animate" class:active={animating}
-            aria-pressed={animating} on:click={() => (animating = !animating)}>
+            aria-pressed={animating} onclick={() => (animating = !animating)}>
       {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
     </button>
     {#each GROUPS as g}
@@ -245,10 +258,10 @@
         role="listitem"
         class="dd-chip {g.cls}"
         class:active={hovered === g.key}
-        on:mouseenter={() => (hovered = g.key)}
-        on:mouseleave={() => (hovered = null)}
-        on:focus={() => (hovered = g.key)}
-        on:blur={() => (hovered = null)}
+        onmouseenter={() => (hovered = g.key)}
+        onmouseleave={() => (hovered = null)}
+        onfocus={() => (hovered = g.key)}
+        onblur={() => (hovered = null)}
       >
         <span class="swatch {g.cls}"></span>
         {g.label}

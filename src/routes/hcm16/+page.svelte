@@ -3,10 +3,12 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import init, { WasmUrbanFacility } from "HCM-middleware";
   import { onMount } from "svelte";
 
-  let ready = false;
+  let ready = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -14,7 +16,7 @@
   });
 
   // Facility-level inputs
-  let pct_left_turn_lanes = 100;
+  let pct_left_turn_lanes = $state(100);
 
   function defaultSegment() {
     return {
@@ -36,11 +38,11 @@
   }
 
   // Segments ordered upstream to downstream (subject direction of travel)
-  let segments = [defaultSegment(), defaultSegment(), defaultSegment()];
+  let segments = $state([defaultSegment(), defaultSegment(), defaultSegment()]);
 
-  let results = null;
-  let hasError = false;
-  let errMessage = '';
+  let results = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
 
   // Blank optional inputs become undefined so the engine applies its defaults.
   function opt(v) {
@@ -130,7 +132,7 @@
     </div>
   {/if}
 
-  <form id="hcm16" on:submit|preventDefault={runAnalysis}>
+  <form id="hcm16" onsubmit={preventDefault(runAnalysis)}>
     <!-- Facility -->
     <section class="panel">
       <div class="panel-head">
@@ -159,7 +161,7 @@
             <h2 class="panel-title">Segment {i + 1}</h2>
             <p class="panel-sub">Chapter 18 inputs, ordered upstream to downstream.</p>
           </div>
-          <button class="btn btn-ghost btn-sm" type="button" on:click={() => removeSegment(i)} disabled={segments.length <= 1}>Remove</button>
+          <button class="btn btn-ghost btn-sm" type="button" onclick={() => removeSegment(i)} disabled={segments.length <= 1}>Remove</button>
         </div>
         <div class="param-grid">
           <div class="param-field">
@@ -286,8 +288,8 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={addSegment} type="button">Add Segment</button>
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-ghost" onclick={addSegment} type="button">Add Segment</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
       <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
     </div>
   </form>

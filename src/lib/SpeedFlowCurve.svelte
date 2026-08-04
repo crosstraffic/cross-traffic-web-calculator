@@ -1,34 +1,39 @@
 <script>
+  
+  
+  
+  
   /**
-   * The Chapter 12 speed-flow relationship with the analysed segment plotted on it.
-   *
-   * Equation 12-1 is literally a curve, and the single most useful thing a basic-freeway result can
-   * show is where the segment sits along it: flat and free-flowing below the breakpoint, or out on
-   * the falling limb with little headroom left. A density number alone does not convey that.
+   * @typedef {Object} Props
+   * @property {any} ffsAdj - The Chapter 12 speed-flow relationship with the analysed segment plotted on it.
+Equation 12-1 is literally a curve, and the single most useful thing a basic-freeway result can
+show is where the segment sits along it: flat and free-flowing below the breakpoint, or out on
+the falling limb with little headroom left. A density number alone does not convey that.
+   * @property {any} capacityAdj
+   * @property {any} breakpoint
+   * @property {any} [flow] - Per-lane demand flow rate, pc/h/ln.
+   * @property {any} [speed] - Space mean speed at that flow, mi/h. Recomputed from the curve when not supplied.
+   * @property {number} [exponent] - Exponent a of Equation 12-1: 2 for basic freeway, 1.31 for multilane.
+   * @property {number} [densityAtCapacity]
    */
-  export let ffsAdj;
-  export let capacityAdj;
-  export let breakpoint;
-  /** Per-lane demand flow rate, pc/h/ln. */
-  export let flow = null;
-  /** Space mean speed at that flow, mi/h. Recomputed from the curve when not supplied. */
-  export let speed = null;
-  /** Exponent a of Equation 12-1: 2 for basic freeway, 1.31 for multilane. */
-  export let exponent = 2;
-  export let densityAtCapacity = 45;
+
+  /** @type {Props} */
+  let {
+    ffsAdj,
+    capacityAdj,
+    breakpoint,
+    flow = null,
+    speed = null,
+    exponent = 2,
+    densityAtCapacity = 45
+  } = $props();
 
   const W = 640;
   const H = 260;
   const PAD = { top: 16, right: 18, bottom: 32, left: 44 };
 
-  $: plotW = W - PAD.left - PAD.right;
-  $: plotH = H - PAD.top - PAD.bottom;
 
-  $: xMax = Math.max(capacityAdj * 1.06, (flow || 0) * 1.06, 100);
-  $: yMax = Math.ceil((ffsAdj + 6) / 10) * 10;
 
-  $: xOf = (v) => PAD.left + (v / xMax) * plotW;
-  $: yOf = (s) => PAD.top + (1 - s / yMax) * plotH;
 
   function speedAt(v) {
     if (v <= breakpoint) return ffsAdj;
@@ -39,21 +44,7 @@
     return ffsAdj - (ffsAdj - atCap) * Math.pow((v - breakpoint) / den, exponent);
   }
 
-  $: curve = (() => {
-    const pts = [];
-    const steps = 90;
-    for (let i = 0; i <= steps; i++) {
-      const v = (capacityAdj * i) / steps;
-      const s = speedAt(v);
-      if (s !== null) pts.push([xOf(v), yOf(s)]);
-    }
-    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-  })();
 
-  $: plottedSpeed = Number.isFinite(speed) ? speed : flow !== null ? speedAt(flow) : null;
-  $: overCapacity = flow !== null && flow > capacityAdj;
-  $: xTicks = tickValues(xMax, 5);
-  $: yTicks = tickValues(yMax, 4).filter((t) => t > 0);
 
   function tickValues(max, count) {
     const raw = max / count;
@@ -63,6 +54,26 @@
     for (let t = 0; t <= max; t += step) out.push(t);
     return out;
   }
+  let plotW = $derived(W - PAD.left - PAD.right);
+  let plotH = $derived(H - PAD.top - PAD.bottom);
+  let xMax = $derived(Math.max(capacityAdj * 1.06, (flow || 0) * 1.06, 100));
+  let yMax = $derived(Math.ceil((ffsAdj + 6) / 10) * 10);
+  let xOf = $derived((v) => PAD.left + (v / xMax) * plotW);
+  let yOf = $derived((s) => PAD.top + (1 - s / yMax) * plotH);
+  let curve = $derived((() => {
+    const pts = [];
+    const steps = 90;
+    for (let i = 0; i <= steps; i++) {
+      const v = (capacityAdj * i) / steps;
+      const s = speedAt(v);
+      if (s !== null) pts.push([xOf(v), yOf(s)]);
+    }
+    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+  })());
+  let plottedSpeed = $derived(Number.isFinite(speed) ? speed : flow !== null ? speedAt(flow) : null);
+  let overCapacity = $derived(flow !== null && flow > capacityAdj);
+  let xTicks = $derived(tickValues(xMax, 5));
+  let yTicks = $derived(tickValues(yMax, 4).filter((t) => t > 0));
 </script>
 
 <figure class="sfc">

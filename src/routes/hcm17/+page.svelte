@@ -3,11 +3,13 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import init, { WasmUrbanReliability } from "HCM-middleware";
   import { onMount } from "svelte";
 
-  let ready = false;
-  let running = false;
+  let ready = $state(false);
+  let running = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -15,25 +17,25 @@
   });
 
   // Reliability reporting period and demand model
-  let functional_class = 'principal';
-  let study_start_hour = 7;
-  let analysis_periods = 12;
+  let functional_class = $state('principal');
+  let study_start_hour = $state(7);
+  let analysis_periods = $state(12);
 
   // Representative monthly weather statistics (applied to all 12 months)
-  let precip_per_month = 2.5;
-  let days_with_precip = 8;
-  let mean_temp = 55;
-  let precip_rate = 0.06;
+  let precip_per_month = $state(2.5);
+  let days_with_precip = $state(8);
+  let mean_temp = $state(55);
+  let precip_rate = $state(0.06);
 
   // Incident inputs
-  let entry_intersection_crashes = 32;
-  let minor_leg_volume = 400;
-  let shoulder_present = 'yes';
+  let entry_intersection_crashes = $state(32);
+  let minor_leg_volume = $state(400);
+  let shoulder_present = $state('yes');
 
   // Monte Carlo seeds (same seeds reproduce the same scenario streams)
-  let weather_seed = 82;
-  let demand_seed = 11;
-  let incident_seed = 63;
+  let weather_seed = $state(82);
+  let demand_seed = $state(11);
+  let incident_seed = $state(63);
 
   function defaultSegment() {
     return {
@@ -54,11 +56,11 @@
   }
 
   // Signalized segments ordered upstream to downstream
-  let segments = [defaultSegment(), defaultSegment()];
+  let segments = $state([defaultSegment(), defaultSegment()]);
 
-  let results = null;
-  let hasError = false;
-  let errMessage = '';
+  let results = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
 
   // Blank optional inputs become undefined so the engine applies its defaults.
   function opt(v) {
@@ -179,7 +181,7 @@
     </div>
   {/if}
 
-  <form id="hcm17" on:submit|preventDefault={runAnalysis}>
+  <form id="hcm17" onsubmit={preventDefault(runAnalysis)}>
     <!-- Reporting period -->
     <section class="panel">
       <div class="panel-head">
@@ -326,7 +328,7 @@
             <h2 class="panel-title">Segment {i + 1}</h2>
             <p class="panel-sub">Signalized Chapter 18 segment, ordered upstream to downstream.</p>
           </div>
-          <button class="btn btn-ghost btn-sm" type="button" on:click={() => removeSegment(i)} disabled={segments.length <= 1}>Remove</button>
+          <button class="btn btn-ghost btn-sm" type="button" onclick={() => removeSegment(i)} disabled={segments.length <= 1}>Remove</button>
         </div>
         <div class="param-grid">
           <div class="param-field">
@@ -438,8 +440,8 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={addSegment} type="button">Add Segment</button>
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-ghost" onclick={addSegment} type="button">Add Segment</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
       <button class="btn btn-primary" type="submit" disabled={!ready || running}>{running ? 'Running...' : 'Run Reliability Analysis'}</button>
     </div>
     <p class="param-hint">The run evaluates roughly three thousand scenarios and can take a few seconds.</p>

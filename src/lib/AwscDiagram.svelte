@@ -8,84 +8,90 @@
   // `approaches` is the page's object: { eb|wb|nb|sb: { laneCount, lanes:
   // [{left,through,right}], hv } }. On-diagram editing targets lane 1 and is
   // disabled for multi-lane approaches, where the form's per-lane table is
-  // authoritative.
-  export let approaches = {};
-  export let editable = true;
+  
   // Approach LOS letters from the last run; each approach's traffic slows
-  // and bunches with its LOS (everyone stops at an AWSC).
-  export let approachLos = {};
+  
+  /**
+   * @typedef {Object} Props
+   * @property {any} [approaches] - authoritative.
+   * @property {boolean} [editable]
+   * @property {any} [approachLos] - and bunches with its LOS (everyone stops at an AWSC).
+   */
 
-  let hovered = null; // 'EB' | 'WB' | 'NB' | 'SB' | null
+  /** @type {Props} */
+  let { approaches = $bindable({}), editable = true, approachLos = {} } = $props();
+
+  let hovered = $state(null); // 'EB' | 'WB' | 'NB' | 'SB' | null
 
   const LANE = 18;
   const RUN = 105;
 
   // Svelte 4 only tracks identifiers that appear in the reactive statement, so
   // the lane counts read `approaches` directly instead of through a closure.
-  $: nEB = Math.max(0, Number(approaches?.eb?.laneCount) || 0);
-  $: nWB = Math.max(0, Number(approaches?.wb?.laneCount) || 0);
-  $: nNB = Math.max(0, Number(approaches?.nb?.laneCount) || 0);
-  $: nSB = Math.max(0, Number(approaches?.sb?.laneCount) || 0);
-  $: counts = { EB: nEB, WB: nWB, NB: nNB, SB: nSB };
-  $: legW = nEB > 0;
-  $: legE = nWB > 0;
-  $: legS = nNB > 0;
-  $: legN = nSB > 0;
+  let nEB = $derived(Math.max(0, Number(approaches?.eb?.laneCount) || 0));
+  let nWB = $derived(Math.max(0, Number(approaches?.wb?.laneCount) || 0));
+  let nNB = $derived(Math.max(0, Number(approaches?.nb?.laneCount) || 0));
+  let nSB = $derived(Math.max(0, Number(approaches?.sb?.laneCount) || 0));
+  let counts = $derived({ EB: nEB, WB: nWB, NB: nNB, SB: nSB });
+  let legW = $derived(nEB > 0);
+  let legE = $derived(nWB > 0);
+  let legS = $derived(nNB > 0);
+  let legN = $derived(nSB > 0);
 
   // Road half widths; an absent approach still leaves a one-lane receiving half.
-  $: hEB = Math.max(1, nEB) * LANE;
-  $: hWB = Math.max(1, nWB) * LANE;
-  $: hNB = Math.max(1, nNB) * LANE;
-  $: hSB = Math.max(1, nSB) * LANE;
+  let hEB = $derived(Math.max(1, nEB) * LANE);
+  let hWB = $derived(Math.max(1, nWB) * LANE);
+  let hNB = $derived(Math.max(1, nNB) * LANE);
+  let hSB = $derived(Math.max(1, nSB) * LANE);
 
-  $: cx = (legW ? RUN : 0) + hSB;
-  $: cy = (legN ? RUN : 0) + hWB;
-  $: W = cx + hNB + (legE ? RUN : 0);
-  $: H = cy + hEB + (legS ? RUN : 0);
+  let cx = $derived((legW ? RUN : 0) + hSB);
+  let cy = $derived((legN ? RUN : 0) + hWB);
+  let W = $derived(cx + hNB + (legE ? RUN : 0));
+  let H = $derived(cy + hEB + (legS ? RUN : 0));
 
-  $: boxW = cx - hSB;
-  $: boxE = cx + hNB;
-  $: boxN = cy - hWB;
-  $: boxS = cy + hEB;
+  let boxW = $derived(cx - hSB);
+  let boxE = $derived(cx + hNB);
+  let boxN = $derived(cy - hWB);
+  let boxS = $derived(cy + hEB);
 
-  $: xNB = (i) => cx + (i + 0.5) * LANE;
-  $: xSB = (i) => cx - (i + 0.5) * LANE;
-  $: yEB = (i) => cy + (i + 0.5) * LANE;
-  $: yWB = (i) => cy - (i + 0.5) * LANE;
+  let xNB = $derived((i) => cx + (i + 0.5) * LANE);
+  let xSB = $derived((i) => cx - (i + 0.5) * LANE);
+  let yEB = $derived((i) => cy + (i + 0.5) * LANE);
+  let yWB = $derived((i) => cy - (i + 0.5) * LANE);
   const mid = (n) => Math.floor((Math.max(1, n) - 1) / 2);
 
   // Movement paths; a path only exists when its receiving leg does.
-  $: dEB = !legW ? {} : {
+  let dEB = $derived(!legW ? {} : {
     L: legN ? `M 0,${yEB(0)} H ${boxW} Q ${cx + LANE / 2},${yEB(0)} ${cx + LANE / 2},${boxN} V 0` : null,
     T: legE ? `M 0,${yEB(mid(nEB))} H ${W}` : null,
     R: legS ? `M 0,${yEB(nEB - 1)} H ${boxW} Q ${boxW + LANE / 2},${yEB(nEB - 1)} ${boxW + LANE / 2},${boxS} V ${H}` : null,
-  };
-  $: dWB = !legE ? {} : {
+  });
+  let dWB = $derived(!legE ? {} : {
     L: legS ? `M ${W},${yWB(0)} H ${boxE} Q ${cx - LANE / 2},${yWB(0)} ${cx - LANE / 2},${boxS} V ${H}` : null,
     T: legW ? `M ${W},${yWB(mid(nWB))} H 0` : null,
     R: legN ? `M ${W},${yWB(nWB - 1)} H ${boxE} Q ${boxE - LANE / 2},${yWB(nWB - 1)} ${boxE - LANE / 2},${boxN} V 0` : null,
-  };
-  $: dNB = !legS ? {} : {
+  });
+  let dNB = $derived(!legS ? {} : {
     L: legW ? `M ${xNB(0)},${H} V ${boxS} Q ${xNB(0)},${cy - LANE / 2} ${boxW},${cy - LANE / 2} H 0` : null,
     T: legN ? `M ${xNB(mid(nNB))},${H} V 0` : null,
     R: legE ? `M ${xNB(nNB - 1)},${H} V ${boxS} Q ${xNB(nNB - 1)},${boxS - LANE / 2} ${boxE},${boxS - LANE / 2} H ${W}` : null,
-  };
-  $: dSB = !legN ? {} : {
+  });
+  let dSB = $derived(!legN ? {} : {
     L: legE ? `M ${xSB(0)},0 V ${boxN} Q ${xSB(0)},${cy + LANE / 2} ${boxE},${cy + LANE / 2} H ${W}` : null,
     T: legS ? `M ${xSB(mid(nSB))},0 V ${H}` : null,
     R: legW ? `M ${xSB(nSB - 1)},0 V ${boxN} Q ${xSB(nSB - 1)},${boxN + LANE / 2} ${boxW},${boxN + LANE / 2} H 0` : null,
-  };
-  $: paths = { EB: dEB, WB: dWB, NB: dNB, SB: dSB };
+  });
+  let paths = $derived({ EB: dEB, WB: dWB, NB: dNB, SB: dSB });
 
-  $: present = { EB: legW, WB: legE, NB: legS, SB: legN };
-  $: order = [
+  let present = $derived({ EB: legW, WB: legE, NB: legS, SB: legN });
+  let order = $derived([
     { key: 'EB', label: 'Eastbound' },
     { key: 'WB', label: 'Westbound' },
     { key: 'NB', label: 'Northbound' },
     { key: 'SB', label: 'Southbound' },
-  ].filter((o) => present[o.key]);
+  ].filter((o) => present[o.key]));
 
-  $: lane1 = (a, k) => a?.[k.toLowerCase()]?.lanes?.[0] ?? { left: 0, through: 0, right: 0 };
+  let lane1 = $derived((a, k) => a?.[k.toLowerCase()]?.lanes?.[0] ?? { left: 0, through: 0, right: 0 });
 
   function setVol(ap, mv, raw) {
     const lane = approaches[ap.toLowerCase()].lanes[0];
@@ -95,18 +101,18 @@
 
   const CW = 104;
   const CH = 24;
-  $: clusterPos = {
+  let clusterPos = $derived({
     NB: { x: boxE + 6, y: H - CH - 6 },
     SB: { x: boxW - CW - 6, y: 6 },
     EB: { x: 6, y: boxS + 22 },
     WB: { x: W - CW - 6, y: boxN - CH - 6 },
-  };
+  });
 
   // ── illustrative traffic, LOS-responsive per approach ──
-  let animating = false;
+  let animating = $state(false);
   const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
   const LOS_FLEET = { A: 1, B: 1, C: 1.1, D: 1.3, E: 1.7, F: 2.3 };
-  $: vehiclePlan = (() => {
+  let vehiclePlan = $derived((() => {
     if (!animating) return [];
     const items = [];
     let total = 0;
@@ -132,7 +138,7 @@
       }
     }
     return items;
-  })();
+  })());
 
   function cls(h, key) {
     if (h == null) return 'aw-move';
@@ -216,7 +222,7 @@
       {#if clusterPos[o.key]}
         <foreignObject x={clusterPos[o.key].x} y={clusterPos[o.key].y} width={CW} height={CH}>
           <div class="aw-cluster" xmlns="http://www.w3.org/1999/xhtml"
-               on:mouseenter={() => (hovered = o.key)} on:mouseleave={() => (hovered = null)}>
+               onmouseenter={() => (hovered = o.key)} onmouseleave={() => (hovered = null)}>
             <span class="aw-cluster-title"><span class="swatch {o.key.toLowerCase()}"></span>{o.key}</span>
             {#each ['L', 'T', 'R'] as mv}
               <input type="number" min="0"
@@ -224,7 +230,7 @@
                      aria-label="{o.key} {mv === 'L' ? 'left-turn' : mv === 'T' ? 'through' : 'right-turn'} volume"
                      value={lane1(approaches, o.key)[{ L: 'left', T: 'through', R: 'right' }[mv]]}
                      disabled={counts[o.key] > 1 || !paths[o.key][mv]}
-                     on:input={(e) => setVol(o.key, mv, e.currentTarget.value)} />
+                     oninput={(e) => setVol(o.key, mv, e.currentTarget.value)} />
             {/each}
           </div>
         </foreignObject>
@@ -234,7 +240,7 @@
 
   <div class="aw-legend" role="list">
     <button type="button" class="aw-chip aw-animate" class:active={animating}
-            aria-pressed={animating} on:click={() => (animating = !animating)}>
+            aria-pressed={animating} onclick={() => (animating = !animating)}>
       {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
     </button>
     {#each order as o}
@@ -243,10 +249,10 @@
         role="listitem"
         class="aw-chip {o.key.toLowerCase()}"
         class:active={hovered === o.key}
-        on:mouseenter={() => (hovered = o.key)}
-        on:mouseleave={() => (hovered = null)}
-        on:focus={() => (hovered = o.key)}
-        on:blur={() => (hovered = null)}
+        onmouseenter={() => (hovered = o.key)}
+        onmouseleave={() => (hovered = null)}
+        onfocus={() => (hovered = o.key)}
+        onblur={() => (hovered = null)}
       >
         <span class="swatch {o.key.toLowerCase()}"></span>
         {o.label} ({counts[o.key]} lane{counts[o.key] === 1 ? '' : 's'})

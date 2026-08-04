@@ -1,15 +1,29 @@
 <script>
+  import { nonpassive } from 'svelte/legacy';
+
   // Interactive 3D view of a single basic-freeway segment (HCM Ch.12).
   // Same camera/projection/interaction as the two-lane FacilityView, but the
   // ribbon is a straight multilane deck:
   //   length -> longitudinal extent, grade -> elevation (lifts the far end),
   //   lane count -> number of dashed lane lines, lane width -> deck width,
-  //   right-side clearance -> shoulder strip.
-  export let laneCount = 3;
-  export let laneWidth = 12;
-  export let length = 0.625;
-  export let grade = 0;
-  export let lcR = 6;
+  
+  /**
+   * @typedef {Object} Props
+   * @property {number} [laneCount] - right-side clearance -> shoulder strip.
+   * @property {number} [laneWidth]
+   * @property {number} [length]
+   * @property {number} [grade]
+   * @property {number} [lcR]
+   */
+
+  /** @type {Props} */
+  let {
+    laneCount = 3,
+    laneWidth = 12,
+    length = 0.625,
+    grade = 0,
+    lcR = 6
+  } = $props();
 
   const VIEW_W = 720, VIEW_H = 230, PAD = 28;
   const STEPS = 60;
@@ -22,10 +36,10 @@
 
   // Camera: drag = rotate (yaw/pitch), Alt-drag = pan, scroll/pinch = zoom.
   const DEF_YAW = 35, DEF_PITCH = 30;
-  let yaw = DEF_YAW, pitch = DEF_PITCH;
-  let zoom = 1, panX = 0, panY = 0;
-  let dragging = false;
-  let svgEl;
+  let yaw = $state(DEF_YAW), pitch = $state(DEF_PITCH);
+  let zoom = $state(1), panX = $state(0), panY = $state(0);
+  let dragging = $state(false);
+  let svgEl = $state();
 
   const vbPerPx = () => (svgEl && svgEl.clientWidth ? VIEW_W / svgEl.clientWidth : 1);
   const pointers = new Map();
@@ -93,7 +107,6 @@
 
   function resetView() { yaw = DEF_YAW; pitch = DEF_PITCH; zoom = 1; panX = 0; panY = 0; }
 
-  $: model = build(laneCount, laneWidth, length, grade, lcR, yaw, pitch, zoom, panX, panY);
 
   function build(N, lw, len, grade, lcR, yaw, pitch, zoom, panX, panY) {
     const ay = (yaw * Math.PI) / 180, ap = (pitch * Math.PI) / 180;
@@ -177,6 +190,7 @@
       arrow: { x: cMidB.x, y: cMidB.y, ang },
     };
   }
+  let model = $derived(build(laneCount, laneWidth, length, grade, lcR, yaw, pitch, zoom, panX, panY));
 </script>
 
 <div class="fw3d">
@@ -187,11 +201,11 @@
     class:grabbing={dragging}
     role="img"
     aria-label="Basic freeway segment — drag to rotate, Alt-drag to move, scroll to zoom"
-    on:pointerdown={onDown}
-    on:pointermove={onMove}
-    on:pointerup={onUp}
-    on:pointercancel={onUp}
-    on:wheel|nonpassive={onWheel}
+    onpointerdown={onDown}
+    onpointermove={onMove}
+    onpointerup={onUp}
+    onpointercancel={onUp}
+    use:nonpassive={['wheel', () => onWheel]}
   >
     <defs>
       <linearGradient id="fwRoadGrad" x1="0" y1="0" x2="0" y2="1">
@@ -219,7 +233,7 @@
   </svg>
   <div class="fw3d-foot">
     <span class="fw3d-cap">Drag to rotate · Alt-drag to move · scroll / pinch to zoom.</span>
-    <button type="button" class="fw3d-reset" on:click={resetView}>Reset view</button>
+    <button type="button" class="fw3d-reset" onclick={resetView}>Reset view</button>
   </div>
 </div>
 

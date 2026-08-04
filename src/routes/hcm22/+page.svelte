@@ -3,6 +3,8 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import init, { WasmRoundabouts } from "HCM-middleware";
   import RoundaboutDiagram from '$lib/RoundaboutDiagram.svelte';
   import RoundaboutDiagram3D from '$lib/RoundaboutDiagram3D.svelte';
@@ -10,9 +12,9 @@
   import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
-  let diagramMode = '2d';
+  let diagramMode = $state('2d');
 
-  let ready = false;
+  let ready = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -38,18 +40,18 @@
     };
   }
 
-  let entries = defaultEntries();
-  let phf = 0.94;
-  let analysis_period = 0.25;
+  let entries = $state(defaultEntries());
+  let phf = $state(0.94);
+  let analysis_period = $state(0.25);
 
-  let results = null;
-  let hasError = false;
-  let errMessage = '';
+  let results = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
 
   // Approach LOS map for the diagram's congestion-responsive animation.
-  $: losByApproach = results
+  let losByApproach = $derived(results
     ? Object.fromEntries(results.approachRows.filter((a) => a.los).map((a) => [a.label, a.los]))
-    : {};
+    : {});
 
   function fmt(v, digits = 1) {
     return v === null || v === undefined ? '' : Number(v).toFixed(digits);
@@ -187,7 +189,7 @@
     </div>
   {/if}
 
-  <form id="hcm22" on:submit|preventDefault={runAnalysis}>
+  <form id="hcm22" onsubmit={preventDefault(runAnalysis)}>
     <section class="panel">
       <div class="panel-head">
         <div>
@@ -339,7 +341,7 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
       <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
     </div>
   </form>

@@ -3,10 +3,12 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import init, { WasmManagedLanes } from "HCM-middleware";
   import { onMount } from "svelte";
 
-  let ready = false;
+  let ready = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -14,16 +16,16 @@
   });
 
   // Inputs (defaults follow the HCM Chapter 12, Section 4 base conditions)
-  let lane_type = 'continuous_access';
-  let ffs = 65;
-  let demand = 1300;
-  let gp_density = 30;
-  let caf = 1.0;
-  let saf = 1.0;
+  let lane_type = $state('continuous_access');
+  let ffs = $state(65);
+  let demand = $state(1300);
+  let gp_density = $state(30);
+  let caf = $state(1.0);
+  let saf = $state(1.0);
 
-  let results = null;
-  let hasError = false;
-  let errMessage = '';
+  let results = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
 
   function runAnalysis() {
     hasError = false;
@@ -92,7 +94,7 @@
     </div>
   {/if}
 
-  <form id="hcm12ml" on:submit|preventDefault={runAnalysis}>
+  <form id="hcm12ml" onsubmit={preventDefault(runAnalysis)}>
     <!-- Segment -->
     <section class="panel">
       <div class="panel-head">
@@ -170,7 +172,7 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
       <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
     </div>
   </form>

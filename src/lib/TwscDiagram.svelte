@@ -10,96 +10,131 @@
   // v4/v5/v6 = WB L/T/R, v7/v8/v9 = NB L/T/R, v10/v11/v12 = SB L/T/R.
   // On a three-leg (T) intersection the minor stem is the south leg (NB):
   // there is no north leg, so EB left, WB right, NB through, and the whole
-  // SB approach do not exist.
-  export let threeLeg = false;
-  export let majorLanes = 1;
-  export let rtEB = 'shared';
-  export let rtWB = 'shared';
-  export let minorNB = 'single_shared';
-  export let minorSB = 'single_shared';
-  export let v1 = 0, v2 = 0, v3 = 0;
-  export let v4 = 0, v5 = 0, v6 = 0;
-  export let v7 = 0, v8 = 0, v9 = 0;
-  export let v10 = 0, v11 = 0, v12 = 0;
-  // False renders a read-only picture, used by the printable report.
-  export let editable = true;
+  
+  
   // Minor-approach LOS letters from the last run ({ NB: 'B', SB: ... });
-  // minor traffic crawls and bunches with worse LOS, major flows free.
-  export let approachLos = {};
+  
+  /**
+   * @typedef {Object} Props
+   * @property {boolean} [threeLeg] - SB approach do not exist.
+   * @property {number} [majorLanes]
+   * @property {string} [rtEB]
+   * @property {string} [rtWB]
+   * @property {string} [minorNB]
+   * @property {string} [minorSB]
+   * @property {number} [v1]
+   * @property {number} [v2]
+   * @property {number} [v3]
+   * @property {number} [v4]
+   * @property {number} [v5]
+   * @property {number} [v6]
+   * @property {number} [v7]
+   * @property {number} [v8]
+   * @property {number} [v9]
+   * @property {number} [v10]
+   * @property {number} [v11]
+   * @property {number} [v12]
+   * @property {boolean} [editable] - False renders a read-only picture, used by the printable report.
+   * @property {any} [approachLos] - minor traffic crawls and bunches with worse LOS, major flows free.
+   */
 
-  let hovered = null; // 'EB' | 'WB' | 'NB' | 'SB' | null
+  /** @type {Props} */
+  let {
+    threeLeg = false,
+    majorLanes = 1,
+    rtEB = 'shared',
+    rtWB = 'shared',
+    minorNB = 'single_shared',
+    minorSB = 'single_shared',
+    v1 = $bindable(0),
+    v2 = $bindable(0),
+    v3 = $bindable(0),
+    v4 = $bindable(0),
+    v5 = $bindable(0),
+    v6 = $bindable(0),
+    v7 = $bindable(0),
+    v8 = $bindable(0),
+    v9 = $bindable(0),
+    v10 = $bindable(0),
+    v11 = $bindable(0),
+    v12 = $bindable(0),
+    editable = true,
+    approachLos = {}
+  } = $props();
+
+  let hovered = $state(null); // 'EB' | 'WB' | 'NB' | 'SB' | null
 
   const LANE = 18;
   const RUN = 110;
 
   const minorCount = (cfg) => ({ single_shared: 1, shared_lt_exclusive_r: 2, exclusive_l_shared_tr: 2, separate: 3 }[cfg] || 1);
 
-  $: nEB = Math.max(1, Number(majorLanes) || 1) + (rtEB !== 'shared' ? 1 : 0);
-  $: nWB = Math.max(1, Number(majorLanes) || 1) + (rtWB !== 'shared' ? 1 : 0);
-  $: nNB = minorCount(minorNB);
+  let nEB = $derived(Math.max(1, Number(majorLanes) || 1) + (rtEB !== 'shared' ? 1 : 0));
+  let nWB = $derived(Math.max(1, Number(majorLanes) || 1) + (rtWB !== 'shared' ? 1 : 0));
+  let nNB = $derived(minorCount(minorNB));
   // On a T the west half of the stem only receives turning traffic.
-  $: nSB = threeLeg ? 1 : minorCount(minorSB);
+  let nSB = $derived(threeLeg ? 1 : minorCount(minorSB));
 
-  $: wEB = nEB * LANE;
-  $: wWB = nWB * LANE;
-  $: wNB = nNB * LANE;
-  $: wSB = nSB * LANE;
+  let wEB = $derived(nEB * LANE);
+  let wWB = $derived(nWB * LANE);
+  let wNB = $derived(nNB * LANE);
+  let wSB = $derived(nSB * LANE);
 
-  $: cx = RUN + wSB;
-  $: cy = RUN + wWB;
-  $: W = RUN + wSB + wNB + RUN;
-  $: H = RUN + wWB + wEB + RUN;
+  let cx = $derived(RUN + wSB);
+  let cy = $derived(RUN + wWB);
+  let W = $derived(RUN + wSB + wNB + RUN);
+  let H = $derived(RUN + wWB + wEB + RUN);
 
-  $: boxW = cx - wSB;
-  $: boxE = cx + wNB;
-  $: boxN = cy - wWB;
-  $: boxS = cy + wEB;
+  let boxW = $derived(cx - wSB);
+  let boxE = $derived(cx + wNB);
+  let boxN = $derived(cy - wWB);
+  let boxS = $derived(cy + wEB);
 
   // Lane centers i lanes out from the centerline.
-  $: xNB = (i) => cx + (i + 0.5) * LANE;
-  $: xSB = (i) => cx - (i + 0.5) * LANE;
-  $: yEB = (i) => cy + (i + 0.5) * LANE;
-  $: yWB = (i) => cy - (i + 0.5) * LANE;
+  let xNB = $derived((i) => cx + (i + 0.5) * LANE);
+  let xSB = $derived((i) => cx - (i + 0.5) * LANE);
+  let yEB = $derived((i) => cy + (i + 0.5) * LANE);
+  let yWB = $derived((i) => cy - (i + 0.5) * LANE);
 
   // Movement paths, keyed by approach then L/T/R. Lefts start at the
   // centerline lane, rights at the curb lane, throughs in the middle.
-  $: dEB = {
+  let dEB = $derived({
     L: threeLeg ? null : `M 0,${yEB(0)} H ${boxW} Q ${cx + LANE / 2},${yEB(0)} ${cx + LANE / 2},${boxN} V 0`,
     T: `M 0,${yEB(Math.floor((nEB - 1) / 2))} H ${W}`,
     R: `M 0,${yEB(nEB - 1)} H ${boxW} Q ${boxW + LANE / 2},${yEB(nEB - 1)} ${boxW + LANE / 2},${boxS} V ${H}`,
-  };
-  $: dWB = {
+  });
+  let dWB = $derived({
     L: `M ${W},${yWB(0)} H ${boxE} Q ${cx - LANE / 2},${yWB(0)} ${cx - LANE / 2},${boxS} V ${H}`,
     T: `M ${W},${yWB(Math.floor((nWB - 1) / 2))} H 0`,
     R: threeLeg ? null : `M ${W},${yWB(nWB - 1)} H ${boxE} Q ${boxE - LANE / 2},${yWB(nWB - 1)} ${boxE - LANE / 2},${boxN} V 0`,
-  };
-  $: dNB = {
+  });
+  let dNB = $derived({
     L: `M ${xNB(0)},${H} V ${boxS} Q ${xNB(0)},${cy - LANE / 2} ${boxW},${cy - LANE / 2} H 0`,
     T: threeLeg ? null : `M ${xNB(Math.floor((nNB - 1) / 2))},${H} V 0`,
     R: `M ${xNB(nNB - 1)},${H} V ${boxS} Q ${xNB(nNB - 1)},${boxS - LANE / 2} ${boxE},${boxS - LANE / 2} H ${W}`,
-  };
-  $: dSB = threeLeg ? { L: null, T: null, R: null } : {
+  });
+  let dSB = $derived(threeLeg ? { L: null, T: null, R: null } : {
     L: `M ${xSB(0)},0 V ${boxN} Q ${xSB(0)},${cy + LANE / 2} ${boxE},${cy + LANE / 2} H ${W}`,
     T: `M ${xSB(Math.floor((nSB - 1) / 2))},0 V ${H}`,
     R: `M ${xSB(nSB - 1)},0 V ${boxN} Q ${xSB(nSB - 1)},${boxN + LANE / 2} ${boxW},${boxN + LANE / 2} H 0`,
-  };
+  });
 
   // HCM Chapter 20 ranks (Exhibit 20-3). Three-leg: minor left is rank 3.
-  $: rank = {
+  let rank = $derived({
     EB: { L: 2, T: 1, R: 1 },
     WB: { L: 2, T: 1, R: 1 },
     NB: { L: threeLeg ? 3 : 4, T: 3, R: 2 },
     SB: { L: 4, T: 3, R: 2 },
-  };
+  });
   const DASH = { 1: null, 2: '10 6', 3: '6 5', 4: '2 5' };
 
-  $: paths = { EB: dEB, WB: dWB, NB: dNB, SB: dSB };
-  $: vols = {
+  let paths = $derived({ EB: dEB, WB: dWB, NB: dNB, SB: dSB });
+  let vols = $derived({
     EB: { L: v1, T: v2, R: v3 },
     WB: { L: v4, T: v5, R: v6 },
     NB: { L: v7, T: v8, R: v9 },
     SB: { L: v10, T: v11, R: v12 },
-  };
+  });
 
   function setVol(ap, mv, raw) {
     const val = raw === '' ? '' : Number(raw);
@@ -112,28 +147,28 @@
     assign[ap][mv]();
   }
 
-  $: order = [
+  let order = $derived([
     { key: 'EB', label: 'Eastbound (major)' },
     { key: 'WB', label: 'Westbound (major)' },
     { key: 'NB', label: 'Northbound (minor, STOP)' },
     ...(threeLeg ? [] : [{ key: 'SB', label: 'Southbound (minor, STOP)' }]),
-  ];
+  ]);
 
   const CW = 104;
   const CH = 24;
-  $: clusterPos = {
+  let clusterPos = $derived({
     NB: { x: boxE + 6, y: H - CH - 6 },
     SB: { x: boxW - CW - 6, y: 6 },
     EB: { x: 6, y: boxS + 6 },
     WB: { x: W - CW - 6, y: boxN - CH - 6 },
-  };
+  });
 
   // ── illustrative traffic ── major streams run free (rank 1 yields to
   // nothing); minor streams slow and bunch with their computed LOS.
-  let animating = false;
+  let animating = $state(false);
   const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
   const LOS_FLEET = { A: 1, B: 1, C: 1.1, D: 1.3, E: 1.7, F: 2.3 };
-  $: vehiclePlan = (() => {
+  let vehiclePlan = $derived((() => {
     if (!animating) return [];
     const volsOf = { EB: [v1, v2, v3], WB: [v4, v5, v6], NB: [v7, v8, v9], SB: [v10, v11, v12] };
     const items = [];
@@ -158,7 +193,7 @@
       }
     }
     return items;
-  })();
+  })());
 
   function cls(h, key) {
     if (h == null) return 'tw-move';
@@ -248,14 +283,14 @@
       {#if clusterPos[o.key]}
         <foreignObject x={clusterPos[o.key].x} y={clusterPos[o.key].y} width={CW} height={CH}>
           <div class="tw-cluster" xmlns="http://www.w3.org/1999/xhtml"
-               on:mouseenter={() => (hovered = o.key)} on:mouseleave={() => (hovered = null)}>
+               onmouseenter={() => (hovered = o.key)} onmouseleave={() => (hovered = null)}>
             <span class="tw-cluster-title"><span class="swatch {o.key.toLowerCase()}"></span>{o.key}</span>
             {#each ['L', 'T', 'R'] as mv}
               <input type="number" min="0" title="{o.key} {mv} volume (veh/h)"
                      aria-label="{o.key} {mv === 'L' ? 'left-turn' : mv === 'T' ? 'through' : 'right-turn'} volume"
                      value={vols[o.key][mv]}
                      disabled={!paths[o.key][mv]}
-                     on:input={(e) => setVol(o.key, mv, e.currentTarget.value)} />
+                     oninput={(e) => setVol(o.key, mv, e.currentTarget.value)} />
             {/each}
           </div>
         </foreignObject>
@@ -265,7 +300,7 @@
 
   <div class="tw-legend" role="list">
     <button type="button" class="tw-chip tw-animate" class:active={animating}
-            aria-pressed={animating} on:click={() => (animating = !animating)}>
+            aria-pressed={animating} onclick={() => (animating = !animating)}>
       {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
     </button>
     {#each order as o}
@@ -274,10 +309,10 @@
         role="listitem"
         class="tw-chip {o.key.toLowerCase()}"
         class:active={hovered === o.key}
-        on:mouseenter={() => (hovered = o.key)}
-        on:mouseleave={() => (hovered = null)}
-        on:focus={() => (hovered = o.key)}
-        on:blur={() => (hovered = null)}
+        onmouseenter={() => (hovered = o.key)}
+        onmouseleave={() => (hovered = null)}
+        onfocus={() => (hovered = o.key)}
+        onblur={() => (hovered = null)}
       >
         <span class="swatch {o.key.toLowerCase()}"></span>
         {o.label}

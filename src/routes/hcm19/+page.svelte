@@ -3,6 +3,8 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import LosScale from '$lib/LosScale.svelte';
   import LosBadge from '$lib/LosBadge.svelte';
   import SignalizedDiagram from '$lib/SignalizedDiagram.svelte';
@@ -10,11 +12,11 @@
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
 
-  let diagramMode = '2d';
+  let diagramMode = $state('2d');
   import init, { WasmSignalizedIntersection } from "HCM-middleware";
   import { onMount } from "svelte";
 
-  let ready = false;
+  let ready = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -22,16 +24,16 @@
   });
 
   // Inputs (defaults describe a four-leg pretimed signal with permitted lefts)
-  let cycle_length = 100;
-  let phf = 0.92;
-  let base_sat_flow = 1900;
-  let area_type = 'other';
-  let yellow = 4;
-  let red_clearance = 0;
-  let phv = 3;
-  let speed_limit = 35;
-  let lane_width = 12;
-  let ped_flow = 0;
+  let cycle_length = $state(100);
+  let phf = $state(0.92);
+  let base_sat_flow = $state(1900);
+  let area_type = $state('other');
+  let yellow = $state(4);
+  let red_clearance = $state(0);
+  let phv = $state(3);
+  let speed_limit = $state(35);
+  let lane_width = $state(12);
+  let ped_flow = $state(0);
 
   const defaultApproaches = () => ([
     { key: 'NB', label: 'Northbound', v_left: 50, v_thru: 400, v_right: 50, ln_left: 1, ln_thru: 1, ln_right: 0, thru_phase: 50, left_phase: 0 },
@@ -40,16 +42,16 @@
     { key: 'WB', label: 'Westbound', v_left: 50, v_thru: 300, v_right: 50, ln_left: 1, ln_thru: 1, ln_right: 0, thru_phase: 50, left_phase: 0 }
   ]);
 
-  let approaches = defaultApproaches();
+  let approaches = $state(defaultApproaches());
 
-  let results = null;
-  let hasError = false;
-  let errMessage = '';
+  let results = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
 
   // Approach LOS map for the diagram's congestion-responsive animation.
-  $: losByApproach = results
+  let losByApproach = $derived(results
     ? Object.fromEntries(results.approaches.map((a) => [a.direction, a.los]))
-    : {};
+    : {});
 
   function runAnalysis() {
     hasError = false;
@@ -180,7 +182,7 @@
     </div>
   {/if}
 
-  <form id="hcm19" on:submit|preventDefault={runAnalysis}>
+  <form id="hcm19" onsubmit={preventDefault(runAnalysis)}>
     <!-- Signal Timing -->
     <section class="panel">
       <div class="panel-head">
@@ -361,7 +363,7 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
       <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
     </div>
   </form>

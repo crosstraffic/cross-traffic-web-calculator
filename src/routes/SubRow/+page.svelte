@@ -1,6 +1,5 @@
 <script>
-  export let subrow;
-  export let subseg_num;
+  let { subrow = $bindable(), subseg_num } = $props();
 </script>
 
 <tr class={subseg_num}>

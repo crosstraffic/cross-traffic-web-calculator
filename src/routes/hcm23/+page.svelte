@@ -3,16 +3,18 @@
 </svelte:head>
 
 <script>
+  import { preventDefault } from 'svelte/legacy';
+
   import init, { WasmInterchange } from "HCM-middleware";
   import DiamondDiagram from '$lib/DiamondDiagram.svelte';
   import DiamondDiagram3D from '$lib/DiamondDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
 
-  let diagramMode = '2d';
+  let diagramMode = $state('2d');
   import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
-  let ready = false;
+  let ready = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -22,20 +24,20 @@
   // Interchange form. Diamond defaults follow HCM Chapter 34 Example
   // Problem 1; switching to the DDI loads Example Problem 5 (Exhibits 34-58
   // through 34-65).
-  let form = 'Diamond';
-  let ddi_eb_config = 'ThreeLaneExclusive';
-  let ddi_wb_config = 'TwoLaneShared';
+  let form = $state('Diamond');
+  let ddi_eb_config = $state('ThreeLaneExclusive');
+  let ddi_wb_config = $state('TwoLaneShared');
 
-  let cycle_length = 160;
-  let phf = 0.90;
-  let base_sat_flow = 1900;
-  let area_type = 'other';
-  let distance = 500;
-  let yellow_all_red = 5;
-  let phv = 6.1;
-  let ramp_grade = 2;
-  let extra_dist = 100;
-  let design_speed = 35;
+  let cycle_length = $state(160);
+  let phf = $state(0.90);
+  let base_sat_flow = $state(1900);
+  let area_type = $state('other');
+  let distance = $state(500);
+  let yellow_all_red = $state(5);
+  let phv = $state(6.1);
+  let ramp_grade = $state(2);
+  let extra_dist = $state(100);
+  let design_speed = $state(35);
 
   const defaultOd = () => ([
     { key: 'a', label: 'A · NB off-ramp left (to WB)', value: 210 },
@@ -97,8 +99,8 @@
     { movement: 'SbRampRight', label: 'SB off-ramp right', lanes: 1, begin: 35, green: 35, is_ramp: true, turn_radius: 75, shared_right_radius: null, arrival: 3, storage: null, hv: 6.1, grade: 0, overlap: 4.9, dq: null, speed: 35 }
   ]);
 
-  let odDemands = defaultOd();
-  let laneGroups = defaultLaneGroups();
+  let odDemands = $state(defaultOd());
+  let laneGroups = $state(defaultLaneGroups());
 
   // Switching forms loads that form's published example as the new defaults.
   function applyForm(next) {
@@ -119,14 +121,14 @@
     results = null;
   }
 
-  let results = null;
-  let hasError = false;
-  let errMessage = '';
+  let results = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
 
   // Per-O-D LOS map for the diagram animation.
-  $: losByOd = results
+  let losByOd = $derived(results
     ? Object.fromEntries(results.od_results.filter((o) => o.los).map((o) => [o.movement, o.los]))
-    : {};
+    : {});
 
   function buildConfig() {
     const od = {};
@@ -277,7 +279,7 @@
     </div>
   {/if}
 
-  <form id="hcm23" on:submit|preventDefault={runAnalysis}>
+  <form id="hcm23" onsubmit={preventDefault(runAnalysis)}>
     <!-- Configuration -->
     <section class="panel">
       <div class="panel-head">
@@ -289,7 +291,7 @@
       <div class="param-grid">
         <div class="param-field">
           <label for="FORM_input">Interchange Form</label>
-          <select id="FORM_input" class="select select-bordered select-sm" value={form} on:change={(e) => applyForm(e.target.value)}>
+          <select id="FORM_input" class="select select-bordered select-sm" value={form} onchange={(e) => applyForm(e.target.value)}>
             <option value="Diamond">Conventional diamond</option>
             <option value="Ddi">Diverging diamond (DDI)</option>
           </select>
@@ -477,7 +479,7 @@
 
     <!-- Form Actions -->
     <div class="action-bar">
-      <button class="btn btn-ghost" on:click={resetParams} type="button">Reset Params</button>
+      <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
       <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
     </div>
   </form>
