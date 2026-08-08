@@ -13,4 +13,5 @@ use crosstraffic_middleware::wasm_twsc::WasmTwsc;
 use crosstraffic_middleware::wasm_awsc::WasmAwsc;
 use crosstraffic_middleware::wasm_roundabouts::WasmRoundabouts;
 use crosstraffic_middleware::wasm_interchange::{ WasmInterchange, WasmDisplacedLeftTurn };
+use crosstraffic_middleware::wasm_alternative_intersections::{ WasmAlternativeIntersection, edtt_merge, edtt_stop_or_signal, uturn_saturation_adjustment, stop_junction_delay, dlt_offset };
 use crosstraffic_middleware::wasm_pedbike::{ WasmExclusivePedestrianFacility, WasmSharedUsePathPedestrian, WasmOffStreetBicycleFacility };

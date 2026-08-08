@@ -4,18 +4,9 @@ const heap = new Array(128).fill(undefined);
 
 heap.push(undefined, null, true, false);
 
-let heap_next = heap.length;
-
-function addHeapObject(obj) {
-    if (heap_next === heap.length) heap.push(heap.length + 1);
-    const idx = heap_next;
-    heap_next = heap[idx];
-
-    heap[idx] = obj;
-    return idx;
-}
-
 function getObject(idx) { return heap[idx]; }
+
+let heap_next = heap.length;
 
 function dropObject(idx) {
     if (idx < 132) return;
@@ -27,6 +18,15 @@ function takeObject(idx) {
     const ret = getObject(idx);
     dropObject(idx);
     return ret;
+}
+
+function addHeapObject(obj) {
+    if (heap_next === heap.length) heap.push(heap.length + 1);
+    const idx = heap_next;
+    heap_next = heap[idx];
+
+    heap[idx] = obj;
+    return idx;
 }
 
 function isLikeNone(x) {
@@ -243,6 +243,246 @@ function passArray32ToWasm0(arg, malloc) {
 function getArrayF64FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
+}
+/**
+* HCM Equation 23-58: extra distance travel time for a rerouted movement
+* at an RCUT with merges, s/veh.
+*
+* * `dist_to_crossover_ft` / `dist_from_crossover_ft` — distances D_t and
+*   D_f between the main junction and the U-turn crossover, ft.
+* * `free_flow_speed_mph` — major-street free-flow speed S_f, mi/h.
+* * `accel_decel_s` — deceleration/acceleration term `a`, s: 10 for a
+*   minor-street left turn, 15 for a minor-street through movement.
+* @param {number} dist_to_crossover_ft
+* @param {number} dist_from_crossover_ft
+* @param {number} free_flow_speed_mph
+* @param {number} accel_decel_s
+* @returns {number}
+*/
+export function edtt_merge(dist_to_crossover_ft, dist_from_crossover_ft, free_flow_speed_mph, accel_decel_s) {
+    const ret = wasm.edtt_merge(dist_to_crossover_ft, dist_from_crossover_ft, free_flow_speed_mph, accel_decel_s);
+    return ret;
+}
+
+/**
+* HCM Equation 23-59: extra distance travel time for a rerouted movement
+* at an RCUT or MUT with STOP signs or signals, s/veh. No acceleration/
+* deceleration term, because that delay is already captured by the STOP or
+* signal control-delay computation.
+* @param {number} dist_to_crossover_ft
+* @param {number} dist_from_crossover_ft
+* @param {number} free_flow_speed_mph
+* @returns {number}
+*/
+export function edtt_stop_or_signal(dist_to_crossover_ft, dist_from_crossover_ft, free_flow_speed_mph) {
+    const ret = wasm.edtt_stop_or_signal(dist_to_crossover_ft, dist_from_crossover_ft, free_flow_speed_mph);
+    return ret;
+}
+
+/**
+* HCM Exhibit 23-52: saturation flow rate adjustment factor for a
+* signalized MUT/RCUT U-turn crossover, by median width (0.80 below 35 ft,
+* 0.85 through 80 ft, 0.95 above).
+* @param {number} median_width_ft
+* @returns {number}
+*/
+export function uturn_saturation_adjustment(median_width_ft) {
+    const ret = wasm.uturn_saturation_adjustment(median_width_ft);
+    return ret;
+}
+
+/**
+* Evaluate a STOP-controlled junction movement with the Chapter 20
+* gap-acceptance capacity (Equation 20-18) and control delay (Equation
+* 20-61). Returns `{ capacity_veh_h, vc_ratio, control_delay_s,
+* queue_95_veh }`. The default U-turn crossover headways are t_c = 4.4 s
+* and t_f = 2.6 s (Part C Step 5).
+* @param {number} flow_veh_h
+* @param {number} conflicting_flow_veh_h
+* @param {number} critical_headway_s
+* @param {number} followup_headway_s
+* @param {number} analysis_period_h
+* @returns {any}
+*/
+export function stop_junction_delay(flow_veh_h, conflicting_flow_veh_h, critical_headway_s, followup_headway_s, analysis_period_h) {
+    const ret = wasm.stop_junction_delay(flow_veh_h, conflicting_flow_veh_h, critical_headway_s, followup_headway_s, analysis_period_h);
+    return takeObject(ret);
+}
+
+/**
+* HCM Equations 23-63 through 23-68: the DLT supplemental-intersection
+* offset so displaced left-turn vehicles arrive during the guaranteed
+* green window at the main intersection. Returns `{ tt_dlt_s, st_dlt_s,
+* st_th_s, offset_supp_s }` with the adjusted offset wrapped into
+* `[0, C)`.
+*
+* * `td_dlt_ft` — displaced left-turn roadway travel distance TD_DLT, ft.
+* * `sf_dlt_mph` — displaced left-turn roadway free-flow speed, mi/h.
+* * `lag_dlt_s` / `lag_th_s` — durations from the reference point to the
+*   start of the DLT phase (supplemental) and the major-street through
+*   phase (main), s.
+* * `offset_supp_s` / `offset_main_s` — initial offsets, s.
+* * `cycle_s` — background cycle length C, s.
+* @param {number} td_dlt_ft
+* @param {number} sf_dlt_mph
+* @param {number} lag_dlt_s
+* @param {number} lag_th_s
+* @param {number} offset_supp_s
+* @param {number} offset_main_s
+* @param {number} cycle_s
+* @returns {any}
+*/
+export function dlt_offset(td_dlt_ft, sf_dlt_mph, lag_dlt_s, lag_th_s, offset_supp_s, offset_main_s, cycle_s) {
+    const ret = wasm.dlt_offset(td_dlt_ft, sf_dlt_mph, lag_dlt_s, lag_th_s, offset_supp_s, offset_main_s, cycle_s);
+    return takeObject(ret);
+}
+
+const WasmAlternativeIntersectionFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmalternativeintersection_free(ptr >>> 0));
+/**
+*/
+export class WasmAlternativeIntersection {
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        WasmAlternativeIntersectionFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_wasmalternativeintersection_free(ptr);
+    }
+    /**
+    * Build an RCUT or MUT alternative-intersection analysis (HCM Ch.23
+    * Part C, Exhibit 23-47 Steps 6-10) from a configuration object
+    * matching the serde schema of
+    * `hcm::chapter23::alternative_intersections::AlternativeIntersection`:
+    *
+    * ```json
+    * {
+    *   "form": "RcutFourLeg",
+    *   "movements": [
+    *     {
+    *       "label": "NB L",
+    *       "approach": "Nb",
+    *       "demand_veh_h": 167.0,
+    *       "edtt_s": 15.9,
+    *       "junctions": [
+    *         { "type": "stop", "flow_veh_h": 167.0,
+    *           "conflicting_flow_veh_h": 1189.0,
+    *           "critical_headway_s": 4.4, "followup_headway_s": 2.6 },
+    *         { "type": "provided", "control_delay_s": 20.2 },
+    *         { "type": "merge" }
+    *       ]
+    *     }
+    *   ]
+    * }
+    * ```
+    *
+    * `form` is one of `RcutFourLeg` / `RcutThreeLeg` / `MutFourLeg` /
+    * `MutThreeLeg`. Each movement lists the junctions of its journey in
+    * traversal order (Exhibits 23-48 through 23-50): `provided` carries a
+    * Chapter 19 signalized control delay (optional `vc_gt_1` / `rq_gt_1`
+    * flags force LOS F), `stop` is evaluated here with the Chapter 20
+    * gap-acceptance procedure (optional `storage_ft` / `queue_spacing_ft`
+    * for the queue-storage check), and `merge` is a zero-delay free-flow
+    * merge. `edtt_s` is the Step 7 extra distance travel time (compute it
+    * with [`edtt_merge`] or [`edtt_stop_or_signal`]); `analysis_period_h`
+    * defaults to 0.25.
+    * @param {any} config
+    */
+    constructor(config) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmalternativeintersection_new(retptr, addHeapObject(config));
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Per-movement results as a JS array (label, per-junction control
+    * delays in journey order, total control delay, EDTT, ETT per Equation
+    * 23-60, v/c and queue-storage flags, LOS per Exhibit 23-13).
+    * @returns {any}
+    */
+    movement_results_to_js_value() {
+        const ret = wasm.wasmalternativeintersection_movement_results_to_js_value(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+    * Demand-weighted approach experienced travel time ETT_A, s/veh (HCM
+    * Equation 23-61). `approach` is "EB", "WB", "NB", or "SB" (case-
+    * insensitive). `undefined` when the approach carries no demand.
+    * @param {string} approach
+    * @returns {number | undefined}
+    */
+    get_approach_ett_s(approach) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-32);
+            const ptr0 = passStringToWasm0(approach, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.wasmalternativeintersection_get_approach_ett_s(retptr, this.__wbg_ptr, ptr0, len0);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r2 = getFloat64Memory0()[retptr / 8 + 1];
+            var r4 = getInt32Memory0()[retptr / 4 + 4];
+            var r5 = getInt32Memory0()[retptr / 4 + 5];
+            if (r5) {
+                throw takeObject(r4);
+            }
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(32);
+        }
+    }
+    /**
+    * Demand-weighted intersection experienced travel time ETT_I, s/veh
+    * (HCM Equation 23-62). `undefined` when no movement carries demand.
+    * @returns {number | undefined}
+    */
+    get_intersection_ett_s() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmalternativeintersection_get_intersection_ett_s(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r2 = getFloat64Memory0()[retptr / 8 + 1];
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Intersection LOS letter from Exhibit 23-13 applied to ETT_I, e.g.
+    * "C". Per-movement LOS F forcing (v/c > 1 or queue storage exceeded)
+    * is reported in the movement results, not here.
+    * @returns {string | undefined}
+    */
+    get_intersection_los() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmalternativeintersection_get_intersection_los(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            let v1;
+            if (r0 !== 0) {
+                v1 = getStringFromWasm0(r0, r1).slice();
+                wasm.__wbindgen_free(r0, r1 * 1, 1);
+            }
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
 }
 
 const WasmAwscFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -5185,6 +5425,9 @@ async function __wbg_load(module, imports) {
 function __wbg_get_imports() {
     const imports = {};
     imports.wbg = {};
+    imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
+        takeObject(arg0);
+    };
     imports.wbg.__wbg_get_bd8e338fbd5f5cc8 = function(arg0, arg1) {
         const ret = getObject(arg0)[arg1 >>> 0];
         return addHeapObject(ret);
@@ -5200,9 +5443,6 @@ function __wbg_get_imports() {
     imports.wbg.__wbindgen_number_new = function(arg0) {
         const ret = arg0;
         return addHeapObject(ret);
-    };
-    imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
-        takeObject(arg0);
     };
     imports.wbg.__wbindgen_is_function = function(arg0) {
         const ret = typeof(getObject(arg0)) === 'function';
@@ -5369,6 +5609,10 @@ function __wbg_get_imports() {
         const ret = new Error(getStringFromWasm0(arg0, arg1));
         return addHeapObject(ret);
     };
+    imports.wbg.__wbindgen_bigint_from_i64 = function(arg0) {
+        const ret = arg0;
+        return addHeapObject(ret);
+    };
     imports.wbg.__wbindgen_bigint_from_u64 = function(arg0) {
         const ret = BigInt.asUintN(64, arg0);
         return addHeapObject(ret);
@@ -5380,8 +5624,16 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_set_20cbc34131e76824 = function(arg0, arg1, arg2) {
         getObject(arg0)[takeObject(arg1)] = takeObject(arg2);
     };
-    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
-        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
+    imports.wbg.__wbindgen_is_bigint = function(arg0) {
+        const ret = typeof(getObject(arg0)) === 'bigint';
+        return ret;
+    };
+    imports.wbg.__wbindgen_in = function(arg0, arg1) {
+        const ret = getObject(arg0) in getObject(arg1);
+        return ret;
+    };
+    imports.wbg.__wbindgen_jsval_eq = function(arg0, arg1) {
+        const ret = getObject(arg0) === getObject(arg1);
         return ret;
     };
     imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
@@ -5392,22 +5644,14 @@ function __wbg_get_imports() {
         const ret = WasmSegment.__unwrap(takeObject(arg0));
         return ret;
     };
+    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
+        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
     imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
         const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
         return ret;
     }, arguments) };
-    imports.wbg.__wbindgen_in = function(arg0, arg1) {
-        const ret = getObject(arg0) in getObject(arg1);
-        return ret;
-    };
-    imports.wbg.__wbindgen_is_bigint = function(arg0) {
-        const ret = typeof(getObject(arg0)) === 'bigint';
-        return ret;
-    };
-    imports.wbg.__wbindgen_jsval_eq = function(arg0, arg1) {
-        const ret = getObject(arg0) === getObject(arg1);
-        return ret;
-    };
 
     return imports;
 }

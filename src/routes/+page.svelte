@@ -186,7 +186,7 @@
       <span class="chapter-no">23</span>
       <span class="chapter-body">
         <span class="chapter-name">Interchange Ramp Terminals</span>
-        <span class="chapter-desc">O-D experienced travel time and LOS for conventional diamond and diverging diamond interchanges</span>
+        <span class="chapter-desc">O-D experienced travel time and LOS for diamond and DDI interchanges and RCUT, MUT, and DLT alternative intersections</span>
       </span>
       <span class="chapter-status available">Available</span>
     </a>

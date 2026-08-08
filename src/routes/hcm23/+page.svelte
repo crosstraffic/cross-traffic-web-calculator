@@ -9,8 +9,13 @@
   import DiamondDiagram from '$lib/DiamondDiagram.svelte';
   import DiamondDiagram3D from '$lib/DiamondDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
+  import PartCAlternative from '$lib/PartCAlternative.svelte';
 
   let diagramMode = $state('2d');
+
+  // Which half of Chapter 23 the page analyzes: Part B signalized interchanges
+  // or Part C alternative intersections (RCUT, MUT, DLT).
+  let part = $state('B');
   import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
@@ -255,23 +260,45 @@
     <span class="badge badge-outline page-badge">HCM Chapter 23</span>
     <h1 class="page-title">Ramp Terminals and Alternative Intersections</h1>
     <p class="page-sub">
-      Estimate experienced travel time and level of service for a signalized
-      conventional diamond interchange, by origin-destination movement and for
-      the interchange as a whole.
+      Estimate experienced travel time and level of service by origin-destination
+      movement and for the facility as a whole, for signalized diamond
+      interchanges (Part B) and for RCUT, MUT, and DLT alternative
+      intersections (Part C).
     </p>
   </header>
 
   <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">
     <span>
-      The compute engine reproduces the published HCM Chapter 34 interchange
-      example problems within the library's documented tolerances. This page
-      evaluates the conventional diamond and the diverging diamond with
-      pretimed signals; the Part C alternative intersections (RCUT, MUT, DLT)
-      are implemented and validated in the engine and will be exposed once
-      their input surfaces are built. Verify results
+      The compute engine reproduces the published HCM Chapter 34 example
+      problems within the library's documented tolerances: the conventional
+      diamond and diverging diamond with pretimed signals under Part B, and the
+      STOP-controlled RCUT, the MUT, and the DLT evaluations under Part C.
+      Verify results
       independently before relying on them in engineering work, and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2 class="panel-title">Analysis Part</h2>
+        <p class="panel-sub">Part B evaluates signalized interchange ramp terminals. Part C evaluates alternative intersections: the restricted crossing U-turn, median U-turn, and displaced left-turn.</p>
+      </div>
+    </div>
+    <div class="param-grid">
+      <div class="param-field">
+        <label for="PART_input">Chapter 23 Part</label>
+        <select id="PART_input" class="select select-bordered select-sm" bind:value={part}>
+          <option value="B">Part B · Interchange ramp terminals</option>
+          <option value="C">Part C · Alternative intersections</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  {#if part === 'C'}
+    <PartCAlternative {ready} />
+  {:else}
 
   {#if hasError}
     <div class="alert alert-error shadow-sm mb-6">
@@ -540,4 +567,6 @@
       </div>
     </div>
   </section>
+
+  {/if}
 </div>

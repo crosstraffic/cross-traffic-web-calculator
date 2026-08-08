@@ -85,7 +85,7 @@
         <tr><td><a href="/hcm20">20 Two-Way STOP Control</a></td><td>Gap-acceptance capacities and delay by movement rank, with the December 2022 HCM corrections</td><td>Control delay per movement and lane</td></tr>
         <tr><td><a href="/hcm21">21 All-Way STOP Control</a></td><td>Iterated departure headways, service times, delay per lane</td><td>Control delay (s/veh)</td></tr>
         <tr><td><a href="/hcm22">22 Roundabouts</a></td><td>Entry capacities and delay, including yielding and nonyielding right-turn bypasses</td><td>Control delay (s/veh)</td></tr>
-        <tr><td><a href="/hcm23">23 Interchange Ramp Terminals</a></td><td>Conventional diamond and diverging diamond, per O-D movement</td><td>Experienced travel time (s/veh)</td></tr>
+        <tr><td><a href="/hcm23">23 Interchange Ramp Terminals</a></td><td>Diamond and DDI interchanges, plus RCUT, MUT, and DLT alternative intersections</td><td>Experienced travel time (s/veh)</td></tr>
         <tr><td><a href="/hcm24">24 Off-Street Ped and Bike</a></td><td>Exclusive walkways, shared-use path pedestrian events, bicycle BLOS</td><td>Space, events per hour, BLOS score</td></tr>
       </tbody>
     </table>
@@ -343,6 +343,18 @@
       configurations, which the diagram mirrors. Results are control delay, extra distance
       travel time, and experienced travel time per O-D, with interchange LOS from the
       demand-weighted ETT.
+    </p>
+    <p>
+      Switching the page to <strong>Part C</strong> evaluates the alternative intersections.
+      The STOP-controlled RCUT needs only movement demands and site parameters; the page
+      derives the flow-rate conversion, conflicting flows, and adjusted gap-acceptance
+      headways, then runs the Chapter 20 delay computation at each junction a movement
+      traverses. The MUT takes its junction control delays from the Chapter 19 and Chapter 20
+      analyses of the component junctions and assembles each movement's journey, adding the
+      extra distance travel time from the crossover spacing. The DLT computes the
+      supplemental-intersection offset and the weighted-average experienced travel time over
+      the per-junction flow and delay cells. Each form loads its Chapter 34 example problem
+      as defaults.
     </p>
   </section>
 
