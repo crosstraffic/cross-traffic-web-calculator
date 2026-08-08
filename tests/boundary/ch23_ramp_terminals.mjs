@@ -9,8 +9,9 @@
 // * AlternativeIntersections/case4.json dlt block — Chapter 23 Part C
 //   Equation 23-69 weighted delay (Chapter 34 Example Problem 16, partial
 //   DLT; Exhibit 34-145), via the WasmDisplacedLeftTurn flat constructor.
-// RCUT / MUT and the rest of the AlternativeIntersection methodology are
-// core-only (not bound to wasm), so they are not boundary-testable.
+// * Inline configs — Part C RCUT (Example Problem 13, Exhibits 34-128/34-129)
+//   and MUT (Example Problem 15, Exhibits 34-137/34-138) journeys via
+//   WasmAlternativeIntersection, plus the EDTT / offset helper functions.
 import { loadWasm, loadCase, approx, exact, report } from './_harness.mjs';
 
 const m = await loadWasm();
@@ -207,4 +208,101 @@ function od(ods, mv, label) {
   exact(w.get_los(), 'C', 'EP16 DLT LOS');
 }
 
-report('ch23 ramp terminals + DLT (HCM Ch.34 EP1, EP5, EP16)');
+// ── Example Problem 13: three-legged RCUT with STOP signs ─────────────────
+// Movement journeys per the bottom of Exhibit 23-49, with the Exhibit 34-128
+// junction inputs (flow-rate conversion, conflicting flows, and adjusted
+// headways as the hcm23 page derives them from demands and site parameters).
+// Published per-movement results are Exhibit 34-129; junction delays land
+// within 0.1 s/veh of the book (which rounds intermediate capacities).
+{
+  const stop = (flow, vc, tc, tf, storage = null) => ({
+    type: 'stop', flow_veh_h: flow, conflicting_flow_veh_h: vc,
+    critical_headway_s: tc, followup_headway_s: tf, storage_ft: storage,
+  });
+  const edtt = m.edtt_stop_or_signal(700, 700, 60);
+  approx(edtt, 15.9, 0.1, 'EP13 EDTT (Equation 23-59)');
+  const ix = new m.WasmAlternativeIntersection({
+    form: 'RcutThreeLeg',
+    movements: [
+      { label: 'EB L', approach: 'Eb', demand_veh_h: 167, edtt_s: edtt,
+        junctions: [stop(344, 444, 7.22, 3.36), stop(167, 1189, 4.4, 2.6, 400)] },
+      { label: 'EB R', approach: 'Eb', demand_veh_h: 178, edtt_s: 0,
+        junctions: [stop(344, 444, 7.22, 3.36)] },
+      { label: 'NB L', approach: 'Nb', demand_veh_h: 189, edtt_s: 0,
+        junctions: [stop(189, 1044, 4.22, 2.26, 400)] },
+      { label: 'NB T', approach: 'Nb', demand_veh_h: 1000, edtt_s: 0, junctions: [] },
+      { label: 'SB T', approach: 'Sb', demand_veh_h: 889, edtt_s: 0, junctions: [] },
+      { label: 'SB R', approach: 'Sb', demand_veh_h: 156, edtt_s: 0, junctions: [] },
+    ],
+  });
+  const rows = ix.movement_results_to_js_value();
+  const expected = [
+    ['EB L', 55.2, 'E'],
+    ['EB R', 22.9, 'C'],
+    ['NB L', 13.0, 'B'],
+    ['NB T', 0.0, 'A'],
+    ['SB T', 0.0, 'A'],
+    ['SB R', 0.0, 'A'],
+  ];
+  for (const [label, ett, los] of expected) {
+    const r = rows.find((x) => x.label === label);
+    approx(r.ett_s, ett, 0.2, `EP13 ETT ${label}`);
+    exact(r.los, los, `EP13 LOS ${label}`);
+  }
+}
+
+// ── Example Problem 15: four-legged MUT ───────────────────────────────────
+// Journeys per the middle of Exhibit 23-50 with the Exhibit 34-137 junction
+// control delays as provided steps; published results are Exhibit 34-138
+// (exact reproduction, since the junction delays enter as inputs).
+{
+  const prov = (d) => ({ type: 'provided', control_delay_s: d });
+  const edtt = m.edtt_stop_or_signal(600, 600, 40);
+  approx(edtt, 20.4, 0.1, 'EP15 EDTT (Equation 23-59)');
+  const mv = (label, approach, demand, delays, ed) => ({
+    label, approach, demand_veh_h: demand, edtt_s: ed, junctions: delays.map(prov),
+  });
+  const ix = new m.WasmAlternativeIntersection({
+    form: 'MutFourLeg',
+    movements: [
+      mv('NB L', 'Nb', 295, [9.3, 34.6, 13.7], edtt),
+      mv('SB L', 'Sb', 53, [12.3, 14.0, 9.4], edtt),
+      mv('NB T', 'Nb', 737, [9.3], 0),
+      mv('SB T', 'Sb', 1053, [12.3], 0),
+      mv('NB R', 'Nb', 63, [9.4], 0),
+      mv('SB R', 'Sb', 84, [13.7], 0),
+      mv('EB L', 'Eb', 74, [23.7, 14.0, 9.3], edtt),
+      mv('WB L', 'Wb', 84, [20.2, 34.6, 12.3], edtt),
+      mv('EB T', 'Eb', 421, [25.1], 0),
+      mv('WB T', 'Wb', 316, [22.2], 0),
+      mv('EB R', 'Eb', 211, [23.7], 0),
+      mv('WB R', 'Wb', 53, [20.2], 0),
+    ],
+  });
+  const rows = ix.movement_results_to_js_value();
+  const expected = [
+    ['NB L', 78.0, 'E'], ['SB L', 56.1, 'E'],
+    ['NB T', 9.3, 'A'], ['SB T', 12.3, 'B'],
+    ['NB R', 9.4, 'A'], ['SB R', 13.7, 'B'],
+    ['EB L', 67.4, 'E'], ['WB L', 87.5, 'F'],
+    ['EB T', 25.1, 'C'], ['WB T', 22.2, 'C'],
+    ['EB R', 23.7, 'C'], ['WB R', 20.2, 'C'],
+  ];
+  for (const [label, ett, los] of expected) {
+    const r = rows.find((x) => x.label === label);
+    approx(r.ett_s, ett, 0.05, `EP15 ETT ${label}`);
+    exact(r.los, los, `EP15 LOS ${label}`);
+  }
+}
+
+// ── Example Problem 16: DLT supplemental-intersection offset ──────────────
+// Equations 23-63 through 23-68 (published: TT_DLT rounds to 7 s and the
+// offset reports as 45 s; unrounded values are 6.8 and 45.2).
+{
+  const off = m.dlt_offset(350, 35, 0, 52, 0, 0, 65);
+  approx(off.tt_dlt_s, 6.8, 0.05, 'EP16 TT_DLT (Equation 23-63)');
+  exact(off.st_th_s, 52, 'EP16 ST_TH (Equation 23-65)');
+  approx(off.offset_supp_s, 45.2, 0.1, 'EP16 O_SUPP (Equations 23-66 to 23-68)');
+}
+
+report('ch23 ramp terminals + Part C (HCM Ch.34 EP1, EP5, EP13, EP15, EP16)');

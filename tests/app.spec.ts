@@ -916,6 +916,79 @@ test.describe('chapter 23 interchange calculator', () => {
   });
 });
 
+test.describe('chapter 23 part C alternative intersections', () => {
+  test('the RCUT form reproduces Example Problem 13 from demands alone', async ({ page }) => {
+    // Part C defaults are HCM Chapter 34, Example Problem 13 (three-legged
+    // RCUT with STOP signs). The page derives the Exhibit 34-128 junction
+    // inputs from the demands and site parameters: minor approach 344 veh/h
+    // against 444 conflicting at 7.22/3.36 s headways. Published movement
+    // results (Exhibit 34-129): EB L ETT 55.2 E (engine prints 55.1, junction
+    // delays 22.9 + 16.4 against the book's rounded 22.9 + 16.3), EB R 22.9 C,
+    // NB L 13.0 B, majors free-flowing at A.
+    await page.goto('/hcm23');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await page.locator('#PART_input').selectOption('C');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled();
+    await calculate.click();
+
+    const results = page.locator('.results-panel');
+    await expect(results).toContainText('7.22');
+    await expect(results).toContainText('3.36');
+    const ebl = results.locator('tbody tr', { has: page.locator('th:text-is("EB L")') }).first();
+    await expect(ebl).toContainText('22.9 + 16.4');
+    await expect(ebl).toContainText('55.1');
+    await expect(ebl).toContainText('E');
+    const nbl = results.locator('tbody tr', { has: page.locator('th:text-is("NB L")') }).first();
+    await expect(nbl).toContainText('13.0');
+    await expect(nbl).toContainText('B');
+    await expect(page.getByText(/Intersection LOS: A/)).toBeVisible();
+
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page.locator('.report-title')).toHaveText('Ramp Terminals and Alternative Intersections');
+  });
+
+  test('the MUT form reproduces Example Problem 15', async ({ page }) => {
+    // Chapter 34 Example Problem 15 (four-legged MUT): the Exhibit 34-137
+    // junction delays enter as inputs, so Exhibit 34-138 reproduces exactly:
+    // WB left 20.2 + 34.6 + 12.3 + EDTT 20.4 = 87.5 LOS F, NB left 78.0 E.
+    await page.goto('/hcm23');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await page.locator('#PART_input').selectOption('C');
+    await page.locator('#PC_FORM_input').selectOption('Mut');
+    await expect(page.locator('#PC_DIST_input')).toHaveValue('600');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await calculate.click();
+
+    const results = page.locator('.results-panel');
+    const wbl = results.locator('tbody tr', { has: page.locator('th:text-is("WB L")') }).first();
+    await expect(wbl).toContainText('87.5');
+    await expect(wbl).toContainText('F');
+    const nbl = results.locator('tbody tr', { has: page.locator('th:text-is("NB L")') }).first();
+    await expect(nbl).toContainText('78.0');
+    await expect(nbl).toContainText('E');
+    await expect(page.getByText(/Intersection LOS: C/)).toBeVisible();
+  });
+
+  test('the DLT form reproduces Example Problem 16', async ({ page }) => {
+    // Chapter 34 Example Problem 16 (partial DLT): supplemental-intersection
+    // offset TT_DLT 6.8 s and O_SUPP 45.2 s (published rounds to 7 and 45),
+    // weighted-average ETT 28.5 s/veh, LOS C by the Chapter 19 thresholds.
+    await page.goto('/hcm23');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await page.locator('#PART_input').selectOption('C');
+    await page.locator('#PC_FORM_input').selectOption('Dlt');
+    await expect(page.locator('#PC_TOTALOD_input')).toHaveValue('5594');
+    await page.getByRole('button', { name: 'Calculate' }).click();
+
+    const results = page.locator('.results-panel');
+    await expect(results).toContainText('6.8 s');
+    await expect(results).toContainText('45.2 s');
+    await expect(results).toContainText('28.5 s/veh');
+    await expect(page.getByText(/DLT Intersection LOS: C/)).toBeVisible();
+  });
+});
+
 test.describe('chapter 24 pedestrian and bicycle path calculator', () => {
   test('reproduces the published shared-use path pedestrian example', async ({ page }) => {
     // HCM Chapter 35, Example Problem 1 part 1: 100 bikes/h each direction,
