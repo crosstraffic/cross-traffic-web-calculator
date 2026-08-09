@@ -4,9 +4,18 @@ const heap = new Array(128).fill(undefined);
 
 heap.push(undefined, null, true, false);
 
-function getObject(idx) { return heap[idx]; }
-
 let heap_next = heap.length;
+
+function addHeapObject(obj) {
+    if (heap_next === heap.length) heap.push(heap.length + 1);
+    const idx = heap_next;
+    heap_next = heap[idx];
+
+    heap[idx] = obj;
+    return idx;
+}
+
+function getObject(idx) { return heap[idx]; }
 
 function dropObject(idx) {
     if (idx < 132) return;
@@ -18,15 +27,6 @@ function takeObject(idx) {
     const ret = getObject(idx);
     dropObject(idx);
     return ret;
-}
-
-function addHeapObject(obj) {
-    if (heap_next === heap.length) heap.push(heap.length + 1);
-    const idx = heap_next;
-    heap_next = heap[idx];
-
-    heap[idx] = obj;
-    return idx;
 }
 
 function isLikeNone(x) {
@@ -207,13 +207,6 @@ function handleError(f, args) {
     }
 }
 
-function passArrayF64ToWasm0(arg, malloc) {
-    const ptr = malloc(arg.length * 8, 8) >>> 0;
-    getFloat64Memory0().set(arg, ptr / 8);
-    WASM_VECTOR_LEN = arg.length;
-    return ptr;
-}
-
 let cachedUint32Memory0 = null;
 
 function getUint32Memory0() {
@@ -233,16 +226,23 @@ function passArrayJsValueToWasm0(array, malloc) {
     return ptr;
 }
 
+function getArrayF64FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
+}
+
+function passArrayF64ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 8, 8) >>> 0;
+    getFloat64Memory0().set(arg, ptr / 8);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
 function passArray32ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 4, 4) >>> 0;
     getUint32Memory0().set(arg, ptr / 4);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
-}
-
-function getArrayF64FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
 }
 /**
 * HCM Equation 23-58: extra distance travel time for a rerouted movement
@@ -4247,7 +4247,10 @@ export class WasmUrbanFacility {
     }
     /**
     * Append a Chapter 18 segment (ordered upstream to downstream) to the
-    * facility in the subject direction of travel.
+    * facility in the subject direction of travel. Everything after
+    * `control` is optional; the trailing arguments mirror
+    * `WasmUrbanSegment`'s constructor, including the nine that select
+    * among the three Equation 18-7 access-point delay sources.
     * @param {number} segment_length_ft
     * @param {number} n_through_lanes
     * @param {number} speed_limit_mph
@@ -4263,16 +4266,137 @@ export class WasmUrbanFacility {
     * @param {number | undefined} [platoon_ratio]
     * @param {number | undefined} [sat_flow_veh_h_ln]
     * @param {number | undefined} [full_stop_rate_override]
+    * @param {number | undefined} [upstream_intersection_width_ft]
+    * @param {number | undefined} [restrictive_median_length_ft]
+    * @param {number | undefined} [proportion_with_curb]
+    * @param {number | undefined} [proportion_on_street_parking]
+    * @param {number | undefined} [prop_opposing_left_accessible]
+    * @param {number | undefined} [signal_spacing_ft]
+    * @param {number | undefined} [free_flow_speed_override_mph]
+    * @param {Float64Array | undefined} [access_point_delays_s]
+    * @param {number | undefined} [n_influential_access_points]
+    * @param {number | undefined} [pct_left_turns_access]
+    * @param {number | undefined} [pct_right_turns_access]
+    * @param {boolean | undefined} [access_left_bay_adequate]
+    * @param {boolean | undefined} [access_right_bay_adequate]
+    * @param {number | undefined} [midsegment_other_delay_s]
+    * @param {number | undefined} [analysis_period_h]
+    * @param {number | undefined} [access_point_turn_delay_speed_mph]
     */
-    add_segment(segment_length_ft, n_through_lanes, speed_limit_mph, through_demand_veh_h, control, n_access_points_subject, n_access_points_opposing, midsegment_flow_veh_h, through_capacity_veh_h, through_control_delay_s, cycle_length_s, effective_green_s, platoon_ratio, sat_flow_veh_h_ln, full_stop_rate_override) {
+    add_segment(segment_length_ft, n_through_lanes, speed_limit_mph, through_demand_veh_h, control, n_access_points_subject, n_access_points_opposing, midsegment_flow_veh_h, through_capacity_veh_h, through_control_delay_s, cycle_length_s, effective_green_s, platoon_ratio, sat_flow_veh_h_ln, full_stop_rate_override, upstream_intersection_width_ft, restrictive_median_length_ft, proportion_with_curb, proportion_on_street_parking, prop_opposing_left_accessible, signal_spacing_ft, free_flow_speed_override_mph, access_point_delays_s, n_influential_access_points, pct_left_turns_access, pct_right_turns_access, access_left_bay_adequate, access_right_bay_adequate, midsegment_other_delay_s, analysis_period_h, access_point_turn_delay_speed_mph) {
         const ptr0 = passStringToWasm0(control, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
-        wasm.wasmurbanfacility_add_segment(this.__wbg_ptr, segment_length_ft, n_through_lanes, speed_limit_mph, through_demand_veh_h, ptr0, len0, !isLikeNone(n_access_points_subject), isLikeNone(n_access_points_subject) ? 0 : n_access_points_subject, !isLikeNone(n_access_points_opposing), isLikeNone(n_access_points_opposing) ? 0 : n_access_points_opposing, !isLikeNone(midsegment_flow_veh_h), isLikeNone(midsegment_flow_veh_h) ? 0 : midsegment_flow_veh_h, !isLikeNone(through_capacity_veh_h), isLikeNone(through_capacity_veh_h) ? 0 : through_capacity_veh_h, !isLikeNone(through_control_delay_s), isLikeNone(through_control_delay_s) ? 0 : through_control_delay_s, !isLikeNone(cycle_length_s), isLikeNone(cycle_length_s) ? 0 : cycle_length_s, !isLikeNone(effective_green_s), isLikeNone(effective_green_s) ? 0 : effective_green_s, !isLikeNone(platoon_ratio), isLikeNone(platoon_ratio) ? 0 : platoon_ratio, !isLikeNone(sat_flow_veh_h_ln), isLikeNone(sat_flow_veh_h_ln) ? 0 : sat_flow_veh_h_ln, !isLikeNone(full_stop_rate_override), isLikeNone(full_stop_rate_override) ? 0 : full_stop_rate_override);
+        var ptr1 = isLikeNone(access_point_delays_s) ? 0 : passArrayF64ToWasm0(access_point_delays_s, wasm.__wbindgen_malloc);
+        var len1 = WASM_VECTOR_LEN;
+        wasm.wasmurbanfacility_add_segment(this.__wbg_ptr, segment_length_ft, n_through_lanes, speed_limit_mph, through_demand_veh_h, ptr0, len0, !isLikeNone(n_access_points_subject), isLikeNone(n_access_points_subject) ? 0 : n_access_points_subject, !isLikeNone(n_access_points_opposing), isLikeNone(n_access_points_opposing) ? 0 : n_access_points_opposing, !isLikeNone(midsegment_flow_veh_h), isLikeNone(midsegment_flow_veh_h) ? 0 : midsegment_flow_veh_h, !isLikeNone(through_capacity_veh_h), isLikeNone(through_capacity_veh_h) ? 0 : through_capacity_veh_h, !isLikeNone(through_control_delay_s), isLikeNone(through_control_delay_s) ? 0 : through_control_delay_s, !isLikeNone(cycle_length_s), isLikeNone(cycle_length_s) ? 0 : cycle_length_s, !isLikeNone(effective_green_s), isLikeNone(effective_green_s) ? 0 : effective_green_s, !isLikeNone(platoon_ratio), isLikeNone(platoon_ratio) ? 0 : platoon_ratio, !isLikeNone(sat_flow_veh_h_ln), isLikeNone(sat_flow_veh_h_ln) ? 0 : sat_flow_veh_h_ln, !isLikeNone(full_stop_rate_override), isLikeNone(full_stop_rate_override) ? 0 : full_stop_rate_override, !isLikeNone(upstream_intersection_width_ft), isLikeNone(upstream_intersection_width_ft) ? 0 : upstream_intersection_width_ft, !isLikeNone(restrictive_median_length_ft), isLikeNone(restrictive_median_length_ft) ? 0 : restrictive_median_length_ft, !isLikeNone(proportion_with_curb), isLikeNone(proportion_with_curb) ? 0 : proportion_with_curb, !isLikeNone(proportion_on_street_parking), isLikeNone(proportion_on_street_parking) ? 0 : proportion_on_street_parking, !isLikeNone(prop_opposing_left_accessible), isLikeNone(prop_opposing_left_accessible) ? 0 : prop_opposing_left_accessible, !isLikeNone(signal_spacing_ft), isLikeNone(signal_spacing_ft) ? 0 : signal_spacing_ft, !isLikeNone(free_flow_speed_override_mph), isLikeNone(free_flow_speed_override_mph) ? 0 : free_flow_speed_override_mph, ptr1, len1, !isLikeNone(n_influential_access_points), isLikeNone(n_influential_access_points) ? 0 : n_influential_access_points, !isLikeNone(pct_left_turns_access), isLikeNone(pct_left_turns_access) ? 0 : pct_left_turns_access, !isLikeNone(pct_right_turns_access), isLikeNone(pct_right_turns_access) ? 0 : pct_right_turns_access, isLikeNone(access_left_bay_adequate) ? 0xFFFFFF : access_left_bay_adequate ? 1 : 0, isLikeNone(access_right_bay_adequate) ? 0xFFFFFF : access_right_bay_adequate ? 1 : 0, !isLikeNone(midsegment_other_delay_s), isLikeNone(midsegment_other_delay_s) ? 0 : midsegment_other_delay_s, !isLikeNone(analysis_period_h), isLikeNone(analysis_period_h) ? 0 : analysis_period_h, !isLikeNone(access_point_turn_delay_speed_mph), isLikeNone(access_point_turn_delay_speed_mph) ? 0 : access_point_turn_delay_speed_mph);
+    }
+    /**
+    * Append a segment from a configuration object matching the serde
+    * schema of the library's `UrbanSegment` — the same shape the library's
+    * own fixture files use (e.g. the `segments` entries of
+    * `tests/ExampleCases/hcm/UrbanFacilities/case3.json`), so a fixture
+    * segment is loadable verbatim in one call instead of through the
+    * 31-argument positional [`Self::add_segment`]. Any omitted field keeps
+    * the library default; unknown fields are ignored, so misspelling a
+    * field name silently falls back to that default — prefer copying field
+    * names from the fixture files.
+    * @param {any} config
+    */
+    add_segment_from_config(config) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmurbanfacility_add_segment_from_config(retptr, this.__wbg_ptr, addHeapObject(config));
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Append a segment described by its already-known Chapter 18
+    * performance measures rather than by its inputs — the Exhibit 16-7
+    * "HCM method output" case, and the one the published example problems
+    * take (Chapter 29 Example Problem 1 publishes per-segment base FFS,
+    * travel speed, and spatial stop rate, not the geometry behind them).
+    *
+    * The arguments are the fields of the library's `SegmentSummary`. Use
+    * with [`Self::aggregate`], which runs Chapter 16 Steps 1-4 over these
+    * measures; `analyze()` refuses to run once any summary segment is
+    * present, because there are no Chapter 18 inputs behind it to
+    * recompute from.
+    *
+    * * `spatial_stop_rate_stops_mi` — omit on any segment and the
+    *   Equation 16-4 facility stop rate (and the perception score built on
+    *   it) is reported as `undefined` rather than aggregated from a
+    *   partial set.
+    * * `vc_ratio` — the through movement's ratio at the segment's
+    *   downstream boundary intersection; the largest becomes the critical
+    *   ratio of the Exhibit 16-3 footnote.
+    * * `los` — the segment LOS letter, for the poorest-performing-segment
+    *   report of Step 4.
+    * @param {number} length_ft
+    * @param {number} base_ffs_mph
+    * @param {number} travel_speed_mph
+    * @param {number | undefined} [spatial_stop_rate_stops_mi]
+    * @param {number | undefined} [vc_ratio]
+    * @param {string | undefined} [los]
+    */
+    add_segment_summary(length_ft, base_ffs_mph, travel_speed_mph, spatial_stop_rate_stops_mi, vc_ratio, los) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            var ptr0 = isLikeNone(los) ? 0 : passStringToWasm0(los, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            var len0 = WASM_VECTOR_LEN;
+            wasm.wasmurbanfacility_add_segment_summary(retptr, this.__wbg_ptr, length_ft, base_ffs_mph, travel_speed_mph, !isLikeNone(spatial_stop_rate_stops_mi), isLikeNone(spatial_stop_rate_stops_mi) ? 0 : spatial_stop_rate_stops_mi, !isLikeNone(vc_ratio), isLikeNone(vc_ratio) ? 0 : vc_ratio, ptr0, len0);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Run the Chapter 16 aggregation (Equations 16-2 through 16-4 and the
+    * Exhibit 16-3 LOS) over the per-segment measures already held, without
+    * re-running the Chapter 18 engine. Returns the facility LOS letter.
+    * Use after [`Self::add_segment_summary`], or after `analyze()` to
+    * re-aggregate.
+    * @returns {string}
+    */
+    aggregate() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmurbanfacility_aggregate(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            var ptr1 = r0;
+            var len1 = r1;
+            if (r3) {
+                ptr1 = 0; len1 = 0;
+                throw takeObject(r2);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
     }
     /**
     * Run the full HCM Ch.16 pipeline: evaluate every segment with the
     * Chapter 18 engine, then aggregate (Equations 16-2 through 16-4 and
-    * the Exhibit 16-3 LOS). Returns the facility LOS letter.
+    * the Exhibit 16-3 LOS). Returns the facility LOS letter. Throws when
+    * the facility holds a segment added through `add_segment_summary`,
+    * whose Chapter 18 inputs are placeholders — use `aggregate()` there.
     * @returns {string}
     */
     analyze() {
@@ -4490,8 +4614,11 @@ export class WasmUrbanReliability {
     * Scope: a fully signalized urban street facility (every segment's
     * downstream boundary intersection is a traffic signal), evaluated
     * with the HCM default demand-ratio, weather, and incident models.
-    * Each monthly weather array takes 0, 1, or 12 entries (none, one
-    * value replicated to every month, or January-December values).
+    * Each of the five monthly weather arrays takes 0, 1, or 12 entries
+    * (none, one value replicated to every month, or January-December
+    * values). Snowfall drives the strongest capacity and free-flow-speed
+    * losses in the Chapter 29 weather model, so a facility in a
+    * snow-affected climate needs its snowfall column supplied.
     * @param {string | undefined} functional_class
     * @param {number | undefined} study_period_start_hour
     * @param {number | undefined} analysis_periods_per_day
@@ -4506,8 +4633,11 @@ export class WasmUrbanReliability {
     * @param {number | undefined} [weather_seed]
     * @param {number | undefined} [demand_seed]
     * @param {number | undefined} [incident_seed]
+    * @param {Float64Array | undefined} [monthly_total_snowfall_in]
+    * @param {number | undefined} [jan1_day_of_week]
+    * @param {number | undefined} [prop_left_turn_lanes]
     */
-    constructor(functional_class, study_period_start_hour, analysis_periods_per_day, monthly_total_precip_in, monthly_days_with_precip, monthly_mean_temp_f, monthly_precip_rate_in_h, entry_intersection_crash_frequency, minor_leg_volume_veh_h, shoulder_present, vmt_weighted, weather_seed, demand_seed, incident_seed) {
+    constructor(functional_class, study_period_start_hour, analysis_periods_per_day, monthly_total_precip_in, monthly_days_with_precip, monthly_mean_temp_f, monthly_precip_rate_in_h, entry_intersection_crash_frequency, minor_leg_volume_veh_h, shoulder_present, vmt_weighted, weather_seed, demand_seed, incident_seed, monthly_total_snowfall_in, jan1_day_of_week, prop_left_turn_lanes) {
         var ptr0 = isLikeNone(functional_class) ? 0 : passStringToWasm0(functional_class, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         var len0 = WASM_VECTOR_LEN;
         const ptr1 = passArrayF64ToWasm0(monthly_total_precip_in, wasm.__wbindgen_malloc);
@@ -4518,9 +4648,44 @@ export class WasmUrbanReliability {
         const len3 = WASM_VECTOR_LEN;
         const ptr4 = passArrayF64ToWasm0(monthly_precip_rate_in_h, wasm.__wbindgen_malloc);
         const len4 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmurbanreliability_new(ptr0, len0, !isLikeNone(study_period_start_hour), isLikeNone(study_period_start_hour) ? 0 : study_period_start_hour, !isLikeNone(analysis_periods_per_day), isLikeNone(analysis_periods_per_day) ? 0 : analysis_periods_per_day, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, !isLikeNone(entry_intersection_crash_frequency), isLikeNone(entry_intersection_crash_frequency) ? 0 : entry_intersection_crash_frequency, !isLikeNone(minor_leg_volume_veh_h), isLikeNone(minor_leg_volume_veh_h) ? 0 : minor_leg_volume_veh_h, isLikeNone(shoulder_present) ? 0xFFFFFF : shoulder_present ? 1 : 0, isLikeNone(vmt_weighted) ? 0xFFFFFF : vmt_weighted ? 1 : 0, !isLikeNone(weather_seed), isLikeNone(weather_seed) ? 0 : weather_seed, !isLikeNone(demand_seed), isLikeNone(demand_seed) ? 0 : demand_seed, !isLikeNone(incident_seed), isLikeNone(incident_seed) ? 0 : incident_seed);
+        var ptr5 = isLikeNone(monthly_total_snowfall_in) ? 0 : passArrayF64ToWasm0(monthly_total_snowfall_in, wasm.__wbindgen_malloc);
+        var len5 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmurbanreliability_new(ptr0, len0, !isLikeNone(study_period_start_hour), isLikeNone(study_period_start_hour) ? 0 : study_period_start_hour, !isLikeNone(analysis_periods_per_day), isLikeNone(analysis_periods_per_day) ? 0 : analysis_periods_per_day, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, !isLikeNone(entry_intersection_crash_frequency), isLikeNone(entry_intersection_crash_frequency) ? 0 : entry_intersection_crash_frequency, !isLikeNone(minor_leg_volume_veh_h), isLikeNone(minor_leg_volume_veh_h) ? 0 : minor_leg_volume_veh_h, isLikeNone(shoulder_present) ? 0xFFFFFF : shoulder_present ? 1 : 0, isLikeNone(vmt_weighted) ? 0xFFFFFF : vmt_weighted ? 1 : 0, !isLikeNone(weather_seed), isLikeNone(weather_seed) ? 0 : weather_seed, !isLikeNone(demand_seed), isLikeNone(demand_seed) ? 0 : demand_seed, !isLikeNone(incident_seed), isLikeNone(incident_seed) ? 0 : incident_seed, ptr5, len5, !isLikeNone(jan1_day_of_week), isLikeNone(jan1_day_of_week) ? 0 : jan1_day_of_week, !isLikeNone(prop_left_turn_lanes), isLikeNone(prop_left_turn_lanes) ? 0 : prop_left_turn_lanes);
         this.__wbg_ptr = ret >>> 0;
         return this;
+    }
+    /**
+    * Register an ATDM strategy, work zone, or special event (HCM Chapter
+    * 17, Section 4). Strategies are applied to every scenario matching
+    * their schedule, as input-level adjustments to demand, saturation
+    * flow, effective green, free-flow speed, and crash frequency.
+    *
+    * `strategy` is an object matching the serde schema of
+    * `hcm::urban_reliability::AtdmStrategy`; every field has a
+    * no-effect default, so supply only what the strategy changes. The
+    * Chapter 29 Example Problem 5 Strategy 1 (5 s of split shifted to the
+    * coordinated through phase) is:
+    *
+    * ```json
+    * { "name": "EP5 Strategy 1", "effective_green_adjustment_s": 5.0 }
+    * ```
+    *
+    * An empty `months` / `days_of_week` / `periods` list means always
+    * active. Call before `run()`.
+    * @param {any} strategy
+    */
+    add_atdm_strategy(strategy) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmurbanreliability_add_atdm_strategy(retptr, this.__wbg_ptr, addHeapObject(strategy));
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
     * Append a signalized Chapter 18 segment (ordered upstream to
@@ -4541,9 +4706,12 @@ export class WasmUrbanReliability {
     * @param {number | undefined} full_stop_rate_override
     * @param {number} segment_crash_frequency
     * @param {number} intersection_crash_frequency
+    * @param {number | undefined} [k_factor]
+    * @param {number | undefined} [i_factor]
+    * @param {number | undefined} [approach_lanes]
     */
-    add_segment(segment_length_ft, n_through_lanes, speed_limit_mph, through_demand_veh_h, cycle_length_s, effective_green_s, sat_flow_veh_h_ln, platoon_ratio, n_access_points_subject, n_access_points_opposing, full_stop_rate_override, segment_crash_frequency, intersection_crash_frequency) {
-        wasm.wasmurbanreliability_add_segment(this.__wbg_ptr, segment_length_ft, n_through_lanes, speed_limit_mph, through_demand_veh_h, cycle_length_s, effective_green_s, !isLikeNone(sat_flow_veh_h_ln), isLikeNone(sat_flow_veh_h_ln) ? 0 : sat_flow_veh_h_ln, !isLikeNone(platoon_ratio), isLikeNone(platoon_ratio) ? 0 : platoon_ratio, !isLikeNone(n_access_points_subject), isLikeNone(n_access_points_subject) ? 0 : n_access_points_subject, !isLikeNone(n_access_points_opposing), isLikeNone(n_access_points_opposing) ? 0 : n_access_points_opposing, !isLikeNone(full_stop_rate_override), isLikeNone(full_stop_rate_override) ? 0 : full_stop_rate_override, segment_crash_frequency, intersection_crash_frequency);
+    add_segment(segment_length_ft, n_through_lanes, speed_limit_mph, through_demand_veh_h, cycle_length_s, effective_green_s, sat_flow_veh_h_ln, platoon_ratio, n_access_points_subject, n_access_points_opposing, full_stop_rate_override, segment_crash_frequency, intersection_crash_frequency, k_factor, i_factor, approach_lanes) {
+        wasm.wasmurbanreliability_add_segment(this.__wbg_ptr, segment_length_ft, n_through_lanes, speed_limit_mph, through_demand_veh_h, cycle_length_s, effective_green_s, !isLikeNone(sat_flow_veh_h_ln), isLikeNone(sat_flow_veh_h_ln) ? 0 : sat_flow_veh_h_ln, !isLikeNone(platoon_ratio), isLikeNone(platoon_ratio) ? 0 : platoon_ratio, !isLikeNone(n_access_points_subject), isLikeNone(n_access_points_subject) ? 0 : n_access_points_subject, !isLikeNone(n_access_points_opposing), isLikeNone(n_access_points_opposing) ? 0 : n_access_points_opposing, !isLikeNone(full_stop_rate_override), isLikeNone(full_stop_rate_override) ? 0 : full_stop_rate_override, segment_crash_frequency, intersection_crash_frequency, !isLikeNone(k_factor), isLikeNone(k_factor) ? 0 : k_factor, !isLikeNone(i_factor), isLikeNone(i_factor) ? 0 : i_factor, !isLikeNone(approach_lanes), isLikeNone(approach_lanes) ? 0 : approach_lanes);
     }
     /**
     * Run the full HCM Ch.17 methodology: weather, demand, and incident
@@ -4590,6 +4758,18 @@ export class WasmUrbanReliability {
     */
     num_incidents() {
         const ret = wasm.wasmurbanreliability_num_incidents(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+    * Scenarios in which at least one boundary through movement ran over
+    * capacity (v/c > 1). These are the scenarios that feed the residual
+    * queue forward into the next analysis period, so the count is the
+    * readout for how much of the travel-time distribution's tail comes
+    * from oversaturation rather than from weather or incidents alone.
+    * @returns {number}
+    */
+    num_oversaturated_scenarios() {
+        const ret = wasm.wasmurbanreliability_num_oversaturated_scenarios(this.__wbg_ptr);
         return ret >>> 0;
     }
     /**
@@ -4689,6 +4869,19 @@ export class WasmUrbanSegment {
         wasm.__wbg_wasmurbansegment_free(ptr);
     }
     /**
+    * Build a Chapter 18 segment. Everything after `control` is optional
+    * and takes the Exhibit 18-5 default when omitted.
+    *
+    * The last nine arguments drive Step 2's access-point delay term
+    * `Σ d_ap,i` of Equation 18-7. The library picks among three sources in
+    * order: the Chapter 30, Section 4 procedure when access-point
+    * approaches have been added with [`Self::add_access_point`]; then
+    * `access_point_delays_s`, the per-point delays supplied directly (the
+    * Exhibit 30-35 published values take this path); then the Exhibit
+    * 18-13 planning estimate, whose inputs are
+    * `n_influential_access_points` (default `N_ap,s + p_ap,lt N_ap,o`),
+    * the two turn percentages (Exhibit 18-13 assumes 10% each), and the
+    * two turn-bay adequacy flags.
     * @param {number} segment_length_ft
     * @param {number} n_through_lanes
     * @param {number} speed_limit_mph
@@ -4717,13 +4910,62 @@ export class WasmUrbanSegment {
     * @param {number | undefined} [full_stop_rate_override]
     * @param {number | undefined} [stop_rate_other]
     * @param {number | undefined} [prop_left_turn_lanes]
+    * @param {Float64Array | undefined} [access_point_delays_s]
+    * @param {number | undefined} [n_influential_access_points]
+    * @param {number | undefined} [pct_left_turns_access]
+    * @param {number | undefined} [pct_right_turns_access]
+    * @param {boolean | undefined} [access_left_bay_adequate]
+    * @param {boolean | undefined} [access_right_bay_adequate]
+    * @param {number | undefined} [midsegment_other_delay_s]
+    * @param {number | undefined} [analysis_period_h]
+    * @param {number | undefined} [access_point_turn_delay_speed_mph]
     */
-    constructor(segment_length_ft, n_through_lanes, speed_limit_mph, through_demand_veh_h, control, upstream_intersection_width_ft, restrictive_median_length_ft, proportion_with_curb, proportion_on_street_parking, n_access_points_subject, n_access_points_opposing, prop_opposing_left_accessible, signal_spacing_ft, free_flow_speed_override_mph, midsegment_flow_veh_h, through_capacity_veh_h, through_control_delay_s, cycle_length_s, effective_green_s, arrival_type, platoon_ratio, sat_flow_veh_h_ln, stopped_vehicles_veh_ln, queue2_veh_ln, queue3_veh_ln, full_stop_rate_override, stop_rate_other, prop_left_turn_lanes) {
+    constructor(segment_length_ft, n_through_lanes, speed_limit_mph, through_demand_veh_h, control, upstream_intersection_width_ft, restrictive_median_length_ft, proportion_with_curb, proportion_on_street_parking, n_access_points_subject, n_access_points_opposing, prop_opposing_left_accessible, signal_spacing_ft, free_flow_speed_override_mph, midsegment_flow_veh_h, through_capacity_veh_h, through_control_delay_s, cycle_length_s, effective_green_s, arrival_type, platoon_ratio, sat_flow_veh_h_ln, stopped_vehicles_veh_ln, queue2_veh_ln, queue3_veh_ln, full_stop_rate_override, stop_rate_other, prop_left_turn_lanes, access_point_delays_s, n_influential_access_points, pct_left_turns_access, pct_right_turns_access, access_left_bay_adequate, access_right_bay_adequate, midsegment_other_delay_s, analysis_period_h, access_point_turn_delay_speed_mph) {
         const ptr0 = passStringToWasm0(control, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmurbansegment_new(segment_length_ft, n_through_lanes, speed_limit_mph, through_demand_veh_h, ptr0, len0, !isLikeNone(upstream_intersection_width_ft), isLikeNone(upstream_intersection_width_ft) ? 0 : upstream_intersection_width_ft, !isLikeNone(restrictive_median_length_ft), isLikeNone(restrictive_median_length_ft) ? 0 : restrictive_median_length_ft, !isLikeNone(proportion_with_curb), isLikeNone(proportion_with_curb) ? 0 : proportion_with_curb, !isLikeNone(proportion_on_street_parking), isLikeNone(proportion_on_street_parking) ? 0 : proportion_on_street_parking, !isLikeNone(n_access_points_subject), isLikeNone(n_access_points_subject) ? 0 : n_access_points_subject, !isLikeNone(n_access_points_opposing), isLikeNone(n_access_points_opposing) ? 0 : n_access_points_opposing, !isLikeNone(prop_opposing_left_accessible), isLikeNone(prop_opposing_left_accessible) ? 0 : prop_opposing_left_accessible, !isLikeNone(signal_spacing_ft), isLikeNone(signal_spacing_ft) ? 0 : signal_spacing_ft, !isLikeNone(free_flow_speed_override_mph), isLikeNone(free_flow_speed_override_mph) ? 0 : free_flow_speed_override_mph, !isLikeNone(midsegment_flow_veh_h), isLikeNone(midsegment_flow_veh_h) ? 0 : midsegment_flow_veh_h, !isLikeNone(through_capacity_veh_h), isLikeNone(through_capacity_veh_h) ? 0 : through_capacity_veh_h, !isLikeNone(through_control_delay_s), isLikeNone(through_control_delay_s) ? 0 : through_control_delay_s, !isLikeNone(cycle_length_s), isLikeNone(cycle_length_s) ? 0 : cycle_length_s, !isLikeNone(effective_green_s), isLikeNone(effective_green_s) ? 0 : effective_green_s, !isLikeNone(arrival_type), isLikeNone(arrival_type) ? 0 : arrival_type, !isLikeNone(platoon_ratio), isLikeNone(platoon_ratio) ? 0 : platoon_ratio, !isLikeNone(sat_flow_veh_h_ln), isLikeNone(sat_flow_veh_h_ln) ? 0 : sat_flow_veh_h_ln, !isLikeNone(stopped_vehicles_veh_ln), isLikeNone(stopped_vehicles_veh_ln) ? 0 : stopped_vehicles_veh_ln, !isLikeNone(queue2_veh_ln), isLikeNone(queue2_veh_ln) ? 0 : queue2_veh_ln, !isLikeNone(queue3_veh_ln), isLikeNone(queue3_veh_ln) ? 0 : queue3_veh_ln, !isLikeNone(full_stop_rate_override), isLikeNone(full_stop_rate_override) ? 0 : full_stop_rate_override, !isLikeNone(stop_rate_other), isLikeNone(stop_rate_other) ? 0 : stop_rate_other, !isLikeNone(prop_left_turn_lanes), isLikeNone(prop_left_turn_lanes) ? 0 : prop_left_turn_lanes);
+        var ptr1 = isLikeNone(access_point_delays_s) ? 0 : passArrayF64ToWasm0(access_point_delays_s, wasm.__wbindgen_malloc);
+        var len1 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmurbansegment_new(segment_length_ft, n_through_lanes, speed_limit_mph, through_demand_veh_h, ptr0, len0, !isLikeNone(upstream_intersection_width_ft), isLikeNone(upstream_intersection_width_ft) ? 0 : upstream_intersection_width_ft, !isLikeNone(restrictive_median_length_ft), isLikeNone(restrictive_median_length_ft) ? 0 : restrictive_median_length_ft, !isLikeNone(proportion_with_curb), isLikeNone(proportion_with_curb) ? 0 : proportion_with_curb, !isLikeNone(proportion_on_street_parking), isLikeNone(proportion_on_street_parking) ? 0 : proportion_on_street_parking, !isLikeNone(n_access_points_subject), isLikeNone(n_access_points_subject) ? 0 : n_access_points_subject, !isLikeNone(n_access_points_opposing), isLikeNone(n_access_points_opposing) ? 0 : n_access_points_opposing, !isLikeNone(prop_opposing_left_accessible), isLikeNone(prop_opposing_left_accessible) ? 0 : prop_opposing_left_accessible, !isLikeNone(signal_spacing_ft), isLikeNone(signal_spacing_ft) ? 0 : signal_spacing_ft, !isLikeNone(free_flow_speed_override_mph), isLikeNone(free_flow_speed_override_mph) ? 0 : free_flow_speed_override_mph, !isLikeNone(midsegment_flow_veh_h), isLikeNone(midsegment_flow_veh_h) ? 0 : midsegment_flow_veh_h, !isLikeNone(through_capacity_veh_h), isLikeNone(through_capacity_veh_h) ? 0 : through_capacity_veh_h, !isLikeNone(through_control_delay_s), isLikeNone(through_control_delay_s) ? 0 : through_control_delay_s, !isLikeNone(cycle_length_s), isLikeNone(cycle_length_s) ? 0 : cycle_length_s, !isLikeNone(effective_green_s), isLikeNone(effective_green_s) ? 0 : effective_green_s, !isLikeNone(arrival_type), isLikeNone(arrival_type) ? 0 : arrival_type, !isLikeNone(platoon_ratio), isLikeNone(platoon_ratio) ? 0 : platoon_ratio, !isLikeNone(sat_flow_veh_h_ln), isLikeNone(sat_flow_veh_h_ln) ? 0 : sat_flow_veh_h_ln, !isLikeNone(stopped_vehicles_veh_ln), isLikeNone(stopped_vehicles_veh_ln) ? 0 : stopped_vehicles_veh_ln, !isLikeNone(queue2_veh_ln), isLikeNone(queue2_veh_ln) ? 0 : queue2_veh_ln, !isLikeNone(queue3_veh_ln), isLikeNone(queue3_veh_ln) ? 0 : queue3_veh_ln, !isLikeNone(full_stop_rate_override), isLikeNone(full_stop_rate_override) ? 0 : full_stop_rate_override, !isLikeNone(stop_rate_other), isLikeNone(stop_rate_other) ? 0 : stop_rate_other, !isLikeNone(prop_left_turn_lanes), isLikeNone(prop_left_turn_lanes) ? 0 : prop_left_turn_lanes, ptr1, len1, !isLikeNone(n_influential_access_points), isLikeNone(n_influential_access_points) ? 0 : n_influential_access_points, !isLikeNone(pct_left_turns_access), isLikeNone(pct_left_turns_access) ? 0 : pct_left_turns_access, !isLikeNone(pct_right_turns_access), isLikeNone(pct_right_turns_access) ? 0 : pct_right_turns_access, isLikeNone(access_left_bay_adequate) ? 0xFFFFFF : access_left_bay_adequate ? 1 : 0, isLikeNone(access_right_bay_adequate) ? 0xFFFFFF : access_right_bay_adequate ? 1 : 0, !isLikeNone(midsegment_other_delay_s), isLikeNone(midsegment_other_delay_s) ? 0 : midsegment_other_delay_s, !isLikeNone(analysis_period_h), isLikeNone(analysis_period_h) ? 0 : analysis_period_h, !isLikeNone(access_point_turn_delay_speed_mph), isLikeNone(access_point_turn_delay_speed_mph) ? 0 : access_point_turn_delay_speed_mph);
         this.__wbg_ptr = ret >>> 0;
         return this;
+    }
+    /**
+    * Append one active access point approach in the subject direction of
+    * travel, switching Step 2 to the computed Chapter 30, Section 4
+    * procedure (Equations 30-31 through 30-68) for every access point on
+    * the segment. Call once per point, before `analyze()`.
+    *
+    * `approach` is an object matching the serde schema of
+    * `hcm::urban_segments::access_point_delay::AccessPointApproach`:
+    *
+    * ```json
+    * { "v_lt": 74.0, "v_th": 1002.0, "v_rt": 74.0,
+    *   "n_sl": 1, "n_t": 0, "n_sr": 1,
+    *   "opposing_flow_veh_h": 1076.0,
+    *   "left_turn_bay": false, "right_turn_bay": false,
+    *   "n_lt_lanes": 0, "left_bay_storage_ft": 0.0,
+    *   "pct_heavy_veh": 0.0 }
+    * ```
+    *
+    * The right-turn branch is evaluated at the posted speed limit unless
+    * `access_point_turn_delay_speed_mph` overrides it; that is what
+    * reproduces the Exhibit 30-35 published per-point delays (0.193 and
+    * 0.194 s/veh) and the 0.115 inside-lane blockage probability. See the
+    * VERIFY-HCM note in the library's `access_point_delay` module docs.
+    * @param {any} approach
+    */
+    add_access_point(approach) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmurbansegment_add_access_point(retptr, this.__wbg_ptr, addHeapObject(approach));
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
     * Run the full HCM Ch.18 motorized vehicle pipeline (Steps 1-3 and
@@ -4746,6 +4988,96 @@ export class WasmUrbanSegment {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+    * Speed constant S_0, mi/h (Exhibit 18-11, note a).
+    * @returns {number | undefined}
+    */
+    get_speed_constant() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmurbansegment_get_speed_constant(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r2 = getFloat64Memory0()[retptr / 8 + 1];
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Cross-section adjustment f_CS, mi/h (Exhibit 18-11, note b).
+    * @returns {number | undefined}
+    */
+    get_f_cs() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmurbansegment_get_f_cs(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r2 = getFloat64Memory0()[retptr / 8 + 1];
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Access point adjustment f_A, mi/h (Exhibit 18-11, note c).
+    * @returns {number | undefined}
+    */
+    get_f_a() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmurbansegment_get_f_a(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r2 = getFloat64Memory0()[retptr / 8 + 1];
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * On-street parking adjustment f_pk, mi/h (Exhibit 18-11, note d).
+    * @returns {number | undefined}
+    */
+    get_f_pk() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmurbansegment_get_f_pk(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r2 = getFloat64Memory0()[retptr / 8 + 1];
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Signal spacing adjustment factor f_L (Equation 18-4).
+    * @returns {number | undefined}
+    */
+    get_f_l() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmurbansegment_get_f_l(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r2 = getFloat64Memory0()[retptr / 8 + 1];
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Vehicle proximity adjustment factor f_v (Equation 18-6).
+    * @returns {number | undefined}
+    */
+    get_f_v() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmurbansegment_get_f_v(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r2 = getFloat64Memory0()[retptr / 8 + 1];
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
     /**
@@ -4831,6 +5163,18 @@ export class WasmUrbanSegment {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+    * Per-access-point Chapter 30, Section 4 breakdown as a JS array of
+    * `{ delay_left_s, delay_right_s, delay_total_s,
+    * prob_inside_lane_blocked }` in the order the approaches were added
+    * (the Exhibit 30-35 columns). `null` unless approaches were supplied
+    * through [`Self::add_access_point`] and `analyze()` has run.
+    * @returns {any}
+    */
+    access_point_delays_computed() {
+        const ret = wasm.wasmurbansegment_access_point_delays_computed(this.__wbg_ptr);
+        return takeObject(ret);
     }
     /**
     * @returns {number | undefined}
@@ -5425,9 +5769,6 @@ async function __wbg_load(module, imports) {
 function __wbg_get_imports() {
     const imports = {};
     imports.wbg = {};
-    imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
-        takeObject(arg0);
-    };
     imports.wbg.__wbg_get_bd8e338fbd5f5cc8 = function(arg0, arg1) {
         const ret = getObject(arg0)[arg1 >>> 0];
         return addHeapObject(ret);
@@ -5443,6 +5784,9 @@ function __wbg_get_imports() {
     imports.wbg.__wbindgen_number_new = function(arg0) {
         const ret = arg0;
         return addHeapObject(ret);
+    };
+    imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
+        takeObject(arg0);
     };
     imports.wbg.__wbindgen_is_function = function(arg0) {
         const ret = typeof(getObject(arg0)) === 'function';
@@ -5624,24 +5968,16 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_set_20cbc34131e76824 = function(arg0, arg1, arg2) {
         getObject(arg0)[takeObject(arg1)] = takeObject(arg2);
     };
-    imports.wbg.__wbindgen_is_bigint = function(arg0) {
-        const ret = typeof(getObject(arg0)) === 'bigint';
-        return ret;
-    };
     imports.wbg.__wbindgen_in = function(arg0, arg1) {
         const ret = getObject(arg0) in getObject(arg1);
         return ret;
     };
-    imports.wbg.__wbindgen_jsval_eq = function(arg0, arg1) {
-        const ret = getObject(arg0) === getObject(arg1);
+    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
+        const ret = WasmSegment.__unwrap(takeObject(arg0));
         return ret;
     };
     imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
         const ret = WasmSubSegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
-    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
-        const ret = WasmSegment.__unwrap(takeObject(arg0));
         return ret;
     };
     imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
@@ -5652,6 +5988,14 @@ function __wbg_get_imports() {
         const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
         return ret;
     }, arguments) };
+    imports.wbg.__wbindgen_is_bigint = function(arg0) {
+        const ret = typeof(getObject(arg0)) === 'bigint';
+        return ret;
+    };
+    imports.wbg.__wbindgen_jsval_eq = function(arg0, arg1) {
+        const ret = getObject(arg0) === getObject(arg1);
+        return ret;
+    };
 
     return imports;
 }

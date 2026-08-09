@@ -6,21 +6,21 @@ Inspection workflow: go chapter by chapter, read the test file, spot-check the e
 
 | Ch | Method | Core EPs | Boundary checks | Status | Sign-off |
 |----|--------|----------|----------------|--------|----------|
-| 10 | Freeway Facilities | Ch.25 EP1, EP2, EP6 | 618 | pass | |
-| 11 | Freeway Reliability | Ch.25 EP7 | 61 | pass | |
-| 12 | Basic Freeway Segments | Ch.26 EP1-3 | 18 | pass (after f_HV fix) | |
+| 10 | Freeway Facilities | Ch.25 EP1, EP2, EP6 | 421 | pass | |
+| 11 | Freeway Reliability | Ch.25 EP7 | 27 (some getters unbound) | pass | |
+| 12 | Basic Freeway Segments | Ch.26 EP1-3 | 15 (some getters unbound) | pass (after f_HV fix) | |
 | 12 | Managed Lanes | none published in suite | 39 (exhibit anchors) | pass | |
-| 13 | Weaving Segments | Ch.27 EP1-3 | 53 (11 gated on rebuild) | pass | |
+| 13 | Weaving Segments | Ch.27 EP1-3 | 42 (11 gated on unbound getters) | pass | |
 | 14 | Merge and Diverge | Ch.28 EP1-4 | 51 | pass | |
 | 15 | Two-Lane Highways | 4 fixture cases | 160 | pass | |
-| 16 | Urban Street Facilities | Ch.29 EP1 (partial) | 22 | pass | |
-| 17 | Urban Street Reliability | Ch.29 §5 EP4 | 22 | pass | |
-| 18 | Urban Street Segments | Ch.30 §8 EP1 | 17 | pass | |
+| 16 | Urban Street Facilities | Ch.29 §5 EP1 EB+WB | 55 | pass | |
+| 17 | Urban Street Reliability | Ch.29 §5 EP4 + EP5 Strategy 1, Ch.37 §5 ASC | 37 | pass | |
+| 18 | Urban Street Segments | Ch.30 §8 EP1 (all three AP-delay paths) | 72 | pass | |
 | 19 | Signalized Intersections | Ch.31 §10 EP1 + Exhibit 31-7 | 155 | pass | |
-| 20 | TWSC | Ch.32 EP1, EP3 | 23 (13 gated on rebuild) | pass | |
+| 20 | TWSC | Ch.32 EP1, EP3 | 23 (13 gated on unbound override) | pass | |
 | 21 | AWSC | Ch.32 EP1-2 | 34 | pass | |
 | 22 | Roundabouts | Ch.33 EP1-2 | 55 | pass | |
-| 23 | Ramp Terminals | Ch.34 EP1, EP5, EP16 | 159 | pass | |
+| 23 | Ramp Terminals | Ch.34 EP1, EP5, EP13, EP15, EP16 | 200 | pass | |
 | 24 | Off-Street Ped/Bike | Ch.35 EP1-2 | 15 | pass | |
 
 ## Findings from the boundary pass
@@ -29,25 +29,27 @@ Inspection workflow: go chapter by chapter, read the test file, spot-check the e
 
 ## Decision items for Rei
 
-1. The PyO3 binding has the same `sut_percentage` gap (no parameter, core default 50), so the MCP Chapter 12 tools inherit the off-grid f_HV behavior. Corridor B used on-grid points so paper numbers are unaffected. Should PyO3 adopt the same book-default as the WASM binding? Touching it affects experiment-adjacent code, so this stays with you.
-2. Whether the core's off-grid fallback (e_t = None → f_HV = 1/(1 - p_t)) should instead fall back to the terrain E_T, which would fix the failure mode for every consumer at once.
+1. RESOLVED (verified 2026-08-08 against a fresh maturin build, 151 pytest green): the fix landed in the core during the pre-0.3.0 API work, so both bindings share it — `sut_percentage` defaults to 0 (general-terrain Exhibit 12-25) and PyO3 exposes the parameter and `e_t()` like WASM.
+2. RESOLVED with item 1: the silent off-grid fallback no longer exists. An off-grid SUT mix (say 40%) raises an error naming Exhibits 12-26 through 12-28 instead of degrading to 1/(1 - p_t).
 3. The reliability binding hard-codes jam density, queue-discharge drop, TRD, and interchange density to their defaults when building its internal facility, so the EP7 fixture's interchange density of 0.8 is inexpressible (weaving speeds shift in every scenario). A small constructor extension would close this.
 4. Promotion order out of beta once you have inspected each chapter.
 
 ## Full-suite status
 
-All sixteen test files pass, 1,515 checks total (run `for f in tests/boundary/ch*.mjs; do node "$f"; done`). Chapters 25 EPs beyond 1, 2, 5, 6, 7 (work zones, strategy assessment) have no fixture or Rust coverage at any layer.
+All sixteen test files pass, 1,401 checks executed against middleware 0.3.3 (`npm run test:boundary`). Every row's count is the executed count measured from that run. The total counts only checks the harness actually ran: files whose wanted getters have no middleware wrapper yet skip those checks and print a NOTE saying so, and skips are not counted.
+
+Chapters 25 EPs beyond 1, 2, 5, 6, 7 (work zones, strategy assessment) have no fixture or Rust coverage at any layer.
 
 ## Known out-of-scope at the boundary (core-tested only, no WASM path)
 
 - Ch.12: `estimate_number_of_lanes` design step (Ch.26 EP2's 3-lane answer is core-only).
 - Ch.15: BicycleLOS.
 - Ch.19: actuated timing estimation and RTOR volume estimation.
-- Ch.23: RCUT and MUT (AlternativeIntersection, Ch.34 EPs 12/13/15) and the DLT offset step.
+- Ch.23: closed by middleware 0.3.2. `WasmAlternativeIntersection` plus the EDTT/offset helper functions cover the RCUT (EP13), MUT (EP15), and DLT offset (EP16) paths, and the boundary suite runs them (200 checks). Still core-only: EPs 12 (RCUT with merges) and 14 (RCUT with signals) as full worked journeys, though `edtt_merge` is bound.
 - Ch.10: managed-lane facilities (ml_case1 fixture inexpressible through the binding).
-- Ch.18: the access-point-delay hook and the planning-parameter path (the binding always takes Exhibit 18-13 with the 10 percent baseline, so EP1's published running time and travel speed are core-only; the boundary asserts the derived values instead, labeled non-published).
-- Ch.16: no aggregate-from-published-segment-measures path and no FFS geometry args in add_segment, so Ch.29 EP1's published facility speeds are core-only.
-- Ch.17: snowfall is hard-coded to zero and boundary-signal approach lanes to the two-lane fallback, so the fixture's exact weather stream and the oversaturated-scenario count are core-only; ATDM strategy evaluation (Ch.29 EP5, Ch.37) has no binding surface. Distribution bands, scenario count, determinism, and seed-replication behavior are boundary-verified.
+- Ch.18: closed by middleware 0.3.3. All three Equation 18-7 access-point delay sources are now reachable (the `access_point_delays_s` published-input hook, the computed Chapter 30 §4 procedure via `add_access_point`, and the Exhibit 18-13 planning path with the fixture's own turn percentages), as are the Step 2 intermediates S_0, f_CS, f_A, f_pk, f_L, and f_v. EP1's published running time (33.54 s) and travel speed (23.67 mi/h) now reproduce at the boundary. The pre-0.3.3 forced-planning default path is retained as a labeled regression anchor so existing 28-argument callers cannot shift silently. Still core-only: nothing.
+- Ch.16: closed by middleware 0.3.3. `add_segment_summary` + `aggregate()` express the Exhibit 16-7 "HCM method output" path, so Ch.29 EP1 EB and WB now run at the boundary (facility base FFS 40.1, LOS C, poorest-segment LOS D all exact), and the sixteen new `add_segment` arguments make the full Ch.30 EP1 geometry expressible (facility base FFS 40.78 and travel speed 23.67, previously unreachable). `analyze()` refusing to run on a summary-built facility is asserted, not just documented. Remaining deviation, not a binding gap: EP1's published facility travel speeds (22.6 EB / 22.2 WB) do not reproduce because the fixtures copy Segments 1 and 5 into the unpublished Segments 2-4, giving 22.1 / 21.5. The fixtures say so in their own `_source` notes and the Rust core tests carry the same gap.
+- Ch.17: largely closed by middleware 0.3.3. Monthly snowfall, `jan1_day_of_week`, facility `prop_left_turn_lanes`, boundary-signal k/I/approach lanes, `add_atdm_strategy`, and `num_oversaturated_scenarios` are all expressible, so the boundary now reproduces the Rust test's computed point values rather than only landing inside its bands (mean TTI 1.5449, TTI-80 1.5927, PTI 1.7462, reliability rating 98.83, oversaturated scenarios 70 exact), and Ch.29 EP5 Strategy 1 plus the Ch.37 §5 adaptive signal control strategy are both evaluated. The pre-0.3.3 call shape is retained as a labeled regression anchor under the old wide bands. Still core-only: per-scenario results, which the boundary exposes only through summary getters plus the oversaturated count, so a Rust-style filter over `scenario_results` has no equivalent here. `AtdmStrategy` also reaches the binding through its serde form only, so `AtdmStrategy::adaptive_signal_control` is expressed as the `sat_flow_adjustment` value it computes (1 / (1 - 0.135) = 1.15607) rather than called by name.
 
 ## Coverage gaps (no fixture or Rust test at any layer)
 

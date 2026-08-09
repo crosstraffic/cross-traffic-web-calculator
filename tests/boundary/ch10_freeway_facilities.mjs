@@ -13,9 +13,9 @@ import { loadWasm, loadCase, approx, exact, report } from './_harness.mjs';
 
 const m = await loadWasm();
 
-// Getters added to the middleware for this boundary (volume served,
-// demand-based LOS, planning delay rate / queue) need a pkg rebuild before
-// they exist here; skip those checks until then and say so.
+// Some checks want getters (volume served, demand-based LOS, planning delay
+// rate / queue) that are not bound in any released middleware version —
+// they are pending wrapper work, not a rebuild. Skip those checks and say so.
 const pendingRebuild = new Set();
 function has(obj, name) {
   if (typeof obj[name] === 'function') return true;
@@ -303,6 +303,6 @@ function checkMatrix(getFn, expected, tol, label) {
 }
 
 if (pendingRebuild.size) {
-  console.log(`NOTE  skipped checks pending pkg rebuild (new getters): ${[...pendingRebuild].join(', ')}`);
+  console.log(`NOTE  skipped checks awaiting middleware wrapper work (getters not in any released version): ${[...pendingRebuild].join(', ')}`);
 }
 report('ch10 freeway facilities (HCM Ch.25 EP1, EP2, EP6; EP5 managed lanes out of binding scope)');

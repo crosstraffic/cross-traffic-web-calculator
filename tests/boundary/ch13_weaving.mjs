@@ -27,7 +27,7 @@ function optCheck(seg, getter, fn, label) {
   if (typeof seg[getter] === 'function') {
     fn(seg[getter]());
   } else {
-    console.log(`NOTE  ${label}: skipped, ${getter} needs a pkg rebuild`);
+    console.log(`NOTE  ${label}: skipped, ${getter} is not bound in the middleware yet`);
   }
 }
 
