@@ -1115,6 +1115,32 @@ test.describe('chapter 23 part C alternative intersections', () => {
     await expect(page.locator('.report-title')).toHaveText('Ramp Terminals and Alternative Intersections');
   });
 
+  test('the RCUT diagram isolates movements, edits demands, and colours by LOS', async ({ page }) => {
+    await page.goto('/hcm23');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await page.locator('#PART_input').selectOption('C');
+
+    const diagram = page.locator('.rc-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /restricted crossing U-turn/);
+
+    // Hovering a movement chip isolates that path.
+    await page.locator('.rc-chip.chip-ebl').hover();
+    await expect(page.locator('path.mv-ebl')).toHaveClass(/active/);
+    await expect(page.locator('path.mv-nbt')).toHaveClass(/dim/);
+    await page.locator('.rc-note').hover();
+
+    // On-diagram demand editing two-way binds to the form field.
+    await page.locator('input[aria-label="EBL demand"]').fill('210');
+    await expect(page.locator('#PC_OD_ebl_input')).toHaveValue('210');
+
+    // After a run each path carries its movement LOS as a class. The EB left
+    // is the movement the RCUT penalises, so it is the one worth asserting.
+    await page.locator('#PC_OD_ebl_input').fill('150');
+    await page.getByRole('button', { name: 'Calculate' }).click();
+    await expect(page.locator('path.mv-ebl')).toHaveClass(/los-[a-f]/);
+  });
+
   test('the MUT form reproduces Example Problem 15', async ({ page }) => {
     // Chapter 34 Example Problem 15 (four-legged MUT): the Exhibit 34-137
     // junction delays enter as inputs, so Exhibit 34-138 reproduces exactly:
