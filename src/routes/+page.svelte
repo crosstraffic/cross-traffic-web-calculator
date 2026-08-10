@@ -21,7 +21,7 @@
         <h1 class="hero-title">HCM Calculator</h1>
         <p class="hero-lead">
           A browser-based implementation of HCM analysis procedures across
-          thirteen chapters: freeways, urban street segments, signalized and
+          fourteen chapters: freeways, urban streets, signalized and
           stop-controlled intersections, roundabouts, interchanges, and multiuse
           paths. Every chapter reproduces its published HCM worked examples, computed by a
           WebAssembly engine that also works offline. Interactive 2D and 3D
@@ -89,7 +89,7 @@
   <section class="chapters" id="chapters">
     <div class="chapters-head">
       <h2>Available chapters</h2>
-      <span class="chapters-meta">Thirteen chapters, each validated against its published HCM worked examples</span>
+      <span class="chapters-meta">Fourteen chapters, each validated against its published HCM worked examples</span>
     </div>
 
     <a class="chapter-row" href="/hcm10">
@@ -144,6 +144,15 @@
         <span class="chapter-desc">Level of service, follower density, average speed, and passing analysis</span>
       </span>
       <span class="chapter-status available">Available</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm17">
+      <span class="chapter-no">17</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Urban Street Reliability and ATDM</span>
+        <span class="chapter-desc">Travel time distribution, travel time index percentiles, and reliability rating over a year of generated weather, demand, and incident scenarios</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
     </a>
 
     <a class="chapter-row" href="/hcm18">
