@@ -146,6 +146,15 @@
       <span class="chapter-status available">Available</span>
     </a>
 
+    <a class="chapter-row" href="/hcm16">
+      <span class="chapter-no">16</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Urban Street Facilities</span>
+        <span class="chapter-desc">Facility travel speed, spatial stop rate, and LOS aggregated over a chain of urban street segments</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
+
     <a class="chapter-row" href="/hcm17">
       <span class="chapter-no">17</span>
       <span class="chapter-body">

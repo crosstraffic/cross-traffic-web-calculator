@@ -17,6 +17,7 @@
   import RoundaboutDiagram from '$lib/RoundaboutDiagram.svelte';
   import PathDiagram from '$lib/PathDiagram.svelte';
   import UrbanSegmentDiagram from '$lib/UrbanSegmentDiagram.svelte';
+  import UrbanFacilityDiagram from '$lib/UrbanFacilityDiagram.svelte';
 
   onMount(() => { if (!Object.keys($reports).length) loadReports(); });
 
@@ -120,7 +121,7 @@
 
       {#if current.diagram}
         <section class="report-section">
-          <h2>Segment</h2>
+          <h2>{current.diagram.kind === 'urban-facility' ? 'Facility' : 'Segment'}</h2>
           <div class="report-diagram">
             {#if current.diagram.kind === 'freeway'}
               <FreewaySegment3D
@@ -162,6 +163,10 @@
               <PathDiagram {...current.diagram.props} editable={false} />
             {:else if current.diagram.kind === 'urban-segment'}
               <UrbanSegmentDiagram {...current.diagram.props} editable={false} />
+            {:else if current.diagram.kind === 'urban-facility'}
+              <UrbanFacilityDiagram
+                segments={current.diagram.props.segments}
+                note="Segment chain, upstream to downstream, coloured by segment level of service." />
             {/if}
           </div>
         </section>

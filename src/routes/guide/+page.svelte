@@ -82,6 +82,7 @@
         <tr><td><a href="/hcm13">13 Freeway Weaving</a></td><td>Weaving segment speeds and capacity, 7th Edition or Edition 7.1</td><td>Density (pc/mi/ln)</td></tr>
         <tr><td><a href="/hcm14">14 Merge and Diverge</a></td><td>Ramp influence area speeds and capacity, 7th Edition or Edition 7.1</td><td>Influence area density</td></tr>
         <tr><td><a href="/hcm15">15 Two-Lane Highways</a></td><td>Segment-by-segment facility with passing configuration and horizontal curves</td><td>Follower density</td></tr>
+        <tr><td><a href="/hcm16">16 Urban Street Facilities</a> (Beta)</td><td>A chain of urban street segments aggregated into one direction of an arterial facility, from Chapter 18 inputs or from published segment measures</td><td>Facility travel speed (mi/h)</td></tr>
         <tr><td><a href="/hcm17">17 Urban Street Reliability</a> (Beta)</td><td>A year of weekday scenarios over a signalized arterial: weather, demand, and incident generation, then the travel time distribution</td><td>Travel time index and reliability rating</td></tr>
         <tr><td><a href="/hcm18">18 Urban Street Segments</a> (Beta)</td><td>One direction of an arterial segment: base and adjusted free-flow speed, running time, through delay, stop rate</td><td>Travel speed (mi/h)</td></tr>
         <tr><td><a href="/hcm19">19 Signalized Intersections</a></td><td>Pretimed four-leg signal: saturation flows, capacities, delay by approach</td><td>Control delay (s/veh)</td></tr>
@@ -92,8 +93,6 @@
         <tr><td><a href="/hcm24">24 Off-Street Ped and Bike</a></td><td>Exclusive walkways, shared-use path pedestrian events, bicycle BLOS</td><td>Space, events per hour, BLOS score</td></tr>
       </tbody>
     </table>
-    <p>Chapter 16 (urban street facilities) is implemented in the compute engine and will be
-      released after validation review.</p>
   </section>
 
   <!-- Getting started -->
@@ -305,7 +304,7 @@
 
   <!-- Urban streets -->
   <section id="urban-guide" class="guide-section">
-    <h2>Urban Streets (17 and 18)</h2>
+    <h2>Urban Streets (16, 17, and 18)</h2>
     <p>
       <a href="/hcm18">Chapter 18</a> evaluates one direction of travel over one segment,
       from the upstream boundary intersection to the downstream one. The geometry inputs set
@@ -332,6 +331,25 @@
       speed than the per-point procedure.
     </p>
     <p>
+      <a href="/hcm16">Chapter 16</a> chains those segments into a facility in one direction of
+      travel, and its <strong>analysis mode</strong> selector follows the two ways the HCM
+      states a facility. <strong>Chapter 18 inputs</strong> describes every segment by its
+      geometry and boundary-intersection values, runs the Chapter 18 engine over each one, and
+      then aggregates. <strong>Published segment measures</strong> takes each segment's already
+      known base free-flow speed, travel speed, stop rate, v/c ratio, and LOS letter, which is
+      the Exhibit 16-7 HCM method output case and the way the published example problems are
+      written. The two are exclusive within a run, and the mode defaults are the Chapter 30 and
+      Chapter 29 Example Problem 1 facilities respectively.
+    </p>
+    <p>
+      The facility aggregation is length weighted. Base free-flow speed and travel speed are
+      harmonic means over the segment lengths (Equations 16-2 and 16-3), the spatial stop rate
+      is an arithmetic one (Equation 16-4), and facility LOS comes from the travel-speed ratio
+      against the Exhibit 16-3 thresholds. One thing overrides the ratio: a through movement
+      running over capacity at any boundary intersection forces LOS F, which is why the through
+      capacity is worth supplying even when the facility is plainly undersaturated. Click a
+      segment in the facility strip to highlight its card, and read the poorest-performing
+      segment LOS alongside the facility letter, since a C facility can hold an E segment.
       <a href="/hcm17">Chapter 17</a> (Beta) wraps the segment method in a whole-year weekday
       scenario generator. Each segment card is a Chapter 18 segment with its boundary signal,
       and the facility is evaluated once per analysis period of every weekday in the year, which
