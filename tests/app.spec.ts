@@ -20,6 +20,8 @@ test.describe('navigation and route gating', () => {
     await expect(page).toHaveURL(/\/hcm11$/);
     await page.goto('/hcm12');
     await expect(page).toHaveURL(/\/hcm12$/);
+    await page.goto('/hcm12ml');
+    await expect(page).toHaveURL(/\/hcm12ml$/);
     await page.goto('/hcm13');
     await expect(page).toHaveURL(/\/hcm13$/);
     await page.goto('/hcm14');
@@ -95,6 +97,7 @@ test.describe('navigation and route gating', () => {
     await expect(nav.locator('a[href="/hcm10"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm11"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm12"]')).toHaveCount(1);
+    await expect(nav.locator('a[href="/hcm12ml"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm13"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm14"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm15"]')).toHaveCount(1);
@@ -170,13 +173,15 @@ test.describe('navigation and route gating', () => {
   });
 
   test('unreleased chapter routes redirect home', async ({ page }) => {
-    // Every numbered chapter is released; hcm12ml (managed-lane facilities)
-    // is the remaining route outside the RELEASED set of src/routes/+layout.js,
-    // so it keeps this gate honest. A direct visit must land on the home page.
-    for (const route of ['/hcm12ml']) {
-      await page.goto(route);
-      await expect(page).toHaveURL(/\/$/);
-    }
+    // Nothing is gated any more: hcm12ml was the last route outside the RELEASED
+    // set of src/routes/+layout.js. The gate itself still has to work, so this
+    // asserts it against a chapter route that does not exist at all. The load
+    // function's /^\/hcm[0-9a-z]+$/i test matches /hcm99 and the RELEASED set does
+    // not contain it, so the redirect is what proves the gate is still wired up
+    // rather than silently passing everything through. Add a real gated route
+    // here in place of /hcm99 the next time one exists.
+    await page.goto('/hcm99');
+    await expect(page).toHaveURL(/\/$/);
   });
 });
 
@@ -541,6 +546,107 @@ test.describe('chapter 12 basic freeway calculator', () => {
 
     await page.getByRole('button', { name: 'Load example' }).click();
     await calculate.click();
+    await expect(page.locator('.los-badge').first()).toBeVisible();
+
+    await page.getByRole('button', { name: 'Reset Params' }).click();
+    await expect(page.locator('.los-badge')).toHaveCount(0);
+  });
+});
+
+test.describe('chapter 12 managed lane calculator', () => {
+  // HCM Chapter 26, Example Problem 7. The page defaults are Case 1; the only edit
+  // between the two cases is the adjacent general purpose demand. Same fixture as
+  // tests/boundary/ch12ml_managed_lanes.mjs, driven here through the form so the
+  // veh/h to pc/h/ln conversion on the page is covered too.
+  async function calculate(page: Page) {
+    const button = page.getByRole('button', { name: 'Calculate' });
+    await expect(button).toBeEnabled({ timeout: 30_000 });
+    await button.click();
+    return button;
+  }
+
+  test('defaults reproduce Example Problem 7 Case 1', async ({ page }) => {
+    await page.goto('/hcm12ml');
+    await calculate(page);
+
+    // Published Case 1: f_HV 0.93, ML flow 1,519 pc/h/ln, S_ML 56.3 mi/h,
+    // density 27.0 pc/mi/ln, LOS D, with the GP lanes under the friction threshold.
+    const row = (label: string) => page.locator('tr', { has: page.getByText(label, { exact: false }) }).first();
+    await expect(row('Heavy-Vehicle Factor').locator('td')).toHaveText('0.930');
+    await expect(row('Managed Lane Flow Rate').locator('td')).toHaveText('1519');
+    await expect(row('Adjusted Capacity').locator('td')).toHaveText('1650');
+    await expect(row('Speed-Flow Breakpoint').locator('td')).toHaveText('500');
+    await expect(row('Space Mean Speed').locator('td')).toHaveText('56.3');
+    await expect(row('Density (pc/mi/ln)').locator('td')).toHaveText('27.0');
+    await expect(row('GP Lane Friction Active').locator('td')).toHaveText(/No/);
+    await expect(page.getByText('Segment LOS: D')).toBeVisible();
+
+    await expect(page.locator('.los-badge').first()).toHaveAttribute('aria-label', 'Level of service D');
+    await expect(page.getByText('Managed lane density against the Exhibit 12-15 thresholds')).toBeVisible();
+  });
+
+  test('raising the GP demand reproduces Case 2 and activates friction', async ({ page }) => {
+    await page.goto('/hcm12ml');
+    await page.locator('#GPDEMAND_input').fill('3800');
+    await calculate(page);
+
+    // Published Case 2: GP flow 2,221 pc/h/ln at 53.0 mi/h gives K_GP 41.9 > 35,
+    // so I_c = 1 and the managed lane drops to 41.9 mi/h and LOS E. The page prints
+    // 2,220 and 36.2 where the book prints 2,221 and 36.3, because the book carries
+    // its rounded intermediates forward (1,519 / 41.9 = 36.3) while the engine
+    // divides by the unrounded speed 41.9094 and gets 36.245. Both differences are
+    // inside the 0.1 and 1.0 tolerances the boundary suite pins EP7 to, and neither
+    // moves the LOS letter.
+    const row = (label: string) => page.locator('tr', { has: page.getByText(label, { exact: false }) }).first();
+    await expect(row('GP Flow Rate').locator('td')).toHaveText('2220');
+    await expect(row('GP Speed').locator('td')).toHaveText('53.0');
+    await expect(row('GP Density').locator('td')).toHaveText('41.9');
+    await expect(row('Space Mean Speed').locator('td')).toHaveText('41.9');
+    await expect(row('Density (pc/mi/ln)').locator('td')).toHaveText('36.2');
+    await expect(row('GP Lane Friction Active').locator('td')).toHaveText(/Yes/);
+    await expect(page.getByText('Segment LOS: E')).toBeVisible();
+  });
+
+  test('the diagram redraws for the separation type and tints by LOS after a run', async ({ page }) => {
+    await page.goto('/hcm12ml');
+    const diagram = page.locator('.ml-diagram');
+
+    // Continuous access draws the wide dashed access line and no separation band.
+    await expect(diagram.locator('.ml-access-line')).toHaveCount(1);
+    await expect(diagram.locator('.ml-barrier')).toHaveCount(0);
+    await expect(diagram.locator('.ml-tint')).toHaveCount(0);
+
+    // Two GP lanes plus one managed lane means exactly one interior lane line.
+    await expect(diagram.locator('.ml-lane-line')).toHaveCount(1);
+
+    await page.locator('#TYPE_input').selectOption('barrier2');
+    await expect(diagram.locator('.ml-barrier')).toHaveCount(1);
+    await expect(diagram.locator('.ml-access-line')).toHaveCount(0);
+
+    await page.locator('#TYPE_input').selectOption('continuous_access');
+    await calculate(page);
+    await expect(diagram.locator('.ml-tint')).toHaveCount(1);
+    // The labels are SVG <text>, which the text engine does not reach, so assert on
+    // the rendered node itself.
+    await expect(diagram.locator('[data-testid="ml-label"]')).toHaveText(/Managed lane · LOS D · 27\.0 pc\/mi\/ln/);
+    await expect(diagram.locator('[data-testid="gp-label"]')).toHaveText(/2 general purpose lanes · K_GP 19\.5 pc\/mi\/ln/);
+  });
+
+  test('a run publishes a printable report', async ({ page }) => {
+    await page.goto('/hcm12ml');
+    await calculate(page);
+
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page).toHaveURL(/\/report$/);
+    await expect(page.locator('.report-title')).toHaveText('Basic Managed Lane Segments');
+    await expect(page.locator('.report-eyebrow')).toHaveText('HCM Chapter 12, Section 4');
+    // The report carries the same diagram component the page draws.
+    await expect(page.locator('.report-diagram .ml-diagram')).toHaveCount(1);
+  });
+
+  test('reset clears the outputs', async ({ page }) => {
+    await page.goto('/hcm12ml');
+    await calculate(page);
     await expect(page.locator('.los-badge').first()).toBeVisible();
 
     await page.getByRole('button', { name: 'Reset Params' }).click();

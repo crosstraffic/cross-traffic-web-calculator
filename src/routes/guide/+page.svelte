@@ -8,8 +8,8 @@
     <h1 class="page-title">Guide</h1>
     <p class="page-sub">
       How to use the calculator: the features every chapter page shares, a
-      reference to all fourteen available chapters, and detailed walkthroughs of
-      the Two-Lane Highways and Basic Freeway analyses.
+      reference to all sixteen available chapter pages, and detailed walkthroughs of
+      the Two-Lane Highways, Basic Freeway, and Managed Lane analyses.
     </p>
   </header>
 
@@ -24,6 +24,7 @@
         <a href="#facility-layout">Facility layout</a>
         <a href="#outputs">Outputs &amp; LOS</a>
         <a href="#basic-freeway">Basic Freeway Segments</a>
+        <a href="#managed-lanes">Managed Lanes</a>
         <a href="#facilities-guide">Facilities &amp; Reliability</a>
         <a href="#weaving-ramps-guide">Weaving &amp; Ramps</a>
         <a href="#urban-guide">Urban Streets</a>
@@ -79,6 +80,7 @@
         <tr><td><a href="/hcm10">10 Freeway Facilities</a></td><td>Whole-facility analysis over 15-min periods, composing basic, merge, diverge, and weaving segments, with oversaturated queue tracking</td><td>Density and LOS per segment and period</td></tr>
         <tr><td><a href="/hcm11">11 Freeway Reliability</a> (Beta)</td><td>Whole-year weekday travel time reliability with demand variation and random incidents</td><td>TTI distribution, PTI, reliability rating</td></tr>
         <tr><td><a href="/hcm12">12 Basic Freeway Segments</a></td><td>Single directional segment: FFS, capacity, speed, density</td><td>Density (pc/mi/ln)</td></tr>
+        <tr><td><a href="/hcm12ml">12 Basic Managed Lane Segments</a> (Beta)</td><td>A managed lane alongside general purpose freeway lanes: separation-specific breakpoint and capacity, speed, and the friction effect of the adjacent lanes</td><td>Density (pc/mi/ln)</td></tr>
         <tr><td><a href="/hcm13">13 Freeway Weaving</a></td><td>Weaving segment speeds and capacity, 7th Edition or Edition 7.1</td><td>Density (pc/mi/ln)</td></tr>
         <tr><td><a href="/hcm14">14 Merge and Diverge</a></td><td>Ramp influence area speeds and capacity, 7th Edition or Edition 7.1</td><td>Influence area density</td></tr>
         <tr><td><a href="/hcm15">15 Two-Lane Highways</a></td><td>Segment-by-segment facility with passing configuration and horizontal curves</td><td>Follower density</td></tr>
@@ -247,6 +249,52 @@
       far end. Drag to rotate, <strong>Alt-drag</strong> to pan, scroll / pinch to zoom.
     </p>
     <a href="/hcm12" class="guide-cta">Open Basic Freeway Segments <span aria-hidden="true">→</span></a>
+  </section>
+
+  <!-- Basic Managed Lane Segments -->
+  <section id="managed-lanes" class="guide-section">
+    <h2>Basic Managed Lane Segments (Chapter 12, Section 4)</h2>
+    <p>
+      <a href="/hcm12ml">Basic Managed Lane Segments</a> analyzes a managed lane running
+      alongside general purpose freeway lanes, such as an HOV, HOT, or express lane. It is a
+      separate method from <a href="/hcm12">Basic Freeway Segments</a> because a managed lane has its own
+      speed-flow calibration for each way it is separated from the adjacent traffic, and because
+      its speed depends on how the adjacent lanes are operating.
+    </p>
+    <ol class="guide-steps">
+      <li>Choose the <strong>Separation Type</strong>. Continuous access, buffer, and barrier
+        each carry their own breakpoint, capacity, and speed-drop parameters from HCM
+        Exhibit 12-30, with separate rows for single-lane and multiple-lane facilities.</li>
+      <li>Set the managed lane's free-flow speed, lane count, and the CAF and SAF adjustment
+        factors (1.00 for base conditions).</li>
+      <li>Enter the <strong>Traffic</strong> inputs. Demand is hourly volume in vehicles, and the
+        peak hour factor, heavy-vehicle percentage, and terrain convert it to a per-lane flow
+        rate in passenger cars.</li>
+      <li>Enter the <strong>Adjacent General Purpose Lanes</strong>. Their demand, lane count,
+        free-flow speed, capacity, and breakpoint come from the Chapter 12 basic-segment
+        analysis of those lanes; the page derives their density from them.</li>
+      <li>Press <strong>Calculate</strong>.</li>
+    </ol>
+
+    <h3>The friction effect</h3>
+    <p>
+      Where a managed lane has no physical separation, drivers in it slow down when the lanes
+      beside them are congested. The method captures this with the friction indicator of
+      Equation 12-18, which switches on when the adjacent general purpose density passes
+      35 pc/mi/ln. It applies only to the continuous access and Buffer 1 types, since barrier
+      separation and the wider Buffer 2 remove the effect entirely. The Outputs panel reports
+      whether it was active for your run, and the diagram says so alongside the general purpose
+      lanes.
+    </p>
+
+    <p>
+      The page opens on HCM Chapter 26, Example Problem 7, Case 1: a continuous-access managed
+      lane at 60 mi/h carrying 1,300 veh/h beside two general purpose lanes carrying
+      2,000 veh/h, which computes to 56.3 mi/h and LOS D. Raising the general purpose demand to
+      3,800 veh/h reproduces the same example's Case 2, where the adjacent lanes cross the
+      friction threshold and the managed lane drops to 41.9 mi/h and LOS E.
+    </p>
+    <a href="/hcm12ml" class="guide-cta">Open Basic Managed Lane Segments <span aria-hidden="true">→</span></a>
   </section>
 
   <!-- Freeway facilities and reliability -->
