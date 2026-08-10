@@ -16,6 +16,7 @@
   import AwscDiagram from '$lib/AwscDiagram.svelte';
   import RoundaboutDiagram from '$lib/RoundaboutDiagram.svelte';
   import PathDiagram from '$lib/PathDiagram.svelte';
+  import UrbanSegmentDiagram from '$lib/UrbanSegmentDiagram.svelte';
 
   onMount(() => { if (!Object.keys($reports).length) loadReports(); });
 
@@ -159,6 +160,8 @@
               <RoundaboutDiagram entries={current.diagram.props.entries} editable={false} />
             {:else if current.diagram.kind === 'path'}
               <PathDiagram {...current.diagram.props} editable={false} />
+            {:else if current.diagram.kind === 'urban-segment'}
+              <UrbanSegmentDiagram {...current.diagram.props} editable={false} />
             {/if}
           </div>
         </section>

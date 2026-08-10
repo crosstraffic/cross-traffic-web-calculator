@@ -26,6 +26,8 @@ test.describe('navigation and route gating', () => {
     await expect(page).toHaveURL(/\/hcm14$/);
     await page.goto('/hcm15');
     await expect(page).toHaveURL(/\/hcm15$/);
+    await page.goto('/hcm18');
+    await expect(page).toHaveURL(/\/hcm18$/);
     await page.goto('/hcm19');
     await expect(page).toHaveURL(/\/hcm19$/);
     await page.goto('/hcm20');
@@ -92,6 +94,7 @@ test.describe('navigation and route gating', () => {
     await expect(nav.locator('a[href="/hcm13"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm14"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm15"]')).toHaveCount(1);
+    await expect(nav.locator('a[href="/hcm18"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm19"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm20"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm21"]')).toHaveCount(1);
@@ -161,9 +164,9 @@ test.describe('navigation and route gating', () => {
   });
 
   test('unreleased chapter routes redirect home', async ({ page }) => {
-    // hcm16, hcm17, and hcm18 exist in the repo but are not in the RELEASED
-    // set of src/routes/+layout.js; a direct visit must land on the home page.
-    for (const route of ['/hcm16', '/hcm17', '/hcm18']) {
+    // hcm16 and hcm17 exist in the repo but are not in the RELEASED set of
+    // src/routes/+layout.js; a direct visit must land on the home page.
+    for (const route of ['/hcm16', '/hcm17']) {
       await page.goto(route);
       await expect(page).toHaveURL(/\/$/);
     }
@@ -535,6 +538,84 @@ test.describe('chapter 12 basic freeway calculator', () => {
 
     await page.getByRole('button', { name: 'Reset Params' }).click();
     await expect(page.locator('.los-badge')).toHaveCount(0);
+  });
+});
+
+test.describe('chapter 18 urban street segment calculator', () => {
+  test('reproduces the published Chapter 30 example problem on defaults', async ({ page }) => {
+    // The page defaults are HCM Chapter 30, Section 8, Example Problem 1
+    // (Exhibits 30-26 through 30-36), eastbound, with the Exhibit 30-35
+    // per-point access delays supplied. Published: base FFS 40.78 mi/h,
+    // travel speed 23.67 mi/h, LOS C, through delay 18.310 s/veh. Same
+    // fixture and expectations as tests/boundary/ch18_urban_segments.mjs.
+    await page.goto('/hcm18');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+    await calculate.click();
+
+    const row = (label: string) => page.locator('.results-panel tr', { hasText: label }).first();
+    await expect(row('Base Free-Flow Speed')).toContainText('40.78');
+    await expect(row('Travel Speed')).toContainText('23.67');
+    await expect(row('Through Delay')).toContainText('18.31');
+    await expect(page.getByText(/Segment LOS: C/)).toBeVisible();
+
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page.locator('.report-title')).toHaveText('Urban Street Segments');
+    await expect(page.locator('.report-diagram .us-diagram svg')).toBeVisible();
+  });
+
+  test('switching the access-point delay source to the planning estimate moves the travel speed', async ({ page }) => {
+    // With every planning field left blank the engine takes the Exhibit 18-13
+    // baseline (10% left and right turns, N_ap = N_ap,s + p_ap,lt * N_ap,o =
+    // 8), giving d_ap 2.96 s against the per-point 0.387 s and a travel speed
+    // of 22.55 mi/h. That is the pre-0.3.3 default path, held as a regression
+    // anchor in tests/boundary/ch18_urban_segments.mjs.
+    await page.goto('/hcm18');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#APSRC_input').selectOption('planning');
+    await expect(page.locator('#NAP_input')).toHaveValue('');
+    await calculate.click();
+
+    const row = (label: string) => page.locator('.results-panel tr', { hasText: label }).first();
+    await expect(row('Travel Speed')).toContainText('22.55');
+    await expect(row('Access-Point Delay')).toContainText('2.960');
+    // The free-flow speed chain does not depend on the delay source.
+    await expect(row('Base Free-Flow Speed')).toContainText('40.78');
+    await expect(page.getByText(/Segment LOS: C/)).toBeVisible();
+  });
+
+  test('the segment diagram edits demand, counts driveways, and animates', async ({ page }) => {
+    await page.goto('/hcm18');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
+    const diagram = page.locator('.us-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /urban street segment, 2 through lanes each direction, 4 subject and 4 opposing access points/);
+
+    // Four driveways per side, redrawn from the counts.
+    await expect(page.locator('rect.us-drive')).toHaveCount(8);
+    await page.locator('input[aria-label="Subject access points"]').fill('2');
+    await expect(page.locator('rect.us-drive')).toHaveCount(6);
+    await expect(page.locator('#APS_input')).toHaveValue('2');
+    await page.locator('#APS_input').fill('4');
+    await expect(page.locator('rect.us-drive')).toHaveCount(8);
+
+    // On-diagram demand editing two-way binds to the form.
+    await page.locator('input[aria-label="Through demand"]').fill('1200');
+    await expect(page.locator('#DEM_input')).toHaveValue('1200');
+
+    // Animation runs and stops.
+    await page.getByRole('button', { name: 'Animate traffic' }).click();
+    const vehicles = page.locator('g.us-veh');
+    await expect(vehicles.first()).toBeVisible();
+    expect(await vehicles.count()).toBeGreaterThan(3);
+    await page.getByRole('button', { name: 'Stop traffic' }).click();
+    await expect(vehicles).toHaveCount(0);
+
+    // The 3D toggle swaps in the projected view.
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
+    await expect(page.locator('.us-diagram-3d svg')).toHaveAttribute('aria-label', /urban street segment, 3D view/);
   });
 });
 

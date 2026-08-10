@@ -17,11 +17,13 @@
 // supplied, this boundary now reproduces the Rust test's computed point
 // values exactly rather than merely landing inside its bands, so the
 // assertions below are tightened to +-0.005 on the TTI measures and to an
-// exact oversaturated-scenario count. Snowfall is the reason: the Lincoln
-// climatology carries up to 6.6 in. in January, and snow drives the
-// strongest capacity and free-flow-speed losses in the Chapter 29 weather
-// model, so zeroing it used to produce a materially different weather
-// stream.
+// exact oversaturated-scenario count. What closed the gap was
+// jan1_day_of_week, approach_lanes, and prop_left_turn_lanes. NOT snowfall:
+// the library never reads total_snowfall_in (the Chapter 29 procedure
+// decides rain vs snow from the sampled temperature, Equations 29-3/29-4,
+// and sizes snow from the precipitation columns), so the snowfall array
+// supplied below is climatological metadata that changes nothing — see the
+// middleware 0.3.4 CHANGELOG correction.
 //
 // Remaining boundary gaps: per-scenario results are exposed only through
 // the summary getters (the Rust test can filter analysis.scenario_results
