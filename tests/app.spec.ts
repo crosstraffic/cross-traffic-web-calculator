@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 // Defense in depth for the phantom-user incident: even if the app-level
 // hostname gate ever regresses, no test traffic may reach third-party
@@ -26,6 +26,8 @@ test.describe('navigation and route gating', () => {
     await expect(page).toHaveURL(/\/hcm14$/);
     await page.goto('/hcm15');
     await expect(page).toHaveURL(/\/hcm15$/);
+    await page.goto('/hcm17');
+    await expect(page).toHaveURL(/\/hcm17$/);
     await page.goto('/hcm18');
     await expect(page).toHaveURL(/\/hcm18$/);
     await page.goto('/hcm19');
@@ -94,6 +96,7 @@ test.describe('navigation and route gating', () => {
     await expect(nav.locator('a[href="/hcm13"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm14"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm15"]')).toHaveCount(1);
+    await expect(nav.locator('a[href="/hcm17"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm18"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm19"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm20"]')).toHaveCount(1);
@@ -164,9 +167,9 @@ test.describe('navigation and route gating', () => {
   });
 
   test('unreleased chapter routes redirect home', async ({ page }) => {
-    // hcm16 and hcm17 exist in the repo but are not in the RELEASED set of
+    // hcm16 exists in the repo but is not in the RELEASED set of
     // src/routes/+layout.js; a direct visit must land on the home page.
-    for (const route of ['/hcm16', '/hcm17']) {
+    for (const route of ['/hcm16']) {
       await page.goto(route);
       await expect(page).toHaveURL(/\/$/);
     }
@@ -538,6 +541,89 @@ test.describe('chapter 12 basic freeway calculator', () => {
 
     await page.getByRole('button', { name: 'Reset Params' }).click();
     await expect(page.locator('.los-badge')).toHaveCount(0);
+  });
+});
+
+test.describe('chapter 17 urban street reliability calculator', () => {
+  // The reliability run is one synchronous wasm call over roughly three
+  // thousand scenarios, so every assertion here waits on the results cell
+  // rather than on the click.
+  const row = (page: Page, label: string) => page.locator('.results-panel tr', { hasText: label }).first();
+
+  test('reproduces the published Chapter 29 example problem on defaults', async ({ page }) => {
+    // The page defaults are HCM Chapter 29, Section 5, Example Problem 4
+    // (Exhibits 29-62 through 29-77): the 3-mi Lincoln, Nebraska principal
+    // arterial, twelve 15-min periods from 7 a.m., seeds 82/11/63. Same
+    // fixture and expectations as tests/boundary/ch17_urban_reliability.mjs,
+    // whose header explains why the computed TTI measures differ from the
+    // published Exhibit 29-73 values.
+    await page.goto('/hcm17');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+    await calculate.click();
+
+    await expect(row(page, 'Scenarios Evaluated')).toContainText('3120', { timeout: 60_000 });
+    await expect(row(page, 'Mean Travel Time Index')).toContainText('1.545');
+    await expect(row(page, '80th Percentile TTI')).toContainText('1.593');
+    await expect(row(page, '95th Percentile TTI')).toContainText('1.746');
+    await expect(row(page, 'Oversaturated Scenarios')).toContainText('70');
+    await expect(page.getByText(/Urban Street Reliability Rating: 98.8 %/)).toBeVisible();
+
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page.locator('.report-title')).toHaveText('Urban Street Reliability and ATDM');
+  });
+
+  // The results panel is cleared on every Calculate, so a plain read can catch
+  // an empty cell. Poll the cell instead of the click.
+  const meanTravelTime = async (page: Page) => {
+    const text = (await row(page, 'Mean Travel Time (s)').locator('td').textContent())?.trim();
+    return text ? Number(text) : NaN;
+  };
+  const meanTti = async (page: Page) => {
+    const text = (await row(page, 'Mean Travel Time Index').locator('td').textContent())?.trim();
+    return text === '' ? null : text;
+  };
+
+  test('an ATDM green-time strategy lowers the mean travel time', async ({ page }) => {
+    // Chapter 29 Example Problem 5 Strategy 1: 5 s of split shifted to the
+    // coordinated through phase. The published direction of effect is a
+    // travel time drop, which is what the boundary suite asserts too.
+    await page.goto('/hcm17');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+    await calculate.click();
+    await expect(row(page, 'Scenarios Evaluated')).toContainText('3120', { timeout: 60_000 });
+    const baseTravelTime = await meanTravelTime(page);
+    expect(baseTravelTime).toBeGreaterThan(0);
+
+    await page.getByRole('button', { name: 'Add Strategy' }).click();
+    await page.locator('#STN_input_0').fill('EP5 Strategy 1');
+    await page.locator('#SGA_input_0').fill('5');
+    await calculate.click();
+
+    await expect.poll(() => meanTravelTime(page), { timeout: 60_000 }).toBeLessThan(baseTravelTime);
+  });
+
+  test('the same seeds reproduce the same distribution', async ({ page }) => {
+    // The Monte Carlo stream is software-specific but deterministic in the
+    // seeds. The middle run on a different weather seed is what makes the
+    // third read provably fresh rather than a stale cell that never changed.
+    await page.goto('/hcm17');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await calculate.click();
+    await expect(row(page, 'Scenarios Evaluated')).toContainText('3120', { timeout: 60_000 });
+    const first = await meanTti(page);
+    expect(first).toBeTruthy();
+
+    await page.locator('#WSE_input').fill('83');
+    await calculate.click();
+    await expect.poll(() => meanTti(page), { timeout: 60_000 }).not.toBe(first);
+
+    await page.locator('#WSE_input').fill('82');
+    await calculate.click();
+    await expect.poll(() => meanTti(page), { timeout: 60_000 }).toBe(first);
   });
 });
 

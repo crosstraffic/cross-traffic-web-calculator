@@ -6,6 +6,7 @@
   import { preventDefault } from 'svelte/legacy';
 
   import init, { WasmUrbanReliability } from "HCM-middleware";
+  import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
   let ready = $state(false);
@@ -16,20 +17,53 @@
     ready = true;
   });
 
-  // Reliability reporting period and demand model
+  // Defaults are HCM Chapter 29, Section 5, Example Problem 4 (Exhibits 29-62
+  // through 29-77): the idealized 3-mi Lincoln, Nebraska principal arterial of
+  // six 2,640-ft signalized segments, weekdays for one year, 7-10 a.m. in
+  // twelve 15-min analysis periods, seeds 82/11/63. Monthly weather is the
+  // Lincoln NCDC record of Exhibit 29-65. Same fixture and expectations as
+  // tests/boundary/ch17_urban_reliability.mjs, so an untouched page reproduces
+  // 3,120 scenarios, mean TTI 1.545, TTI-80 1.593, PTI 1.746, reliability
+  // rating 98.8, and 70 oversaturated scenarios.
   let functional_class = $state('principal');
   let study_start_hour = $state(7);
   let analysis_periods = $state(12);
+  // 0 = Sunday through 6 = Saturday. The calendar anchor decides which
+  // Exhibit 17-6 day-of-week demand factor lands on which date, so it moves
+  // the whole scenario set, not just the labels.
+  let jan1_day_of_week = $state(6);
+  let pct_left_turn_lanes = $state(100);
 
-  // Representative monthly weather statistics (applied to all 12 months)
-  let precip_per_month = $state(2.5);
-  let days_with_precip = $state(8);
-  let mean_temp = $state(55);
-  let precip_rate = $state(0.06);
+  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  // Monthly weather normals, January through December. Snowfall is
+  // deliberately absent: the Chapter 29 procedure decides rain versus snow
+  // from the sampled temperature (Equations 29-3 and 29-4) and sizes the snow
+  // event from the precipitation columns, so a snow climate is expressed
+  // through the mean temperature and precipitation entries below. The
+  // engine's snowfall column is carried but never read.
+  function defaultWeather() {
+    return [
+      { total_precip: 0.67, days_with_precip: 5, mean_temp: 22.4, precip_rate: 0.030 },
+      { total_precip: 0.80, days_with_precip: 6, mean_temp: 27.0, precip_rate: 0.035 },
+      { total_precip: 1.80, days_with_precip: 7, mean_temp: 39.0, precip_rate: 0.045 },
+      { total_precip: 2.90, days_with_precip: 9, mean_temp: 51.2, precip_rate: 0.062 },
+      { total_precip: 4.20, days_with_precip: 11, mean_temp: 62.0, precip_rate: 0.070 },
+      { total_precip: 3.50, days_with_precip: 9, mean_temp: 72.0, precip_rate: 0.080 },
+      { total_precip: 3.00, days_with_precip: 8, mean_temp: 78.0, precip_rate: 0.085 },
+      { total_precip: 3.20, days_with_precip: 8, mean_temp: 75.0, precip_rate: 0.080 },
+      { total_precip: 2.90, days_with_precip: 7, mean_temp: 66.0, precip_rate: 0.070 },
+      { total_precip: 1.90, days_with_precip: 6, mean_temp: 54.0, precip_rate: 0.055 },
+      { total_precip: 1.20, days_with_precip: 5, mean_temp: 38.0, precip_rate: 0.040 },
+      { total_precip: 0.80, days_with_precip: 5, mean_temp: 26.0, precip_rate: 0.032 }
+    ];
+  }
+
+  let weather = $state(defaultWeather());
 
   // Incident inputs
   let entry_intersection_crashes = $state(32);
-  let minor_leg_volume = $state(400);
+  let minor_leg_volume = $state(1300);
   let shoulder_present = $state('yes');
 
   // Monte Carlo seeds (same seeds reproduce the same scenario streams)
@@ -37,12 +71,14 @@
   let demand_seed = $state(11);
   let incident_seed = $state(63);
 
-  function defaultSegment() {
+  // Exhibit 29-68 crash frequencies rise along the facility, so each segment
+  // carries its own pair rather than sharing one default.
+  function defaultSegment(i) {
     return {
-      segment_length: 1320,
+      segment_length: 2640,
       n_through_lanes: 2,
       speed_limit: 35,
-      through_demand: 800,
+      through_demand: 1000,
       cycle_length: 100,
       effective_green: 45,
       sat_flow: 1800,
@@ -50,30 +86,65 @@
       access_points_subject: 2,
       access_points_opposing: 2,
       stop_rate_override: 0.5,
-      segment_crashes: 15,
-      intersection_crashes: 33
+      segment_crashes: 15 + i,
+      intersection_crashes: 33 + i,
+      k_factor: 0.5,
+      i_factor: 1.0,
+      approach_lanes: 4
     };
   }
 
+  function defaultSegments() {
+    return Array.from({ length: 6 }, (_, i) => defaultSegment(i));
+  }
+
   // Signalized segments ordered upstream to downstream
-  let segments = $state([defaultSegment(), defaultSegment()]);
+  let segments = $state(defaultSegments());
+
+  // ATDM strategies, work zones, and special events (Chapter 17, Section 4).
+  // Every field of the engine's strategy record has a no-effect default, so a
+  // blank cell is simply not sent.
+  let strategies = $state([]);
 
   let results = $state(null);
   let hasError = $state(false);
   let errMessage = $state('');
+
+  const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const CLASS_LABEL = {
+    principal: 'Urban Principal Arterial',
+    minor: 'Urban Minor Arterial',
+    expressway: 'Expressway'
+  };
 
   // Blank optional inputs become undefined so the engine applies its defaults.
   function opt(v) {
     return v === '' || v === null || v === undefined ? undefined : Number(v);
   }
 
+  function column(key) {
+    return Float64Array.from(weather.map((w) => Number(w[key])));
+  }
+
   function addSegment() {
-    segments = [...segments, defaultSegment()];
+    segments = [...segments, defaultSegment(segments.length)];
   }
 
   function removeSegment(index) {
     if (segments.length <= 1) return;
     segments = segments.filter((_, i) => i !== index);
+  }
+
+  function addStrategy() {
+    strategies = [...strategies, { name: '', effective_green_adjustment_s: '', sat_flow_adjustment: '' }];
+  }
+
+  function removeStrategy(index) {
+    strategies = strategies.filter((_, i) => i !== index);
+  }
+
+  function strategyLabel(s, i) {
+    return s.name.trim() === '' ? `Strategy ${i + 1}` : s.name.trim();
   }
 
   function runAnalysis() {
@@ -88,18 +159,29 @@
           functional_class,
           Number(study_start_hour),
           Number(analysis_periods),
-          [Number(precip_per_month)],
-          [Number(days_with_precip)],
-          [Number(mean_temp)],
-          [Number(precip_rate)],
+          column('total_precip'),
+          column('days_with_precip'),
+          column('mean_temp'),
+          column('precip_rate'),
           Number(entry_intersection_crashes),
           Number(minor_leg_volume),
           shoulder_present === 'yes',
           true,                      // VMT-weighted travel time distribution
           Number(weather_seed),
           Number(demand_seed),
-          Number(incident_seed)
+          Number(incident_seed),
+          undefined,                 // monthly snowfall: carried by the engine but never read, see the note below the weather table
+          Number(jan1_day_of_week),
+          Number(pct_left_turn_lanes) / 100
         );
+
+        // Strategies must be registered before run().
+        strategies.forEach((s, i) => {
+          const strategy = { name: strategyLabel(s, i) };
+          if (opt(s.effective_green_adjustment_s) !== undefined) strategy.effective_green_adjustment_s = Number(s.effective_green_adjustment_s);
+          if (opt(s.sat_flow_adjustment) !== undefined) strategy.sat_flow_adjustment = Number(s.sat_flow_adjustment);
+          rel.add_atdm_strategy(strategy);
+        });
 
         for (const seg of segments) {
           rel.add_segment(
@@ -115,12 +197,71 @@
             Number(seg.access_points_opposing),
             opt(seg.stop_rate_override),
             Number(seg.segment_crashes),
-            Number(seg.intersection_crashes)
+            Number(seg.intersection_crashes),
+            opt(seg.k_factor),
+            opt(seg.i_factor),
+            opt(seg.approach_lanes)
           );
         }
 
         rel.run();
         results = rel.results_to_js_value();
+
+        setReport({
+          chapter: 'Urban Street Reliability and ATDM',
+          chapterRef: 'HCM Chapter 17',
+          href: '/hcm17',
+          generatedAt: new Date().toLocaleString(),
+          headline: { label: 'Reliability rating', value: `${fmt(results.reliability_rating, 1)} %` },
+          inputs: [
+            { label: 'Functional class', value: CLASS_LABEL[functional_class] },
+            { label: 'Study period', value: `${study_start_hour}:00 onward, ${analysis_periods} analysis periods of 15 min` },
+            { label: 'Reliability reporting period', value: 'weekdays of a full year' },
+            { label: 'January 1 day of week', value: DAY_NAMES[Number(jan1_day_of_week)] },
+            { label: 'Signalized segments', value: segments.length },
+            { label: 'Weather record', value: 'twelve monthly normals entered on the form' },
+            { label: 'Entry intersection crash frequency', value: `${entry_intersection_crashes} crashes/yr` },
+            { label: 'Minor-street leg volume', value: `${minor_leg_volume} veh/h` },
+            { label: 'Outside shoulders present', value: shoulder_present === 'yes' ? 'yes' : 'no' },
+            { label: 'Intersections with left-turn lanes', value: `${pct_left_turn_lanes}%` },
+            { label: 'Seeds, weather / demand / incident', value: `${weather_seed} / ${demand_seed} / ${incident_seed}` },
+            { label: 'Travel time distribution weighting', value: 'VMT-weighted' },
+            { label: 'ATDM strategies', value: strategies.length === 0
+              ? 'none'
+              : strategies.map((s, i) => `${strategyLabel(s, i)} (green ${s.effective_green_adjustment_s === '' ? 0 : s.effective_green_adjustment_s} s, saturation flow x${s.sat_flow_adjustment === '' ? 1 : s.sat_flow_adjustment})`).join('; ') },
+          ],
+          resultTable: {
+            columns: ['Measure', 'Value', 'Unit'],
+            rows: [
+              ['Scenarios evaluated', `${results.num_scenarios}`, ''],
+              ['Weather events generated', `${results.num_weather_events}`, ''],
+              ['Incidents generated', `${results.num_incidents}`, ''],
+              ['Oversaturated scenarios', `${results.num_oversaturated_scenarios}`, ''],
+              ['Scenarios with nondry weather', fmt(results.pct_nondry_scenarios, 1), '%'],
+              ['Base free-flow travel time', fmt(results.base_free_flow_travel_time, 1), 's'],
+              ['Mean travel time', fmt(results.mean_travel_time, 1), 's'],
+              ['Mean travel time index', fmt(results.tti_mean, 3), ''],
+              ['50th percentile TTI', fmt(results.tti_50, 3), ''],
+              ['80th percentile TTI', fmt(results.tti_80, 3), ''],
+              ['95th percentile TTI (PTI)', fmt(results.tti_95, 3), ''],
+              ['Total vehicle hours of delay', fmt(results.total_vhd, 0), 'veh-h'],
+            ],
+          },
+          summary: [
+            { label: 'Mean travel time index', value: fmt(results.tti_mean, 3) },
+            { label: 'Planning time index (95th percentile TTI)', value: fmt(results.tti_95, 3) },
+            { label: 'Urban street reliability rating', value: `${fmt(results.reliability_rating, 1)} %` },
+          ],
+          methodology: [
+            'HCM Chapter 17 reliability methodology with the Chapter 29 scenario generation procedure: a weather event record from the monthly normals (Equations 29-1 through 29-12), demand ratios by month and day of week (Exhibit 17-6) anchored on the January 1 day of week, and an incident record from the segment and intersection crash frequencies (Equations 29-13 through 29-29). Every generated scenario is evaluated with the Chapter 16 and 18 urban street methods, and oversaturated periods carry their residual queue forward into the next analysis period of the same day.',
+            `Monte Carlo scheme: three independent seeded streams, weather ${weather_seed}, demand ${demand_seed}, and incidents ${incident_seed}. The stream is software-specific, which the HCM anticipates ("Each result, though different, will be equally valid"), so a run reproduces exactly on the same seeds and differs on any other seeds. The published Exhibit 29-73 replication study saw average travel time vary by about 1.4% across replications.`,
+            'The travel time distribution is VMT-weighted, and the reliability rating is the percentage of that weighted distribution with a travel time index below 2.5 (Chapter 17, Section 3).',
+            'Per-scenario results are summary-only here. The distribution measures and the oversaturated-scenario count are the readouts; the individual scenario travel times behind them are not exported.',
+            strategies.length === 0
+              ? 'No ATDM strategy, work zone, or special event was applied, so every scenario ran on the base inputs.'
+              : `ATDM strategies applied to every scenario as input-level adjustments (Chapter 17, Section 4): ${strategies.map((s, i) => strategyLabel(s, i)).join('; ')}.`,
+          ],
+        });
       } catch (err) {
         console.error('Chapter 17 analysis failed:', err);
         hasError = true;
@@ -135,23 +276,38 @@
     functional_class = 'principal';
     study_start_hour = 7;
     analysis_periods = 12;
-    precip_per_month = 2.5;
-    days_with_precip = 8;
-    mean_temp = 55;
-    precip_rate = 0.06;
+    jan1_day_of_week = 6;
+    pct_left_turn_lanes = 100;
+    weather = defaultWeather();
     entry_intersection_crashes = 32;
-    minor_leg_volume = 400;
+    minor_leg_volume = 1300;
     shoulder_present = 'yes';
     weather_seed = 82;
     demand_seed = 11;
     incident_seed = 63;
-    segments = [defaultSegment(), defaultSegment()];
+    segments = defaultSegments();
+    strategies = [];
     results = null;
     hasError = false;
   }
 
   function fmt(v, digits) {
     return v === null || v === undefined ? '' : v.toFixed(digits);
+  }
+
+  // The percentile strip is drawn against the PTI so the longest bar always
+  // fills the track, and against 1.0 at the left because a TTI below the base
+  // free-flow travel time is not reachable.
+  let ttiBars = $derived(results ? [
+    { label: 'Mean', value: results.tti_mean },
+    { label: '50th', value: results.tti_50 },
+    { label: '80th', value: results.tti_80 },
+    { label: '95th (PTI)', value: results.tti_95 }
+  ] : []);
+
+  function barPct(v) {
+    const top = results ? Math.max(results.tti_95, 1.0001) : 1.0001;
+    return Math.max(2, Math.min(100, ((v - 1) / (top - 1)) * 100));
   }
 </script>
 
@@ -168,10 +324,14 @@
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> This chapter is newly implemented and its results have
-      not yet been validated against the full set of published HCM worked examples.
-      Verify results independently before relying on them in engineering work, and
-      please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      <strong>Beta.</strong> The compute engine is boundary-validated against HCM
+      Chapter 29, Example Problem 4 (Exhibits 29-62 through 29-77), which the page
+      defaults reproduce, along with the Example Problem 5 Strategy 1 and Chapter 37
+      adaptive signal control directions of effect. The page ships without a facility
+      diagram this pass; a facility strip showing the segment chain is the planned
+      follow-up. Verify results independently before relying on them in engineering
+      work, and please
+      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
 
@@ -206,7 +366,7 @@
             <input id="SSH_input" type="number" min="0" max="23" class="input input-bordered input-sm" bind:value={study_start_hour} placeholder="7" required />
             <span class="unit">h</span>
           </div>
-          <p class="param-hint">7 starts the study period at 7 a.m.</p>
+          <p class="param-hint">7 starts the study period at 7 a.m. It is also the hour of the base traffic count.</p>
         </div>
 
         <div class="param-field">
@@ -217,6 +377,25 @@
           </div>
           <p class="param-hint">12 periods cover a 3-hour study period.</p>
         </div>
+
+        <div class="param-field">
+          <label for="JAN_input">January 1 Falls On</label>
+          <select id="JAN_input" class="select select-bordered select-sm" bind:value={jan1_day_of_week}>
+            {#each DAY_NAMES as day, i}
+              <option value={i}>{day}</option>
+            {/each}
+          </select>
+          <p class="param-hint">Anchors the calendar. A wrong day puts every Exhibit 17-6 day-of-week demand factor on the wrong date.</p>
+        </div>
+
+        <div class="param-field">
+          <label for="PLTL_input">Intersections with Left-Turn Lanes</label>
+          <div class="cell-field">
+            <input id="PLTL_input" type="number" min="0" max="100" class="input input-bordered input-sm" bind:value={pct_left_turn_lanes} placeholder="100" required />
+            <span class="unit">%</span>
+          </div>
+          <p class="param-hint">Passed through to the Chapter 18 segment evaluation of each scenario.</p>
+        </div>
       </div>
     </section>
 
@@ -225,42 +404,39 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Weather</h2>
-          <p class="panel-sub">Representative monthly statistics applied to all 12 months. Mean temperatures below 32 F generate snow events.</p>
+          <p class="panel-sub">Monthly normals for the facility's location, January through December. Defaults are the Lincoln, Nebraska record of Exhibit 29-65.</p>
         </div>
       </div>
-      <div class="param-grid">
-        <div class="param-field">
-          <label for="PRC_input">Total Precipitation per Month</label>
-          <div class="cell-field">
-            <input id="PRC_input" type="number" step="0.01" min="0" class="input input-bordered input-sm" bind:value={precip_per_month} placeholder="2.5" required />
-            <span class="unit">in.</span>
-          </div>
-        </div>
-
-        <div class="param-field">
-          <label for="DWP_input">Days with Precipitation per Month</label>
-          <div class="cell-field">
-            <input id="DWP_input" type="number" step="0.1" min="0" max="31" class="input input-bordered input-sm" bind:value={days_with_precip} placeholder="8" required />
-            <span class="unit">days</span>
-          </div>
-        </div>
-
-        <div class="param-field">
-          <label for="TMP_input">Normal Daily Mean Temperature</label>
-          <div class="cell-field">
-            <input id="TMP_input" type="number" step="0.1" class="input input-bordered input-sm" bind:value={mean_temp} placeholder="55" required />
-            <span class="unit">F</span>
-          </div>
-        </div>
-
-        <div class="param-field">
-          <label for="PRR_input">Precipitation Rate</label>
-          <div class="cell-field">
-            <input id="PRR_input" type="number" step="0.001" min="0" class="input input-bordered input-sm" bind:value={precip_rate} placeholder="0.06" required />
-            <span class="unit">in./h</span>
-          </div>
-        </div>
+      <div class="w-full overflow-x-auto">
+        <table class="table seg-table w-full">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Total Precipitation (in.)</th>
+              <th>Days with Precipitation</th>
+              <th>Normal Daily Mean Temperature (F)</th>
+              <th>Precipitation Rate (in./h)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each weather as row, i}
+              <tr>
+                <td>{MONTH_NAMES[i]}</td>
+                <td><input id={"PRC_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" aria-label={MONTH_NAMES[i] + " total precipitation"} bind:value={weather[i].total_precip} required /></td>
+                <td><input id={"DWP_input_" + i} type="number" step="0.1" min="0" max="31" class="input input-bordered input-sm" aria-label={MONTH_NAMES[i] + " days with precipitation"} bind:value={weather[i].days_with_precip} required /></td>
+                <td><input id={"TMP_input_" + i} type="number" step="0.1" class="input input-bordered input-sm" aria-label={MONTH_NAMES[i] + " mean temperature"} bind:value={weather[i].mean_temp} required /></td>
+                <td><input id={"PRR_input_" + i} type="number" step="0.001" min="0" class="input input-bordered input-sm" aria-label={MONTH_NAMES[i] + " precipitation rate"} bind:value={weather[i].precip_rate} required /></td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
       </div>
+      <p class="param-hint panel-note">
+        There is no snowfall column. The Chapter 29 procedure decides whether an event
+        falls as rain or as snow from the sampled temperature (Equations 29-3 and 29-4)
+        and sizes the snow depth from the precipitation columns, so a snow climate is
+        entered through the mean temperature and precipitation values above.
+      </p>
     </section>
 
     <!-- Incidents -->
@@ -284,7 +460,7 @@
         <div class="param-field">
           <label for="MLV_input">Minor-Street Leg Volume</label>
           <div class="cell-field">
-            <input id="MLV_input" type="number" min="0" class="input input-bordered input-sm" bind:value={minor_leg_volume} placeholder="400" required />
+            <input id="MLV_input" type="number" min="0" class="input input-bordered input-sm" bind:value={minor_leg_volume} placeholder="1300" required />
             <span class="unit">veh/h</span>
           </div>
         </div>
@@ -318,6 +494,55 @@
           </div>
         </div>
       </div>
+      <p class="param-hint panel-note">The three seeds fix the weather, demand, and incident streams. Rerunning with the same seeds reproduces the run exactly; any other seeds give an equally valid replication.</p>
+    </section>
+
+    <!-- ATDM strategies -->
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">ATDM Strategies</h2>
+          <p class="panel-sub">Strategies, work zones, and special events are applied to every scenario as input-level adjustments (Chapter 17, Section 4). A blank cell leaves that input alone.</p>
+        </div>
+        <div class="panel-actions">
+          <button class="btn btn-ghost btn-sm" type="button" onclick={addStrategy}>Add Strategy</button>
+        </div>
+      </div>
+      {#if strategies.length === 0}
+        <p class="param-hint">No strategies. The run evaluates the facility as entered.</p>
+      {:else}
+        <div class="w-full overflow-x-auto">
+          <table class="table seg-table w-full">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Effective Green Adjustment (s)</th>
+                <th>Saturation Flow Adjustment</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each strategies as s, i}
+                <tr>
+                  <td>{i + 1}</td>
+                  <td><input id={"STN_input_" + i} class="input input-bordered input-sm" aria-label={"Strategy " + (i + 1) + " name"} bind:value={strategies[i].name} placeholder={"Strategy " + (i + 1)} autocomplete="off" /></td>
+                  <td><input id={"SGA_input_" + i} type="number" step="0.1" class="input input-bordered input-sm" aria-label={"Strategy " + (i + 1) + " effective green adjustment"} bind:value={strategies[i].effective_green_adjustment_s} placeholder="0" /></td>
+                  <td><input id={"SSA_input_" + i} type="number" step="0.001" min="0" class="input input-bordered input-sm" aria-label={"Strategy " + (i + 1) + " saturation flow adjustment"} bind:value={strategies[i].sat_flow_adjustment} placeholder="1.000" /></td>
+                  <td><button class="btn btn-ghost btn-sm" type="button" onclick={() => removeStrategy(i)}>Remove</button></td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {/if}
+      <p class="param-hint panel-note">
+        The green adjustment is added to the coordinated through phase at every boundary
+        signal, which is what Example Problem 5 Strategy 1 does with 5 s of split. The
+        saturation flow adjustment multiplies the boundary saturation flow rate. Adaptive
+        signal control enters here as a saturation flow adjustment of 1.156, the value
+        Chapter 37 implies for its default 13.5% delay reduction target.
+      </p>
     </section>
 
     <!-- Segments -->
@@ -334,7 +559,7 @@
           <div class="param-field">
             <label for={"LEN_input_" + i}>Segment Length</label>
             <div class="cell-field">
-              <input id={"LEN_input_" + i} type="number" min="1" class="input input-bordered input-sm" bind:value={seg.segment_length} placeholder="1320" required />
+              <input id={"LEN_input_" + i} type="number" min="1" class="input input-bordered input-sm" bind:value={seg.segment_length} placeholder="2640" required />
               <span class="unit">ft</span>
             </div>
           </div>
@@ -358,7 +583,7 @@
           <div class="param-field">
             <label for={"DEM_input_" + i}>Through Demand Flow Rate</label>
             <div class="cell-field">
-              <input id={"DEM_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.through_demand} placeholder="800" required />
+              <input id={"DEM_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.through_demand} placeholder="1000" required />
               <span class="unit">veh/h</span>
             </div>
             <p class="param-hint">Demand of the base traffic count. Scenario demands are scaled from it.</p>
@@ -434,6 +659,31 @@
               <span class="unit">crashes/yr</span>
             </div>
           </div>
+
+          <div class="param-field">
+            <label for={"APL_input_" + i}>Downstream Approach Lanes</label>
+            <div class="cell-field">
+              <input id={"APL_input_" + i} type="number" min="1" class="input input-bordered input-sm" bind:value={seg.approach_lanes} placeholder="4" />
+              <span class="unit">ln</span>
+            </div>
+            <p class="param-hint">All lanes on the boundary signal's approach, used by the incident generator.</p>
+          </div>
+
+          <div class="param-field">
+            <label for={"KF_input_" + i}>k Factor</label>
+            <div class="cell-field">
+              <input id={"KF_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" bind:value={seg.k_factor} placeholder="0.5" />
+            </div>
+            <p class="param-hint">Share of the daily crash count exposed during the study period.</p>
+          </div>
+
+          <div class="param-field">
+            <label for={"IF_input_" + i}>I Factor</label>
+            <div class="cell-field">
+              <input id={"IF_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" bind:value={seg.i_factor} placeholder="1.0" />
+            </div>
+            <p class="param-hint">Local adjustment on the crash-to-incident conversion.</p>
+          </div>
         </div>
       </section>
     {/each}
@@ -442,17 +692,22 @@
     <div class="action-bar">
       <button class="btn btn-ghost" onclick={addSegment} type="button">Add Segment</button>
       <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
-      <button class="btn btn-primary" type="submit" disabled={!ready || running}>{running ? 'Running...' : 'Run Reliability Analysis'}</button>
+      <button class="btn btn-primary" type="submit" disabled={!ready || running}>{running ? 'Running...' : 'Calculate'}</button>
     </div>
     <p class="param-hint">The run evaluates roughly three thousand scenarios and can take a few seconds.</p>
   </form>
 
   <section class="panel results-panel">
-    <div class="panel-head">
+    <div class="panel-head with-actions">
       <div>
         <h2 class="panel-title">Outputs</h2>
         <p class="panel-sub">Results populate after the reliability run completes.</p>
       </div>
+      {#if results}
+        <div class="panel-actions">
+          <a class="btn btn-outline btn-sm" href="/report">Open printable report</a>
+        </div>
+      {/if}
     </div>
     <div class="los overflow-x-auto">
       <table class="table w-full">
@@ -468,6 +723,10 @@
           <tr>
             <th>Incidents Generated:</th>
             <td>{results ? results.num_incidents : ''}</td>
+          </tr>
+          <tr>
+            <th title="Scenarios in which a boundary through movement ran over capacity (v/c > 1) or started with a residual queue carried in from the previous analysis period.">Oversaturated Scenarios:</th>
+            <td>{results ? results.num_oversaturated_scenarios : ''}</td>
           </tr>
           <tr>
             <th>Base Free-Flow Travel Time (s):</th>
@@ -503,9 +762,36 @@
           </tr>
         </tbody>
       </table>
+      {#if results}
+        <figure class="tti-strip">
+          <figcaption>Travel time index distribution</figcaption>
+          {#each ttiBars as bar}
+            <div class="tti-row">
+              <span class="tti-label">{bar.label}</span>
+              <span class="tti-track"><span class="tti-fill" style="width: {barPct(bar.value)}%"></span></span>
+              <span class="tti-value">{fmt(bar.value, 3)}</span>
+            </div>
+          {/each}
+          <p class="param-hint">Bars run from a travel time index of 1.0, the base free-flow travel time, to the planning time index.</p>
+        </figure>
+      {/if}
       <div class="facility-summary">
         <p>Urban Street Reliability Rating: {results ? fmt(results.reliability_rating, 1) + ' %' : ''}</p>
       </div>
     </div>
   </section>
 </div>
+
+<style>
+  /* .param-hint is sized for the 16rem column of a single field; a note that
+     runs the width of a table needs the room. */
+  .panel-note { max-width: 46rem; }
+
+  .tti-strip { margin: 1rem 0 0; }
+  .tti-strip figcaption { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; margin-bottom: 0.4rem; }
+  .tti-row { display: grid; grid-template-columns: 5.5rem 1fr 3.5rem; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; }
+  .tti-label { font-size: 0.75rem; opacity: 0.75; }
+  .tti-track { height: 0.6rem; border-radius: 3px; background: color-mix(in srgb, currentColor 10%, transparent); overflow: hidden; }
+  .tti-fill { display: block; height: 100%; border-radius: 3px; background: color-mix(in srgb, currentColor 55%, transparent); }
+  .tti-value { font-size: 0.75rem; font-variant-numeric: tabular-nums; text-align: right; }
+</style>

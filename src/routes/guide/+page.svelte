@@ -8,7 +8,7 @@
     <h1 class="page-title">Guide</h1>
     <p class="page-sub">
       How to use the calculator: the features every chapter page shares, a
-      reference to all thirteen available chapters, and detailed walkthroughs of
+      reference to all fourteen available chapters, and detailed walkthroughs of
       the Two-Lane Highways and Basic Freeway analyses.
     </p>
   </header>
@@ -82,6 +82,7 @@
         <tr><td><a href="/hcm13">13 Freeway Weaving</a></td><td>Weaving segment speeds and capacity, 7th Edition or Edition 7.1</td><td>Density (pc/mi/ln)</td></tr>
         <tr><td><a href="/hcm14">14 Merge and Diverge</a></td><td>Ramp influence area speeds and capacity, 7th Edition or Edition 7.1</td><td>Influence area density</td></tr>
         <tr><td><a href="/hcm15">15 Two-Lane Highways</a></td><td>Segment-by-segment facility with passing configuration and horizontal curves</td><td>Follower density</td></tr>
+        <tr><td><a href="/hcm17">17 Urban Street Reliability</a> (Beta)</td><td>A year of weekday scenarios over a signalized arterial: weather, demand, and incident generation, then the travel time distribution</td><td>Travel time index and reliability rating</td></tr>
         <tr><td><a href="/hcm18">18 Urban Street Segments</a> (Beta)</td><td>One direction of an arterial segment: base and adjusted free-flow speed, running time, through delay, stop rate</td><td>Travel speed (mi/h)</td></tr>
         <tr><td><a href="/hcm19">19 Signalized Intersections</a></td><td>Pretimed four-leg signal: saturation flows, capacities, delay by approach</td><td>Control delay (s/veh)</td></tr>
         <tr><td><a href="/hcm20">20 Two-Way STOP Control</a></td><td>Gap-acceptance capacities and delay by movement rank, with the December 2022 HCM corrections</td><td>Control delay per movement and lane</td></tr>
@@ -91,8 +92,8 @@
         <tr><td><a href="/hcm24">24 Off-Street Ped and Bike</a></td><td>Exclusive walkways, shared-use path pedestrian events, bicycle BLOS</td><td>Space, events per hour, BLOS score</td></tr>
       </tbody>
     </table>
-    <p>Chapters 16 and 17 (urban street facilities and urban street reliability) are implemented in
-      the compute engine and will be released after validation review.</p>
+    <p>Chapter 16 (urban street facilities) is implemented in the compute engine and will be
+      released after validation review.</p>
   </section>
 
   <!-- Getting started -->
@@ -304,7 +305,7 @@
 
   <!-- Urban streets -->
   <section id="urban-guide" class="guide-section">
-    <h2>Urban Street Segments (18)</h2>
+    <h2>Urban Streets (17 and 18)</h2>
     <p>
       <a href="/hcm18">Chapter 18</a> evaluates one direction of travel over one segment,
       from the upstream boundary intersection to the downstream one. The geometry inputs set
@@ -329,6 +330,38 @@
       exhibit's own baseline of 10% left and right turns and an influential access-point count
       of N_ap,s + p_ap,lt × N_ap,o, which gives a higher delay and a slightly lower travel
       speed than the per-point procedure.
+    </p>
+    <p>
+      <a href="/hcm17">Chapter 17</a> (Beta) wraps the segment method in a whole-year weekday
+      scenario generator. Each segment card is a Chapter 18 segment with its boundary signal,
+      and the facility is evaluated once per analysis period of every weekday in the year, which
+      is 3,120 scenarios for a 3-hour study period in twelve 15-min periods. The run is
+      synchronous and takes a few seconds.
+    </p>
+    <p>
+      <strong>Weather</strong> is entered as twelve monthly normals. There is no snowfall
+      column, because the Chapter 29 procedure decides whether an event falls as rain or as snow
+      from the sampled temperature and sizes the snow depth from the precipitation columns. A
+      snow climate is therefore expressed through the mean temperature and the precipitation
+      entries. The <strong>January 1 day of week</strong> anchors the calendar the reporting
+      period is built on, so a wrong value puts every day-of-week demand factor on the wrong
+      date.
+    </p>
+    <p>
+      The three <strong>seeds</strong> fix the weather, demand, and incident streams
+      independently. Rerunning with the same seeds reproduces a run exactly; any other seeds
+      give a different but equally valid replication, which is what the HCM expects of a
+      software-specific Monte Carlo stream. <strong>Oversaturated scenarios</strong> counts the
+      scenarios in which a boundary through movement ran over capacity or started with a
+      residual queue carried in from the previous period, which is the readout for how much of
+      the distribution tail comes from oversaturation rather than from weather or incidents.
+    </p>
+    <p>
+      <strong>ATDM strategies</strong> are input-level adjustments applied to every scenario. A
+      positive effective green adjustment shifts split to the coordinated through phase, and a
+      saturation flow adjustment above 1 raises the boundary saturation flow rate. Adaptive
+      signal control enters as a saturation flow adjustment of 1.156, the value Chapter 37
+      implies for its default 13.5% delay reduction target.
     </p>
   </section>
 
