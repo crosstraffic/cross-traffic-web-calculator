@@ -9,9 +9,10 @@
 // * AlternativeIntersections/case4.json dlt block — Chapter 23 Part C
 //   Equation 23-69 weighted delay (Chapter 34 Example Problem 16, partial
 //   DLT; Exhibit 34-145), via the WasmDisplacedLeftTurn flat constructor.
-// * Inline configs — Part C RCUT (Example Problem 13, Exhibits 34-128/34-129)
-//   and MUT (Example Problem 15, Exhibits 34-137/34-138) journeys via
-//   WasmAlternativeIntersection, plus the EDTT / offset helper functions.
+// * Inline configs — Part C RCUT journeys via WasmAlternativeIntersection:
+//   Example Problem 13 (STOP, Exhibits 34-128/34-129), Example Problem 14
+//   (signals, Exhibits 34-130/34-133), and MUT Example Problem 15 (Exhibits
+//   34-137/34-138), plus the EDTT / offset helper functions.
 import { loadWasm, loadCase, approx, exact, report } from './_harness.mjs';
 
 const m = await loadWasm();
@@ -295,6 +296,61 @@ function od(ods, mv, label) {
   }
 }
 
+// ── Example Problem 14: four-legged RCUT with signals ─────────────────────
+// Exhibit 34-132 junction control delays enter as provided steps; journeys
+// per the top of Exhibit 23-48; published per-movement results are Exhibit
+// 34-133 and the Equation 23-62 aggregate is 79,900 / 3,500 = 22.8 s/veh,
+// LOS C. Movements are weighted by FLOW RATE (demand / PHF 0.93), not raw
+// demand: the Exhibit 34-130 demands sum to 3,250 veh/h, so the published
+// 3,500 total is the flow-rate total, same convention as EP13 and EP15.
+// The Exhibit 34-130 turning-movement diagram is ambiguous about L/T/R
+// order; the assignment below is the one whose numerator reproduces the
+// published 79,900 (computed 79,935 with total 3,497): SB 50/1,900/60,
+// NB 150/420/10, EB 20/300/10 as L/T/R, WB right 200 / through 100 /
+// left 30 (the WB reading is fixed by the EP14 discussion text).
+{
+  approx(m.edtt_stop_or_signal(800, 800, 50), 21.8, 0.1, 'EP14 EDTT (Equation 23-59)');
+  const prov = (d) => ({ type: 'provided', control_delay_s: d });
+  const edtt = m.edtt_stop_or_signal(800, 800, 50);
+  const phf = 0.93;
+  const mv = (label, approach, demand, delays, ed) => ({
+    label, approach, demand_veh_h: Math.round(demand / phf), edtt_s: ed, junctions: delays.map(prov),
+  });
+  const ix = new m.WasmAlternativeIntersection({
+    form: 'RcutFourLeg',
+    movements: [
+      mv('NB L', 'Nb', 150, [4.1, 33.2], 0),
+      mv('SB L', 'Sb', 50, [7.6, 10.8], 0),
+      mv('NB T', 'Nb', 420, [4.1, 6.4], 0),
+      mv('SB T', 'Sb', 1900, [7.6, 5.4], 0),
+      mv('NB R', 'Nb', 10, [4.1, 9.1], 0),
+      mv('SB R', 'Sb', 60, [7.6, 0.3], 0),
+      mv('EB L', 'Eb', 20, [35.1, 16.1, 6.4], edtt),
+      mv('WB L', 'Wb', 30, [12.4, 33.3, 5.4], edtt),
+      mv('EB T', 'Eb', 300, [35.1, 16.1, 9.1], edtt),
+      mv('WB T', 'Wb', 100, [12.4, 33.3, 0.3], edtt),
+      mv('EB R', 'Eb', 10, [35.1], 0),
+      mv('WB R', 'Wb', 200, [12.4], 0),
+    ],
+  });
+  const rows = ix.movement_results_to_js_value();
+  const expected = [
+    ['NB L', 37.3, 'D'], ['SB L', 18.4, 'B'],
+    ['NB T', 10.5, 'B'], ['SB T', 13.0, 'B'],
+    ['NB R', 13.2, 'B'], ['SB R', 7.9, 'A'],
+    ['EB L', 79.4, 'E'], ['WB L', 72.9, 'E'],
+    ['EB T', 82.1, 'F'], ['WB T', 67.8, 'E'],
+    ['EB R', 35.1, 'D'], ['WB R', 12.4, 'B'],
+  ];
+  for (const [label, ett, los] of expected) {
+    const r = rows.find((x) => x.label === label);
+    approx(r.ett_s, ett, 0.05, `EP14 ETT ${label}`);
+    exact(r.los, los, `EP14 LOS ${label}`);
+  }
+  approx(ix.get_intersection_ett_s(), 22.8, 0.1, 'EP14 intersection ETT (Equation 23-62, published 79,900/3,500)');
+  exact(ix.get_intersection_los(), 'C', 'EP14 intersection LOS');
+}
+
 // ── Example Problem 16: DLT supplemental-intersection offset ──────────────
 // Equations 23-63 through 23-68 (published: TT_DLT rounds to 7 s and the
 // offset reports as 45 s; unrounded values are 6.8 and 45.2).
@@ -305,4 +361,4 @@ function od(ods, mv, label) {
   approx(off.offset_supp_s, 45.2, 0.1, 'EP16 O_SUPP (Equations 23-66 to 23-68)');
 }
 
-report('ch23 ramp terminals + Part C (HCM Ch.34 EP1, EP5, EP13, EP15, EP16)');
+report('ch23 ramp terminals + Part C (HCM Ch.34 EP1, EP5, EP13, EP14, EP15, EP16)');
