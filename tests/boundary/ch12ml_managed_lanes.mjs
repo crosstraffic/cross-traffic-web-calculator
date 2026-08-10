@@ -72,4 +72,41 @@ exact(fric.is_friction_active(), true, 'friction active at K_GP = 40 > 35 (Eq. 1
 exact(new m.WasmManagedLanes('continuous_access', 70.0, undefined, 30.0).is_friction_active(),
   false, 'friction inactive at K_GP = 30 <= 35 (Eq. 12-18)');
 
-report('ch12 managed lanes (Exhibits 12-11/12-30; no published EP in Rust suite)');
+// --- Chapter 26, Example Problem 7: basic managed lane segment ----------
+// Continuous access, FFS 60, PHF 0.92, 7.5% trucks level terrain
+// (f_HV = 0.93), ML demand 1,300 veh/h -> 1,519 pc/h/ln. Mirrors the core
+// test in transportations-library/tests/chapter12_integration.rs. The
+// example's Step 4 prose says 5% trucks; its own Equation 12-10
+// substitution and printed flow rates use 7.5%.
+{
+  const fHv = 1 / (1 + 0.075 * (2.0 - 1.0));
+  const vpMl = 1300 / (0.92 * 1 * fHv);
+  approx(vpMl, 1519, 1.0, 'EP7 ML flow rate (Eq. 12-9)');
+
+  // Case 1: GP density 1,169/60 = 19.5 pc/mi/ln, under the 35 threshold, so
+  // I_c = 0. Published: S_ML = 56.3 mi/h, D = 27.0 pc/mi/ln, LOS D.
+  const vpGp1 = 2000 / (0.92 * 2 * fHv);
+  approx(vpGp1, 1169, 1.0, 'EP7 GP Case 1 flow rate');
+  const case1 = new m.WasmManagedLanes('continuous_access', 60.0, vpMl, vpGp1 / 60);
+  const los1 = case1.run_analysis();
+  approx(case1.calculate_capacity(), 1650, 1.0, 'EP7 ML capacity (Eq. 12-14)');
+  approx(case1.calculate_breakpoint(), 500, 1.0, 'EP7 ML breakpoint (Eq. 12-13)');
+  approx(case1.calculate_speed(), 56.3, 0.1, 'EP7 Case 1 ML speed');
+  approx(case1.calculate_density(), 27.0, 0.1, 'EP7 Case 1 ML density');
+  exact(los1, 'D', 'EP7 Case 1 ML LOS');
+
+  // Case 2: GP flow 2,221 pc/h/ln -> S = 53.0, density 41.9 > 35, I_c = 1.
+  // Published: S_ML = 41.9 mi/h, D = 36.3 pc/mi/ln, LOS E.
+  const vpGp2 = 3800 / (0.92 * 2 * fHv);
+  approx(vpGp2, 2221, 1.0, 'EP7 GP Case 2 flow rate');
+  const cGp = 2300, bpGp = 1600;
+  const sGp2 = 60 - (60 - cGp / 45) * (vpGp2 - bpGp) ** 2 / (cGp - bpGp) ** 2;
+  approx(sGp2, 53.0, 0.1, 'EP7 GP Case 2 speed (Eq. 12-1)');
+  const case2 = new m.WasmManagedLanes('continuous_access', 60.0, vpMl, vpGp2 / sGp2);
+  const los2 = case2.run_analysis();
+  approx(case2.calculate_speed(), 41.9, 0.1, 'EP7 Case 2 ML speed');
+  approx(case2.calculate_density(), 36.3, 0.1, 'EP7 Case 2 ML density');
+  exact(los2, 'E', 'EP7 Case 2 ML LOS');
+}
+
+report('ch12 managed lanes (HCM Ch.26 EP7 + Exhibits 12-11/12-30)');

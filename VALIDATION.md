@@ -9,7 +9,7 @@ Inspection workflow: go chapter by chapter, read the test file, spot-check the e
 | 10 | Freeway Facilities | Ch.25 EP1, EP2, EP6 | 421 | pass | |
 | 11 | Freeway Reliability | Ch.25 EP7 | 27 (some getters unbound) | pass | |
 | 12 | Basic Freeway Segments | Ch.26 EP1-3 | 15 (some getters unbound) | pass (after f_HV fix) | |
-| 12 | Managed Lanes | none published in suite | 39 (exhibit anchors) | pass | |
+| 12 | Managed Lanes | Ch.26 EP7 | 51 | pass | |
 | 13 | Weaving Segments | Ch.27 EP1-3 | 42 (11 gated on unbound getters) | pass | |
 | 14 | Merge and Diverge | Ch.28 EP1-4 | 51 | pass | |
 | 15 | Two-Lane Highways | 4 fixture cases | 160 | pass | |
@@ -20,7 +20,7 @@ Inspection workflow: go chapter by chapter, read the test file, spot-check the e
 | 20 | TWSC | Ch.32 EP1, EP3 | 23 (13 gated on unbound override) | pass | |
 | 21 | AWSC | Ch.32 EP1-2 | 34 | pass | |
 | 22 | Roundabouts | Ch.33 EP1-2 | 55 | pass | |
-| 23 | Ramp Terminals | Ch.34 EP1, EP5, EP13, EP15, EP16 | 200 | pass | |
+| 23 | Ramp Terminals | Ch.34 EP1, EP5, EP13, EP14, EP15, EP16 | 227 | pass | |
 | 24 | Off-Street Ped/Bike | Ch.35 EP1-2 | 15 | pass | |
 
 ## Findings from the boundary pass
@@ -45,7 +45,7 @@ Chapters 25 EPs beyond 1, 2, 5, 6, 7 (work zones, strategy assessment) have no f
 - Ch.12: `estimate_number_of_lanes` design step (Ch.26 EP2's 3-lane answer is core-only).
 - Ch.15: BicycleLOS.
 - Ch.19: actuated timing estimation and RTOR volume estimation.
-- Ch.23: closed by middleware 0.3.2. `WasmAlternativeIntersection` plus the EDTT/offset helper functions cover the RCUT (EP13), MUT (EP15), and DLT offset (EP16) paths, and the boundary suite runs them (200 checks). Still core-only: EPs 12 (RCUT with merges) and 14 (RCUT with signals) as full worked journeys, though `edtt_merge` is bound.
+- Ch.23: closed by middleware 0.3.2. `WasmAlternativeIntersection` plus the EDTT/offset helper functions cover the RCUT (EP13), MUT (EP15), and DLT offset (EP16) paths, and the boundary suite runs them (200 checks). Still core-only: EP 12 (RCUT with merges) as a full worked journey, though `edtt_merge` is bound; EP14 (RCUT with signals) landed at the boundary 2026-08-09.
 - Ch.10: managed-lane facilities (ml_case1 fixture inexpressible through the binding).
 - Ch.18: closed by middleware 0.3.3. All three Equation 18-7 access-point delay sources are now reachable (the `access_point_delays_s` published-input hook, the computed Chapter 30 §4 procedure via `add_access_point`, and the Exhibit 18-13 planning path with the fixture's own turn percentages), as are the Step 2 intermediates S_0, f_CS, f_A, f_pk, f_L, and f_v. EP1's published running time (33.54 s) and travel speed (23.67 mi/h) now reproduce at the boundary. The pre-0.3.3 forced-planning default path is retained as a labeled regression anchor so existing 28-argument callers cannot shift silently. Still core-only: nothing.
 - Ch.16: closed by middleware 0.3.3. `add_segment_summary` + `aggregate()` express the Exhibit 16-7 "HCM method output" path, so Ch.29 EP1 EB and WB now run at the boundary (facility base FFS 40.1, LOS C, poorest-segment LOS D all exact), and the sixteen new `add_segment` arguments make the full Ch.30 EP1 geometry expressible (facility base FFS 40.78 and travel speed 23.67, previously unreachable). `analyze()` refusing to run on a summary-built facility is asserted, not just documented. Remaining deviation, not a binding gap: EP1's published facility travel speeds (22.6 EB / 22.2 WB) do not reproduce because the fixtures copy Segments 1 and 5 into the unpublished Segments 2-4, giving 22.1 / 21.5. The fixtures say so in their own `_source` notes and the Rust core tests carry the same gap.
@@ -53,10 +53,9 @@ Chapters 25 EPs beyond 1, 2, 5, 6, 7 (work zones, strategy assessment) have no f
 
 ## Coverage gaps (no fixture or Rust test at any layer)
 
-- Ch.26 managed-lane example problem — the largest gap, zero EP coverage anywhere.
 - Ch.26 later EPs (multilane-highway LOS, service volumes, mixed-flow applications).
 - Ch.27 and Ch.28 later EPs (design and service-volume applications).
 - Ch.31 §10 EPs 2+ (pedestrian and bicycle modes at signals).
 - Ch.32 TWSC EP2 (pedestrian crossing).
-- Ch.34 EPs 2-4, 6-11, 14, 17.
+- Ch.34 EPs 2-4, 6-11, 17.
 - Ch.15: which published two-lane EPs the four fixtures correspond to is undocumented in the Rust tests.
