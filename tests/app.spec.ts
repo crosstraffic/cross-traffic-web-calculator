@@ -26,6 +26,8 @@ test.describe('navigation and route gating', () => {
     await expect(page).toHaveURL(/\/hcm14$/);
     await page.goto('/hcm15');
     await expect(page).toHaveURL(/\/hcm15$/);
+    await page.goto('/hcm16');
+    await expect(page).toHaveURL(/\/hcm16$/);
     await page.goto('/hcm17');
     await expect(page).toHaveURL(/\/hcm17$/);
     await page.goto('/hcm18');
@@ -96,6 +98,7 @@ test.describe('navigation and route gating', () => {
     await expect(nav.locator('a[href="/hcm13"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm14"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm15"]')).toHaveCount(1);
+    await expect(nav.locator('a[href="/hcm16"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm17"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm18"]')).toHaveCount(1);
     await expect(nav.locator('a[href="/hcm19"]')).toHaveCount(1);
@@ -167,9 +170,10 @@ test.describe('navigation and route gating', () => {
   });
 
   test('unreleased chapter routes redirect home', async ({ page }) => {
-    // hcm16 exists in the repo but is not in the RELEASED set of
-    // src/routes/+layout.js; a direct visit must land on the home page.
-    for (const route of ['/hcm16']) {
+    // Every numbered chapter is released; hcm12ml (managed-lane facilities)
+    // is the remaining route outside the RELEASED set of src/routes/+layout.js,
+    // so it keeps this gate honest. A direct visit must land on the home page.
+    for (const route of ['/hcm12ml']) {
       await page.goto(route);
       await expect(page).toHaveURL(/\/$/);
     }
@@ -541,6 +545,111 @@ test.describe('chapter 12 basic freeway calculator', () => {
 
     await page.getByRole('button', { name: 'Reset Params' }).click();
     await expect(page.locator('.los-badge')).toHaveCount(0);
+  });
+});
+
+test.describe('chapter 16 urban street facility calculator', () => {
+  test('inputs mode reproduces the published Chapter 30 facility on defaults', async ({ page }) => {
+    // Inputs-mode defaults are the library fixture
+    // tests/ExampleCases/hcm/UrbanFacilities/case3.json: three copies of the
+    // HCM Chapter 30, Section 8, Example Problem 1 eastbound segment, with the
+    // Exhibit 30-35 per-point access delays supplied. A facility of identical
+    // segments reproduces the published segment values at facility level
+    // (Exhibit 30-36): base FFS 40.78 mi/h, travel speed 23.67 mi/h, LOS C.
+    // Same fixture and expectations as tests/boundary/ch16_urban_facilities.mjs.
+    await page.goto('/hcm16');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+    await calculate.click();
+
+    const row = (label: string) => page.locator('.results-panel tr', { hasText: label }).first();
+    await expect(row('Facility Base Free-Flow Speed')).toContainText('40.78');
+    await expect(row('Facility Travel Speed')).toContainText('23.67');
+    // 1.6045 stops/mi, printed at two decimals; the book's 1.61 is the same
+    // number at its own rounding, and the boundary suite's tolerance is 0.02.
+    await expect(row('Facility Spatial Stop Rate')).toContainText('1.60');
+    await expect(row('Critical Volume-to-Capacity Ratio')).toContainText('0.52');
+    await expect(row('Poorest Segment LOS')).toContainText('C');
+    await expect(page.getByText(/Facility LOS: C/)).toBeVisible();
+
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page.locator('.report-title')).toHaveText('Urban Street Facilities');
+    await expect(page.locator('.report-diagram .uf-diagram svg')).toBeVisible();
+  });
+
+  test('measures mode reproduces the published Chapter 29 facility', async ({ page }) => {
+    // Measures-mode defaults are case1.json, HCM Chapter 29, Section 5,
+    // Example Problem 1 eastbound: five segments given by their published
+    // Chapter 18 outputs, aggregated through add_segment_summary + aggregate().
+    // Published Exhibit 29-49: base FFS 40.1 mi/h (exact, printed here at two
+    // decimals as 40.11), facility LOS C, poorest segment LOS D. The facility
+    // travel speed lands on 22.13 rather than the published 22.6 because the
+    // chapter publishes only Segments 1 and 5, which the fixture copies into
+    // Segments 2 through 4; the page says so under the outputs.
+    await page.goto('/hcm16');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#MODE_input').selectOption('measures');
+    await expect(page.locator('.seg-table tbody tr')).toHaveCount(5);
+    await calculate.click();
+
+    const row = (label: string) => page.locator('.results-panel tr', { hasText: label }).first();
+    await expect(row('Facility Base Free-Flow Speed')).toContainText('40.11');
+    await expect(row('Facility Travel Speed')).toContainText('22.13');
+    await expect(row('Poorest Segment LOS')).toContainText('D');
+    await expect(page.getByText(/Facility LOS: C/)).toBeVisible();
+    await expect(page.locator('.fixture-note')).toContainText('22.6');
+  });
+
+  test('the analysis modes stay exclusive and keep their own segments', async ({ page }) => {
+    // One kind of segment per run: the mode selector swaps the whole segment
+    // set, and each mode's numbers survive a round trip through the other.
+    await page.goto('/hcm16');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+
+    await expect(page.locator('#LEN_input_0')).toHaveValue('1800');
+    await page.locator('#LEN_input_0').fill('1500');
+
+    await page.locator('#MODE_input').selectOption('measures');
+    await expect(page.locator('#LEN_input_0')).toHaveCount(0);
+    await expect(page.locator('#MLEN_input_0')).toHaveValue('1320');
+
+    await page.locator('#MODE_input').selectOption('inputs');
+    await expect(page.locator('#MLEN_input_0')).toHaveCount(0);
+    await expect(page.locator('#LEN_input_0')).toHaveValue('1500');
+  });
+
+  test('the facility diagram selects segments, colors by LOS, and toggles to 3D', async ({ page }) => {
+    await page.goto('/hcm16');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
+
+    const diagram = page.locator('.uf-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /urban street facility, 3 segments upstream to downstream/);
+
+    // Three decks and four boundary intersections, with the subject-side
+    // access points drawn as driveway ticks (4 per segment).
+    await expect(page.locator('rect.uf-deck')).toHaveCount(3);
+    await expect(page.locator('rect.uf-cross')).toHaveCount(4);
+    await expect(page.locator('rect.uf-drive')).toHaveCount(12);
+
+    // Clicking a segment selects it, and the matching card takes the accent.
+    await page.locator('g.uf-seg').nth(1).click();
+    await expect(page.locator('.seg-panel').nth(1)).toHaveClass(/seg-selected/);
+    await expect(page.locator('g.uf-seg').nth(1)).toHaveClass(/selected/);
+
+    // LOS heat only appears after a run.
+    await expect(page.locator('rect.uf-deck.scored')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Calculate' }).click();
+    await expect(page.getByText(/Facility LOS: C/)).toBeVisible();
+    await expect(page.locator('rect.uf-deck.scored')).toHaveCount(3);
+    await expect(diagram).toHaveAttribute('aria-label', /coloured by segment level of service/);
+
+    // The 3D toggle swaps in the projected view, LOS heat and all.
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
+    await expect(page.locator('.uf3-wrap svg')).toHaveAttribute('aria-label', /urban street facility 3D view, 3 segments/);
+    await expect(page.locator('path.uf3-top.scored')).toHaveCount(3);
   });
 });
 

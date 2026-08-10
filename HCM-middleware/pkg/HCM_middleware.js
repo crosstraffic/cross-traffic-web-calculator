@@ -4,30 +4,7 @@ const heap = new Array(128).fill(undefined);
 
 heap.push(undefined, null, true, false);
 
-let heap_next = heap.length;
-
-function addHeapObject(obj) {
-    if (heap_next === heap.length) heap.push(heap.length + 1);
-    const idx = heap_next;
-    heap_next = heap[idx];
-
-    heap[idx] = obj;
-    return idx;
-}
-
 function getObject(idx) { return heap[idx]; }
-
-function dropObject(idx) {
-    if (idx < 132) return;
-    heap[idx] = heap_next;
-    heap_next = idx;
-}
-
-function takeObject(idx) {
-    const ret = getObject(idx);
-    dropObject(idx);
-    return ret;
-}
 
 function isLikeNone(x) {
     return x === undefined || x === null;
@@ -190,6 +167,29 @@ function getStringFromWasm0(ptr, len) {
     return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
 }
 
+let heap_next = heap.length;
+
+function addHeapObject(obj) {
+    if (heap_next === heap.length) heap.push(heap.length + 1);
+    const idx = heap_next;
+    heap_next = heap[idx];
+
+    heap[idx] = obj;
+    return idx;
+}
+
+function dropObject(idx) {
+    if (idx < 132) return;
+    heap[idx] = heap_next;
+    heap_next = idx;
+}
+
+function takeObject(idx) {
+    const ret = getObject(idx);
+    dropObject(idx);
+    return ret;
+}
+
 let cachedFloat64Memory0 = null;
 
 function getFloat64Memory0() {
@@ -207,40 +207,9 @@ function handleError(f, args) {
     }
 }
 
-let cachedUint32Memory0 = null;
-
-function getUint32Memory0() {
-    if (cachedUint32Memory0 === null || cachedUint32Memory0.byteLength === 0) {
-        cachedUint32Memory0 = new Uint32Array(wasm.memory.buffer);
-    }
-    return cachedUint32Memory0;
-}
-
-function passArrayJsValueToWasm0(array, malloc) {
-    const ptr = malloc(array.length * 4, 4) >>> 0;
-    const mem = getUint32Memory0();
-    for (let i = 0; i < array.length; i++) {
-        mem[ptr / 4 + i] = addHeapObject(array[i]);
-    }
-    WASM_VECTOR_LEN = array.length;
-    return ptr;
-}
-
-function getArrayF64FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
-}
-
 function passArrayF64ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 8, 8) >>> 0;
     getFloat64Memory0().set(arg, ptr / 8);
-    WASM_VECTOR_LEN = arg.length;
-    return ptr;
-}
-
-function passArray32ToWasm0(arg, malloc) {
-    const ptr = malloc(arg.length * 4, 4) >>> 0;
-    getUint32Memory0().set(arg, ptr / 4);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
 }
@@ -335,6 +304,37 @@ export function stop_junction_delay(flow_veh_h, conflicting_flow_veh_h, critical
 export function dlt_offset(td_dlt_ft, sf_dlt_mph, lag_dlt_s, lag_th_s, offset_supp_s, offset_main_s, cycle_s) {
     const ret = wasm.dlt_offset(td_dlt_ft, sf_dlt_mph, lag_dlt_s, lag_th_s, offset_supp_s, offset_main_s, cycle_s);
     return takeObject(ret);
+}
+
+let cachedUint32Memory0 = null;
+
+function getUint32Memory0() {
+    if (cachedUint32Memory0 === null || cachedUint32Memory0.byteLength === 0) {
+        cachedUint32Memory0 = new Uint32Array(wasm.memory.buffer);
+    }
+    return cachedUint32Memory0;
+}
+
+function passArrayJsValueToWasm0(array, malloc) {
+    const ptr = malloc(array.length * 4, 4) >>> 0;
+    const mem = getUint32Memory0();
+    for (let i = 0; i < array.length; i++) {
+        mem[ptr / 4 + i] = addHeapObject(array[i]);
+    }
+    WASM_VECTOR_LEN = array.length;
+    return ptr;
+}
+
+function getArrayF64FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
+}
+
+function passArray32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getUint32Memory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
 }
 
 const WasmAlternativeIntersectionFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -4248,9 +4248,37 @@ export class WasmUrbanFacility {
     /**
     * Append a Chapter 18 segment (ordered upstream to downstream) to the
     * facility in the subject direction of travel. Everything after
-    * `control` is optional; the trailing arguments mirror
-    * `WasmUrbanSegment`'s constructor, including the nine that select
-    * among the three Equation 18-7 access-point delay sources.
+    * `control` is optional.
+    *
+    * The trailing arguments are not in `WasmUrbanSegment`'s constructor
+    * order. This one runs `n_access_points_subject`,
+    * `n_access_points_opposing`, `midsegment_flow_veh_h`,
+    * `through_capacity_veh_h`, `through_control_delay_s`, `cycle_length_s`,
+    * `effective_green_s`, `platoon_ratio`, `sat_flow_veh_h_ln`,
+    * `full_stop_rate_override`, then the free-flow-speed geometry
+    * (`upstream_intersection_width_ft`, `restrictive_median_length_ft`,
+    * `proportion_with_curb`, `proportion_on_street_parking`,
+    * `prop_opposing_left_accessible`, `signal_spacing_ft`,
+    * `free_flow_speed_override_mph`), and finally the nine access-point
+    * delay arguments of Equation 18-7. Pass by position against this list,
+    * not against the segment constructor.
+    *
+    * Six `UrbanSegment` fields have no argument here and are reachable only
+    * through [`Self::add_segment_from_config`]: `arrival_type`,
+    * `stopped_vehicles_veh_ln`, `queue2_veh_ln`, `queue3_veh_ln`,
+    * `stop_rate_other`, and the per-segment `prop_left_turn_lanes` (the
+    * facility-wide one is a constructor argument).
+    *
+    * * `analysis_period_h` — read only by the computed Chapter 30 Section 4
+    *   access-point branch, which the segment enters only when
+    *   `access_point_approaches` is populated. That field has no argument
+    *   here, so on a segment added through this method the value is inert;
+    *   reach the branch through [`Self::add_segment_from_config`], whose
+    *   serde schema carries `access_point_approaches`.
+    * * `access_point_turn_delay_speed_mph` — same branch, same condition.
+    *   It overrides the posted speed limit in the right-turn delay term of
+    *   the Section 4 procedure, and is likewise inert without
+    *   `access_point_approaches`.
     * @param {number} segment_length_ft
     * @param {number} n_through_lanes
     * @param {number} speed_limit_mph
@@ -4296,10 +4324,20 @@ export class WasmUrbanFacility {
     * own fixture files use (e.g. the `segments` entries of
     * `tests/ExampleCases/hcm/UrbanFacilities/case3.json`), so a fixture
     * segment is loadable verbatim in one call instead of through the
-    * 31-argument positional [`Self::add_segment`]. Any omitted field keeps
-    * the library default; unknown fields are ignored, so misspelling a
-    * field name silently falls back to that default — prefer copying field
-    * names from the fixture files.
+    * 31-argument positional [`Self::add_segment`]. Five fields are
+    * required and throw when omitted — `segment_length_ft`,
+    * `n_through_lanes`, `speed_limit_mph`, `through_demand_veh_h`, and
+    * `control`. Every other field has a serde default; unknown fields are
+    * ignored, so misspelling a field name silently falls back to that
+    * default — prefer copying field names from the fixture files.
+    *
+    * A config may also carry the computed output fields (`base_ffs_mph`,
+    * `travel_speed_mph`, `spatial_stop_rate_stops_mi`, `vc_ratio`, `los`),
+    * as a serialized post-analysis fixture does. Such a segment is counted
+    * as a summary segment, exactly as if it had come through
+    * [`Self::add_segment_summary`], because its measures are already
+    * decided and re-running the Chapter 18 engine over the inputs beside
+    * them would overwrite what the caller supplied.
     * @param {any} config
     */
     add_segment_from_config(config) {
@@ -4361,10 +4399,15 @@ export class WasmUrbanFacility {
     }
     /**
     * Run the Chapter 16 aggregation (Equations 16-2 through 16-4 and the
-    * Exhibit 16-3 LOS) over the per-segment measures already held, without
-    * re-running the Chapter 18 engine. Returns the facility LOS letter.
-    * Use after [`Self::add_segment_summary`], or after `analyze()` to
-    * re-aggregate.
+    * Exhibit 16-3 LOS) over the per-segment measures already held. Returns
+    * the facility LOS letter. Use after [`Self::add_segment_summary`], or
+    * after `analyze()` to re-aggregate.
+    *
+    * This is also the entry point for a facility mixing the two kinds of
+    * segment. Segments that arrived with their measures already set are
+    * left exactly as supplied, and any segment still missing them is
+    * evaluated with the Chapter 18 engine first, so the aggregation sees a
+    * complete set either way.
     * @returns {string}
     */
     aggregate() {
@@ -4395,8 +4438,9 @@ export class WasmUrbanFacility {
     * Run the full HCM Ch.16 pipeline: evaluate every segment with the
     * Chapter 18 engine, then aggregate (Equations 16-2 through 16-4 and
     * the Exhibit 16-3 LOS). Returns the facility LOS letter. Throws when
-    * the facility holds a segment added through `add_segment_summary`,
-    * whose Chapter 18 inputs are placeholders — use `aggregate()` there.
+    * any segment arrived carrying its own measures, whose Chapter 18 inputs
+    * are placeholders — use `aggregate()` there, which also handles a
+    * facility mixing supplied measures with input-driven segments.
     * @returns {string}
     */
     analyze() {
@@ -4616,9 +4660,21 @@ export class WasmUrbanReliability {
     * with the HCM default demand-ratio, weather, and incident models.
     * Each of the five monthly weather arrays takes 0, 1, or 12 entries
     * (none, one value replicated to every month, or January-December
-    * values). Snowfall drives the strongest capacity and free-flow-speed
-    * losses in the Chapter 29 weather model, so a facility in a
-    * snow-affected climate needs its snowfall column supplied.
+    * values).
+    *
+    * * `monthly_total_snowfall_in` — climatological metadata only, carried
+    *   on the weather record but not read by the scenario generator. The
+    *   Chapter 29 weather procedure decides rain versus snow from the
+    *   sampled temperature (Equations 29-3 and 29-4) and sizes the snow
+    *   event from the precipitation columns through the snow-to-rain depth
+    *   ratio of Step 7, so a snow climate is expressed through
+    *   `monthly_mean_temp_f`, `monthly_total_precip_in`, and
+    *   `monthly_precip_rate_in_h`. Supplying or omitting this column does
+    *   not change any result.
+    * * `jan1_day_of_week` — 0 = Sunday through 6 = Saturday. This anchors
+    *   the calendar the reliability reporting period is built on, so a
+    *   wrong value shifts every Exhibit 17-6 day-of-week demand factor onto
+    *   the wrong day. Values above 6 are rejected rather than clamped.
     * @param {string | undefined} functional_class
     * @param {number | undefined} study_period_start_hour
     * @param {number | undefined} analysis_periods_per_day
@@ -4638,21 +4694,32 @@ export class WasmUrbanReliability {
     * @param {number | undefined} [prop_left_turn_lanes]
     */
     constructor(functional_class, study_period_start_hour, analysis_periods_per_day, monthly_total_precip_in, monthly_days_with_precip, monthly_mean_temp_f, monthly_precip_rate_in_h, entry_intersection_crash_frequency, minor_leg_volume_veh_h, shoulder_present, vmt_weighted, weather_seed, demand_seed, incident_seed, monthly_total_snowfall_in, jan1_day_of_week, prop_left_turn_lanes) {
-        var ptr0 = isLikeNone(functional_class) ? 0 : passStringToWasm0(functional_class, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        var len0 = WASM_VECTOR_LEN;
-        const ptr1 = passArrayF64ToWasm0(monthly_total_precip_in, wasm.__wbindgen_malloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ptr2 = passArrayF64ToWasm0(monthly_days_with_precip, wasm.__wbindgen_malloc);
-        const len2 = WASM_VECTOR_LEN;
-        const ptr3 = passArrayF64ToWasm0(monthly_mean_temp_f, wasm.__wbindgen_malloc);
-        const len3 = WASM_VECTOR_LEN;
-        const ptr4 = passArrayF64ToWasm0(monthly_precip_rate_in_h, wasm.__wbindgen_malloc);
-        const len4 = WASM_VECTOR_LEN;
-        var ptr5 = isLikeNone(monthly_total_snowfall_in) ? 0 : passArrayF64ToWasm0(monthly_total_snowfall_in, wasm.__wbindgen_malloc);
-        var len5 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmurbanreliability_new(ptr0, len0, !isLikeNone(study_period_start_hour), isLikeNone(study_period_start_hour) ? 0 : study_period_start_hour, !isLikeNone(analysis_periods_per_day), isLikeNone(analysis_periods_per_day) ? 0 : analysis_periods_per_day, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, !isLikeNone(entry_intersection_crash_frequency), isLikeNone(entry_intersection_crash_frequency) ? 0 : entry_intersection_crash_frequency, !isLikeNone(minor_leg_volume_veh_h), isLikeNone(minor_leg_volume_veh_h) ? 0 : minor_leg_volume_veh_h, isLikeNone(shoulder_present) ? 0xFFFFFF : shoulder_present ? 1 : 0, isLikeNone(vmt_weighted) ? 0xFFFFFF : vmt_weighted ? 1 : 0, !isLikeNone(weather_seed), isLikeNone(weather_seed) ? 0 : weather_seed, !isLikeNone(demand_seed), isLikeNone(demand_seed) ? 0 : demand_seed, !isLikeNone(incident_seed), isLikeNone(incident_seed) ? 0 : incident_seed, ptr5, len5, !isLikeNone(jan1_day_of_week), isLikeNone(jan1_day_of_week) ? 0 : jan1_day_of_week, !isLikeNone(prop_left_turn_lanes), isLikeNone(prop_left_turn_lanes) ? 0 : prop_left_turn_lanes);
-        this.__wbg_ptr = ret >>> 0;
-        return this;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            var ptr0 = isLikeNone(functional_class) ? 0 : passStringToWasm0(functional_class, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            var len0 = WASM_VECTOR_LEN;
+            const ptr1 = passArrayF64ToWasm0(monthly_total_precip_in, wasm.__wbindgen_malloc);
+            const len1 = WASM_VECTOR_LEN;
+            const ptr2 = passArrayF64ToWasm0(monthly_days_with_precip, wasm.__wbindgen_malloc);
+            const len2 = WASM_VECTOR_LEN;
+            const ptr3 = passArrayF64ToWasm0(monthly_mean_temp_f, wasm.__wbindgen_malloc);
+            const len3 = WASM_VECTOR_LEN;
+            const ptr4 = passArrayF64ToWasm0(monthly_precip_rate_in_h, wasm.__wbindgen_malloc);
+            const len4 = WASM_VECTOR_LEN;
+            var ptr5 = isLikeNone(monthly_total_snowfall_in) ? 0 : passArrayF64ToWasm0(monthly_total_snowfall_in, wasm.__wbindgen_malloc);
+            var len5 = WASM_VECTOR_LEN;
+            wasm.wasmurbanreliability_new(retptr, ptr0, len0, !isLikeNone(study_period_start_hour), isLikeNone(study_period_start_hour) ? 0 : study_period_start_hour, !isLikeNone(analysis_periods_per_day), isLikeNone(analysis_periods_per_day) ? 0 : analysis_periods_per_day, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, !isLikeNone(entry_intersection_crash_frequency), isLikeNone(entry_intersection_crash_frequency) ? 0 : entry_intersection_crash_frequency, !isLikeNone(minor_leg_volume_veh_h), isLikeNone(minor_leg_volume_veh_h) ? 0 : minor_leg_volume_veh_h, isLikeNone(shoulder_present) ? 0xFFFFFF : shoulder_present ? 1 : 0, isLikeNone(vmt_weighted) ? 0xFFFFFF : vmt_weighted ? 1 : 0, !isLikeNone(weather_seed), isLikeNone(weather_seed) ? 0 : weather_seed, !isLikeNone(demand_seed), isLikeNone(demand_seed) ? 0 : demand_seed, !isLikeNone(incident_seed), isLikeNone(incident_seed) ? 0 : incident_seed, ptr5, len5, !isLikeNone(jan1_day_of_week), isLikeNone(jan1_day_of_week) ? 0 : jan1_day_of_week, !isLikeNone(prop_left_turn_lanes), isLikeNone(prop_left_turn_lanes) ? 0 : prop_left_turn_lanes);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
     }
     /**
     * Register an ATDM strategy, work zone, or special event (HCM Chapter
@@ -4761,11 +4828,15 @@ export class WasmUrbanReliability {
         return ret >>> 0;
     }
     /**
-    * Scenarios in which at least one boundary through movement ran over
-    * capacity (v/c > 1). These are the scenarios that feed the residual
-    * queue forward into the next analysis period, so the count is the
-    * readout for how much of the travel-time distribution's tail comes
-    * from oversaturation rather than from weather or incidents alone.
+    * Scenarios flagged as oversaturated by the library, which marks a
+    * scenario when at least one boundary through movement either ran over
+    * capacity (v/c > 1) or began the analysis period with a residual queue
+    * carried in from the previous one (Q_b > 0). The count therefore
+    * includes undersaturated periods that inherited a queue, and it reads
+    * as how much of the travel-time distribution's tail is queue-driven
+    * rather than weather- or incident-driven. The two conditions are not
+    * separable through this surface; the library collapses them into one
+    * flag per scenario.
     * @returns {number}
     */
     num_oversaturated_scenarios() {
@@ -5769,42 +5840,6 @@ async function __wbg_load(module, imports) {
 function __wbg_get_imports() {
     const imports = {};
     imports.wbg = {};
-    imports.wbg.__wbg_get_bd8e338fbd5f5cc8 = function(arg0, arg1) {
-        const ret = getObject(arg0)[arg1 >>> 0];
-        return addHeapObject(ret);
-    };
-    imports.wbg.__wbg_length_cd7af8117672b8b8 = function(arg0) {
-        const ret = getObject(arg0).length;
-        return ret;
-    };
-    imports.wbg.__wbg_new_16b304a2cfa7ff4a = function() {
-        const ret = new Array();
-        return addHeapObject(ret);
-    };
-    imports.wbg.__wbindgen_number_new = function(arg0) {
-        const ret = arg0;
-        return addHeapObject(ret);
-    };
-    imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
-        takeObject(arg0);
-    };
-    imports.wbg.__wbindgen_is_function = function(arg0) {
-        const ret = typeof(getObject(arg0)) === 'function';
-        return ret;
-    };
-    imports.wbg.__wbindgen_is_object = function(arg0) {
-        const val = getObject(arg0);
-        const ret = typeof(val) === 'object' && val !== null;
-        return ret;
-    };
-    imports.wbg.__wbg_next_40fc327bfc8770e6 = function(arg0) {
-        const ret = getObject(arg0).next;
-        return addHeapObject(ret);
-    };
-    imports.wbg.__wbg_next_196c84450b364254 = function() { return handleError(function (arg0) {
-        const ret = getObject(arg0).next();
-        return addHeapObject(ret);
-    }, arguments) };
     imports.wbg.__wbindgen_bigint_get_as_i64 = function(arg0, arg1) {
         const v = getObject(arg1);
         const ret = typeof(v) === 'bigint' ? v : undefined;
@@ -5837,6 +5872,42 @@ function __wbg_get_imports() {
         getInt32Memory0()[arg0 / 4 + 1] = len1;
         getInt32Memory0()[arg0 / 4 + 0] = ptr1;
     };
+    imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
+        takeObject(arg0);
+    };
+    imports.wbg.__wbg_get_bd8e338fbd5f5cc8 = function(arg0, arg1) {
+        const ret = getObject(arg0)[arg1 >>> 0];
+        return addHeapObject(ret);
+    };
+    imports.wbg.__wbg_length_cd7af8117672b8b8 = function(arg0) {
+        const ret = getObject(arg0).length;
+        return ret;
+    };
+    imports.wbg.__wbg_new_16b304a2cfa7ff4a = function() {
+        const ret = new Array();
+        return addHeapObject(ret);
+    };
+    imports.wbg.__wbindgen_number_new = function(arg0) {
+        const ret = arg0;
+        return addHeapObject(ret);
+    };
+    imports.wbg.__wbindgen_is_function = function(arg0) {
+        const ret = typeof(getObject(arg0)) === 'function';
+        return ret;
+    };
+    imports.wbg.__wbindgen_is_object = function(arg0) {
+        const val = getObject(arg0);
+        const ret = typeof(val) === 'object' && val !== null;
+        return ret;
+    };
+    imports.wbg.__wbg_next_40fc327bfc8770e6 = function(arg0) {
+        const ret = getObject(arg0).next;
+        return addHeapObject(ret);
+    };
+    imports.wbg.__wbg_next_196c84450b364254 = function() { return handleError(function (arg0) {
+        const ret = getObject(arg0).next();
+        return addHeapObject(ret);
+    }, arguments) };
     imports.wbg.__wbg_done_298b57d23c0fc80c = function(arg0) {
         const ret = getObject(arg0).done;
         return ret;
@@ -5976,12 +6047,12 @@ function __wbg_get_imports() {
         const ret = WasmSegment.__unwrap(takeObject(arg0));
         return ret;
     };
-    imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
-        const ret = WasmSubSegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
     imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
         const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
+    imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
+        const ret = WasmSubSegment.__unwrap(takeObject(arg0));
         return ret;
     };
     imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
