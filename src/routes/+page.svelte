@@ -21,9 +21,9 @@
         <h1 class="hero-title">HCM Calculator</h1>
         <p class="hero-lead">
           A browser-based implementation of HCM analysis procedures across
-          twelve chapters: freeways, signalized and stop-controlled
-          intersections, roundabouts, interchanges, and multiuse paths. Every
-          chapter reproduces its published HCM worked examples, computed by a
+          thirteen chapters: freeways, urban street segments, signalized and
+          stop-controlled intersections, roundabouts, interchanges, and multiuse
+          paths. Every chapter reproduces its published HCM worked examples, computed by a
           WebAssembly engine that also works offline. Interactive 2D and 3D
           diagrams, traffic animation, and printable run reports included.
         </p>
@@ -89,7 +89,7 @@
   <section class="chapters" id="chapters">
     <div class="chapters-head">
       <h2>Available chapters</h2>
-      <span class="chapters-meta">Twelve chapters, each validated against its published HCM worked examples</span>
+      <span class="chapters-meta">Thirteen chapters, each validated against its published HCM worked examples</span>
     </div>
 
     <a class="chapter-row" href="/hcm10">
@@ -144,6 +144,15 @@
         <span class="chapter-desc">Level of service, follower density, average speed, and passing analysis</span>
       </span>
       <span class="chapter-status available">Available</span>
+    </a>
+
+    <a class="chapter-row" href="/hcm18">
+      <span class="chapter-no">18</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Urban Street Segments</span>
+        <span class="chapter-desc">Free-flow speed, running time, travel speed, stop rate, and LOS for one direction of an arterial segment</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
     </a>
 
     <a class="chapter-row" href="/hcm19">

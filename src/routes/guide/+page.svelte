@@ -8,7 +8,7 @@
     <h1 class="page-title">Guide</h1>
     <p class="page-sub">
       How to use the calculator: the features every chapter page shares, a
-      reference to all twelve available chapters, and detailed walkthroughs of
+      reference to all thirteen available chapters, and detailed walkthroughs of
       the Two-Lane Highways and Basic Freeway analyses.
     </p>
   </header>
@@ -26,6 +26,7 @@
         <a href="#basic-freeway">Basic Freeway Segments</a>
         <a href="#facilities-guide">Facilities &amp; Reliability</a>
         <a href="#weaving-ramps-guide">Weaving &amp; Ramps</a>
+        <a href="#urban-guide">Urban Streets</a>
         <a href="#intersections-guide">Intersections</a>
         <a href="#interchange-guide">Interchanges</a>
         <a href="#paths-guide">Ped &amp; Bike Paths</a>
@@ -81,6 +82,7 @@
         <tr><td><a href="/hcm13">13 Freeway Weaving</a></td><td>Weaving segment speeds and capacity, 7th Edition or Edition 7.1</td><td>Density (pc/mi/ln)</td></tr>
         <tr><td><a href="/hcm14">14 Merge and Diverge</a></td><td>Ramp influence area speeds and capacity, 7th Edition or Edition 7.1</td><td>Influence area density</td></tr>
         <tr><td><a href="/hcm15">15 Two-Lane Highways</a></td><td>Segment-by-segment facility with passing configuration and horizontal curves</td><td>Follower density</td></tr>
+        <tr><td><a href="/hcm18">18 Urban Street Segments</a> (Beta)</td><td>One direction of an arterial segment: base and adjusted free-flow speed, running time, through delay, stop rate</td><td>Travel speed (mi/h)</td></tr>
         <tr><td><a href="/hcm19">19 Signalized Intersections</a></td><td>Pretimed four-leg signal: saturation flows, capacities, delay by approach</td><td>Control delay (s/veh)</td></tr>
         <tr><td><a href="/hcm20">20 Two-Way STOP Control</a></td><td>Gap-acceptance capacities and delay by movement rank, with the December 2022 HCM corrections</td><td>Control delay per movement and lane</td></tr>
         <tr><td><a href="/hcm21">21 All-Way STOP Control</a></td><td>Iterated departure headways, service times, delay per lane</td><td>Control delay (s/veh)</td></tr>
@@ -89,7 +91,7 @@
         <tr><td><a href="/hcm24">24 Off-Street Ped and Bike</a></td><td>Exclusive walkways, shared-use path pedestrian events, bicycle BLOS</td><td>Space, events per hour, BLOS score</td></tr>
       </tbody>
     </table>
-    <p>Chapters 16 to 18 (urban street facilities, reliability, and segments) are implemented in
+    <p>Chapters 16 and 17 (urban street facilities and urban street reliability) are implemented in
       the compute engine and will be released after validation review.</p>
   </section>
 
@@ -297,6 +299,36 @@
       operating under capacity reports no LOS, because the HCM defines none there; the page
       says so instead of inventing a letter. Speeds past capacity report as not defined under
       7.1 for the same honesty.
+    </p>
+  </section>
+
+  <!-- Urban streets -->
+  <section id="urban-guide" class="guide-section">
+    <h2>Urban Street Segments (18)</h2>
+    <p>
+      <a href="/hcm18">Chapter 18</a> evaluates one direction of travel over one segment,
+      from the upstream boundary intersection to the downstream one. The geometry inputs set
+      the base free-flow speed through the cross-section, access-point, and parking
+      adjustments, and the signal spacing scales it down to the free-flow speed the segment
+      actually offers. Percentages are entered as percentages here and converted at the engine
+      boundary, so the link with curb is 70, not 0.70.
+    </p>
+    <p>
+      The boundary intersection is an <strong>input</strong> to this chapter, not something it
+      computes. Through control delay, through capacity, and the full stop rate come from the
+      Chapter 19, 20, 21, or 22 analysis of that intersection, which is what Exhibit 18-5 means
+      by an HCM method output. Leaving the platoon ratio blank gives uniform arrivals with
+      P = g/C.
+    </p>
+    <p>
+      The <strong>access-point turning delay</strong> selector picks the source for the
+      Σ d_ap,i term of Equation 18-7. <strong>Measured or published delays</strong> takes a
+      comma-separated delay per active access point, which is how the Chapter 30 Example
+      Problem 1 defaults reproduce the published Exhibit 30-36 results. <strong>Planning
+      estimate</strong> uses Exhibit 18-13 instead; leaving its fields blank applies the
+      exhibit's own baseline of 10% left and right turns and an influential access-point count
+      of N_ap,s + p_ap,lt × N_ap,o, which gives a higher delay and a slightly lower travel
+      speed than the per-point procedure.
     </p>
   </section>
 

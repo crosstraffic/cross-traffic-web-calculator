@@ -6,7 +6,13 @@
   import { preventDefault } from 'svelte/legacy';
 
   import init, { WasmUrbanSegment } from "HCM-middleware";
+  import UrbanSegmentDiagram from '$lib/UrbanSegmentDiagram.svelte';
+  import UrbanSegmentDiagram3D from '$lib/UrbanSegmentDiagram3D.svelte';
+  import ViewToggle from '$lib/ViewToggle.svelte';
+  import { setReport } from '$lib/report';
   import { onMount } from "svelte";
+
+  let diagramMode = $state('2d');
 
   let ready = $state(false);
 
@@ -15,41 +21,81 @@
     ready = true;
   });
 
-  // Inputs (defaults describe a signalized 0.25-mi arterial segment)
-  let segment_length = $state(1320);
+  // Defaults are HCM Chapter 30, Section 8, Example Problem 1 (Exhibits 30-26
+  // through 30-36), eastbound direction: an 1,800-ft undivided four-lane
+  // segment with a 35 mi/h speed limit, 70% of the link with curb, four access
+  // points per side, and signalized boundary intersections on a 100-s cycle.
+  // The boundary-intersection values (through delay 18.310 s/veh, full stop
+  // rate 0.547 stops/veh, capacity 1,848 veh/h, effective green 48.63 s) are
+  // the published computational-engine outputs supplied as inputs per Exhibit
+  // 18-5. Same fixture as tests/boundary/ch18_urban_segments.mjs.
+  let segment_length = $state(1800);
   let n_through_lanes = $state(2);
   let speed_limit = $state(35);
-  let upstream_width = $state(0);
+  let upstream_width = $state(50);
   let restrictive_median_length = $state(0);
-  let pct_curb = $state(100);
+  let pct_curb = $state(70);
   let pct_parking = $state(0);
-  let access_points_subject = $state(2);
-  let access_points_opposing = $state(2);
+  let access_points_subject = $state(4);
+  let access_points_opposing = $state(4);
   let pct_opposing_left_accessible = $state(100);
-  let signal_spacing = $state('');
+  let signal_spacing = $state(1800);
   let ffs_override = $state('');
 
-  let through_demand = $state(800);
-  let midsegment_flow = $state('');
+  let through_demand = $state(968);
+  let midsegment_flow = $state(1150);
 
   let control = $state('signalized');
-  let through_delay = $state(20);
-  let through_capacity = $state(1600);
+  let through_delay = $state(18.31);
+  let through_capacity = $state(1848);
   let cycle_length = $state(100);
-  let effective_green = $state(45);
-  let platoon_ratio = $state(1.333);
-  let sat_flow = $state(1800);
-  let stop_rate_override = $state(0.5);
+  let effective_green = $state(48.63);
+  let platoon_ratio = $state('');
+  let sat_flow = $state('');
+  let stop_rate_override = $state(0.547);
 
-  let pct_left_turn_lanes = $state(100);
+  let pct_left_turn_lanes = $state(33);
+
+  // Equation 18-7's access-point turning-delay term. The engine picks among
+  // three sources; the two selectable here are the published per-point delays
+  // and the Exhibit 18-13 planning estimate. Leaving every planning field
+  // blank reproduces the pre-0.3.3 default path exactly, which is what a
+  // bookmarked run from before this selector existed used.
+  let ap_source = $state('measured');
+  let ap_delays = $state('0.193, 0.194');
+  let n_influential_access_points = $state('');
+  let pct_left_turns_access = $state('');
+  let pct_right_turns_access = $state('');
+  let access_left_bay_adequate = $state(false);
+  let access_right_bay_adequate = $state(false);
 
   let results = $state(null);
   let hasError = $state(false);
   let errMessage = $state('');
 
+  const CONTROL_LABEL = {
+    signalized: 'Signalized',
+    allwaystop: 'All-Way STOP',
+    yield: 'YIELD controlled',
+    roundabout: 'Roundabout',
+    uncontrolled: 'Uncontrolled'
+  };
+
   // Blank optional inputs become undefined so the engine applies its defaults.
   function opt(v) {
     return v === '' || v === null || v === undefined ? undefined : Number(v);
+  }
+
+  // Comma- or space-separated per-point delays, one per active access point.
+  function parseDelays(text) {
+    const parts = String(text).split(/[,\s]+/).filter((s) => s !== '');
+    const nums = parts.map(Number);
+    if (!nums.length || nums.some((n) => !Number.isFinite(n) || n < 0)) return null;
+    return Float64Array.from(nums);
+  }
+
+  function fmt(v, digits) {
+    return v === null || v === undefined ? '' : Number(v).toFixed(digits);
   }
 
   function runAnalysis() {
@@ -57,6 +103,11 @@
     results = null;
 
     try {
+      const delays = ap_source === 'measured' ? parseDelays(ap_delays) : null;
+      if (ap_source === 'measured' && !delays) {
+        throw new Error('access point delays must be a list of nonnegative numbers');
+      }
+
       const seg = new WasmUrbanSegment(
         Number(segment_length),
         Number(n_through_lanes),
@@ -85,7 +136,13 @@
         undefined,                             // back-of-queue Q3 (Chapter 31 output)
         opt(stop_rate_override),
         undefined,                             // stop rate from other midsegment sources
-        Number(pct_left_turn_lanes) / 100.0
+        Number(pct_left_turn_lanes) / 100.0,
+        delays ?? undefined,                   // Exhibit 30-35 per-point delays
+        ap_source === 'planning' ? opt(n_influential_access_points) : undefined,
+        ap_source === 'planning' ? opt(pct_left_turns_access) : undefined,
+        ap_source === 'planning' ? opt(pct_right_turns_access) : undefined,
+        ap_source === 'planning' ? access_left_bay_adequate : undefined,
+        ap_source === 'planning' ? access_right_bay_adequate : undefined
       );
 
       const los = seg.analyze();
@@ -94,6 +151,8 @@
         base_ffs: seg.get_base_ffs(),
         free_flow_speed: seg.get_free_flow_speed(),
         running_time: seg.get_running_time(),
+        running_speed: seg.get_running_speed(),
+        access_point_delay: seg.get_access_point_delay(),
         travel_speed: seg.get_travel_speed(),
         through_delay: seg.get_through_delay(),
         full_stop_rate: seg.get_full_stop_rate(),
@@ -101,6 +160,89 @@
         vc_ratio: seg.get_vc_ratio(),
         perception_score: seg.get_perception_score()
       };
+
+      const apSourceLabel = ap_source === 'measured'
+        ? `measured or published per-point delays (${ap_delays})`
+        : 'Exhibit 18-13 planning estimate';
+
+      setReport({
+        chapter: 'Urban Street Segments',
+        chapterRef: 'HCM Chapter 18',
+        href: '/hcm18',
+        generatedAt: new Date().toLocaleString(),
+        headline: { label: 'Segment LOS', value: results.los },
+        inputs: [
+          { label: 'Segment length', value: `${segment_length} ft` },
+          { label: 'Through lanes, subject direction', value: n_through_lanes },
+          { label: 'Posted speed limit', value: `${speed_limit} mi/h` },
+          { label: 'Upstream intersection width', value: `${upstream_width} ft` },
+          { label: 'Restrictive median length', value: `${restrictive_median_length} ft` },
+          { label: 'Link length with curb', value: `${pct_curb}%` },
+          { label: 'Link length with on-street parking', value: `${pct_parking}%` },
+          { label: 'Access points, subject / opposing side', value: `${access_points_subject} / ${access_points_opposing}` },
+          { label: 'Opposing points reachable by left turn', value: `${pct_opposing_left_accessible}%` },
+          { label: 'Signal spacing', value: signal_spacing === '' ? 'segment length' : `${signal_spacing} ft` },
+          { label: 'Measured free-flow speed', value: ffs_override === '' ? 'predicted' : `${ffs_override} mi/h` },
+          { label: 'Through demand flow rate', value: `${through_demand} veh/h` },
+          { label: 'Midsegment flow rate', value: midsegment_flow === '' ? 'through demand' : `${midsegment_flow} veh/h` },
+          { label: 'Boundary intersection control', value: CONTROL_LABEL[control] },
+          { label: 'Through control delay', value: control === 'uncontrolled' ? 'not applicable' : `${through_delay} s/veh` },
+          { label: 'Through capacity', value: through_capacity === '' ? 'not supplied' : `${through_capacity} veh/h` },
+          ...(control === 'signalized' ? [
+            { label: 'Cycle length', value: `${cycle_length} s` },
+            { label: 'Effective green time', value: `${effective_green} s` },
+            { label: 'Platoon ratio', value: platoon_ratio === '' ? 'uniform arrivals, P = g/C' : platoon_ratio },
+            { label: 'Adjusted saturation flow rate', value: sat_flow === '' ? 'HCM default' : `${sat_flow} veh/h/ln` },
+          ] : []),
+          { label: 'Full stop rate', value: stop_rate_override === '' ? 'HCM default' : `${stop_rate_override} stops/veh` },
+          { label: 'Intersections with left-turn lanes', value: `${pct_left_turn_lanes}%` },
+          { label: 'Access-point delay source', value: apSourceLabel },
+          ...(ap_source === 'planning' ? [
+            { label: 'Influential access points N_ap', value: n_influential_access_points === '' ? 'N_ap,s + p_ap,lt × N_ap,o' : n_influential_access_points },
+            { label: 'Access left / right turn percentages', value: `${pct_left_turns_access === '' ? '10' : pct_left_turns_access}% / ${pct_right_turns_access === '' ? '10' : pct_right_turns_access}%` },
+            { label: 'Adequate left / right turn bays', value: `${access_left_bay_adequate ? 'yes' : 'no'} / ${access_right_bay_adequate ? 'yes' : 'no'}` },
+          ] : []),
+        ],
+        resultTable: {
+          columns: ['Measure', 'Value', 'Unit'],
+          rows: [
+            ['Base free-flow speed S_fo (Equation 18-3)', fmt(results.base_ffs, 2), 'mi/h'],
+            ['Free-flow speed S_f (Equation 18-5)', fmt(results.free_flow_speed, 2), 'mi/h'],
+            ['Access-point delay Σ d_ap,i (Equation 18-7)', fmt(results.access_point_delay, 3), 's/veh'],
+            ['Segment running time (Equation 18-7)', fmt(results.running_time, 2), 's'],
+            ['Segment running speed', fmt(results.running_speed, 2), 'mi/h'],
+            ['Through control delay at the boundary', fmt(results.through_delay, 2), 's/veh'],
+            ['Travel speed (Equation 18-8)', fmt(results.travel_speed, 2), 'mi/h'],
+            ['Full stop rate', fmt(results.full_stop_rate, 3), 'stops/veh'],
+            ['Spatial stop rate (Equation 18-16)', fmt(results.spatial_stop_rate, 2), 'stops/mi'],
+            ['Volume-to-capacity ratio', fmt(results.vc_ratio, 2), ''],
+            ['Traveler perception score (Equations 18-17 to 18-22)', fmt(results.perception_score, 2), ''],
+          ],
+        },
+        summary: [
+          { label: 'Travel speed', value: `${fmt(results.travel_speed, 2)} mi/h` },
+          { label: 'Segment LOS (Exhibit 18-1)', value: results.los },
+        ],
+        methodology: [
+          'HCM Chapter 18 methodology for the motorized vehicle mode: base free-flow speed from the cross-section, access-point, and on-street parking adjustments (Equation 18-3 and Exhibit 18-11), the signal-spacing adjustment to free-flow speed (Equations 18-4 and 18-5), segment running time including the access-point turning-delay term (Equations 18-6 and 18-7), travel speed from running time plus through control delay (Equation 18-8), stop rate (Equation 18-16), and the traveler perception score (Equations 18-17 through 18-22).',
+          `Access-point delay term Σ d_ap,i taken from the ${ap_source === 'measured' ? 'measured or published per-point delays supplied on the form' : 'Exhibit 18-13 planning-level estimate, from the influential access-point count and the access turn percentages'}. The engine also supports the Chapter 30, Section 4 computed procedure (Equations 30-31 through 30-68), which is not exposed on this page.`,
+          'Boundary-intersection through control delay, capacity, and stop rate are inputs to this chapter per Exhibit 18-5, produced by the Chapter 19, 20, 21, or 22 analysis of that intersection.',
+        ],
+        diagram: {
+          kind: 'urban-segment',
+          props: {
+            segmentLength: Number(segment_length),
+            nThroughLanes: Number(n_through_lanes),
+            accessSubject: Number(access_points_subject),
+            accessOpposing: Number(access_points_opposing),
+            throughDemand: Number(through_demand),
+            pctCurb: Number(pct_curb),
+            pctParking: Number(pct_parking),
+            control,
+            los: results.los
+          }
+        },
+      });
     } catch (err) {
       console.error('Chapter 18 analysis failed:', err);
       hasError = true;
@@ -109,35 +251,38 @@
   }
 
   function resetParams() {
-    segment_length = 1320;
+    segment_length = 1800;
     n_through_lanes = 2;
     speed_limit = 35;
-    upstream_width = 0;
+    upstream_width = 50;
     restrictive_median_length = 0;
-    pct_curb = 100;
+    pct_curb = 70;
     pct_parking = 0;
-    access_points_subject = 2;
-    access_points_opposing = 2;
+    access_points_subject = 4;
+    access_points_opposing = 4;
     pct_opposing_left_accessible = 100;
-    signal_spacing = '';
+    signal_spacing = 1800;
     ffs_override = '';
-    through_demand = 800;
-    midsegment_flow = '';
+    through_demand = 968;
+    midsegment_flow = 1150;
     control = 'signalized';
-    through_delay = 20;
-    through_capacity = 1600;
+    through_delay = 18.31;
+    through_capacity = 1848;
     cycle_length = 100;
-    effective_green = 45;
-    platoon_ratio = 1.333;
-    sat_flow = 1800;
-    stop_rate_override = 0.5;
-    pct_left_turn_lanes = 100;
+    effective_green = 48.63;
+    platoon_ratio = '';
+    sat_flow = '';
+    stop_rate_override = 0.547;
+    pct_left_turn_lanes = 33;
+    ap_source = 'measured';
+    ap_delays = '0.193, 0.194';
+    n_influential_access_points = '';
+    pct_left_turns_access = '';
+    pct_right_turns_access = '';
+    access_left_bay_adequate = false;
+    access_right_bay_adequate = false;
     results = null;
     hasError = false;
-  }
-
-  function fmt(v, digits) {
-    return v === null || v === undefined ? '' : v.toFixed(digits);
   }
 </script>
 
@@ -153,10 +298,12 @@
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> This chapter is newly implemented and its results have
-      not yet been validated against the full set of published HCM worked examples.
-      Verify results independently before relying on them in engineering work, and
-      please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      <strong>Beta.</strong> The compute engine is boundary-validated against HCM
+      Chapter 30, Example Problem 1 (Exhibits 30-26 through 30-36), which the page
+      defaults reproduce, and against all three access-point delay sources the
+      method allows. The page itself is in beta pending final inspection. Verify
+      results independently before relying on them in engineering work, and please
+      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
 
@@ -167,6 +314,38 @@
   {/if}
 
   <form id="hcm18" onsubmit={preventDefault(runAnalysis)}>
+    <!-- Segment diagram -->
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">Segment</h2>
+          <p class="panel-sub">The subject direction of travel runs left to right between the two boundary intersections. In the 2D view the through demand and the access-point counts can be edited directly on the diagram.</p>
+        </div>
+        <div class="panel-actions">
+          <ViewToggle bind:mode={diagramMode} label="Segment view mode" />
+        </div>
+      </div>
+      {#if diagramMode === '3d'}
+        <UrbanSegmentDiagram3D
+          nThroughLanes={n_through_lanes}
+          accessSubject={access_points_subject}
+          accessOpposing={access_points_opposing}
+          {control}
+          los={results ? results.los : null} />
+      {:else}
+        <UrbanSegmentDiagram
+          segmentLength={segment_length}
+          nThroughLanes={n_through_lanes}
+          bind:accessSubject={access_points_subject}
+          bind:accessOpposing={access_points_opposing}
+          bind:throughDemand={through_demand}
+          pctCurb={pct_curb}
+          pctParking={pct_parking}
+          {control}
+          los={results ? results.los : null} />
+      {/if}
+    </section>
+
     <!-- Geometry -->
     <section class="panel">
       <div class="panel-head">
@@ -179,7 +358,7 @@
         <div class="param-field">
           <label for="LEN_input">Segment Length</label>
           <div class="cell-field">
-            <input id="LEN_input" type="number" min="1" class="input input-bordered input-sm" bind:value={segment_length} placeholder="1320" required />
+            <input id="LEN_input" type="number" min="1" class="input input-bordered input-sm" bind:value={segment_length} placeholder="1800" required />
             <span class="unit">ft</span>
           </div>
           <p class="param-hint">Stop line to stop line.</p>
@@ -204,7 +383,7 @@
         <div class="param-field">
           <label for="UPW_input">Upstream Intersection Width</label>
           <div class="cell-field">
-            <input id="UPW_input" type="number" min="0" class="input input-bordered input-sm" bind:value={upstream_width} placeholder="0" required />
+            <input id="UPW_input" type="number" min="0" class="input input-bordered input-sm" bind:value={upstream_width} placeholder="50" required />
             <span class="unit">ft</span>
           </div>
         </div>
@@ -220,7 +399,7 @@
         <div class="param-field">
           <label for="CURB_input">Link Length with Curb</label>
           <div class="cell-field">
-            <input id="CURB_input" type="number" min="0" max="100" class="input input-bordered input-sm" bind:value={pct_curb} placeholder="100" required />
+            <input id="CURB_input" type="number" min="0" max="100" class="input input-bordered input-sm" bind:value={pct_curb} placeholder="70" required />
             <span class="unit">%</span>
           </div>
         </div>
@@ -236,7 +415,7 @@
         <div class="param-field">
           <label for="APS_input">Access Points (subject side)</label>
           <div class="cell-field">
-            <input id="APS_input" type="number" min="0" class="input input-bordered input-sm" bind:value={access_points_subject} placeholder="2" required />
+            <input id="APS_input" type="number" min="0" class="input input-bordered input-sm" bind:value={access_points_subject} placeholder="4" required />
             <span class="unit">pts</span>
           </div>
         </div>
@@ -244,7 +423,7 @@
         <div class="param-field">
           <label for="APO_input">Access Points (opposing side)</label>
           <div class="cell-field">
-            <input id="APO_input" type="number" min="0" class="input input-bordered input-sm" bind:value={access_points_opposing} placeholder="2" required />
+            <input id="APO_input" type="number" min="0" class="input input-bordered input-sm" bind:value={access_points_opposing} placeholder="4" required />
             <span class="unit">pts</span>
           </div>
         </div>
@@ -288,7 +467,7 @@
         <div class="param-field">
           <label for="DEM_input">Through Demand Flow Rate</label>
           <div class="cell-field">
-            <input id="DEM_input" type="number" min="0" class="input input-bordered input-sm" bind:value={through_demand} placeholder="800" required />
+            <input id="DEM_input" type="number" min="0" class="input input-bordered input-sm" bind:value={through_demand} placeholder="968" required />
             <span class="unit">veh/h</span>
           </div>
           <p class="param-hint">At the downstream boundary intersection.</p>
@@ -301,6 +480,78 @@
             <span class="unit">veh/h</span>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- Access-point delay -->
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">Access-Point Turning Delay</h2>
+          <p class="panel-sub">The Σ d_ap,i term of Equation 18-7, the delay through traffic suffers from vehicles turning at midsegment access points.</p>
+        </div>
+      </div>
+      <div class="param-grid">
+        <div class="param-field">
+          <label for="APSRC_input">Delay Source</label>
+          <select id="APSRC_input" class="select select-bordered select-sm" bind:value={ap_source}>
+            <option value="measured">Measured / published delays</option>
+            <option value="planning">Planning estimate (Exhibit 18-13)</option>
+          </select>
+          <p class="param-hint">The engine also implements the Chapter 30, Section 4 computed procedure (Equations 30-31 through 30-68) from access-point geometry and turn volumes. That path is not exposed on this page yet.</p>
+        </div>
+
+        {#if ap_source === 'measured'}
+          <div class="param-field">
+            <label for="APD_input">Per-Point Delays</label>
+            <div class="cell-field">
+              <input id="APD_input" type="text" class="input input-bordered input-sm" bind:value={ap_delays} placeholder="0.193, 0.194" />
+              <span class="unit">s/veh</span>
+            </div>
+            <p class="param-hint">One value per active access point, comma separated. The defaults are the Exhibit 30-35 published values for Example Problem 1.</p>
+          </div>
+        {:else}
+          <div class="param-field">
+            <label for="NAP_input">Influential Access Points N_ap</label>
+            <div class="cell-field">
+              <input id="NAP_input" type="number" step="0.1" min="0" class="input input-bordered input-sm" bind:value={n_influential_access_points} placeholder="N_ap,s + p_ap,lt × N_ap,o" />
+              <span class="unit">pts</span>
+            </div>
+            <p class="param-hint">Fractional values are allowed. Blank uses the access-point counts above.</p>
+          </div>
+
+          <div class="param-field">
+            <label for="APLT_input">Access Left Turns</label>
+            <div class="cell-field">
+              <input id="APLT_input" type="number" step="0.1" min="0" max="100" class="input input-bordered input-sm" bind:value={pct_left_turns_access} placeholder="10" />
+              <span class="unit">%</span>
+            </div>
+            <p class="param-hint">Share of midsegment flow turning left at access points. Blank uses the Exhibit 18-13 baseline of 10%.</p>
+          </div>
+
+          <div class="param-field">
+            <label for="APRT_input">Access Right Turns</label>
+            <div class="cell-field">
+              <input id="APRT_input" type="number" step="0.1" min="0" max="100" class="input input-bordered input-sm" bind:value={pct_right_turns_access} placeholder="10" />
+              <span class="unit">%</span>
+            </div>
+          </div>
+
+          <div class="param-field">
+            <label for="APLB_input">
+              <input id="APLB_input" type="checkbox" class="checkbox checkbox-sm" bind:checked={access_left_bay_adequate} />
+              Adequate Left-Turn Bays
+            </label>
+            <p class="param-hint">An adequate bay keeps left-turning vehicles out of the through lane.</p>
+          </div>
+
+          <div class="param-field">
+            <label for="APRB_input">
+              <input id="APRB_input" type="checkbox" class="checkbox checkbox-sm" bind:checked={access_right_bay_adequate} />
+              Adequate Right-Turn Bays
+            </label>
+          </div>
+        {/if}
       </div>
     </section>
 
@@ -328,7 +579,7 @@
           <div class="param-field">
             <label for="DEL_input">Through Control Delay</label>
             <div class="cell-field">
-              <input id="DEL_input" type="number" step="0.1" min="0" class="input input-bordered input-sm" bind:value={through_delay} placeholder="20" required />
+              <input id="DEL_input" type="number" step="0.01" min="0" class="input input-bordered input-sm" bind:value={through_delay} placeholder="18.31" required />
               <span class="unit">s/veh</span>
             </div>
             <p class="param-hint">From the Chapter 19, 21, or 22 analysis of the intersection.</p>
@@ -338,7 +589,7 @@
         <div class="param-field">
           <label for="CAP_input">Through Capacity (optional)</label>
           <div class="cell-field">
-            <input id="CAP_input" type="number" min="0" class="input input-bordered input-sm" bind:value={through_capacity} placeholder="1600" />
+            <input id="CAP_input" type="number" min="0" class="input input-bordered input-sm" bind:value={through_capacity} placeholder="1848" />
             <span class="unit">veh/h</span>
           </div>
           <p class="param-hint">Needed for the volume-to-capacity ratio and the LOS F check.</p>
@@ -356,7 +607,7 @@
           <div class="param-field">
             <label for="GRN_input">Effective Green Time</label>
             <div class="cell-field">
-              <input id="GRN_input" type="number" min="0" class="input input-bordered input-sm" bind:value={effective_green} placeholder="45" />
+              <input id="GRN_input" type="number" step="0.01" min="0" class="input input-bordered input-sm" bind:value={effective_green} placeholder="48.63" />
               <span class="unit">s</span>
             </div>
           </div>
@@ -364,15 +615,15 @@
           <div class="param-field">
             <label for="PR_input">Platoon Ratio (optional)</label>
             <div class="cell-field">
-              <input id="PR_input" type="number" step="0.001" min="0" class="input input-bordered input-sm" bind:value={platoon_ratio} placeholder="1.000" />
+              <input id="PR_input" type="number" step="0.001" min="0" class="input input-bordered input-sm" bind:value={platoon_ratio} placeholder="uniform arrivals" />
             </div>
-            <p class="param-hint">Leave 1.0 for uncoordinated arrivals. 1.333 reflects favorable progression.</p>
+            <p class="param-hint">Blank gives uniform arrivals, P = g/C. Use 1.333 for favorable progression.</p>
           </div>
 
           <div class="param-field">
-            <label for="SAT_input">Adjusted Saturation Flow Rate</label>
+            <label for="SAT_input">Adjusted Saturation Flow Rate (optional)</label>
             <div class="cell-field">
-              <input id="SAT_input" type="number" min="0" class="input input-bordered input-sm" bind:value={sat_flow} placeholder="1800" />
+              <input id="SAT_input" type="number" min="0" class="input input-bordered input-sm" bind:value={sat_flow} placeholder="HCM default" />
               <span class="unit">veh/h/ln</span>
             </div>
           </div>
@@ -381,7 +632,7 @@
         <div class="param-field">
           <label for="STP_input">Full Stop Rate (optional)</label>
           <div class="cell-field">
-            <input id="STP_input" type="number" step="0.01" min="0" class="input input-bordered input-sm" bind:value={stop_rate_override} placeholder="0.5" />
+            <input id="STP_input" type="number" step="0.001" min="0" class="input input-bordered input-sm" bind:value={stop_rate_override} placeholder="0.547" />
             <span class="unit">stops/veh</span>
           </div>
           <p class="param-hint">Supply a value from an HCM computational engine. Unsignalized boundaries use the HCM defaults when blank.</p>
@@ -390,7 +641,7 @@
         <div class="param-field">
           <label for="PLTL_input">Intersections with Left-Turn Lanes</label>
           <div class="cell-field">
-            <input id="PLTL_input" type="number" min="0" max="100" class="input input-bordered input-sm" bind:value={pct_left_turn_lanes} placeholder="100" required />
+            <input id="PLTL_input" type="number" min="0" max="100" class="input input-bordered input-sm" bind:value={pct_left_turn_lanes} placeholder="33" required />
             <span class="unit">%</span>
           </div>
           <p class="param-hint">Used by the traveler perception score.</p>
@@ -406,38 +657,51 @@
   </form>
 
   <section class="panel results-panel">
-    <div class="panel-head">
+    <div class="panel-head with-actions">
       <div>
         <h2 class="panel-title">Outputs</h2>
         <p class="panel-sub">Results populate after pressing Calculate.</p>
       </div>
+      {#if results}
+        <div class="panel-actions">
+          <a class="btn btn-outline btn-sm" href="/report">Open printable report</a>
+        </div>
+      {/if}
     </div>
     <div class="los overflow-x-auto">
       <table class="table w-full">
         <tbody>
           <tr>
             <th>Base Free-Flow Speed (mi/hr):</th>
-            <td>{results ? fmt(results.base_ffs, 1) : ''}</td>
+            <td>{results ? fmt(results.base_ffs, 2) : ''}</td>
           </tr>
           <tr>
             <th>Free-Flow Speed (mi/hr):</th>
-            <td>{results ? fmt(results.free_flow_speed, 1) : ''}</td>
+            <td>{results ? fmt(results.free_flow_speed, 2) : ''}</td>
+          </tr>
+          <tr>
+            <th>Access-Point Delay (s/veh):</th>
+            <td>{results ? fmt(results.access_point_delay, 3) : ''}</td>
           </tr>
           <tr>
             <th>Segment Running Time (s):</th>
-            <td>{results ? fmt(results.running_time, 1) : ''}</td>
+            <td>{results ? fmt(results.running_time, 2) : ''}</td>
+          </tr>
+          <tr>
+            <th>Segment Running Speed (mi/hr):</th>
+            <td>{results ? fmt(results.running_speed, 2) : ''}</td>
           </tr>
           <tr>
             <th>Through Delay (s/veh):</th>
-            <td>{results ? fmt(results.through_delay, 1) : ''}</td>
+            <td>{results ? fmt(results.through_delay, 2) : ''}</td>
           </tr>
           <tr>
             <th>Travel Speed (mi/hr):</th>
-            <td>{results ? fmt(results.travel_speed, 1) : ''}</td>
+            <td>{results ? fmt(results.travel_speed, 2) : ''}</td>
           </tr>
           <tr>
             <th>Full Stop Rate (stops/veh):</th>
-            <td>{results ? fmt(results.full_stop_rate, 2) : ''}</td>
+            <td>{results ? fmt(results.full_stop_rate, 3) : ''}</td>
           </tr>
           <tr>
             <th>Spatial Stop Rate (stops/mi):</th>
