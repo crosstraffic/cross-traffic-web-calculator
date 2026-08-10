@@ -274,6 +274,6 @@ exact(JSON.stringify(rel.scenario_tti_matrix()) !== JSON.stringify(relC.scenario
   true, 'EP7 different rng seed changes the results');
 
 if (pendingRebuild.size) {
-  console.log(`NOTE  skipped checks pending pkg rebuild (new getters): ${[...pendingRebuild].join(', ')}`);
+  console.log(`NOTE  skipped checks awaiting middleware wrapper work (getters not in any released version): ${[...pendingRebuild].join(', ')}`);
 }
 report('ch11 freeway reliability (HCM Ch.25 EP7; weather/custom demand ratios/ATDM out of binding scope)');

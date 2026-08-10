@@ -33,7 +33,7 @@ function checkDemandVolume(seg, expected, label) {
   if (typeof seg.get_demand_volume === 'function') {
     approx(seg.get_demand_volume(), expected, 0.5, label);
   } else {
-    console.log(`NOTE  ${label}: skipped, get_demand_volume needs a pkg rebuild`);
+    console.log(`NOTE  ${label}: skipped, get_demand_volume is not bound in the middleware yet`);
   }
 }
 

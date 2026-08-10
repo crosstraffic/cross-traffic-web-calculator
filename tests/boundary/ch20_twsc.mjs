@@ -126,7 +126,7 @@ if (hasOverrideSetter) {
 
   approx(t2.get_intersection_delay(), 6.3, DELAY_TOL, 'EP3 d_I');
 } else {
-  console.log('SKIP  ch20 EP3 override-dependent checks: pkg rebuild needed'
+  console.log('SKIP  ch20 EP3 override-dependent checks: middleware wrapper work needed'
     + ' for WasmTwsc.add_conflicting_flow_override');
 }
 
