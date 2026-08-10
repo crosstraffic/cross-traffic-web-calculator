@@ -1,5 +1,6 @@
 <script>
   import { WasmAlternativeIntersection, WasmDisplacedLeftTurn, edtt_stop_or_signal, dlt_offset } from "HCM-middleware";
+  import RcutDiagram from '$lib/RcutDiagram.svelte';
   import { setReport } from '$lib/report';
 
   let { ready = false } = $props();
@@ -108,6 +109,15 @@
   let results = $state(null);
   let hasError = $state(false);
   let errMessage = $state('');
+
+  // The engine labels its result rows the way the exhibits do, so the diagram's
+  // movement keys have to be mapped back from those labels.
+  const RCUT_LABEL_KEY = { 'EB L': 'ebl', 'EB R': 'ebr', 'NB L': 'nbl', 'NB T': 'nbt', 'SB T': 'sbt', 'SB R': 'sbr' };
+  let rcutLos = $derived(
+    results?.form === 'Rcut'
+      ? Object.fromEntries(results.rows.map((m) => [RCUT_LABEL_KEY[m.label], m.los]).filter(([k]) => k))
+      : {}
+  );
 
   const stop = (flow, vc, tc, tf, storage) => ({
     type: 'stop', flow_veh_h: flow, conflicting_flow_veh_h: vc,
@@ -430,6 +440,7 @@
           <p class="panel-sub">Hourly demands for the six movements. The major street runs north-south with two through lanes each way; the minor street is the eastbound stem. Flow-rate conversion (Equation 23-57), conflicting flows, and the Chapter 20 headway adjustments are derived automatically and shown with the results.</p>
         </div>
       </div>
+      <RcutDiagram bind:demands={rcut.demands} dist={rcut.dist} losByMovement={rcutLos} />
       <div class="param-grid">
         {#each RCUT_OD as od (od.key)}
           <div class="param-field">
