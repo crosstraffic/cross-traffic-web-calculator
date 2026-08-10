@@ -1,6 +1,7 @@
 <script>
-  // Draws the schematic for a two-lane highway segment based on its passing type.
-  
+  // Schematic cross-section of a two-lane highway segment, keyed on its
+  // passing type. Used by the facility strip and by the expanded editor cards.
+
   /**
    * @typedef {Object} Props
    * @property {string} [type] - Driven directly by the Segments dropdown value.
@@ -60,15 +61,15 @@
     vector-effect: non-scaling-stroke;
   }
   .edge {
-    stroke: #334155;
+    stroke: var(--diag-edge);
   }
   .center {
-    stroke: #ea7317;
+    stroke: var(--accent);
   }
   .dashed {
     stroke-dasharray: 7 6;
   }
   .muted {
-    stroke: #cbd5e1;
+    stroke: var(--diag-pavement-alt);
   }
 </style>

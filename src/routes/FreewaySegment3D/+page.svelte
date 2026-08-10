@@ -2,7 +2,7 @@
   import { nonpassive } from 'svelte/legacy';
 
   // Interactive 3D view of a single basic-freeway segment (HCM Ch.12).
-  // Same camera/projection/interaction as the two-lane FacilityView, but the
+  // Same camera/projection/interaction as the two-lane facility view, but the
   // ribbon is a straight multilane deck:
   //   length -> longitudinal extent, grade -> elevation (lifts the far end),
   //   lane count -> number of dashed lane lines, lane width -> deck width,
