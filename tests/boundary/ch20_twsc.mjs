@@ -63,9 +63,11 @@ approx(t1.get_intersection_delay(), 4.1, DELAY_TOL, 'EP1 d_I');
 // d_NB = 18.3 s (C), d_SB = 15.6 s (C); d_I = 6.3 s; Q95: 0.1, 0.2, 2.4,
 // 1.3 veh. Fixture demand values are the published flow rates (hourly
 // volumes already divided by PHF = 0.92), so phf stays undefined. The
-// fixture's conflicting-flow overrides reproduce the published Stage I/II
-// conflicting flows (6th Edition equation forms; see the VERIFY-HCM note in
-// twsc.rs) and are applied through add_conflicting_flow_override.
+// fixture's conflicting_flow_overrides list is EMPTY: the December 2022
+// corrections to Equations 20-14/20-15 and Exhibits 20-14/20-16 made the
+// published Stage I/II conflicting flows reproduce natively, so the
+// override loop below is a no-op kept to exercise the pass-through, and
+// add_conflicting_flow_override is boundary-tested separately.
 const c2 = loadCase('Twsc', 'case2.json');
 const d2 = c2.demand;
 const g2 = c2.geometry;
