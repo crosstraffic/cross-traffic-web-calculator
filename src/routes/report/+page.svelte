@@ -166,7 +166,7 @@
             {:else if current.diagram.kind === 'urban-facility'}
               <UrbanFacilityDiagram
                 segments={current.diagram.props.segments}
-                note="Segment chain, upstream to downstream, coloured by segment level of service." />
+                note={current.diagram.props.note ?? 'Segment chain, upstream to downstream, coloured by segment level of service.'} />
             {/if}
           </div>
         </section>

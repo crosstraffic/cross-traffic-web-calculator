@@ -6,11 +6,17 @@
   import { preventDefault } from 'svelte/legacy';
 
   import init, { WasmUrbanReliability } from "HCM-middleware";
+  import UrbanFacilityDiagram from '$lib/UrbanFacilityDiagram.svelte';
+  import UrbanFacilityDiagram3D from '$lib/UrbanFacilityDiagram3D.svelte';
+  import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
   let ready = $state(false);
   let running = $state(false);
+
+  let diagramMode = $state('2d');
+  let selectedSeg = $state(-1);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -133,6 +139,7 @@
   function removeSegment(index) {
     if (segments.length <= 1) return;
     segments = segments.filter((_, i) => i !== index);
+    if (selectedSeg >= index) selectedSeg = -1;
   }
 
   function addStrategy() {
@@ -261,6 +268,13 @@
               ? 'No ATDM strategy, work zone, or special event was applied, so every scenario ran on the base inputs.'
               : `ATDM strategies applied to every scenario as input-level adjustments (Chapter 17, Section 4): ${strategies.map((s, i) => strategyLabel(s, i)).join('; ')}.`,
           ],
+          diagram: {
+            kind: 'urban-facility',
+            props: {
+              segments: diagramSegments,
+              note: 'Segment chain, upstream to downstream. The reliability method reports one travel time distribution for the whole facility, so the decks carry no per-segment colour.'
+            }
+          },
         });
       } catch (err) {
         console.error('Chapter 17 analysis failed:', err);
@@ -288,6 +302,7 @@
     segments = defaultSegments();
     strategies = [];
     results = null;
+    selectedSeg = -1;
     hasError = false;
   }
 
@@ -309,6 +324,28 @@
     const top = results ? Math.max(results.tti_95, 1.0001) : 1.0001;
     return Math.max(2, Math.min(100, ((v - 1) / (top - 1)) * 100));
   }
+
+  // The strip is the same component the Chapter 16 page uses, with one
+  // difference: `los` is always null, so the decks stay pavement-coloured
+  // before and after a run. Chapter 17 reports the travel time distribution
+  // of the whole facility and exports nothing per segment, so there is no
+  // per-segment value to colour a deck with. Tinting all six decks one shade
+  // for the facility mean TTI would reuse a channel that means "this
+  // segment's LOS" everywhere else in the calculator, and it would put a TTI
+  // band on the LOS colour scale, which is a different scale entirely. The
+  // facility-level readout stays where it can be read as facility-level: the
+  // TTI bar strip and the reliability rating below.
+  let diagramSegments = $derived(
+    segments.map((s) => ({
+      length_ft: Number(s.segment_length) || 0,
+      lanes: Number(s.n_through_lanes) || 2,
+      accessPoints: Number(s.access_points_subject) || 0,
+      control: 'signalized',
+      los: null
+    }))
+  );
+
+  const DIAGRAM_NOTE = 'Segment chain, upstream to downstream, separated by its signalized boundary intersections. Widths follow segment length, depth the through-lane count, and the ticks below each link are its subject-side access points. Click a segment to highlight its card. The decks are not colour coded: the reliability method reports one travel time distribution for the whole facility and exposes no per-segment result to tint them with.';
 </script>
 
 <div class="hcm-page">
@@ -327,10 +364,8 @@
       <strong>Beta.</strong> The compute engine is boundary-validated against HCM
       Chapter 29, Example Problem 4 (Exhibits 29-62 through 29-77), which the page
       defaults reproduce, along with the Example Problem 5 Strategy 1 and Chapter 37
-      adaptive signal control directions of effect. The page ships without a facility
-      diagram this pass; a facility strip showing the segment chain is the planned
-      follow-up. Verify results independently before relying on them in engineering
-      work, and please
+      adaptive signal control directions of effect. Verify results independently
+      before relying on them in engineering work, and please
       <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
@@ -342,6 +377,31 @@
   {/if}
 
   <form id="hcm17" onsubmit={preventDefault(runAnalysis)}>
+    <!-- Facility strip -->
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">Facility</h2>
+          <p class="panel-sub">The signalized segment chain the reliability run evaluates, drawn upstream to downstream in the subject direction of travel.</p>
+        </div>
+        <div class="panel-actions">
+          <ViewToggle bind:mode={diagramMode} label="Facility view mode" />
+        </div>
+      </div>
+      {#if diagramMode === '3d'}
+        <UrbanFacilityDiagram3D
+          segments={diagramSegments}
+          selected={selectedSeg}
+          onselect={(i) => (selectedSeg = selectedSeg === i ? -1 : i)} />
+      {:else}
+        <UrbanFacilityDiagram
+          segments={diagramSegments}
+          selected={selectedSeg}
+          onselect={(i) => (selectedSeg = selectedSeg === i ? -1 : i)}
+          note={DIAGRAM_NOTE} />
+      {/if}
+    </section>
+
     <!-- Reporting period -->
     <section class="panel">
       <div class="panel-head">
@@ -547,7 +607,8 @@
 
     <!-- Segments -->
     {#each segments as seg, i}
-      <section class="panel">
+      <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+      <section class="panel seg-panel" class:seg-selected={selectedSeg === i} onclick={() => (selectedSeg = i)}>
         <div class="panel-head">
           <div>
             <h2 class="panel-title">Segment {i + 1}</h2>
@@ -786,6 +847,11 @@
   /* .param-hint is sized for the 16rem column of a single field; a note that
      runs the width of a table needs the room. */
   .panel-note { max-width: 46rem; }
+
+  /* Selection sync with the facility strip: the picked segment's card takes
+     the same accent as the diagram deck. */
+  .seg-panel { cursor: pointer; }
+  .seg-panel.seg-selected { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   .tti-strip { margin: 1rem 0 0; }
   .tti-strip figcaption { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; margin-bottom: 0.4rem; }
