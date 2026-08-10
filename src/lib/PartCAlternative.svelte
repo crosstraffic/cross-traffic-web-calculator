@@ -1,12 +1,15 @@
 <script>
   import { WasmAlternativeIntersection, WasmDisplacedLeftTurn, edtt_stop_or_signal, dlt_offset } from "HCM-middleware";
   import RcutDiagram from '$lib/RcutDiagram.svelte';
+  import MutDiagram from '$lib/MutDiagram.svelte';
+  import DltDiagram from '$lib/DltDiagram.svelte';
   import { setReport } from '$lib/report';
 
   let { ready = false } = $props();
 
   // Part C form. Each option loads its Chapter 34 example problem as defaults:
-  // RCUT = Example Problem 13, MUT = Example Problem 15, DLT = Example Problem 16.
+  // RCUT with STOP signs = Example Problem 13, RCUT with signals = Example
+  // Problem 14, MUT = Example Problem 15, DLT = Example Problem 16.
   let form = $state('Rcut');
 
   // ── RCUT with STOP signs (three-legged, EP13) ────────────────────────────
@@ -73,11 +76,56 @@
     { key: 'sbT', label: 'Main: SB through' }, { key: 'sbR', label: 'Main: SB right' },
     { key: 'nX', label: 'North U-turn crossover' }, { key: 'sX', label: 'South U-turn crossover' },
   ];
-  const MUT_OD = [
+  const OD_TWELVE = [
     { key: 'nbl', label: 'NB left' }, { key: 'nbt', label: 'NB through' }, { key: 'nbr', label: 'NB right' },
     { key: 'sbl', label: 'SB left' }, { key: 'sbt', label: 'SB through' }, { key: 'sbr', label: 'SB right' },
     { key: 'ebl', label: 'EB left' }, { key: 'ebt', label: 'EB through' }, { key: 'ebr', label: 'EB right' },
     { key: 'wbl', label: 'WB left' }, { key: 'wbt', label: 'WB through' }, { key: 'wbr', label: 'WB right' },
+  ];
+
+  // ── RCUT with signals (four-legged, EP14) ────────────────────────────────
+  // The main street runs north-south on two separate carriageways, so the
+  // main junction is really two signals: the west main intersection carries
+  // the southbound carriageway across the minor street and the east main
+  // intersection carries the northbound one (Exhibit 34-131). Signalized
+  // U-turn crossovers sit north and south of them. All twelve control delays
+  // come from the Chapter 19 analyses of those four junctions and enter here
+  // as provided inputs (Exhibit 34-132).
+  const defaultRcutSignal = () => ({
+    phf: 0.93, dist: 800, ffs: 50,
+    delays: {
+      nX_sbT: 7.6, nX_wb: 33.3,
+      wM_sbT: 5.4, wM_sbR: 0.3, wM_ebR: 35.1, wM_nbL: 33.2,
+      sX_nbT: 4.1, sX_eb: 16.1,
+      eM_nbT: 6.4, eM_nbR: 9.1, eM_wbR: 12.4, eM_sbL: 10.8,
+    },
+    demands: { nbl: 150, nbt: 420, nbr: 10, sbl: 50, sbt: 1900, sbr: 60, ebl: 20, ebt: 300, ebr: 10, wbl: 30, wbt: 100, wbr: 200 },
+  });
+  let rcutSignal = $state(defaultRcutSignal());
+
+  const RCUTSIGNAL_JUNCTIONS = [
+    {
+      title: 'North U-turn crossover',
+      fields: [{ key: 'nX_sbT', label: 'SB through' }, { key: 'nX_wb', label: 'WB crossover (U-turn)' }],
+    },
+    {
+      title: 'West main intersection (southbound carriageway)',
+      fields: [
+        { key: 'wM_sbT', label: 'SB through' }, { key: 'wM_sbR', label: 'SB right turn' },
+        { key: 'wM_ebR', label: 'EB right turn' }, { key: 'wM_nbL', label: 'NB left turn' },
+      ],
+    },
+    {
+      title: 'South U-turn crossover',
+      fields: [{ key: 'sX_nbT', label: 'NB through' }, { key: 'sX_eb', label: 'EB crossover (U-turn)' }],
+    },
+    {
+      title: 'East main intersection (northbound carriageway)',
+      fields: [
+        { key: 'eM_nbT', label: 'NB through' }, { key: 'eM_nbR', label: 'NB right turn' },
+        { key: 'eM_wbR', label: 'WB right turn' }, { key: 'eM_sbL', label: 'SB left turn' },
+      ],
+    },
   ];
 
   // ── DLT (EP16) ───────────────────────────────────────────────────────────
@@ -118,6 +166,18 @@
       ? Object.fromEntries(results.rows.map((m) => [RCUT_LABEL_KEY[m.label], m.los]).filter(([k]) => k))
       : {}
   );
+
+  // The twelve-movement labels map back mechanically ("NB L" -> "nbl"), so the
+  // MUT diagram does not need a lookup table of its own.
+  const twelveLos = (of) => (results?.form === of
+    ? Object.fromEntries(results.rows.map((m) => [m.label.toLowerCase().replace(' ', ''), m.los]))
+    : {});
+  let mutLos = $derived(twelveLos('Mut'));
+
+  // The DLT reports a single intersection LOS, so its diagram takes that
+  // letter plus the offset result rather than a per-movement map.
+  let dltLos = $derived(results?.form === 'Dlt' ? results.los : '');
+  let dltOffset = $derived(results?.form === 'Dlt' ? results.off : null);
 
   const stop = (flow, vc, tc, tf, storage) => ({
     type: 'stop', flow_veh_h: flow, conflicting_flow_veh_h: vc,
@@ -173,6 +233,38 @@
     return { rows, ett: ix.get_intersection_ett_s(), los: ix.get_intersection_los() };
   }
 
+  // Movement journeys through a four-legged RCUT with signals (top of Exhibit
+  // 23-48). Every major-street movement crosses the near U-turn crossover
+  // before reaching its main intersection. The minor-street lefts and
+  // throughs cannot cross, so they turn right onto the near carriageway,
+  // U-turn at the crossover beyond it, and come back to their destination,
+  // which is the journey that carries the extra distance travel time.
+  function runRcutSignal() {
+    const r = Math.round, phf = Number(rcutSignal.phf), dj = rcutSignal.delays;
+    const edtt = edtt_stop_or_signal(Number(rcutSignal.dist), Number(rcutSignal.dist), Number(rcutSignal.ffs));
+    const mv = (label, approach, demand, delays, ed) => ({
+      label, approach, demand_veh_h: r(Number(demand) / phf), edtt_s: ed, junctions: delays.map(prov),
+    });
+    const d = rcutSignal.demands;
+    const movements = [
+      mv('NB L', 'Nb', d.nbl, [dj.sX_nbT, dj.wM_nbL], 0),
+      mv('SB L', 'Sb', d.sbl, [dj.nX_sbT, dj.eM_sbL], 0),
+      mv('NB T', 'Nb', d.nbt, [dj.sX_nbT, dj.eM_nbT], 0),
+      mv('SB T', 'Sb', d.sbt, [dj.nX_sbT, dj.wM_sbT], 0),
+      mv('NB R', 'Nb', d.nbr, [dj.sX_nbT, dj.eM_nbR], 0),
+      mv('SB R', 'Sb', d.sbr, [dj.nX_sbT, dj.wM_sbR], 0),
+      mv('EB L', 'Eb', d.ebl, [dj.wM_ebR, dj.sX_eb, dj.eM_nbT], edtt),
+      mv('WB L', 'Wb', d.wbl, [dj.eM_wbR, dj.nX_wb, dj.wM_sbT], edtt),
+      mv('EB T', 'Eb', d.ebt, [dj.wM_ebR, dj.sX_eb, dj.eM_nbR], edtt),
+      mv('WB T', 'Wb', d.wbt, [dj.eM_wbR, dj.nX_wb, dj.wM_sbR], edtt),
+      mv('EB R', 'Eb', d.ebr, [dj.wM_ebR], 0),
+      mv('WB R', 'Wb', d.wbr, [dj.eM_wbR], 0),
+    ];
+    const ix = new WasmAlternativeIntersection({ form: 'RcutFourLeg', movements });
+    const rows = ix.movement_results_to_js_value().map((m, i) => ({ ...m, demand: movements[i].demand_veh_h }));
+    return { rows, ett: ix.get_intersection_ett_s(), los: ix.get_intersection_los() };
+  }
+
   function runDlt() {
     const flows = [], delays = [];
     for (const row of dlt.rows) {
@@ -191,15 +283,22 @@
 
   const FORM_NAMES = {
     Rcut: 'Restricted crossing U-turn (RCUT), STOP-controlled, three-legged',
+    RcutSignal: 'Restricted crossing U-turn (RCUT), signalized, four-legged',
     Mut: 'Median U-turn (MUT), four-legged',
     Dlt: 'Displaced left-turn (DLT)',
   };
+
+  const RUNNERS = { Rcut: runRcut, RcutSignal: runRcutSignal, Mut: runMut, Dlt: runDlt };
+
+  // The three crossover-based forms share the same three site parameters, so
+  // the report reads them through one accessor rather than a chain of tests.
+  const site = () => (form === 'Rcut' ? rcut : form === 'RcutSignal' ? rcutSignal : mut);
 
   function runAnalysis() {
     hasError = false;
     results = null;
     try {
-      const out = form === 'Rcut' ? runRcut() : form === 'Mut' ? runMut() : runDlt();
+      const out = RUNNERS[form]();
       results = { form, ...out };
       const common = {
         chapter: 'Ramp Terminals and Alternative Intersections',
@@ -235,9 +334,9 @@
           headline: { label: 'Intersection LOS', value: results.los },
           inputs: [
             { label: 'Intersection form', value: FORM_NAMES[form] },
-            { label: 'Distance to U-turn crossover', value: `${form === 'Rcut' ? rcut.dist : mut.dist} ft` },
-            { label: 'Major-street free-flow speed', value: `${form === 'Rcut' ? rcut.ffs : mut.ffs} mi/h` },
-            { label: 'Peak hour factor', value: form === 'Rcut' ? rcut.phf : mut.phf },
+            { label: 'Distance to U-turn crossover', value: `${site().dist} ft` },
+            { label: 'Major-street free-flow speed', value: `${site().ffs} mi/h` },
+            { label: 'Peak hour factor', value: site().phf },
           ],
           resultTable: {
             columns: ['Movement', 'Flow rate (veh/h)', 'Control delay (s/veh)', 'EDTT (s/veh)', 'ETT (s/veh)', 'LOS'],
@@ -265,6 +364,7 @@
     hasError = false;
     results = null;
     if (form === 'Rcut') rcut = defaultRcut();
+    else if (form === 'RcutSignal') rcutSignal = defaultRcutSignal();
     else if (form === 'Mut') mut = defaultMut();
     else dlt = defaultDlt();
   }
@@ -287,7 +387,7 @@
     <div class="panel-head">
       <div>
         <h2 class="panel-title">Alternative Intersection Configuration</h2>
-        <p class="panel-sub">Each form loads its published HCM Chapter 34 example problem as defaults: the STOP-controlled RCUT is Example Problem 13, the MUT is Example Problem 15, and the DLT is Example Problem 16.</p>
+        <p class="panel-sub">Each form loads its published HCM Chapter 34 example problem as defaults: the STOP-controlled RCUT is Example Problem 13, the signalized RCUT is Example Problem 14, the MUT is Example Problem 15, and the DLT is Example Problem 16.</p>
       </div>
     </div>
     <div class="param-grid">
@@ -295,6 +395,7 @@
         <label for="PC_FORM_input">Intersection Form</label>
         <select id="PC_FORM_input" class="select select-bordered select-sm" value={form} onchange={(e) => applyForm(e.target.value)}>
           <option value="Rcut">RCUT with STOP signs (three-legged)</option>
+          <option value="RcutSignal">RCUT with signals (four-legged)</option>
           <option value="Mut">Median U-turn (four-legged)</option>
           <option value="Dlt">Displaced left-turn</option>
         </select>
@@ -339,6 +440,26 @@
           <div class="cell-field">
             <input id="PC_GRADE_input" type="number" step="0.1" class="input input-bordered input-sm" bind:value={rcut.grade} required />
             <span class="unit">%</span>
+          </div>
+        </div>
+      {:else if form === 'RcutSignal'}
+        <div class="param-field">
+          <label for="PC_PHF_input">Peak Hour Factor</label>
+          <input id="PC_PHF_input" type="number" step="0.01" min="0.25" max="1" class="input input-bordered input-sm" bind:value={rcutSignal.phf} required />
+        </div>
+        <div class="param-field">
+          <label for="PC_DIST_input">Distance to U-Turn Crossovers</label>
+          <div class="cell-field">
+            <input id="PC_DIST_input" type="number" min="100" class="input input-bordered input-sm" bind:value={rcutSignal.dist} required />
+            <span class="unit">ft</span>
+          </div>
+          <p class="param-hint">Main intersection to each crossover, north and south.</p>
+        </div>
+        <div class="param-field">
+          <label for="PC_FFS_input">Major-Street Free-Flow Speed</label>
+          <div class="cell-field">
+            <input id="PC_FFS_input" type="number" min="10" class="input input-bordered input-sm" bind:value={rcutSignal.ffs} required />
+            <span class="unit">mi/h</span>
           </div>
         </div>
       {:else if form === 'Mut'}
@@ -486,6 +607,51 @@
         </table>
       </div>
     </section>
+  {:else if form === 'RcutSignal'}
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">Movement Demands</h2>
+          <p class="panel-sub">Hourly turning-movement demands (Exhibit 34-130). The main street runs north-south on separate carriageways; the minor street is east-west and its left turns and through movements are rerouted through the U-turn crossovers. Equation 23-62 weights each movement by its flow rate rather than its raw demand, which is why the published intersection total is 3,500 veh/h while these demands sum to 3,250: dividing each demand by the 0.93 peak hour factor and rounding gives 3,497 veh/h of flow.</p>
+        </div>
+      </div>
+      <div class="param-grid">
+        {#each OD_TWELVE as od (od.key)}
+          <div class="param-field">
+            <label for="PC_OD_{od.key}_input">{od.label}</label>
+            <div class="cell-field">
+              <input id="PC_OD_{od.key}_input" type="number" min="0" class="input input-bordered input-sm" bind:value={rcutSignal.demands[od.key]} required />
+              <span class="unit">veh/h</span>
+            </div>
+          </div>
+        {/each}
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">Junction Control Delays</h2>
+          <p class="panel-sub">Control delay at each of the four signalized junctions, from the Chapter 19 analysis of each (Exhibit 34-132). Each movement's journey sums the one to three junctions it traverses, per the top of Exhibit 23-48.</p>
+        </div>
+      </div>
+      {#each RCUTSIGNAL_JUNCTIONS as jn (jn.title)}
+        <div class="junction-group">
+          <h3 class="junction-title">{jn.title}</h3>
+          <div class="param-grid">
+            {#each jn.fields as f (f.key)}
+              <div class="param-field">
+                <label for="PC_DJ_{f.key}_input">{f.label}</label>
+                <div class="cell-field">
+                  <input id="PC_DJ_{f.key}_input" type="number" step="0.1" min="0" class="input input-bordered input-sm" bind:value={rcutSignal.delays[f.key]} required />
+                  <span class="unit">s/veh</span>
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/each}
+    </section>
   {:else if form === 'Mut'}
     <section class="panel">
       <div class="panel-head">
@@ -494,8 +660,9 @@
           <p class="panel-sub">Hourly turning-movement demands (Exhibit 34-134 pattern). The major street runs north-south. Left turns are rerouted through the main junction, the downstream U-turn crossover, and the main junction again; the extra distance travel time from the crossover spacing is applied to each left turn (Equation 23-59).</p>
         </div>
       </div>
+      <MutDiagram bind:demands={mut.demands} dist={mut.dist} losByMovement={mutLos} />
       <div class="param-grid">
-        {#each MUT_OD as od (od.key)}
+        {#each OD_TWELVE as od (od.key)}
           <div class="param-field">
             <label for="PC_OD_{od.key}_input">{od.label}</label>
             <div class="cell-field">
@@ -534,6 +701,7 @@
           <p class="panel-sub">Per Exhibit 34-145: the flow each movement sends through each component intersection and the control delay that flow experiences there, from the Chapter 18 and Chapter 19 procedures. Int 1 and Int 3 are the supplemental (crossover) intersections, Int 2 the main intersection. Leave cells blank where a movement incurs no delay.</p>
         </div>
       </div>
+      <DltDiagram td={dlt.td} full={dlt.full} offset={dltOffset} los={dltLos} />
       <div class="overflow-x-auto">
         <table class="table w-full">
           <thead>
@@ -676,3 +844,17 @@
     </div>
   {/if}
 </section>
+
+<style>
+  /* The signalized RCUT has four component junctions, so its twelve delay
+     inputs are banded by junction rather than left as one long flex row. */
+  .junction-group + .junction-group { margin-top: 1rem; }
+  .junction-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+    margin-bottom: 0.5rem;
+  }
+</style>
