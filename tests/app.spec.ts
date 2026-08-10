@@ -161,12 +161,12 @@ test.describe('navigation and route gating', () => {
   });
 
   test('unreleased chapter routes redirect home', async ({ page }) => {
-    // hcm16 and hcm18 exist in the repo but are not in the RELEASED set of
-    // src/routes/+layout.js; a direct visit must land on the home page.
-    await page.goto('/hcm16');
-    await expect(page).toHaveURL(/\/$/);
-    await page.goto('/hcm18');
-    await expect(page).toHaveURL(/\/$/);
+    // hcm16, hcm17, and hcm18 exist in the repo but are not in the RELEASED
+    // set of src/routes/+layout.js; a direct visit must land on the home page.
+    for (const route of ['/hcm16', '/hcm17', '/hcm18']) {
+      await page.goto(route);
+      await expect(page).toHaveURL(/\/$/);
+    }
   });
 });
 
