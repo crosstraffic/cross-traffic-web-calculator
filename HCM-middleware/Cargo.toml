@@ -12,5 +12,6 @@ vercel_runtime = { version = "1.1.0" }
 
 [dependencies]
 # Path resolves to the sibling checkout for local development; CI and clean clones resolve the version from crates.io, so bump this only after that version is published.
+# 0.3.7 (the Chapter 10 work zone) is NOT published yet, so a clean-clone `npm run wasm` will fail to resolve until it is. The committed pkg/ is built from the sibling checkout and is what ships; see VALIDATION.md.
 
-crosstraffic_middleware = { version = "0.3.6", path = "../../cross-traffic-middleware" }
+crosstraffic_middleware = { version = "0.3.7", path = "../../cross-traffic-middleware" }
