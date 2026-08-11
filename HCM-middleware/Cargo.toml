@@ -13,4 +13,4 @@ vercel_runtime = { version = "1.1.0" }
 [dependencies]
 # Path resolves to the sibling checkout for local development; CI and clean clones resolve the version from crates.io, so bump this only after that version is published.
 
-crosstraffic_middleware = { version = "0.3.4", path = "../../cross-traffic-middleware" }
+crosstraffic_middleware = { version = "0.3.5", path = "../../cross-traffic-middleware" }

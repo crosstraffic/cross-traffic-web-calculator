@@ -6,6 +6,47 @@ heap.push(undefined, null, true, false);
 
 function getObject(idx) { return heap[idx]; }
 
+let heap_next = heap.length;
+
+function dropObject(idx) {
+    if (idx < 132) return;
+    heap[idx] = heap_next;
+    heap_next = idx;
+}
+
+function takeObject(idx) {
+    const ret = getObject(idx);
+    dropObject(idx);
+    return ret;
+}
+
+const cachedTextDecoder = (typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8', { ignoreBOM: true, fatal: true }) : { decode: () => { throw Error('TextDecoder not available') } } );
+
+if (typeof TextDecoder !== 'undefined') { cachedTextDecoder.decode(); };
+
+let cachedUint8Memory0 = null;
+
+function getUint8Memory0() {
+    if (cachedUint8Memory0 === null || cachedUint8Memory0.byteLength === 0) {
+        cachedUint8Memory0 = new Uint8Array(wasm.memory.buffer);
+    }
+    return cachedUint8Memory0;
+}
+
+function getStringFromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
+}
+
+function addHeapObject(obj) {
+    if (heap_next === heap.length) heap.push(heap.length + 1);
+    const idx = heap_next;
+    heap_next = heap[idx];
+
+    heap[idx] = obj;
+    return idx;
+}
+
 function isLikeNone(x) {
     return x === undefined || x === null;
 }
@@ -95,15 +136,6 @@ function debugString(val) {
 
 let WASM_VECTOR_LEN = 0;
 
-let cachedUint8Memory0 = null;
-
-function getUint8Memory0() {
-    if (cachedUint8Memory0 === null || cachedUint8Memory0.byteLength === 0) {
-        cachedUint8Memory0 = new Uint8Array(wasm.memory.buffer);
-    }
-    return cachedUint8Memory0;
-}
-
 const cachedTextEncoder = (typeof TextEncoder !== 'undefined' ? new TextEncoder('utf-8') : { encode: () => { throw Error('TextEncoder not available') } } );
 
 const encodeString = (typeof cachedTextEncoder.encodeInto === 'function'
@@ -158,38 +190,6 @@ function passStringToWasm0(arg, malloc, realloc) {
     return ptr;
 }
 
-const cachedTextDecoder = (typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8', { ignoreBOM: true, fatal: true }) : { decode: () => { throw Error('TextDecoder not available') } } );
-
-if (typeof TextDecoder !== 'undefined') { cachedTextDecoder.decode(); };
-
-function getStringFromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
-}
-
-let heap_next = heap.length;
-
-function addHeapObject(obj) {
-    if (heap_next === heap.length) heap.push(heap.length + 1);
-    const idx = heap_next;
-    heap_next = heap[idx];
-
-    heap[idx] = obj;
-    return idx;
-}
-
-function dropObject(idx) {
-    if (idx < 132) return;
-    heap[idx] = heap_next;
-    heap_next = idx;
-}
-
-function takeObject(idx) {
-    const ret = getObject(idx);
-    dropObject(idx);
-    return ret;
-}
-
 let cachedFloat64Memory0 = null;
 
 function getFloat64Memory0() {
@@ -207,11 +207,58 @@ function handleError(f, args) {
     }
 }
 
+let cachedUint32Memory0 = null;
+
+function getUint32Memory0() {
+    if (cachedUint32Memory0 === null || cachedUint32Memory0.byteLength === 0) {
+        cachedUint32Memory0 = new Uint32Array(wasm.memory.buffer);
+    }
+    return cachedUint32Memory0;
+}
+
+function passArrayJsValueToWasm0(array, malloc) {
+    const ptr = malloc(array.length * 4, 4) >>> 0;
+    const mem = getUint32Memory0();
+    for (let i = 0; i < array.length; i++) {
+        mem[ptr / 4 + i] = addHeapObject(array[i]);
+    }
+    WASM_VECTOR_LEN = array.length;
+    return ptr;
+}
+
+function getArrayF64FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
+}
+
 function passArrayF64ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 8, 8) >>> 0;
     getFloat64Memory0().set(arg, ptr / 8);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
+}
+
+function passArray32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getUint32Memory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function getArrayU32FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getUint32Memory0().subarray(ptr / 4, ptr / 4 + len);
+}
+
+function getArrayJsValueFromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    const mem = getUint32Memory0();
+    const slice = mem.subarray(ptr / 4, ptr / 4 + len);
+    const result = [];
+    for (let i = 0; i < slice.length; i++) {
+        result.push(takeObject(slice[i]));
+    }
+    return result;
 }
 /**
 * HCM Equation 23-58: extra distance travel time for a rerouted movement
@@ -304,37 +351,6 @@ export function stop_junction_delay(flow_veh_h, conflicting_flow_veh_h, critical
 export function dlt_offset(td_dlt_ft, sf_dlt_mph, lag_dlt_s, lag_th_s, offset_supp_s, offset_main_s, cycle_s) {
     const ret = wasm.dlt_offset(td_dlt_ft, sf_dlt_mph, lag_dlt_s, lag_th_s, offset_supp_s, offset_main_s, cycle_s);
     return takeObject(ret);
-}
-
-let cachedUint32Memory0 = null;
-
-function getUint32Memory0() {
-    if (cachedUint32Memory0 === null || cachedUint32Memory0.byteLength === 0) {
-        cachedUint32Memory0 = new Uint32Array(wasm.memory.buffer);
-    }
-    return cachedUint32Memory0;
-}
-
-function passArrayJsValueToWasm0(array, malloc) {
-    const ptr = malloc(array.length * 4, 4) >>> 0;
-    const mem = getUint32Memory0();
-    for (let i = 0; i < array.length; i++) {
-        mem[ptr / 4 + i] = addHeapObject(array[i]);
-    }
-    WASM_VECTOR_LEN = array.length;
-    return ptr;
-}
-
-function getArrayF64FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
-}
-
-function passArray32ToWasm0(arg, malloc) {
-    const ptr = malloc(arg.length * 4, 4) >>> 0;
-    getUint32Memory0().set(arg, ptr / 4);
-    WASM_VECTOR_LEN = arg.length;
-    return ptr;
 }
 
 const WasmAlternativeIntersectionFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -999,6 +1015,18 @@ export class WasmBasicFreeways {
         return ret;
     }
     /**
+    * Demand flow rate v_p under equivalent base conditions, pc/h/ln
+    * (Equation 12-9). This is the abscissa of the Exhibit 12-6 speed-flow
+    * curve, so it is what the breakpoint and capacity above are compared
+    * against, not the veh/h demand handed to the constructor. 0.0 before
+    * the analysis has run.
+    * @returns {number}
+    */
+    get_demand_volume() {
+        const ret = wasm.wasmbasicfreeways_get_demand_volume(this.__wbg_ptr);
+        return ret;
+    }
+    /**
     * @returns {number}
     */
     get_lane_count() {
@@ -1439,6 +1467,21 @@ export class WasmFreewayFacility {
         return ret;
     }
     /**
+    * Volume served v_a, veh/h (Exhibit 25-48/25-56). This equals the
+    * segment demand only while the facility is undersaturated. Once a
+    * queue forms the oversaturated engine meters what the segment can
+    * actually discharge, so volume served and demand diverge, and it is
+    * volume served that the speed and density of the period are computed
+    * from.
+    * @param {number} seg
+    * @param {number} period
+    * @returns {number}
+    */
+    get_volume_served(seg, period) {
+        const ret = wasm.wasmfreewayfacility_get_volume_served(this.__wbg_ptr, seg, period);
+        return ret;
+    }
+    /**
     * @param {number} seg
     * @param {number} period
     * @returns {number}
@@ -1556,6 +1599,26 @@ export class WasmFreewayFacility {
     /**
     * @returns {any}
     */
+    volume_served_matrix() {
+        const ret = wasm.wasmfreewayfacility_volume_served_matrix(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+    * Demand-based segment LOS `[segment][period]` (Exhibit 25-59, lower
+    * table): "F" where vd/c > 1.0, undefined otherwise. The density-based
+    * `los_matrix()` above reports what the segment delivered at the volume
+    * it served, which can stay at D or E through a period whose demand
+    * exceeded capacity; the demand-based table is where that excess shows
+    * up, so the two are reported side by side rather than merged.
+    * @returns {any}
+    */
+    demand_based_los_matrix() {
+        const ret = wasm.wasmfreewayfacility_demand_based_los_matrix(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+    * @returns {any}
+    */
     results_to_js_value() {
         const ret = wasm.wasmfreewayfacility_results_to_js_value(this.__wbg_ptr);
         return takeObject(ret);
@@ -1637,6 +1700,26 @@ export class WasmFreewayReliability {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+    * Seed-file VMT over the whole study period, veh-mi (Equation 25-88).
+    * This is the denominator the incident frequencies of Equation 25-77
+    * are built on, so it is available before `run()` and does not depend
+    * on the Monte Carlo draw.
+    * @returns {number}
+    */
+    seed_total_vmt() {
+        const ret = wasm.wasmfreewayreliability_seed_total_vmt(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+    * Number of 15-min analysis periods in the seed file, i.e. the study
+    * period length D_SP in quarter hours.
+    * @returns {number}
+    */
+    seed_num_periods() {
+        const ret = wasm.wasmfreewayreliability_seed_num_periods(this.__wbg_ptr);
+        return ret >>> 0;
     }
     /**
     * @returns {number}
@@ -1732,6 +1815,109 @@ export class WasmFreewayReliability {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+    * Month of year (1-12) of each scenario's demand combination. Empty
+    * before `run()`. This and the four vectors below share the ordering of
+    * `scenario_probabilities()` and `scenario_tti_matrix()`, so a scenario
+    * is identified by its index across all of them.
+    * @returns {Uint32Array}
+    */
+    scenario_months() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmfreewayreliability_scenario_months(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var v1 = getArrayU32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_free(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Day of week of each scenario, as the English weekday name.
+    * @returns {(string)[]}
+    */
+    scenario_weekdays() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmfreewayreliability_scenario_weekdays(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var v1 = getArrayJsValueFromWasm0(r0, r1).slice();
+            wasm.__wbindgen_free(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Demand adjustment factor DAF_s of each scenario (Equation 25-72),
+    * the scenario's demand multiplier over the seed date's. The seed-date
+    * scenario therefore has DAF = 1 by construction.
+    * @returns {Float64Array}
+    */
+    scenario_dafs() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmfreewayreliability_scenario_dafs(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var v1 = getArrayF64FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_free(r0, r1 * 8, 8);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Number of incidents assigned to each scenario. Scenarios with zero
+    * incidents differ from the seed only through demand, which is what
+    * makes them comparable against a plain Chapter 10 run.
+    * @returns {Uint32Array}
+    */
+    scenario_incident_counts() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmfreewayreliability_scenario_incident_counts(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var v1 = getArrayU32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_free(r0, r1 * 4, 4);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Expected incident frequency n_j per study period by month, indexed
+    * January = 0 (Equation 25-77). Months outside the reliability
+    * reporting period read zero. Empty before `run()`.
+    * @returns {Float64Array}
+    */
+    monthly_incident_frequencies() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmfreewayreliability_monthly_incident_frequencies(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var v1 = getArrayF64FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_free(r0, r1 * 8, 8);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Total incidents generated across the whole scenario set. The count
+    * is a draw, not the expectation, so it moves with the rng seed.
+    * @returns {number}
+    */
+    total_incidents() {
+        const ret = wasm.wasmfreewayreliability_total_incidents(this.__wbg_ptr);
+        return ret >>> 0;
     }
     /**
     * Per-scenario TTI matrix [scenario][period].
@@ -2302,6 +2488,21 @@ export class WasmPlanningFacility {
         return ret;
     }
     /**
+    * Section delay rate ΔR, s/mi (Exhibit 25-92). Only the undersaturated
+    * term ΔRU of Equation 25-47 is reported, evaluated at the actual d/c
+    * even above 1.0; the library reproduces the worked Example Problem 6
+    * rather than the ΔRU + ΔRO form of Equation 25-49, and expresses
+    * oversaturation through the vertical queue instead (see the VERIFY-HCM
+    * note in the library's `planning.rs`).
+    * @param {number} section
+    * @param {number} period
+    * @returns {number}
+    */
+    get_delay_rate(section, period) {
+        const ret = wasm.wasmplanningfacility_get_delay_rate(this.__wbg_ptr, section, period);
+        return ret;
+    }
+    /**
     * @param {number} section
     * @param {number} period
     * @returns {number}
@@ -2354,6 +2555,18 @@ export class WasmPlanningFacility {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
         }
+    }
+    /**
+    * Total vertical-queue length across all sections at the end of the
+    * period, mi (Exhibit 25-96). This is the planning method's only
+    * account of oversaturation, since its delay and travel rates leave
+    * the ΔRO term out (see `get_delay_rate`).
+    * @param {number} period
+    * @returns {number}
+    */
+    get_facility_queue_mi(period) {
+        const ret = wasm.wasmplanningfacility_get_facility_queue_mi(this.__wbg_ptr, period);
+        return ret;
     }
     /**
     * @returns {any}
@@ -3958,6 +4171,45 @@ export class WasmTwsc {
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
+    }
+    /**
+    * Override a conflicting flow rate v_c,x, veh/h, before `analyze()`.
+    *
+    * `movement` is an Exhibit 20-1 label ("1", "1U", ..., "12") and
+    * `stage` is "total", "stage1", or "stage2". Setting either stage
+    * refreshes the one-stage total as the sum of the two stages; setting
+    * "total" leaves the stages alone. The HCM text below Exhibits 20-8
+    * through 20-16 allows the conflicting-flow factors to be modified
+    * from field data, which is what this is for. Overrides accumulate, so
+    * calling twice for the same movement and stage leaves the later value
+    * in force.
+    * @param {string} movement
+    * @param {string} stage
+    * @param {number} value
+    */
+    add_conflicting_flow_override(movement, stage, value) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(movement, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            const ptr1 = passStringToWasm0(stage, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len1 = WASM_VECTOR_LEN;
+            wasm.wasmtwsc_add_conflicting_flow_override(retptr, this.__wbg_ptr, ptr0, len0, ptr1, len1, value);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Drop every conflicting-flow override added so far, returning the
+    * intersection to the Step 3 exhibit factors.
+    */
+    clear_conflicting_flow_overrides() {
+        wasm.wasmtwsc_clear_conflicting_flow_overrides(this.__wbg_ptr);
     }
     /**
     * Run the complete HCM Chapter 20 procedure (Steps 1-13).
@@ -5730,6 +5982,17 @@ export class WasmWeavingSegment {
         return ret !== 0;
     }
     /**
+    * Per-lane capacity from the density criterion c_IWL, pc/h/ln
+    * (Equation 13-5). This is the base freeway capacity discounted for
+    * the volume ratio, the number of weaving lanes, and the short length,
+    * before Equation 13-6 scales it to prevailing conditions.
+    * @returns {number}
+    */
+    get_c_iwl() {
+        const ret = wasm.wasmweavingsegment_get_c_iwl(this.__wbg_ptr);
+        return ret;
+    }
+    /**
     * @returns {number}
     */
     get_capacity() {
@@ -5737,10 +6000,49 @@ export class WasmWeavingSegment {
         return ret;
     }
     /**
+    * Capacity from the weaving-flow criterion, veh/h (Equations 13-7 and
+    * 13-8): the maximum weaving flow the configuration can carry (2,400
+    * pc/h with two weaving lanes, 3,500 with three) divided by the volume
+    * ratio. Undefined on a two-sided segment, where N_WL is zero and that
+    * criterion does not apply, so Equation 13-6 governs alone.
+    * @returns {number | undefined}
+    */
+    get_capacity_weaving() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmweavingsegment_get_capacity_weaving(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r2 = getFloat64Memory0()[retptr / 8 + 1];
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
     * @returns {number}
     */
     get_vc_ratio() {
         const ret = wasm.wasmweavingsegment_get_vc_ratio(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+    * Lane-changing rate of weaving vehicles LC_W, lc/h (Equation 13-11).
+    * @returns {number}
+    */
+    get_lc_w() {
+        const ret = wasm.wasmweavingsegment_get_lc_w(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+    * Lane-changing rate of nonweaving vehicles LC_NW, lc/h (Equation
+    * 13-16). The two components are exposed separately because they carry
+    * the configuration's cost differently: LC_W follows the short length
+    * and the number of lanes, while LC_NW switches between the Equation
+    * 13-12 and 13-13 branches on the nonweaving intensity I_NW.
+    * @returns {number}
+    */
+    get_lc_nw() {
+        const ret = wasm.wasmweavingsegment_get_lc_nw(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -5840,40 +6142,12 @@ async function __wbg_load(module, imports) {
 function __wbg_get_imports() {
     const imports = {};
     imports.wbg = {};
-    imports.wbg.__wbindgen_bigint_get_as_i64 = function(arg0, arg1) {
-        const v = getObject(arg1);
-        const ret = typeof(v) === 'bigint' ? v : undefined;
-        getBigInt64Memory0()[arg0 / 8 + 1] = isLikeNone(ret) ? BigInt(0) : ret;
-        getInt32Memory0()[arg0 / 4 + 0] = !isLikeNone(ret);
-    };
-    imports.wbg.__wbindgen_debug_string = function(arg0, arg1) {
-        const ret = debugString(getObject(arg1));
-        const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len1 = WASM_VECTOR_LEN;
-        getInt32Memory0()[arg0 / 4 + 1] = len1;
-        getInt32Memory0()[arg0 / 4 + 0] = ptr1;
-    };
-    imports.wbg.__wbindgen_throw = function(arg0, arg1) {
-        throw new Error(getStringFromWasm0(arg0, arg1));
-    };
-    imports.wbg.__wbindgen_memory = function() {
-        const ret = wasm.memory;
-        return addHeapObject(ret);
-    };
-    imports.wbg.__wbindgen_string_new = function(arg0, arg1) {
-        const ret = getStringFromWasm0(arg0, arg1);
-        return addHeapObject(ret);
-    };
-    imports.wbg.__wbindgen_string_get = function(arg0, arg1) {
-        const obj = getObject(arg1);
-        const ret = typeof(obj) === 'string' ? obj : undefined;
-        var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        var len1 = WASM_VECTOR_LEN;
-        getInt32Memory0()[arg0 / 4 + 1] = len1;
-        getInt32Memory0()[arg0 / 4 + 0] = ptr1;
-    };
     imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
         takeObject(arg0);
+    };
+    imports.wbg.__wbindgen_error_new = function(arg0, arg1) {
+        const ret = new Error(getStringFromWasm0(arg0, arg1));
+        return addHeapObject(ret);
     };
     imports.wbg.__wbg_get_bd8e338fbd5f5cc8 = function(arg0, arg1) {
         const ret = getObject(arg0)[arg1 >>> 0];
@@ -5908,6 +6182,38 @@ function __wbg_get_imports() {
         const ret = getObject(arg0).next();
         return addHeapObject(ret);
     }, arguments) };
+    imports.wbg.__wbindgen_bigint_get_as_i64 = function(arg0, arg1) {
+        const v = getObject(arg1);
+        const ret = typeof(v) === 'bigint' ? v : undefined;
+        getBigInt64Memory0()[arg0 / 8 + 1] = isLikeNone(ret) ? BigInt(0) : ret;
+        getInt32Memory0()[arg0 / 4 + 0] = !isLikeNone(ret);
+    };
+    imports.wbg.__wbindgen_debug_string = function(arg0, arg1) {
+        const ret = debugString(getObject(arg1));
+        const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        getInt32Memory0()[arg0 / 4 + 1] = len1;
+        getInt32Memory0()[arg0 / 4 + 0] = ptr1;
+    };
+    imports.wbg.__wbindgen_throw = function(arg0, arg1) {
+        throw new Error(getStringFromWasm0(arg0, arg1));
+    };
+    imports.wbg.__wbindgen_memory = function() {
+        const ret = wasm.memory;
+        return addHeapObject(ret);
+    };
+    imports.wbg.__wbindgen_string_new = function(arg0, arg1) {
+        const ret = getStringFromWasm0(arg0, arg1);
+        return addHeapObject(ret);
+    };
+    imports.wbg.__wbindgen_string_get = function(arg0, arg1) {
+        const obj = getObject(arg1);
+        const ret = typeof(obj) === 'string' ? obj : undefined;
+        var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len1 = WASM_VECTOR_LEN;
+        getInt32Memory0()[arg0 / 4 + 1] = len1;
+        getInt32Memory0()[arg0 / 4 + 0] = ptr1;
+    };
     imports.wbg.__wbg_done_298b57d23c0fc80c = function(arg0) {
         const ret = getObject(arg0).done;
         return ret;
@@ -6020,10 +6326,6 @@ function __wbg_get_imports() {
         getInt32Memory0()[arg0 / 4 + 1] = len1;
         getInt32Memory0()[arg0 / 4 + 0] = ptr1;
     };
-    imports.wbg.__wbindgen_error_new = function(arg0, arg1) {
-        const ret = new Error(getStringFromWasm0(arg0, arg1));
-        return addHeapObject(ret);
-    };
     imports.wbg.__wbindgen_bigint_from_i64 = function(arg0) {
         const ret = arg0;
         return addHeapObject(ret);
@@ -6047,12 +6349,12 @@ function __wbg_get_imports() {
         const ret = WasmSegment.__unwrap(takeObject(arg0));
         return ret;
     };
-    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
-        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
     imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
         const ret = WasmSubSegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
+    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
+        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
         return ret;
     };
     imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {

@@ -238,6 +238,24 @@ for (let ci = 0; ci < cases.length; ci++) {
   // Step 11: facility LOS (determine_facility_los_test): length-weighted
   // follower density (fd_mid for passing lanes) and average speed. This is
   // also the aggregation the production Calc page performs in JS.
+  //
+  // KNOWN DIVERGENCE from library 0.3.1, asserted as-is because it is what the
+  // page currently computes. Equation 15-39 takes the *adjusted* follower
+  // density, so `TwoLaneHighways::determine_facility_follower_density` uses
+  // fd_adj on any segment downstream of a passing lane and falls back to the
+  // raw fd only where no adjustment applies. The aggregation below uses fd_mid
+  // for passing lanes but the raw fd everywhere else, so it discards the Step 9
+  // downstream benefit. It agrees on case1, case2 and case4, and differs on
+  // case3 (Chapter 26 Example Problem 3): 8.041 followers/mi and LOS D here
+  // against 7.271 and LOS C from Equation 15-39, where Exhibit 26-27 publishes
+  // 7.3 and LOS C. case4 (Example Problem 4) differs numerically too, 20.219
+  // against 19.897 with the published 20.0, but stays inside the LOS E band and
+  // so shows no letter change.
+  //
+  // The fix is to bind `determine_facility_follower_density` in
+  // crosstraffic_middleware and call it from the page and from here, rather
+  // than reweighting the column in JS a third time — reweighting per caller is
+  // exactly what the library centralized to stop. It is not bound in 0.3.5.
   {
     const hw = buildHighway(c);
     let totLen = 0, fdTot = 0, sTot = 0;
