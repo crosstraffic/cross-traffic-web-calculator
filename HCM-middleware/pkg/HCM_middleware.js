@@ -4,9 +4,18 @@ const heap = new Array(128).fill(undefined);
 
 heap.push(undefined, null, true, false);
 
-function getObject(idx) { return heap[idx]; }
-
 let heap_next = heap.length;
+
+function addHeapObject(obj) {
+    if (heap_next === heap.length) heap.push(heap.length + 1);
+    const idx = heap_next;
+    heap_next = heap[idx];
+
+    heap[idx] = obj;
+    return idx;
+}
+
+function getObject(idx) { return heap[idx]; }
 
 function dropObject(idx) {
     if (idx < 132) return;
@@ -18,33 +27,6 @@ function takeObject(idx) {
     const ret = getObject(idx);
     dropObject(idx);
     return ret;
-}
-
-const cachedTextDecoder = (typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8', { ignoreBOM: true, fatal: true }) : { decode: () => { throw Error('TextDecoder not available') } } );
-
-if (typeof TextDecoder !== 'undefined') { cachedTextDecoder.decode(); };
-
-let cachedUint8Memory0 = null;
-
-function getUint8Memory0() {
-    if (cachedUint8Memory0 === null || cachedUint8Memory0.byteLength === 0) {
-        cachedUint8Memory0 = new Uint8Array(wasm.memory.buffer);
-    }
-    return cachedUint8Memory0;
-}
-
-function getStringFromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
-}
-
-function addHeapObject(obj) {
-    if (heap_next === heap.length) heap.push(heap.length + 1);
-    const idx = heap_next;
-    heap_next = heap[idx];
-
-    heap[idx] = obj;
-    return idx;
 }
 
 function isLikeNone(x) {
@@ -136,6 +118,15 @@ function debugString(val) {
 
 let WASM_VECTOR_LEN = 0;
 
+let cachedUint8Memory0 = null;
+
+function getUint8Memory0() {
+    if (cachedUint8Memory0 === null || cachedUint8Memory0.byteLength === 0) {
+        cachedUint8Memory0 = new Uint8Array(wasm.memory.buffer);
+    }
+    return cachedUint8Memory0;
+}
+
 const cachedTextEncoder = (typeof TextEncoder !== 'undefined' ? new TextEncoder('utf-8') : { encode: () => { throw Error('TextEncoder not available') } } );
 
 const encodeString = (typeof cachedTextEncoder.encodeInto === 'function'
@@ -190,6 +181,15 @@ function passStringToWasm0(arg, malloc, realloc) {
     return ptr;
 }
 
+const cachedTextDecoder = (typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8', { ignoreBOM: true, fatal: true }) : { decode: () => { throw Error('TextDecoder not available') } } );
+
+if (typeof TextDecoder !== 'undefined') { cachedTextDecoder.decode(); };
+
+function getStringFromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
+}
+
 let cachedFloat64Memory0 = null;
 
 function getFloat64Memory0() {
@@ -231,6 +231,13 @@ function passArrayJsValueToWasm0(array, malloc) {
     }
     WASM_VECTOR_LEN = array.length;
     return ptr;
+}
+
+function _assertClass(instance, klass) {
+    if (!(instance instanceof klass)) {
+        throw new Error(`expected instance of ${klass.name}`);
+    }
+    return instance.ptr;
 }
 
 function passArray32ToWasm0(arg, malloc) {
@@ -1336,6 +1343,121 @@ export class WasmFacilitySegment {
         const ret = wasm.wasmfacilitysegment_get_lanes(this.__wbg_ptr);
         return ret >>> 0;
     }
+    /**
+    * Place a work zone on this segment (HCM Chapter 10, Section 4; Equations
+    * 10-7 through 10-12), from a configuration object matching the serde
+    * schema of the library's `WorkZone` — the shape of the library's own
+    * fixtures, so the `work_zone` object of
+    * `tests/ExampleCases/hcm/FreewayFacilities/case4.json` (Example Problem
+    * 4) passes verbatim:
+    *
+    * ```json
+    * {
+    *   "total_lanes": 3, "open_lanes": 2,
+    *   "soft_barrier": true, "rural": false,
+    *   "lateral_distance_ft": 0.0, "night": false,
+    *   "speed_ratio": 1.0909090909090908, "speed_limit_mi_h": 55.0,
+    *   "total_ramp_density": 1.0, "queue_discharge_drop": 0.131
+    * }
+    * ```
+    *
+    * The work zone is a structured input with eleven fields, all of which
+    * enter Equations 10-7 through 10-12, so it arrives as a config object
+    * rather than as eleven more trailing constructor arguments, the same
+    * choice `WasmManagedLaneFacility` makes for the other Chapter 10 input
+    * that has no home on a segment. This is a setter rather than an
+    * eighteenth constructor argument so that the seventeen-argument
+    * constructor every existing caller uses keeps its exact signature.
+    *
+    * Every field has a serde default and unknown fields are ignored, so a
+    * misspelled field name falls back to its default rather than throwing —
+    * prefer copying names from the fixture files. The defaults describe a
+    * three-to-two urban daylight closure behind a hard barrier, which is not
+    * a no-op: calling this with `{}` places a real work zone.
+    * @param {any} config
+    */
+    set_work_zone(config) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmfacilitysegment_set_work_zone(retptr, this.__wbg_ptr, addHeapObject(config));
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Remove the work zone from this segment, restoring unadjusted capacity
+    * and free-flow speed.
+    */
+    clear_work_zone() {
+        wasm.wasmfacilitysegment_clear_work_zone(this.__wbg_ptr);
+    }
+    /**
+    * @returns {boolean}
+    */
+    has_work_zone() {
+        const ret = wasm.wasmfacilitysegment_has_work_zone(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+    * Equation 10-7 lane closure severity index, or undefined with no work
+    * zone. `LCSI = 1 / (OR x N_o)`, capped at 2.0 (Exhibit 10-15).
+    * @returns {number | undefined}
+    */
+    work_zone_lcsi() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmfacilitysegment_work_zone_lcsi(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r2 = getFloat64Memory0()[retptr / 8 + 1];
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Equation 10-11 work zone capacity adjustment factor, or undefined with
+    * no work zone. `non_wz_capacity_pc` is the non-work-zone per-lane
+    * capacity in pc/h/ln, which the facility supplies from Equation 12-6 at
+    * the segment's unadjusted FFS when it runs the analysis; pass it here to
+    * read the factor on its own (2,300 pc/h/ln at the FFS 60 of Example
+    * Problem 4, giving CAF_wz = 0.892).
+    * @param {number} non_wz_capacity_pc
+    * @returns {number | undefined}
+    */
+    work_zone_caf(non_wz_capacity_pc) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmfacilitysegment_work_zone_caf(retptr, this.__wbg_ptr, non_wz_capacity_pc);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r2 = getFloat64Memory0()[retptr / 8 + 1];
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Equation 10-12 work zone speed adjustment factor, or undefined with no
+    * work zone. `non_wz_ffs` is the segment free-flow speed in mi/h (60 in
+    * Example Problem 4, giving SAF_wz = 0.982).
+    * @param {number} non_wz_ffs
+    * @returns {number | undefined}
+    */
+    work_zone_saf(non_wz_ffs) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmfacilitysegment_work_zone_saf(retptr, this.__wbg_ptr, non_wz_ffs);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r2 = getFloat64Memory0()[retptr / 8 + 1];
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
 }
 
 const WasmFreewayFacilityFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -1347,6 +1469,14 @@ const WasmFreewayFacilityFinalization = (typeof FinalizationRegistry === 'undefi
 * consecutive 15-min analysis periods.
 */
 export class WasmFreewayFacility {
+
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(WasmFreewayFacility.prototype);
+        obj.__wbg_ptr = ptr;
+        WasmFreewayFacilityFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
 
     __destroy_into_raw() {
         const ptr = this.__wbg_ptr;
@@ -1467,6 +1597,23 @@ export class WasmFreewayFacility {
         return ret;
     }
     /**
+    * Segment capacity, veh/h (Exhibits 25-63 and 25-71). This is the
+    * denominator of `get_dc_ratio()` and it varies by period, both because a
+    * weaving segment's capacity follows the period's weaving pattern and
+    * because the Step A-8 adjustments are per period. Where a work zone is
+    * placed this is the post-CAF_wz value, not the Step A-7 lane-closure
+    * capacity the exhibit prints: Exhibit 25-71 prints 4,499 veh/h for the
+    * Example Problem 4 work zone segment, and the Exhibit 25-72 d/c ratios
+    * of the same problem only reproduce against 4,499 x 0.892.
+    * @param {number} seg
+    * @param {number} period
+    * @returns {number}
+    */
+    get_capacity(seg, period) {
+        const ret = wasm.wasmfreewayfacility_get_capacity(this.__wbg_ptr, seg, period);
+        return ret;
+    }
+    /**
     * Volume served v_a, veh/h (Exhibit 25-48/25-56). This equals the
     * segment demand only while the facility is undersaturated. Once a
     * queue forms the oversaturated engine meters what the segment can
@@ -1580,6 +1727,15 @@ export class WasmFreewayFacility {
     */
     dc_matrix() {
         const ret = wasm.wasmfreewayfacility_dc_matrix(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+    * Segment capacity `[segment][period]`, veh/h (Exhibits 25-63, 25-71).
+    * See `get_capacity()` for what a work zone segment holds here.
+    * @returns {any}
+    */
+    capacity_matrix() {
+        const ret = wasm.wasmfreewayfacility_capacity_matrix(this.__wbg_ptr);
         return takeObject(ret);
     }
     /**
@@ -2055,6 +2211,428 @@ export class WasmInterchange {
     }
 }
 
+const WasmManagedLaneFacilityFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmmanagedlanefacility_free(ptr >>> 0));
+/**
+* HCM Chapter 10 managed-lane facility extension (Steps A-9/A-13/A-14/A-17;
+* Chapter 25 Section 2): a general-purpose lane group paired with a parallel
+* managed-lane lane group, analyzed with the cross-weave capacity adjustment
+* on the GP side and the adjacent-friction speed reduction on the ML side,
+* then aggregated per lane group and combined.
+*
+* The managed lane is not a segment flag on the GP facility, so it cannot be
+* reached through [`WasmFreewayFacility`]. `ml` is a vector parallel to the
+* GP segments carrying `null` where a GP segment has no adjacent managed
+* lane, and the ML lane group has its own entry demand, free-flow speed, and
+* ramp demands. Those are the inputs this wrapper adds.
+*/
+export class WasmManagedLaneFacility {
+
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(WasmManagedLaneFacility.prototype);
+        obj.__wbg_ptr = ptr;
+        WasmManagedLaneFacilityFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        WasmManagedLaneFacilityFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_wasmmanagedlanefacility_free(ptr);
+    }
+    /**
+    * Build the whole facility, both lane groups, from a configuration
+    * object matching the serde schema of the library's
+    * `ManagedLaneFacility` — the shape of the library's own fixtures, so
+    * `tests/ExampleCases/hcm/FreewayFacilities/ml_case1.json` (Example
+    * Problem 5) loads verbatim:
+    *
+    * ```json
+    * {
+    *   "gp": { "segments": [ ... ], "mainline_demand": [ ... ], "ffs": 60.0 },
+    *   "ml": [ { "lane_type": "ContinuousAccess", "lanes": 1 }, null ],
+    *   "ml_entry_demand": [1000.0, 1100.0],
+    *   "ml_ffs": 60.0
+    * }
+    * ```
+    *
+    * `gp` is the same schema [`WasmFreewayFacility`] takes positionally.
+    * `ml` must have one entry per GP segment once `run_analysis()` is
+    * called, `null` marking a segment with no adjacent managed lane.
+    * `lane_type` is one of `ContinuousAccess` / `Buffer1` / `Buffer2` /
+    * `Barrier1` / `Barrier2` (Exhibit 12-9); only the first two are subject
+    * to the Step A-13 adjacent friction. An ML segment may also carry
+    * `ffs`, `caf`, `saf`, `on_ramp_demand`, and `off_ramp_demand`. The
+    * optional `cross_weave` vector is parallel to the GP segments as well,
+    * each entry `{"cw_demand_pc": [...], "l_cw_min_ft": 0.0}` (Step A-9,
+    * Equations 13-24/13-25); omit it and no cross-weave reduction applies.
+    *
+    * Every field has a serde default and unknown fields are ignored, so a
+    * misspelled field name falls back to its default rather than throwing —
+    * prefer copying names from the fixture files.
+    * @param {any} config
+    */
+    constructor(config) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmmanagedlanefacility_new(retptr, addHeapObject(config));
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Build from an already-constructed general-purpose facility plus the
+    * managed-lane half as a config object (`ml`, `ml_entry_demand`,
+    * `ml_ffs`, `cross_weave`, as documented on the constructor). The GP
+    * facility is copied, not consumed, and need not have been run.
+    * @param {WasmFreewayFacility} gp
+    * @param {any} ml_config
+    * @returns {WasmManagedLaneFacility}
+    */
+    static from_gp(gp, ml_config) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            _assertClass(gp, WasmFreewayFacility);
+            wasm.wasmmanagedlanefacility_from_gp(retptr, gp.__wbg_ptr, addHeapObject(ml_config));
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return WasmManagedLaneFacility.__wrap(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Run both lane groups and the combined aggregation. Throws when `ml`
+    * (or a non-empty `cross_weave`) does not have one entry per GP segment,
+    * and on any GP validation failure.
+    */
+    run_analysis() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmmanagedlanefacility_run_analysis(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * @returns {number}
+    */
+    num_segments() {
+        const ret = wasm.wasmfreewayfacility_num_segments(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+    * @returns {number}
+    */
+    num_periods() {
+        const ret = wasm.wasmfreewayfacility_num_periods(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+    * The general-purpose lane group as a [`WasmFreewayFacility`], which is
+    * how the GP segment matrices are read. This is a snapshot copy taken
+    * after `run_analysis()`, so the Step A-9 cross-weave CAF is already
+    * folded into its segment capacities; running it again is harmless but
+    * pointless.
+    * @returns {WasmFreewayFacility}
+    */
+    gp_facility() {
+        const ret = wasm.wasmmanagedlanefacility_gp_facility(this.__wbg_ptr);
+        return WasmFreewayFacility.__wrap(ret);
+    }
+    /**
+    * ML segment demand, veh/h — the entry demand accumulated through the ML
+    * ramp demands, not metered by capacity.
+    * @param {number} seg
+    * @param {number} period
+    * @returns {number}
+    */
+    get_ml_demand(seg, period) {
+        const ret = wasm.wasmmanagedlanefacility_get_ml_demand(this.__wbg_ptr, seg, period);
+        return ret;
+    }
+    /**
+    * ML segment capacity, veh/h (Exhibit 25-81): the Chapter 12 adjusted
+    * per-lane capacity times the lane count and the facility heavy-vehicle
+    * factor, so it is a vehicle rate and not the pc/h/ln of Equation 12-14.
+    * @param {number} seg
+    * @param {number} period
+    * @returns {number}
+    */
+    get_ml_capacity(seg, period) {
+        const ret = wasm.wasmmanagedlanefacility_get_ml_capacity(this.__wbg_ptr, seg, period);
+        return ret;
+    }
+    /**
+    * @param {number} seg
+    * @param {number} period
+    * @returns {number}
+    */
+    get_ml_dc_ratio(seg, period) {
+        const ret = wasm.wasmmanagedlanefacility_get_ml_dc_ratio(this.__wbg_ptr, seg, period);
+        return ret;
+    }
+    /**
+    * @param {number} seg
+    * @param {number} period
+    * @returns {number}
+    */
+    get_ml_speed(seg, period) {
+        const ret = wasm.wasmmanagedlanefacility_get_ml_speed(this.__wbg_ptr, seg, period);
+        return ret;
+    }
+    /**
+    * @param {number} seg
+    * @param {number} period
+    * @returns {number}
+    */
+    get_ml_density_veh(seg, period) {
+        const ret = wasm.wasmmanagedlanefacility_get_ml_density_veh(this.__wbg_ptr, seg, period);
+        return ret;
+    }
+    /**
+    * @param {number} seg
+    * @param {number} period
+    * @returns {number}
+    */
+    get_ml_density_pc(seg, period) {
+        const ret = wasm.wasmmanagedlanefacility_get_ml_density_pc(this.__wbg_ptr, seg, period);
+        return ret;
+    }
+    /**
+    * @param {number} seg
+    * @param {number} period
+    * @returns {string}
+    */
+    get_ml_los(seg, period) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmmanagedlanefacility_get_ml_los(retptr, this.__wbg_ptr, seg, period);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+    * Whether the Step A-13 adjacent friction was active on the ML segment,
+    * which needs both a friction-capable lane type (continuous access or
+    * Buffer 1) and an adjacent GP density above 35 pc/mi/ln. The speed drop
+    * it causes is already in `get_ml_speed()`; this reports why.
+    * @param {number} seg
+    * @param {number} period
+    * @returns {boolean}
+    */
+    is_ml_friction_active(seg, period) {
+        const ret = wasm.wasmmanagedlanefacility_is_ml_friction_active(this.__wbg_ptr, seg, period);
+        return ret !== 0;
+    }
+    /**
+    * @param {number} period
+    * @returns {number}
+    */
+    get_gp_group_speed(period) {
+        const ret = wasm.wasmmanagedlanefacility_get_gp_group_speed(this.__wbg_ptr, period);
+        return ret;
+    }
+    /**
+    * @param {number} period
+    * @returns {number}
+    */
+    get_gp_group_density_veh(period) {
+        const ret = wasm.wasmmanagedlanefacility_get_gp_group_density_veh(this.__wbg_ptr, period);
+        return ret;
+    }
+    /**
+    * @param {number} period
+    * @returns {string}
+    */
+    get_gp_group_los(period) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmmanagedlanefacility_get_gp_group_los(retptr, this.__wbg_ptr, period);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+    * @param {number} period
+    * @returns {number}
+    */
+    get_ml_group_speed(period) {
+        const ret = wasm.wasmmanagedlanefacility_get_ml_group_speed(this.__wbg_ptr, period);
+        return ret;
+    }
+    /**
+    * @param {number} period
+    * @returns {number}
+    */
+    get_ml_group_density_veh(period) {
+        const ret = wasm.wasmmanagedlanefacility_get_ml_group_density_veh(this.__wbg_ptr, period);
+        return ret;
+    }
+    /**
+    * @param {number} period
+    * @returns {string}
+    */
+    get_ml_group_los(period) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmmanagedlanefacility_get_ml_group_los(retptr, this.__wbg_ptr, period);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+    * @param {number} period
+    * @returns {number}
+    */
+    get_facility_speed(period) {
+        const ret = wasm.wasmmanagedlanefacility_get_facility_speed(this.__wbg_ptr, period);
+        return ret;
+    }
+    /**
+    * Combined facility density, veh/mi/ln (Exhibit 25-87).
+    *
+    * VERIFY-HCM: this is the exact Equation 10-1 lane-mile-weighted
+    * combination of the two lane-group densities. In Example Problem 5
+    * Period 3 it gives 28.3 where Exhibit 25-87 prints 29.1, a value not
+    * reproducible from the book's own Exhibit 25-86 group densities (31.0
+    * GP, 20.0 ML) under Equation 10-1. LOS is unaffected.
+    * @param {number} period
+    * @returns {number}
+    */
+    get_facility_density_veh(period) {
+        const ret = wasm.wasmmanagedlanefacility_get_facility_density_veh(this.__wbg_ptr, period);
+        return ret;
+    }
+    /**
+    * @param {number} period
+    * @returns {string}
+    */
+    get_facility_los(period) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmmanagedlanefacility_get_facility_los(retptr, this.__wbg_ptr, period);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+    * @returns {any}
+    */
+    ml_capacity_matrix() {
+        const ret = wasm.wasmmanagedlanefacility_ml_capacity_matrix(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+    * @returns {any}
+    */
+    ml_dc_matrix() {
+        const ret = wasm.wasmmanagedlanefacility_ml_dc_matrix(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+    * @returns {any}
+    */
+    ml_speed_matrix() {
+        const ret = wasm.wasmmanagedlanefacility_ml_speed_matrix(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+    * @returns {any}
+    */
+    ml_density_matrix() {
+        const ret = wasm.wasmmanagedlanefacility_ml_density_matrix(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+    * @returns {any}
+    */
+    ml_los_matrix() {
+        const ret = wasm.wasmmanagedlanefacility_ml_los_matrix(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+    * @returns {any}
+    */
+    ml_friction_matrix() {
+        const ret = wasm.wasmmanagedlanefacility_ml_friction_matrix(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+    * Both lane groups by period (Exhibit 25-86): space mean speed, average
+    * density in veh/mi/ln and pc/mi/ln, and LOS.
+    * @returns {any}
+    */
+    lane_group_performance_to_js_value() {
+        const ret = wasm.wasmmanagedlanefacility_lane_group_performance_to_js_value(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+    * @returns {any}
+    */
+    results_to_js_value() {
+        const ret = wasm.wasmmanagedlanefacility_results_to_js_value(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+}
+
 const WasmManagedLanesFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_wasmmanagedlanes_free(ptr >>> 0));
@@ -2184,7 +2762,7 @@ export class WasmManagedLanes {
     * @returns {number}
     */
     get_capacity() {
-        const ret = wasm.wasmmanagedlanes_get_capacity(this.__wbg_ptr);
+        const ret = wasm.wasminterchange_get_cycle_length_s(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -6179,13 +6757,6 @@ async function __wbg_load(module, imports) {
 function __wbg_get_imports() {
     const imports = {};
     imports.wbg = {};
-    imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
-        takeObject(arg0);
-    };
-    imports.wbg.__wbindgen_error_new = function(arg0, arg1) {
-        const ret = new Error(getStringFromWasm0(arg0, arg1));
-        return addHeapObject(ret);
-    };
     imports.wbg.__wbg_get_bd8e338fbd5f5cc8 = function(arg0, arg1) {
         const ret = getObject(arg0)[arg1 >>> 0];
         return addHeapObject(ret);
@@ -6201,6 +6772,9 @@ function __wbg_get_imports() {
     imports.wbg.__wbindgen_number_new = function(arg0) {
         const ret = arg0;
         return addHeapObject(ret);
+    };
+    imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
+        takeObject(arg0);
     };
     imports.wbg.__wbindgen_is_function = function(arg0) {
         const ret = typeof(getObject(arg0)) === 'function';
@@ -6347,6 +6921,18 @@ function __wbg_get_imports() {
         const ret = result;
         return ret;
     };
+    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
+        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
+    imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
+        const ret = WasmSubSegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
+    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
+        const ret = WasmSegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
     imports.wbg.__wbindgen_jsval_loose_eq = function(arg0, arg1) {
         const ret = getObject(arg0) == getObject(arg1);
         return ret;
@@ -6362,6 +6948,10 @@ function __wbg_get_imports() {
         const len1 = WASM_VECTOR_LEN;
         getInt32Memory0()[arg0 / 4 + 1] = len1;
         getInt32Memory0()[arg0 / 4 + 0] = ptr1;
+    };
+    imports.wbg.__wbindgen_error_new = function(arg0, arg1) {
+        const ret = new Error(getStringFromWasm0(arg0, arg1));
+        return addHeapObject(ret);
     };
     imports.wbg.__wbindgen_bigint_from_i64 = function(arg0) {
         const ret = arg0;
@@ -6386,18 +6976,6 @@ function __wbg_get_imports() {
         const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
         return ret;
     }, arguments) };
-    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
-        const ret = WasmSegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
-    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
-        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
-    imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
-        const ret = WasmSubSegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
     imports.wbg.__wbindgen_is_bigint = function(arg0) {
         const ret = typeof(getObject(arg0)) === 'bigint';
         return ret;
