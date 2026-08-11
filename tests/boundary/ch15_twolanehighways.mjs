@@ -85,7 +85,16 @@ const EXPECTED = {
     ['D', 'B', 'D', 'D', 'D'],
     ['E', 'E', 'E', 'E', 'C', 'E'],
   ],
-  facilityLos: ['D', 'D', 'D', 'E'],
+  // Equation 15-39, from `determine_facility_follower_density`. Same values
+  // twolanehighways_test.rs asserts in determine_facility_los_test. case3 is
+  // Chapter 26 Example Problem 3, published in Exhibit 26-27 as 7.3
+  // followers/mi and LOS C; weighting that exhibit's own per-segment column by
+  // length gives (10.7)(0.75) + (2.9)(1.5) + (8.2)(1.0) + (8.2)(0.5) +
+  // (8.8)(1.75) = 40.075 over 5.5 mi = 7.3. case4 is Example Problem 4, LOS E
+  // in Exhibit 26-36. case1 and case2 are single-segment facilities with no
+  // published facility row, so the facility value is the segment value.
+  facilityFd: [10.092, 10.933, 7.271, 19.897],
+  facilityLos: ['D', 'D', 'C', 'E'],
 };
 
 // Build a fresh facility from a fixture through the production constructors.
@@ -235,48 +244,57 @@ for (let ci = 0; ci < cases.length; ci++) {
     }
   }
 
-  // Step 11: facility LOS (determine_facility_los_test): length-weighted
-  // follower density (fd_mid for passing lanes) and average speed. This is
-  // also the aggregation the production Calc page performs in JS.
+  // Step 11: facility follower density and LOS (Equation 15-39), through
+  // `determine_facility_follower_density`, bound in middleware 0.3.6.
   //
-  // KNOWN DIVERGENCE from library 0.3.1, asserted as-is because it is what the
-  // page currently computes. Equation 15-39 takes the *adjusted* follower
-  // density, so `TwoLaneHighways::determine_facility_follower_density` uses
-  // fd_adj on any segment downstream of a passing lane and falls back to the
-  // raw fd only where no adjustment applies. The aggregation below uses fd_mid
-  // for passing lanes but the raw fd everywhere else, so it discards the Step 9
-  // downstream benefit. It agrees on case1, case2 and case4, and differs on
-  // case3 (Chapter 26 Example Problem 3): 8.041 followers/mi and LOS D here
-  // against 7.271 and LOS C from Equation 15-39, where Exhibit 26-27 publishes
-  // 7.3 and LOS C. case4 (Example Problem 4) differs numerically too, 20.219
-  // against 19.897 with the published 20.0, but stays inside the LOS E band and
-  // so shows no letter change.
+  // This block used to weight the per-segment column here, taking fd_mid on a
+  // passing lane and the raw fd everywhere else. Equation 15-39 reads
+  // "follower density, or adjusted follower density, for segment i", so a
+  // segment inside the effective downstream length of a passing lane
+  // contributes its Step 9 adjusted density, and reweighting the raw column
+  // discards that benefit. It agreed on case1 and case2, and did not on case3
+  // (Chapter 26 Example Problem 3), giving 8.041 followers/mi and LOS D where
+  // the equation gives 7.271 and LOS C and Exhibit 26-27 publishes 7.3 and C.
+  // case4 (Example Problem 4) was wrong by less, 20.219 against 19.897, and
+  // stayed inside the LOS E band, so it broke no assertion. That is the shape
+  // of the defect: it cost one letter out of four, on one fixture.
+  // The hcm15 page never had this defect; it already selected the
+  // adjusted density per segment, and its printed facility values do not move.
   //
-  // The fix is to bind `determine_facility_follower_density` in
-  // crosstraffic_middleware and call it from the page and from here, rather
-  // than reweighting the column in JS a third time — reweighting per caller is
-  // exactly what the library centralized to stop. It is not bound in 0.3.5.
+  // Order matters, and silently. The effective downstream length of a passing
+  // lane is facility state, and the Step 9 loop above leaves it set. The
+  // binding restores the constructor's value before walking, without which the
+  // walk finds it already populated on the segments upstream of the passing
+  // lane, whose distance from it is zero, and adjusts them too. The second
+  // assertion below is that guard: it reuses a facility that has already been
+  // through a full Step 9 loop, which on case4, whose passing lane is fifth of
+  // six, otherwise returns 14.936 instead of 19.897.
   {
     const hw = buildHighway(c);
-    let totLen = 0, fdTot = 0, sTot = 0;
+    let totLen = 0, sTot = 0;
     for (let i = 0; i < nSeg; i++) {
       hw.determine_demand_flow(i);
       hw.determine_free_flow_speed(i);
       const [s] = hw.estimate_average_speed(i);
       hw.estimate_percent_followers(i);
-      let fd;
       if (c.segments[i].passing_type === 2) {
-        [, fd] = hw.determine_follower_density_pl(i); // fd_mid
+        hw.determine_follower_density_pl(i);
       } else {
-        fd = hw.determine_follower_density_pc_pz(i);
+        hw.determine_follower_density_pc_pz(i);
       }
       const len = c.segments[i].length;
       totLen += len;
-      fdTot += fd * len;
       sTot += s * len;
     }
-    exact(hw.determine_facility_los(fdTot / totLen, sTot / totLen),
+    const fdF = hw.determine_facility_follower_density();
+    approx(fdF, EXPECTED.facilityFd[ci], 0.0005, `${tag} facility follower density`);
+    exact(hw.determine_facility_los(fdF, sTot / totLen),
       EXPECTED.facilityLos[ci], `${tag} facility LOS`);
+
+    // Same facility, after the caller's own per-segment Step 9 loop.
+    for (let i = 0; i < nSeg; i++) hw.determine_adjustment_to_follower_density(i);
+    approx(hw.determine_facility_follower_density(), EXPECTED.facilityFd[ci], 0.0005,
+      `${tag} facility follower density after a Step 9 loop`);
   }
 }
 

@@ -261,7 +261,7 @@
       const facility = new WasmTwoLaneHighways(wasmSegment, lane_width, shoulder_width, apd, pmhvfl);
 
       const segs = [];
-      let fd_f = 0, s_tot = 0, tot_len = 0;
+      let s_tot = 0, tot_len = 0;
 
       for (let i = 0; i < localRows.length; i++) {
         facility.identify_vertical_class(i);
@@ -291,7 +291,6 @@
         }
 
         const seg_len = facility.get_segments()[i].length;
-        fd_f += fd_out * seg_len;
         s_tot += s * seg_len;
         tot_len += seg_len;
 
@@ -304,7 +303,14 @@
         });
       }
 
-      fd_f = fd_f / tot_len;
+      // Step 11 (Equation 15-39). The engine does the length weighting, and it
+      // picks FD_i per segment the same way the column above does, since
+      // Equation 15-39 reads "follower density, or adjusted follower density".
+      // Weighting the column here instead would agree today and stop agreeing
+      // the moment the equation is corrected again, which is what happened
+      // when the library centralized this. Safe to call after the loop above:
+      // the binding restores the passing-lane bookkeeping the loop advanced.
+      const fd_f = facility.determine_facility_follower_density();
       const average_speed = s_tot / tot_len;
       const facilityLos = facility.determine_facility_los(fd_f, average_speed);
 

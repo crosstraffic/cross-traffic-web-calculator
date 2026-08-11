@@ -1742,6 +1742,40 @@ export class WasmTwoLaneHighways {
 */
   determine_segment_los(seg_num: number, s_pl: number, cap: number): string;
 /**
+* Step 11: length-weighted facility follower density, followers/mi/ln
+* (Equation 15-39). Feed the result to `determine_facility_los`.
+*
+* Equation 15-39 defines FD_i as the "follower density, or adjusted
+* follower density, for segment i", so the term a segment contributes is
+* not always the `fd` that `segs_to_js_value` reports. A passing lane
+* contributes its midpoint density FD_PLmid, a segment lying within the
+* effective downstream length of an upstream passing lane contributes its
+* Step 9 adjusted density, and only the remaining segments contribute the
+* plain Step 8 density. Reweighting the `fd` column caller-side discards
+* the Step 9 benefit, which is most of what Chapter 26 Example Problem 3
+* is spent computing, and on that example it returns 8.041 and LOS D
+* against the published 7.3 and LOS C.
+*
+* Steps 1 through 8 must already have run over every segment, since this
+* reads their stored speeds, percent followers, and densities.
+*
+* The core walks the segments in order, because the effective downstream
+* length of a passing lane is recorded when the walk reaches that passing
+* lane and every later segment is measured against it. That recorded
+* length is facility state, so a caller that has already run its own
+* per-segment `determine_adjustment_to_follower_density` loop, as the
+* calculator does to fill the FD-adjustment column, leaves it set and the
+* walk would then find it already populated on the segments *upstream* of
+* the passing lane, whose distance from that lane is zero. Those segments
+* would take an adjustment they should not have. This binding therefore
+* restores the constructor's `l_de` before delegating, so the result
+* depends only on Steps 1 through 8 and not on what else has been called.
+* On Chapter 26 Example Problem 4, whose passing lane is the fifth of six
+* segments, the difference is 19.897 against 14.936.
+* @returns {number}
+*/
+  determine_facility_follower_density(): number;
+/**
 * @param {number} fd
 * @param {number} s_pl
 * @returns {string}
@@ -2886,6 +2920,57 @@ export interface InitOutput {
   readonly wasmtwsc_get_approach_delays: (a: number, b: number) => void;
   readonly wasmtwsc_get_intersection_delay: (a: number, b: number) => void;
   readonly wasmtwsc_results_to_js_value: (a: number) => number;
+  readonly __wbg_wasmsubsegment_free: (a: number) => void;
+  readonly wasmsubsegment_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => number;
+  readonly wasmsubsegment_to_js_value: (a: number) => number;
+  readonly wasmsubsegment_get_length: (a: number) => number;
+  readonly wasmsubsegment_get_avg_speed: (a: number) => number;
+  readonly wasmsubsegment_get_hor_class: (a: number) => number;
+  readonly __wbg_wasmsegment_free: (a: number) => void;
+  readonly wasmsegment_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number) => number;
+  readonly wasmsegment_to_js_value: (a: number) => number;
+  readonly wasmsegment_get_passing_type: (a: number) => number;
+  readonly wasmsegment_get_length: (a: number) => number;
+  readonly wasmsegment_get_grade: (a: number) => number;
+  readonly wasmsegment_get_spl: (a: number) => number;
+  readonly wasmsegment_get_is_hc: (a: number) => number;
+  readonly wasmsegment_get_volume: (a: number) => number;
+  readonly wasmsegment_get_volume_op: (a: number) => number;
+  readonly wasmsegment_get_flow_rate: (a: number) => number;
+  readonly wasmsegment_get_flow_rate_o: (a: number) => number;
+  readonly wasmsegment_get_capacity: (a: number) => number;
+  readonly wasmsegment_get_ffs: (a: number) => number;
+  readonly wasmsegment_get_avg_speed: (a: number) => number;
+  readonly wasmsegment_get_subsegments: (a: number) => number;
+  readonly wasmsegment_get_vertical_class: (a: number) => number;
+  readonly wasmsegment_get_phf: (a: number) => number;
+  readonly wasmsegment_get_phv: (a: number) => number;
+  readonly wasmsegment_get_percent_followers: (a: number) => number;
+  readonly wasmsegment_get_followers_density: (a: number) => number;
+  readonly wasmsegment_get_followers_density_mid: (a: number) => number;
+  readonly wasmsegment_get_hor_class: (a: number) => number;
+  readonly __wbg_wasmtwolanehighways_free: (a: number) => void;
+  readonly wasmtwolanehighways_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => number;
+  readonly wasmtwolanehighways_get_segments: (a: number) => number;
+  readonly wasmtwolanehighways_identify_vertical_class: (a: number, b: number, c: number) => void;
+  readonly wasmtwolanehighways_determine_demand_flow: (a: number, b: number, c: number) => void;
+  readonly wasmtwolanehighways_determine_vertical_alignment: (a: number, b: number) => number;
+  readonly wasmtwolanehighways_determine_free_flow_speed: (a: number, b: number) => number;
+  readonly wasmtwolanehighways_estimate_average_speed: (a: number, b: number, c: number) => void;
+  readonly wasmtwolanehighways_estimate_percent_followers: (a: number, b: number) => number;
+  readonly wasmtwolanehighways_estimate_average_speed_sf: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
+  readonly wasmtwolanehighways_estimate_percent_followers_sf: (a: number, b: number, c: number, d: number) => number;
+  readonly wasmtwolanehighways_determine_follower_density_pl: (a: number, b: number, c: number) => void;
+  readonly wasmtwolanehighways_determine_follower_density_pc_pz: (a: number, b: number) => number;
+  readonly wasmtwolanehighways_determine_adjustment_to_follower_density: (a: number, b: number) => number;
+  readonly wasmtwolanehighways_determine_segment_los: (a: number, b: number, c: number, d: number) => number;
+  readonly wasmtwolanehighways_determine_facility_follower_density: (a: number) => number;
+  readonly wasmtwolanehighways_determine_facility_los: (a: number, b: number, c: number) => number;
+  readonly wasmsubsegment_get_design_rad: (a: number) => number;
+  readonly wasmsubsegment_get_central_angle: (a: number) => number;
+  readonly wasmsubsegment_get_sup_ele: (a: number) => number;
+  readonly wasmsegment_subsegs_to_js_value: (a: number) => number;
+  readonly wasmtwolanehighways_segs_to_js_value: (a: number) => number;
   readonly __wbg_wasmbasicfreeways_free: (a: number) => void;
   readonly wasmbasicfreeways_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number) => number;
   readonly wasmbasicfreeways_run_operational_analysis: (a: number, b: number) => void;
@@ -2938,56 +3023,6 @@ export interface InitOutput {
   readonly uturn_saturation_adjustment: (a: number) => number;
   readonly stop_junction_delay: (a: number, b: number, c: number, d: number, e: number) => number;
   readonly dlt_offset: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
-  readonly __wbg_wasmsubsegment_free: (a: number) => void;
-  readonly wasmsubsegment_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => number;
-  readonly wasmsubsegment_to_js_value: (a: number) => number;
-  readonly wasmsubsegment_get_length: (a: number) => number;
-  readonly wasmsubsegment_get_avg_speed: (a: number) => number;
-  readonly wasmsubsegment_get_hor_class: (a: number) => number;
-  readonly __wbg_wasmsegment_free: (a: number) => void;
-  readonly wasmsegment_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number) => number;
-  readonly wasmsegment_to_js_value: (a: number) => number;
-  readonly wasmsegment_get_passing_type: (a: number) => number;
-  readonly wasmsegment_get_length: (a: number) => number;
-  readonly wasmsegment_get_grade: (a: number) => number;
-  readonly wasmsegment_get_spl: (a: number) => number;
-  readonly wasmsegment_get_is_hc: (a: number) => number;
-  readonly wasmsegment_get_volume: (a: number) => number;
-  readonly wasmsegment_get_volume_op: (a: number) => number;
-  readonly wasmsegment_get_flow_rate: (a: number) => number;
-  readonly wasmsegment_get_flow_rate_o: (a: number) => number;
-  readonly wasmsegment_get_capacity: (a: number) => number;
-  readonly wasmsegment_get_ffs: (a: number) => number;
-  readonly wasmsegment_get_avg_speed: (a: number) => number;
-  readonly wasmsegment_get_subsegments: (a: number) => number;
-  readonly wasmsegment_get_vertical_class: (a: number) => number;
-  readonly wasmsegment_get_phf: (a: number) => number;
-  readonly wasmsegment_get_phv: (a: number) => number;
-  readonly wasmsegment_get_percent_followers: (a: number) => number;
-  readonly wasmsegment_get_followers_density: (a: number) => number;
-  readonly wasmsegment_get_followers_density_mid: (a: number) => number;
-  readonly wasmsegment_get_hor_class: (a: number) => number;
-  readonly __wbg_wasmtwolanehighways_free: (a: number) => void;
-  readonly wasmtwolanehighways_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => number;
-  readonly wasmtwolanehighways_get_segments: (a: number) => number;
-  readonly wasmtwolanehighways_identify_vertical_class: (a: number, b: number, c: number) => void;
-  readonly wasmtwolanehighways_determine_demand_flow: (a: number, b: number, c: number) => void;
-  readonly wasmtwolanehighways_determine_vertical_alignment: (a: number, b: number) => number;
-  readonly wasmtwolanehighways_determine_free_flow_speed: (a: number, b: number) => number;
-  readonly wasmtwolanehighways_estimate_average_speed: (a: number, b: number, c: number) => void;
-  readonly wasmtwolanehighways_estimate_percent_followers: (a: number, b: number) => number;
-  readonly wasmtwolanehighways_estimate_average_speed_sf: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
-  readonly wasmtwolanehighways_estimate_percent_followers_sf: (a: number, b: number, c: number, d: number) => number;
-  readonly wasmtwolanehighways_determine_follower_density_pl: (a: number, b: number, c: number) => void;
-  readonly wasmtwolanehighways_determine_follower_density_pc_pz: (a: number, b: number) => number;
-  readonly wasmtwolanehighways_determine_adjustment_to_follower_density: (a: number, b: number) => number;
-  readonly wasmtwolanehighways_determine_segment_los: (a: number, b: number, c: number, d: number) => number;
-  readonly wasmtwolanehighways_determine_facility_los: (a: number, b: number, c: number) => number;
-  readonly wasmsubsegment_get_design_rad: (a: number) => number;
-  readonly wasmsubsegment_get_central_angle: (a: number) => number;
-  readonly wasmsubsegment_get_sup_ele: (a: number) => number;
-  readonly wasmsegment_subsegs_to_js_value: (a: number) => number;
-  readonly wasmtwolanehighways_segs_to_js_value: (a: number) => number;
   readonly __wbg_wasmfacilitysegment_free: (a: number) => void;
   readonly wasmfacilitysegment_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number) => number;
   readonly wasmfacilitysegment_get_seg_type: (a: number, b: number) => void;

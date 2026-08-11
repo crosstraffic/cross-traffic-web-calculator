@@ -207,6 +207,13 @@ function handleError(f, args) {
     }
 }
 
+function passArrayF64ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 8, 8) >>> 0;
+    getFloat64Memory0().set(arg, ptr / 8);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
 let cachedUint32Memory0 = null;
 
 function getUint32Memory0() {
@@ -229,13 +236,6 @@ function passArrayJsValueToWasm0(array, malloc) {
 function getArrayF64FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
-}
-
-function passArrayF64ToWasm0(arg, malloc) {
-    const ptr = malloc(arg.length * 8, 8) >>> 0;
-    getFloat64Memory0().set(arg, ptr / 8);
-    WASM_VECTOR_LEN = arg.length;
-    return ptr;
 }
 
 function passArray32ToWasm0(arg, malloc) {
@@ -4081,6 +4081,43 @@ export class WasmTwoLaneHighways {
         return String.fromCodePoint(ret);
     }
     /**
+    * Step 11: length-weighted facility follower density, followers/mi/ln
+    * (Equation 15-39). Feed the result to `determine_facility_los`.
+    *
+    * Equation 15-39 defines FD_i as the "follower density, or adjusted
+    * follower density, for segment i", so the term a segment contributes is
+    * not always the `fd` that `segs_to_js_value` reports. A passing lane
+    * contributes its midpoint density FD_PLmid, a segment lying within the
+    * effective downstream length of an upstream passing lane contributes its
+    * Step 9 adjusted density, and only the remaining segments contribute the
+    * plain Step 8 density. Reweighting the `fd` column caller-side discards
+    * the Step 9 benefit, which is most of what Chapter 26 Example Problem 3
+    * is spent computing, and on that example it returns 8.041 and LOS D
+    * against the published 7.3 and LOS C.
+    *
+    * Steps 1 through 8 must already have run over every segment, since this
+    * reads their stored speeds, percent followers, and densities.
+    *
+    * The core walks the segments in order, because the effective downstream
+    * length of a passing lane is recorded when the walk reaches that passing
+    * lane and every later segment is measured against it. That recorded
+    * length is facility state, so a caller that has already run its own
+    * per-segment `determine_adjustment_to_follower_density` loop, as the
+    * calculator does to fill the FD-adjustment column, leaves it set and the
+    * walk would then find it already populated on the segments *upstream* of
+    * the passing lane, whose distance from that lane is zero. Those segments
+    * would take an adjustment they should not have. This binding therefore
+    * restores the constructor's `l_de` before delegating, so the result
+    * depends only on Steps 1 through 8 and not on what else has been called.
+    * On Chapter 26 Example Problem 4, whose passing lane is the fifth of six
+    * segments, the difference is 19.897 against 14.936.
+    * @returns {number}
+    */
+    determine_facility_follower_density() {
+        const ret = wasm.wasmtwolanehighways_determine_facility_follower_density(this.__wbg_ptr);
+        return ret;
+    }
+    /**
     * @param {number} fd
     * @param {number} s_pl
     * @returns {string}
@@ -6345,16 +6382,16 @@ function __wbg_get_imports() {
         const ret = getObject(arg0) in getObject(arg1);
         return ret;
     };
+    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
+        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
     imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
         const ret = WasmSegment.__unwrap(takeObject(arg0));
         return ret;
     };
     imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
         const ret = WasmSubSegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
-    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
-        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
         return ret;
     };
     imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
