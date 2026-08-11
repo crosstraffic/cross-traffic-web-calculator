@@ -561,7 +561,7 @@
                 <input id={"APD_input_" + i} type="text" class="input input-bordered input-sm" bind:value={seg.ap_delays} placeholder="Exhibit 18-13 estimate" />
                 <span class="unit">s/veh</span>
               </div>
-              <p class="param-hint">The Σ d_ap,i term of Equation 18-7, one measured or published value per active access point, comma separated. The defaults are the Exhibit 30-35 values for Example Problem 1. Blank falls back to the Exhibit 18-13 planning estimate.</p>
+              <p class="param-hint">The Σ d_ap,i term of Equation 18-7, one measured or published value per active access point, comma separated. The defaults are the Exhibit 30-35 values for Example Problem 1. Blank falls back to the Exhibit 18-13 planning estimate. The third source, the Chapter 30 Section 4 computed procedure, takes per-approach geometry and turn volumes that this table has no room for; the <a href="/hcm18">Chapter 18 page</a> offers it for a single segment.</p>
             </div>
 
             <div class="param-field">

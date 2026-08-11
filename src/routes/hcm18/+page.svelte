@@ -56,11 +56,12 @@
 
   let pct_left_turn_lanes = $state(33);
 
-  // Equation 18-7's access-point turning-delay term. The engine picks among
-  // three sources; the two selectable here are the published per-point delays
-  // and the Exhibit 18-13 planning estimate. Leaving every planning field
-  // blank reproduces the pre-0.3.3 default path exactly, which is what a
-  // bookmarked run from before this selector existed used.
+  // Equation 18-7's access-point turning-delay term. All three engine sources
+  // are selectable: the published per-point delays, the Chapter 30 Section 4
+  // procedure computed from approach geometry and turn volumes, and the
+  // Exhibit 18-13 planning estimate. Leaving every planning field blank
+  // reproduces the pre-0.3.3 default path exactly, which is what a bookmarked
+  // run from before this selector existed used.
   let ap_source = $state('measured');
   let ap_delays = $state('0.193, 0.194');
   let n_influential_access_points = $state('');
@@ -68,6 +69,23 @@
   let pct_right_turns_access = $state('');
   let access_left_bay_adequate = $state(false);
   let access_right_bay_adequate = $state(false);
+
+  // Computed-mode defaults are the two access-point approaches the eastbound
+  // through movement sees in Exhibit 30-35, adjusted volumes and all, from
+  // library fixture UrbanSegments/case3.json. Both are undivided two-lane
+  // approaches with no turn bays, which is why every lane and bay field below
+  // is zero or false.
+  function defaultApproaches() {
+    return [
+      { v_lt: 74.80, v_th: 981.71, v_rt: 93.50, n_sl: 0, n_t: 2, n_sr: 0, opposing_flow_veh_h: 1086.15, left_turn_bay: false, right_turn_bay: false, n_lt_lanes: 0, left_bay_storage_ft: 0, pct_heavy_veh: 0 },
+      { v_lt: 75.56, v_th: 991.70, v_rt: 94.45, n_sl: 0, n_t: 2, n_sr: 0, opposing_flow_veh_h: 1075.21, left_turn_bay: false, right_turn_bay: false, n_lt_lanes: 0, left_bay_storage_ft: 0, pct_heavy_veh: 0 }
+    ];
+  }
+
+  let ap_approaches = $state(defaultApproaches());
+  // Analysis period T of Equations 30-48 and 30-51. Read only by the computed
+  // branch, so it is left off the form in the other two modes.
+  let analysis_period = $state(0.25);
 
   let results = $state(null);
   let hasError = $state(false);
@@ -96,6 +114,35 @@
 
   function fmt(v, digits) {
     return v === null || v === undefined ? '' : Number(v).toFixed(digits);
+  }
+
+  function addApproach() {
+    ap_approaches = [...ap_approaches, { v_lt: 0, v_th: 0, v_rt: 0, n_sl: 0, n_t: 2, n_sr: 0, opposing_flow_veh_h: 0, left_turn_bay: false, right_turn_bay: false, n_lt_lanes: 0, left_bay_storage_ft: 0, pct_heavy_veh: 0 }];
+  }
+
+  function removeApproach(index) {
+    if (ap_approaches.length <= 1) return;
+    ap_approaches = ap_approaches.filter((_, i) => i !== index);
+  }
+
+  // The serde struct behind add_access_point takes numbers and booleans, not
+  // the strings an input element binds, so every field is coerced here rather
+  // than relying on serde to be lenient.
+  function approachRecord(a) {
+    return {
+      v_lt: Number(a.v_lt),
+      v_th: Number(a.v_th),
+      v_rt: Number(a.v_rt),
+      n_sl: Number(a.n_sl),
+      n_t: Number(a.n_t),
+      n_sr: Number(a.n_sr),
+      opposing_flow_veh_h: Number(a.opposing_flow_veh_h),
+      left_turn_bay: Boolean(a.left_turn_bay),
+      right_turn_bay: Boolean(a.right_turn_bay),
+      n_lt_lanes: Number(a.n_lt_lanes),
+      left_bay_storage_ft: Number(a.left_bay_storage_ft),
+      pct_heavy_veh: Number(a.pct_heavy_veh)
+    };
   }
 
   function runAnalysis() {
@@ -142,12 +189,22 @@
         ap_source === 'planning' ? opt(pct_left_turns_access) : undefined,
         ap_source === 'planning' ? opt(pct_right_turns_access) : undefined,
         ap_source === 'planning' ? access_left_bay_adequate : undefined,
-        ap_source === 'planning' ? access_right_bay_adequate : undefined
+        ap_source === 'planning' ? access_right_bay_adequate : undefined,
+        undefined,                             // other midsegment delay (Equation 18-7)
+        ap_source === 'computed' ? opt(analysis_period) : undefined
       );
+
+      // The engine enters the Chapter 30, Section 4 branch only when at least
+      // one approach has been registered, and registration has to happen
+      // before analyze().
+      if (ap_source === 'computed') {
+        for (const a of ap_approaches) seg.add_access_point(approachRecord(a));
+      }
 
       const los = seg.analyze();
       results = {
         los,
+        ap_computed: ap_source === 'computed' ? seg.access_point_delays_computed() : null,
         base_ffs: seg.get_base_ffs(),
         free_flow_speed: seg.get_free_flow_speed(),
         running_time: seg.get_running_time(),
@@ -163,7 +220,9 @@
 
       const apSourceLabel = ap_source === 'measured'
         ? `measured or published per-point delays (${ap_delays})`
-        : 'Exhibit 18-13 planning estimate';
+        : ap_source === 'computed'
+          ? `Chapter 30, Section 4 procedure computed from ${ap_approaches.length} access-point approach${ap_approaches.length === 1 ? '' : 'es'}`
+          : 'Exhibit 18-13 planning estimate';
 
       setReport({
         chapter: 'Urban Street Segments',
@@ -197,6 +256,17 @@
           { label: 'Full stop rate', value: stop_rate_override === '' ? 'HCM default' : `${stop_rate_override} stops/veh` },
           { label: 'Intersections with left-turn lanes', value: `${pct_left_turn_lanes}%` },
           { label: 'Access-point delay source', value: apSourceLabel },
+          ...(ap_source === 'computed' ? [
+            { label: 'Analysis period T', value: `${analysis_period} h` },
+            ...ap_approaches.map((a, i) => ({
+              label: `Access point ${i + 1} approach`,
+              value: `${a.v_lt} L / ${a.v_th} T / ${a.v_rt} R veh/h, lanes ${a.n_sl}+${a.n_t}+${a.n_sr}, opposing ${a.opposing_flow_veh_h} veh/h, bays ${a.left_turn_bay ? 'L' : '-'}${a.right_turn_bay ? 'R' : '-'}, ${a.pct_heavy_veh}% heavy`
+            })),
+            ...(results.ap_computed ? results.ap_computed.map((d, i) => ({
+              label: `Access point ${i + 1} computed delay`,
+              value: `${fmt(d.delay_total_s, 4)} s/veh (left ${fmt(d.delay_left_s, 4)}, right ${fmt(d.delay_right_s, 4)}, p_ov ${fmt(d.prob_inside_lane_blocked, 3)})`
+            })) : []),
+          ] : []),
           ...(ap_source === 'planning' ? [
             { label: 'Influential access points N_ap', value: n_influential_access_points === '' ? 'N_ap,s + p_ap,lt × N_ap,o' : n_influential_access_points },
             { label: 'Access left / right turn percentages', value: `${pct_left_turns_access === '' ? '10' : pct_left_turns_access}% / ${pct_right_turns_access === '' ? '10' : pct_right_turns_access}%` },
@@ -225,7 +295,7 @@
         ],
         methodology: [
           'HCM Chapter 18 methodology for the motorized vehicle mode: base free-flow speed from the cross-section, access-point, and on-street parking adjustments (Equation 18-3 and Exhibit 18-11), the signal-spacing adjustment to free-flow speed (Equations 18-4 and 18-5), segment running time including the access-point turning-delay term (Equations 18-6 and 18-7), travel speed from running time plus through control delay (Equation 18-8), stop rate (Equation 18-16), and the traveler perception score (Equations 18-17 through 18-22).',
-          `Access-point delay term Σ d_ap,i taken from the ${ap_source === 'measured' ? 'measured or published per-point delays supplied on the form' : 'Exhibit 18-13 planning-level estimate, from the influential access-point count and the access turn percentages'}. The engine also supports the Chapter 30, Section 4 computed procedure (Equations 30-31 through 30-68), which is not exposed on this page.`,
+          `Access-point delay term Σ d_ap,i taken from the ${ap_source === 'measured' ? 'measured or published per-point delays supplied on the form' : ap_source === 'computed' ? 'Chapter 30, Section 4 procedure (Equations 30-31 through 30-68), computed from the approach turn volumes, lane configuration, and opposing flow of each access point' : 'Exhibit 18-13 planning-level estimate, from the influential access-point count and the access turn percentages'}. The method allows all three sources and this page exposes all three.`,
           'Boundary-intersection through control delay, capacity, and stop rate are inputs to this chapter per Exhibit 18-5, produced by the Chapter 19, 20, 21, or 22 analysis of that intersection.',
         ],
         diagram: {
@@ -281,6 +351,8 @@
     pct_right_turns_access = '';
     access_left_bay_adequate = false;
     access_right_bay_adequate = false;
+    ap_approaches = defaultApproaches();
+    analysis_period = 0.25;
     results = null;
     hasError = false;
   }
@@ -496,12 +568,24 @@
           <label for="APSRC_input">Delay Source</label>
           <select id="APSRC_input" class="select select-bordered select-sm" bind:value={ap_source}>
             <option value="measured">Measured / published delays</option>
+            <option value="computed">Computed (Chapter 30 §4)</option>
             <option value="planning">Planning estimate (Exhibit 18-13)</option>
           </select>
-          <p class="param-hint">The engine also implements the Chapter 30, Section 4 computed procedure (Equations 30-31 through 30-68) from access-point geometry and turn volumes. That path is not exposed on this page yet.</p>
+          <p class="param-hint">The three sources the method allows. The computed procedure (Equations 30-31 through 30-68) derives each per-point delay from the approach turn volumes, lane configuration, and opposing flow.</p>
         </div>
 
-        {#if ap_source === 'measured'}
+        {#if ap_source === 'computed'}
+          <div class="param-field">
+            <label for="APT_input">Analysis Period T</label>
+            <div class="cell-field">
+              <!-- step="any": a fixed step rejects the 0.25 default as a step
+                   mismatch, which blocks the form submit with no error. -->
+              <input id="APT_input" type="number" step="any" min="0.01" class="input input-bordered input-sm" bind:value={analysis_period} placeholder="0.25" />
+              <span class="unit">h</span>
+            </div>
+            <p class="param-hint">Equations 30-48 and 30-51. Read only by this source.</p>
+          </div>
+        {:else if ap_source === 'measured'}
           <div class="param-field">
             <label for="APD_input">Per-Point Delays</label>
             <div class="cell-field">
@@ -553,6 +637,100 @@
           </div>
         {/if}
       </div>
+
+      {#if ap_source === 'computed'}
+        <div class="panel-head ap-head">
+          <div>
+            <h3 class="panel-title ap-title">Access-Point Approaches</h3>
+            <p class="panel-sub">One row per major-street approach the through movement passes, in the subject direction. Volumes are the turn-in movements at the access point.</p>
+          </div>
+          <div class="panel-actions">
+            <button class="btn btn-ghost btn-sm" type="button" onclick={addApproach}>Add Approach</button>
+          </div>
+        </div>
+        <div class="w-full overflow-x-auto">
+          <table class="table seg-table w-full">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th title="Left-turn demand flow rate v_lt from the major street into the access point">v_lt (veh/h)</th>
+                <th title="Through demand flow rate v_th on the major-street approach">v_th (veh/h)</th>
+                <th title="Right-turn demand flow rate v_rt from the major street into the access point">v_rt (veh/h)</th>
+                <th title="Lanes in the shared left-turn/through lane group">N_sl</th>
+                <th title="Lanes in the exclusive-through lane group">N_t</th>
+                <th title="Lanes in the shared right-turn/through lane group">N_sr</th>
+                <th title="Opposing through plus opposing right turn, Equation 30-35">v_o (veh/h)</th>
+                <th title="Left-turn bay provided on the major street">L Bay</th>
+                <th title="Right-turn bay provided on the major street">R Bay</th>
+                <th title="Lanes in the left-turn bay N_lt">N_lt</th>
+                <th title="Available left-turn bay storage L_a,lt, Equation 30-54">Bay Storage (ft)</th>
+                <th title="Percent heavy vehicles P_HV, Equation 30-15">P_HV (%)</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each ap_approaches as a, i}
+                <tr>
+                  <td>{i + 1}</td>
+                  <td><input id={"AVLT_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " left-turn volume"} bind:value={ap_approaches[i].v_lt} required /></td>
+                  <td><input id={"AVTH_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " through volume"} bind:value={ap_approaches[i].v_th} required /></td>
+                  <td><input id={"AVRT_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " right-turn volume"} bind:value={ap_approaches[i].v_rt} required /></td>
+                  <td><input id={"ANSL_input_" + i} type="number" min="0" max="6" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " shared left-through lanes"} bind:value={ap_approaches[i].n_sl} required /></td>
+                  <td><input id={"ANT_input_" + i} type="number" min="0" max="6" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " exclusive through lanes"} bind:value={ap_approaches[i].n_t} required /></td>
+                  <td><input id={"ANSR_input_" + i} type="number" min="0" max="6" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " shared right-through lanes"} bind:value={ap_approaches[i].n_sr} required /></td>
+                  <td><input id={"AVO_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " opposing flow"} bind:value={ap_approaches[i].opposing_flow_veh_h} required /></td>
+                  <td><input id={"ALB_input_" + i} type="checkbox" class="checkbox checkbox-sm" aria-label={"Approach " + (i + 1) + " left-turn bay"} bind:checked={ap_approaches[i].left_turn_bay} /></td>
+                  <td><input id={"ARB_input_" + i} type="checkbox" class="checkbox checkbox-sm" aria-label={"Approach " + (i + 1) + " right-turn bay"} bind:checked={ap_approaches[i].right_turn_bay} /></td>
+                  <td><input id={"ANLT_input_" + i} type="number" min="0" max="4" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " left-turn bay lanes"} bind:value={ap_approaches[i].n_lt_lanes} required /></td>
+                  <td><input id={"ABS_input_" + i} type="number" step="1" min="0" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " left bay storage"} bind:value={ap_approaches[i].left_bay_storage_ft} required /></td>
+                  <td><input id={"APHV_input_" + i} type="number" step="0.1" min="0" max="100" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " percent heavy vehicles"} bind:value={ap_approaches[i].pct_heavy_veh} required /></td>
+                  <td><button class="btn btn-ghost btn-sm" type="button" onclick={() => removeApproach(i)} disabled={ap_approaches.length <= 1}>Remove</button></td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+        <p class="param-hint panel-note">
+          The defaults are the two approaches the eastbound through movement sees in
+          Exhibit 30-35 of Example Problem 1, both undivided with two through lanes and
+          no turn bays. Their computed delays reproduce the published 0.193 and 0.194
+          s/veh, and with them the published travel speed of 23.67 mi/h. The right-turn
+          branch is evaluated at the posted speed limit, which is what reproduces those
+          published values. The access-point counts entered under Geometry still drive
+          the free-flow speed adjustment f_A; the rows here drive only the Σ d_ap,i term.
+        </p>
+
+        {#if results && results.ap_computed}
+          <div class="w-full overflow-x-auto ap-out">
+            <table class="table seg-table w-full">
+              <thead>
+                <tr>
+                  <th>Access Point</th>
+                  <th>d_ap,l (s/veh)</th>
+                  <th>d_ap,r (s/veh)</th>
+                  <th>d_ap (s/veh)</th>
+                  <th title="Probability of the inside through lane being blocked, Equation 30-53">p_ov</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each results.ap_computed as d, i}
+                  <tr>
+                    <td>{i + 1}</td>
+                    <!-- Four decimals: the published Exhibit 30-35 pair is
+                         0.193 and 0.194, and rounding 0.1947 to three would
+                         print 0.195 and read as a disagreement. -->
+                    <td>{fmt(d.delay_left_s, 4)}</td>
+                    <td>{fmt(d.delay_right_s, 4)}</td>
+                    <td>{fmt(d.delay_total_s, 4)}</td>
+                    <td>{fmt(d.prob_inside_lane_blocked, 3)}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+            <p class="param-hint panel-note">Computed per access point by Equations 30-31 through 30-68. Their sum is the Σ d_ap,i reported under Outputs, which is why it reads 0.388 against the 0.387 of the published pair.</p>
+          </div>
+        {/if}
+      {/if}
     </section>
 
     <!-- Downstream boundary intersection -->
@@ -723,3 +901,14 @@
     </div>
   </section>
 </div>
+
+<style>
+  /* The approach table and its readout sit inside the access-point panel, so
+     they need the separation a sibling panel would have given them. */
+  .ap-head { margin-top: 1.25rem; }
+  .ap-title { font-size: 1rem; }
+  .ap-out { margin-top: 1rem; }
+  /* .param-hint is sized for the 16rem column of a single field; a note that
+     runs the width of a table needs the room. */
+  .panel-note { max-width: 46rem; }
+</style>

@@ -372,11 +372,16 @@
       The <strong>access-point turning delay</strong> selector picks the source for the
       Σ d_ap,i term of Equation 18-7. <strong>Measured or published delays</strong> takes a
       comma-separated delay per active access point, which is how the Chapter 30 Example
-      Problem 1 defaults reproduce the published Exhibit 30-36 results. <strong>Planning
-      estimate</strong> uses Exhibit 18-13 instead; leaving its fields blank applies the
-      exhibit's own baseline of 10% left and right turns and an influential access-point count
-      of N_ap,s + p_ap,lt × N_ap,o, which gives a higher delay and a slightly lower travel
-      speed than the per-point procedure.
+      Problem 1 defaults reproduce the published Exhibit 30-36 results.
+      <strong>Computed (Chapter 30 §4)</strong> derives the same per-point delays instead of
+      taking them, from one row per access-point approach giving the turn-in volumes, the lane
+      configuration, the opposing flow, and the turn bays. It prints each point's left, right,
+      and total delay along with the probability of the inside through lane being blocked, and
+      on the default approaches it lands on the same 0.193 and 0.194 s/veh the measured mode
+      supplies. <strong>Planning estimate</strong> uses Exhibit 18-13 instead; leaving its
+      fields blank applies the exhibit's own baseline of 10% left and right turns and an
+      influential access-point count of N_ap,s + p_ap,lt × N_ap,o, which gives a higher delay
+      and a slightly lower travel speed than the per-point procedure.
     </p>
     <p>
       <a href="/hcm16">Chapter 16</a> chains those segments into a facility in one direction of

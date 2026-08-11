@@ -840,6 +840,47 @@ test.describe('chapter 17 urban street reliability calculator', () => {
     await calculate.click();
     await expect.poll(() => meanTti(page), { timeout: 60_000 }).toBe(first);
   });
+
+  test('the facility strip selects segments, stays un-tinted, and toggles to 3D', async ({ page }) => {
+    // Chapter 17 exports no per-segment result, so the strip is the Chapter 16
+    // component with its LOS channel deliberately unused. This test is the
+    // guard on that: no deck may ever pick up a scored fill, before or after a
+    // run.
+    await page.goto('/hcm17');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    const diagram = page.locator('.uf-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /urban street facility, 6 segments upstream to downstream/);
+    // Six decks, seven boundary intersections, two subject-side access points
+    // drawn per segment.
+    await expect(page.locator('rect.uf-deck')).toHaveCount(6);
+    await expect(page.locator('rect.uf-cross')).toHaveCount(7);
+    await expect(page.locator('rect.uf-drive')).toHaveCount(12);
+
+    // Clicking a deck selects it and accents the matching segment card.
+    await page.locator('g.uf-seg').nth(2).click();
+    await expect(page.locator('.seg-panel').nth(2)).toHaveClass(/seg-selected/);
+    await expect(page.locator('g.uf-seg').nth(2)).toHaveClass(/selected/);
+    // Clicking the same deck again clears the selection.
+    await page.locator('g.uf-seg').nth(2).click();
+    await expect(page.locator('.seg-panel').nth(2)).not.toHaveClass(/seg-selected/);
+
+    await expect(page.locator('rect.uf-deck.scored')).toHaveCount(0);
+    await calculate.click();
+    await expect(row(page, 'Scenarios Evaluated')).toContainText('3120', { timeout: 60_000 });
+    // Still no tint after the run, and no LOS legend to imply one.
+    await expect(page.locator('rect.uf-deck.scored')).toHaveCount(0);
+    await expect(page.locator('.uf-diagram .uf-scale')).toHaveCount(0);
+    await expect(diagram).not.toHaveAttribute('aria-label', /level of service/);
+
+    // The 3D toggle swaps in the projected view, un-tinted there too.
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
+    await expect(page.locator('.uf3-wrap svg')).toHaveAttribute('aria-label', /urban street facility 3D view, 6 segments/);
+    await expect(page.locator('path.uf3-top')).toHaveCount(6);
+    await expect(page.locator('path.uf3-top.scored')).toHaveCount(0);
+  });
 });
 
 test.describe('chapter 18 urban street segment calculator', () => {
@@ -917,6 +958,57 @@ test.describe('chapter 18 urban street segment calculator', () => {
     // The 3D toggle swaps in the projected view.
     await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
     await expect(page.locator('.us-diagram-3d svg')).toHaveAttribute('aria-label', /urban street segment, 3D view/);
+  });
+
+  test('the computed Chapter 30 section 4 mode reproduces the published per-point delays', async ({ page }) => {
+    // Computed mode drives the Section 4 procedure from the two Exhibit 30-35
+    // approaches instead of taking their published delays as inputs. Library
+    // fixture UrbanSegments/case3.json, same expectations as case3 in
+    // tests/boundary/ch18_urban_segments.mjs: per-point 0.193 and 0.194 s/veh,
+    // inside-lane blockage probability 0.115 at both points, and the published
+    // Exhibit 30-36 travel speed of 23.67 mi/h.
+    await page.goto('/hcm18');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#APSRC_input').selectOption('computed');
+    // Two default approaches, carrying the Exhibit 30-35 adjusted volumes.
+    await expect(page.locator('#AVLT_input_0')).toHaveValue('74.8');
+    await expect(page.locator('#AVTH_input_1')).toHaveValue('991.7');
+    await expect(page.locator('#AVO_input_0')).toHaveValue('1086.15');
+    await expect(page.locator('#APT_input')).toHaveValue('0.25');
+    // The per-point delay field of measured mode is gone, so nothing published
+    // is being supplied on this path.
+    await expect(page.locator('#APD_input')).toHaveCount(0);
+
+    await calculate.click();
+
+    const row = (label: string) => page.locator('.results-panel tr', { hasText: label }).first();
+    await expect(row('Travel Speed')).toContainText('23.67');
+    await expect(row('Base Free-Flow Speed')).toContainText('40.78');
+    await expect(row('Through Delay')).toContainText('18.31');
+    // Σ d_ap,i = 0.1934 + 0.1947; the two per-point roundings accumulate
+    // against the published 0.387.
+    await expect(row('Access-Point Delay')).toContainText('0.388');
+    await expect(page.getByText(/Segment LOS: C/)).toBeVisible();
+
+    // The read-only per-point breakdown, one row per approach.
+    // The delay columns print four decimals on purpose: the computed 0.1947
+    // of the second point rounds to 0.195 at three, which reads as a
+    // disagreement with the published 0.194 rather than the rounding it is.
+    const out = page.locator('.ap-out tbody tr');
+    await expect(out).toHaveCount(2);
+    await expect(out.nth(0)).toContainText('0.193');
+    await expect(out.nth(0)).toContainText('0.115');
+    await expect(out.nth(1)).toContainText('0.194');
+    await expect(out.nth(1)).toContainText('0.115');
+
+    // Adding an approach adds a computed row, so the table follows the form
+    // rather than being pinned to the two defaults.
+    await page.getByRole('button', { name: 'Add Approach' }).click();
+    await expect(page.locator('#AVLT_input_2')).toHaveValue('0');
+    await calculate.click();
+    await expect(page.locator('.ap-out tbody tr')).toHaveCount(3);
   });
 });
 
