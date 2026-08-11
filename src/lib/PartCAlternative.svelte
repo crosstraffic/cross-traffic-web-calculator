@@ -1,6 +1,7 @@
 <script>
   import { WasmAlternativeIntersection, WasmDisplacedLeftTurn, edtt_stop_or_signal, dlt_offset } from "HCM-middleware";
   import RcutDiagram from '$lib/RcutDiagram.svelte';
+  import RcutSignalDiagram from '$lib/RcutSignalDiagram.svelte';
   import MutDiagram from '$lib/MutDiagram.svelte';
   import DltDiagram from '$lib/DltDiagram.svelte';
   import { setReport } from '$lib/report';
@@ -172,6 +173,7 @@
   const twelveLos = (of) => (results?.form === of
     ? Object.fromEntries(results.rows.map((m) => [m.label.toLowerCase().replace(' ', ''), m.los]))
     : {});
+  let rcutSignalLos = $derived(twelveLos('RcutSignal'));
   let mutLos = $derived(twelveLos('Mut'));
 
   // The DLT reports a single intersection LOS, so its diagram takes that
@@ -615,6 +617,7 @@
           <p class="panel-sub">Hourly turning-movement demands (Exhibit 34-130). The main street runs north-south on separate carriageways; the minor street is east-west and its left turns and through movements are rerouted through the U-turn crossovers. Equation 23-62 weights each movement by its flow rate rather than its raw demand, which is why the published intersection total is 3,500 veh/h while these demands sum to 3,250: dividing each demand by the 0.93 peak hour factor and rounding gives 3,497 veh/h of flow.</p>
         </div>
       </div>
+      <RcutSignalDiagram bind:demands={rcutSignal.demands} dist={rcutSignal.dist} losByMovement={rcutSignalLos} />
       <div class="param-grid">
         {#each OD_TWELVE as od (od.key)}
           <div class="param-field">

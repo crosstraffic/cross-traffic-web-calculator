@@ -1510,6 +1510,40 @@ test.describe('chapter 23 part C alternative intersections', () => {
     await expect(page.getByText(/Intersection LOS: C/)).toBeVisible();
   });
 
+  test('the signalized RCUT diagram isolates an approach, edits demands, and colours by LOS', async ({ page }) => {
+    await page.goto('/hcm23');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await page.locator('#PART_input').selectOption('C');
+    await page.locator('#PC_FORM_input').selectOption('RcutSignal');
+
+    const diagram = page.locator('.rs-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /four-legged with signals/);
+    // The four signalized junctions are what distinguishes this form from the
+    // three-legged STOP-controlled RCUT, so the picture has to carry all four.
+    await expect(diagram.locator('.rs-signal')).toHaveCount(4);
+
+    // Twelve chips would overwhelm the picture, so the legend groups the
+    // movements by approach and a hover isolates all three of that approach.
+    await page.locator('.rs-chip.chip-eb').hover();
+    await expect(page.locator('path.mv-ebl')).toHaveClass(/active/);
+    await expect(page.locator('path.mv-ebt')).toHaveClass(/active/);
+    await expect(page.locator('path.mv-nbt')).toHaveClass(/dim/);
+    await page.locator('.rs-note').hover();
+
+    // On-diagram demand editing two-way binds to the form field.
+    await page.locator('input[aria-label="EBT demand"]').fill('360');
+    await expect(page.locator('#PC_OD_ebt_input')).toHaveValue('360');
+
+    // After a run each path carries its own movement LOS as a class. The EB
+    // through is the movement the RCUT reroutes furthest, so it is the one
+    // worth asserting alongside a major-street movement that is not rerouted.
+    await page.locator('#PC_OD_ebt_input').fill('300');
+    await page.getByRole('button', { name: 'Calculate' }).click();
+    await expect(page.locator('path.mv-ebt')).toHaveClass(/los-[a-f]/);
+    await expect(page.locator('path.mv-sbt')).toHaveClass(/los-[a-f]/);
+  });
+
   test('the MUT form reproduces Example Problem 15', async ({ page }) => {
     // Chapter 34 Example Problem 15 (four-legged MUT): the Exhibit 34-137
     // junction delays enter as inputs, so Exhibit 34-138 reproduces exactly:
