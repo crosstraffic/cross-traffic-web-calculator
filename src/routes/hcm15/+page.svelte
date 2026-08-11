@@ -311,8 +311,13 @@
       // when the library centralized this. Safe to call after the loop above:
       // the binding restores the passing-lane bookkeeping the loop advanced.
       const fd_f = facility.determine_facility_follower_density();
-      const average_speed = s_tot / tot_len;
-      const facilityLos = facility.determine_facility_los(fd_f, average_speed);
+      // Exhibit 15-6 splits its LOS bands by POSTED SPEED LIMIT (its own
+      // column headers: ">= 50 mi/h" vs "< 50 mi/h"), not by average speed.
+      // The HCM defines no facility-level posted limit, so length-weight it
+      // (reduces to the common value when uniform), matching the library's
+      // corrected callers.
+      const weighted_spl = localRows.reduce((a, row) => a + Number(row.seg_spl) * Number(row.seg_length), 0) / tot_len;
+      const facilityLos = facility.determine_facility_los(fd_f, weighted_spl);
 
       results = { segs, facilityLos, facilityFd: r3(fd_f) };
 

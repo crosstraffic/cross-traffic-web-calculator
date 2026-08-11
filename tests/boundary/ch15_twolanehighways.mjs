@@ -271,7 +271,7 @@ for (let ci = 0; ci < cases.length; ci++) {
   // six, otherwise returns 14.936 instead of 19.897.
   {
     const hw = buildHighway(c);
-    let totLen = 0, sTot = 0;
+    let totLen = 0, sTot = 0, splTot = 0;
     for (let i = 0; i < nSeg; i++) {
       hw.determine_demand_flow(i);
       hw.determine_free_flow_speed(i);
@@ -285,10 +285,16 @@ for (let ci = 0; ci < cases.length; ci++) {
       const len = c.segments[i].length;
       totLen += len;
       sTot += s * len;
+      splTot += c.segments[i].spl * len;
     }
     const fdF = hw.determine_facility_follower_density();
     approx(fdF, EXPECTED.facilityFd[ci], 0.0005, `${tag} facility follower density`);
-    exact(hw.determine_facility_los(fdF, sTot / totLen),
+    // Exhibit 15-6 keys its higher/lower-speed bands on the POSTED SPEED
+    // LIMIT (its own column headers), so the length-weighted posted limit is
+    // passed, matching the library's corrected callers. All four fixtures
+    // post 55 uniformly, so this cannot move a letter here; it prevents the
+    // latent case (posted >= 50, average speed < 50, FD between the bands).
+    exact(hw.determine_facility_los(fdF, splTot / totLen),
       EXPECTED.facilityLos[ci], `${tag} facility LOS`);
 
     // Same facility, after the caller's own per-segment Step 9 loop.
