@@ -1,10 +1,19 @@
 // HCM Chapter 25, Example Problems 1 (undersaturated), 2 (oversaturated),
-// and 6 (planning-level method) — the Chapter 10 freeway facilities
-// methodology — through the WASM boundary. Expected values and tolerances
-// mirror transportations-library/tests/chapter10_integration.rs, which cites
-// the exhibit for each number (speeds/densities +-0.5, volumes +-40 in EP2,
-// LOS exact; VERIFY-HCM reproduction gaps are asserted at their computed
-// values exactly as the Rust tests do).
+// 3 (capacity improvements to the oversaturated facility), 4 (work zone,
+// partial — see the block below) and 6 (planning-level method) — the Chapter
+// 10 freeway facilities methodology — through the WASM boundary. Expected
+// values and tolerances mirror
+// transportations-library/tests/chapter10_integration.rs, which cites the
+// exhibit for each number (speeds/densities +-0.5, volumes +-40 in EP2, LOS
+// exact). Cells that reproduce the book are asserted at the published value;
+// cells that do not are pinned at the value this engine computes with the
+// published one named alongside, exactly as the Rust tests do, so a gap that
+// closes or widens fails rather than passing unnoticed.
+//
+// Anchored on the post-PR-#75 library, which scoped the Equation 25-12
+// front-clearing test to a restored bottleneck. That correction moved several
+// Example Problem 2 period-4 cells onto their published values; the additions
+// are marked "corrected engine" where they land.
 //
 // Example Problem 5 (managed lanes, ml_case1.json, Exhibits 25-78..25-87) is
 // OUT OF SCOPE for this boundary: the managed-lane binding was cut from the
@@ -184,10 +193,19 @@ function checkMatrix(getFn, expected, tol, label) {
     const tol = i >= 4 && i < 7 ? 1.5 : 0.5;
     approx(fac.get_density_veh(i, 2), e, tol, `EP2 density seg ${i + 1} p3`);
   });
+  // Period 4, segments 8-11: downstream of the bottleneck and unaffected by
+  // the queue-redistribution gap, so these carry their published values on the
+  // corrected engine. Segments 1-7 of this row compute
+  // 29.2/35.2/32.1/35.8/39.2/73.4/63.5 against a published
+  // 36.7/39.3/36.3/38.6/33.4/63.9/65.1 and stay in the VERIFY-HCM note above.
+  [40.4, 40.4, 38.2, 34.8].forEach((e, k) => {
+    approx(fac.get_density_veh(7 + k, 3), e, 0.5, `EP2 density seg ${8 + k} p4`);
+  });
 
   // Expanded LOS matrix (Exhibit 25-59): periods 1, 2, 3, 5 whole; period 4
-  // segments 6-11. Period-4 segments 1-5 are the documented gap (computed
-  // D/D/D/D/E vs published E/E/E/E/D) and are not asserted, same as Rust.
+  // segments 4 and 6-11. Period-4 segments 1-3 and 5 are the documented gap
+  // (computed D/D/D and E vs published E/E/E and D) and are not asserted, same
+  // as Rust.
   const losRows = [
     [0, ['D', 'D', 'D', 'D', 'D', 'D', 'D', 'D', 'E', 'D', 'D']],
     [1, ['D', 'D', 'E', 'D', 'D', 'E', 'E', 'E', 'E', 'D', 'E']],
@@ -197,6 +215,10 @@ function checkMatrix(getFn, expected, tol, label) {
   for (const [p, row] of losRows) {
     row.forEach((e, i) => exact(fac.get_los(i, p), e, `EP2 LOS seg ${i + 1} p${p + 1}`));
   }
+  // Segment 4 of period 4 reads the published E on the corrected engine; it
+  // was D before the Equation 25-12 front-clearing test was scoped to a
+  // restored bottleneck.
+  exact(fac.get_los(3, 3), 'E', 'EP2 LOS seg 4 p4');
   ['F', 'F', 'D', 'E', 'D', 'E'].forEach((e, k) => {
     exact(fac.get_los(5 + k, 3), e, `EP2 LOS seg ${6 + k} p4`);
   });
@@ -226,10 +248,14 @@ function checkMatrix(getFn, expected, tol, label) {
     approx(fac.get_facility_density_veh(p), k, 0.5, `EP2 facility density p${p + 1}`);
     exact(fac.get_facility_los(p), l, `EP2 facility LOS p${p + 1}`);
   });
-  // Overall totals at computed values (published 50.5 / 35.6; VERIFY-HCM
-  // period-4 queue-distribution gap, same as the Rust test).
-  approx(fac.get_overall_speed(), 49.3, 1.5, 'EP2 overall SMS (published 50.5)');
-  approx(fac.get_overall_density_veh(), 36.5, 1.5, 'EP2 overall density (published 35.6)');
+  // Overall totals: the residual VERIFY-HCM period-4 queue-distribution gap
+  // keeps these off the published 50.5 mi/h / 35.6 veh/mi/ln, so they are
+  // pinned at what the corrected engine measures here (49.30 / 36.53). The
+  // Rust test allows +-1.5 on the same pin; this band is the measurement
+  // precision instead, because a pinned value exists to fail when it moves and
+  // +-1.5 would swallow a real regression.
+  approx(fac.get_overall_speed(), 49.30, 0.05, 'EP2 overall SMS (VERIFY-HCM, published 50.5)');
+  approx(fac.get_overall_density_veh(), 36.53, 0.05, 'EP2 overall density (VERIFY-HCM, published 35.6)');
 
   // Queue lifecycle (the subset expressible through get_queue_length_ft):
   // Segment 7 queues in period 3 and every queue clears by period 5.
@@ -237,6 +263,146 @@ function checkMatrix(getFn, expected, tol, label) {
   for (let i = 0; i < 11; i++) {
     exact(fac.get_queue_length_ft(i, 4) < 1.0, true, `EP2 seg ${i + 1} queue cleared by p5`);
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Example Problem 3: capacity improvements to the oversaturated facility
+// (Exhibits 25-63 .. 25-68)
+//
+// case3.json differs from case2.json in two places: Segments 7-11 gain a lane,
+// and weaving Segment 6 drops to lc_rf = 0 because the added continuous lane
+// downstream means ramp traffic no longer has to change lanes to reach the
+// freeway. Both fields are carried by the WasmFacilitySegment constructor, so
+// this whole example problem reproduces through the boundary.
+//
+// Segment capacities (Exhibit 25-63) are the one EP3 Rust test with no
+// boundary equivalent: WasmFreewayFacility exposes no capacity getter. The
+// demand-to-capacity matrix below is the same quantity divided by demand, so
+// the capacities are checked indirectly rather than left unchecked.
+// ═══════════════════════════════════════════════════════════════════════
+{
+  const fx = loadCase('FreewayFacilities', 'case3.json');
+  const fac = buildFacility(fx);
+  fac.run_analysis();
+
+  // Adding the fourth lane removes every bottleneck (Exhibit 25-64).
+  exact(fac.is_oversaturated(), false, 'EP3 undersaturated after the improvement');
+  for (let p = 0; p < 5; p++) {
+    for (let i = 0; i < 11; i++) {
+      exact(fac.get_dc_ratio(i, p) <= 1.0 + 1e-9, true, `EP3 d/c seg ${i + 1} p${p + 1} <= 1`);
+    }
+  }
+
+  // Demand-to-capacity matrix (Exhibit 25-64), all 55 cells, +-0.01.
+  checkMatrix((i, p) => fac.get_dc_ratio(i, p), [
+    [0.74, 0.82, 0.82, 0.82, 0.77, 0.70, 0.60, 0.66, 0.66, 0.66, 0.62],
+    [0.82, 0.90, 0.90, 0.90, 0.84, 0.78, 0.68, 0.74, 0.74, 0.74, 0.71],
+    [0.86, 0.96, 0.96, 0.96, 0.92, 0.85, 0.74, 0.82, 0.82, 0.82, 0.77],
+    [0.77, 0.83, 0.83, 0.83, 0.79, 0.68, 0.59, 0.64, 0.64, 0.64, 0.61],
+    [0.62, 0.65, 0.65, 0.65, 0.61, 0.52, 0.47, 0.50, 0.50, 0.50, 0.48],
+  ], 0.01, 'EP3 d/c ratio');
+
+  // Speed matrix (Exhibit 25-65), all 55 cells, +-0.5 mi/h. The facility is
+  // globally undersaturated here, so every cell comes from the Chapter
+  // 12/13/14 segment methods directly rather than from the oversaturated
+  // engine — which is why all 55 reproduce where EP2's period 4 does not.
+  checkMatrix((i, p) => fac.get_speed(i, p), [
+    [59.8, 53.2, 58.6, 55.9, 59.5, 50.5, 60.0, 54.9, 54.9, 58.1, 60.0],
+    [58.6, 52.1, 55.8, 55.5, 57.9, 50.1, 60.0, 54.3, 54.3, 57.7, 60.0],
+    [57.4, 51.1, 53.1, 53.1, 55.2, 49.7, 59.8, 53.6, 53.6, 57.2, 59.5],
+    [59.5, 53.0, 58.3, 55.8, 59.2, 50.8, 60.0, 55.0, 55.0, 58.1, 60.0],
+    [60.0, 54.5, 59.7, 56.2, 60.0, 53.4, 60.0, 55.9, 55.9, 58.8, 60.0],
+  ], 0.5, 'EP3 speed');
+
+  // Density matrix (Exhibit 25-66), all 55 cells, +-0.5 veh/mi/ln.
+  checkMatrix((i, p) => fac.get_density_veh(i, p), [
+    [27.9, 34.5, 31.3, 32.8, 29.2, 28.7, 22.5, 26.8, 26.8, 25.4, 23.3],
+    [31.3, 39.0, 36.4, 36.7, 32.8, 32.5, 25.4, 30.9, 30.9, 29.0, 26.7],
+    [33.7, 42.4, 40.8, 40.8, 37.4, 35.7, 28.0, 34.5, 34.5, 32.4, 29.0],
+    [29.2, 35.2, 32.0, 33.4, 29.8, 28.1, 22.1, 26.4, 26.4, 24.9, 22.9],
+    [23.3, 26.9, 24.5, 26.1, 22.8, 20.6, 17.5, 20.1, 20.1, 19.1, 17.9],
+  ], 0.5, 'EP3 density');
+
+  // Segment LOS matrix (Exhibit 25-67), all 55 cells exact. The improvement
+  // pulls Segments 7-11 out of the D/E band Example Problem 2 produced.
+  [
+    ['D', 'D', 'D', 'D', 'D', 'D', 'C', 'C', 'D', 'C', 'C'],
+    ['D', 'D', 'E', 'D', 'D', 'D', 'C', 'C', 'D', 'C', 'D'],
+    ['D', 'D', 'E', 'D', 'E', 'E', 'D', 'D', 'D', 'D', 'D'],
+    ['D', 'D', 'D', 'D', 'D', 'D', 'C', 'C', 'D', 'C', 'C'],
+    ['C', 'C', 'C', 'C', 'C', 'C', 'B', 'B', 'C', 'B', 'B'],
+  ].forEach((row, p) => row.forEach((e, i) => {
+    exact(fac.get_los(i, p), e, `EP3 LOS seg ${i + 1} p${p + 1}`);
+  }));
+
+  // No cell of the facility exceeds demand, so no demand-based LOS F appears
+  // anywhere (Exhibit 25-64 read against Exhibit 10-6). This is the check that
+  // would catch the improvement being applied to the wrong segments.
+  if (has(fac, 'demand_based_los_matrix')) {
+    const dbl = fac.demand_based_los_matrix();
+    for (let p = 0; p < 5; p++) {
+      for (let i = 0; i < 11; i++) {
+        exact(dbl[i][p] ?? null, null, `EP3 demand-based LOS seg ${i + 1} p${p + 1}`);
+      }
+    }
+  }
+
+  // Facility performance summary (Exhibit 25-68). Every period reproduces
+  // within 0.03 mi/h, so space mean speed runs at +-0.1 rather than the file
+  // default.
+  [
+    [57.9, 26.8, 'D'],
+    [57.1, 30.3, 'D'],
+    [55.9, 33.5, 'D'],
+    [57.8, 26.9, 'D'],
+    [58.6, 20.8, 'C'],
+  ].forEach(([s, k, l], p) => {
+    approx(fac.get_facility_speed(p), s, 0.1, `EP3 facility SMS p${p + 1}`);
+    approx(fac.get_facility_density_veh(p), k, 0.5, `EP3 facility density p${p + 1}`);
+    exact(fac.get_facility_los(p), l, `EP3 facility LOS p${p + 1}`);
+  });
+  // Exhibit 25-68 totals: 57.5 mi/h, 27.7 veh/mi/ln. The overall space mean
+  // speed is demand-weighted across periods and computes 57.34, so it keeps a
+  // 0.2 band where the per-period values do not need one.
+  approx(fac.get_overall_speed(), 57.5, 0.2, 'EP3 overall SMS');
+  approx(fac.get_overall_density_veh(), 27.7, 0.5, 'EP3 overall density');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Example Problem 4: undersaturated facility with a work zone
+// (Exhibits 25-71 .. 25-77)
+//
+// NOT REPRODUCIBLE THROUGH THIS BOUNDARY, and the reason is a missing
+// constructor parameter rather than a missing getter. case4.json puts a
+// `work_zone` object on Segment 11 (three lanes to two open, plastic drums,
+// urban, daylight), and the core reads it in effective_caf/effective_saf to
+// apply CAF_wz = 0.892 and SAF_wz = 0.982 per Equations 10-7..10-12.
+// WasmFacilitySegment takes seg_type through daf and has no work_zone
+// argument, so the field is silently dropped: the facility still gets Segment
+// 11's two-lane cross section but at its full unadjusted capacity. Every
+// published EP4 exhibit depends on the adjusted capacity, so none of them can
+// be asserted here — the Rust ep4_* tests stay core-only until the wrapper
+// exists.
+//
+// What follows is a guard on that gap, not a reproduction check. It pins the
+// tell so that adding the work_zone binding fails this block and forces the
+// real EP4 matrices to be written, instead of the gap sitting unnoticed
+// because nothing referenced it.
+// ═══════════════════════════════════════════════════════════════════════
+{
+  const fx = loadCase('FreewayFacilities', 'case4.json');
+  exact(fx.segments[10].work_zone !== undefined, true, 'EP4 fixture carries a Segment 11 work zone');
+  const fac = buildFacility(fx);
+  fac.run_analysis();
+
+  // Exhibit 25-72 gives Segment 11 a period-1 demand-to-capacity ratio of
+  // 1.26, which only reproduces against the post-CAF capacity
+  // (4,499 x 0.892 = 4,013 veh/h). Dropping the work zone leaves the raw
+  // 4,499 and the ratio falls to 1.121 — the 0.892 factor exactly.
+  approx(fac.get_dc_ratio(10, 0), 1.121, 0.005,
+    'EP4 seg 11 d/c p1 without the work-zone binding (published 1.26)');
+  approx(fac.get_dc_ratio(10, 0) / 0.892, 1.26, 0.01,
+    'EP4 seg 11 d/c p1 recovers the published value when CAF_wz is applied');
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -305,4 +471,4 @@ function checkMatrix(getFn, expected, tol, label) {
 if (pendingRebuild.size) {
   console.log(`NOTE  skipped checks awaiting middleware wrapper work (getters not in any released version): ${[...pendingRebuild].join(', ')}`);
 }
-report('ch10 freeway facilities (HCM Ch.25 EP1, EP2, EP6; EP5 managed lanes out of binding scope)');
+report('ch10 freeway facilities (HCM Ch.25 EP1, EP2, EP3, EP6 full; EP4 work-zone binding absent; EP5 managed lanes out of binding scope)');

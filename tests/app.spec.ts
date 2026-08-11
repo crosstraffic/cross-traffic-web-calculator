@@ -333,7 +333,12 @@ test.describe('chapter 11 freeway reliability calculator', () => {
     await expect(cell('Mean TTI:')).toHaveText('1.264');
     await expect(cell('50th Percentile TTI:')).toHaveText('1.097');
     await expect(cell('95th Percentile TTI (PTI):')).toHaveText('1.698');
-    await expect(page.getByText(/Reliability Rating: 62\.9/)).toBeVisible();
+    // 62.8 since library PR #75 scoped the Equation 25-12 front-clearing test
+    // to a restored bottleneck; it read 62.9 before. The rating is the share of
+    // observations under a TTI threshold, so it is the one metric here that a
+    // handful of reclassified scenarios can move — mean TTI, the median, and
+    // PTI above are all unchanged to three decimals on the same run.
+    await expect(page.getByText(/Reliability Rating: 62\.8/)).toBeVisible();
   });
 });
 
