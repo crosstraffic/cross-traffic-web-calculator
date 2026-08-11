@@ -9,7 +9,7 @@
   
   /**
    * @typedef {Object} Props
-   * @property {number} [viewW] - as FreewaySegment3D and FacilityView.
+   * @property {number} [viewW] - as FreewaySegment3D and the two-lane facility view.
    * @property {number} [viewH]
    * @property {string} [ariaLabel]
    * @property {number} [defYaw]

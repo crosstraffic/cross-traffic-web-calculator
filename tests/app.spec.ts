@@ -1387,4 +1387,139 @@ test.describe('chapter 15 two-lane highway calculator', () => {
     await expect(page.locator('.facility-seg').first()).toHaveClass(/seg-selected/);
     await expect(page.locator('.facility-seg').nth(1)).not.toHaveClass(/seg-selected/);
   });
+
+  test('the 3D facility slabs select in sync with the strip and the table', async ({ page }) => {
+    await fillTwoLane(page, CASE3_TWOLANE);
+
+    // Every segment gets its own slab, which is what makes one selectable at
+    // all: the predecessor drew the facility as a single continuous surface.
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
+    const decks = page.locator('path.tl3-deck');
+    await expect(decks).toHaveCount(5);
+    await expect(page.locator('.tl3-wrap svg')).toHaveAttribute('aria-label', /two-lane highway facility 3D view, 5 segments/);
+
+    // A tap (press and release in place) selects; the camera keeps drags.
+    await decks.nth(2).click({ force: true });
+    await expect(decks.nth(2)).toHaveClass(/selected/);
+    await expect(page.locator('.seg-table tbody tr').nth(2)).toHaveClass(/seg-selected/);
+
+    // The 2D strip shows the same selection when the view swaps back.
+    await page.locator('.view-toggle .vt-btn', { hasText: '2D' }).click();
+    await expect(page.locator('.facility-seg').nth(2)).toHaveClass(/seg-selected/);
+
+    // And a strip pick carries into 3D.
+    await page.locator('.facility-seg').nth(4).click();
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
+    await expect(page.locator('path.tl3-deck').nth(4)).toHaveClass(/selected/);
+  });
+
+  test('the published examples print the same values as before the refactor', async ({ page }) => {
+    // Chapter 15 Example Problem 1 (fixture case1) and the five-segment
+    // facility (fixture case3), the same inputs tests/boundary/ch15_*.mjs
+    // drives through the WASM boundary. These are the exact strings the page
+    // printed before it was rewritten off direct DOM writes, so any drift in
+    // the engine or in the porting of the calculation shows up here.
+    await fillTwoLane(page, CASE1_TWOLANE);
+    await expectTwoLaneOutputs(page, {
+      ffs: ['56.833'],
+      avgspd: ['53.676'],
+      pf: ['67.714'],
+      fd: ['10.092'],
+      seglos: ['D'],
+      los: 'Facility LOS: D',
+      fdF: 'Facility Follower Density: 10.092',
+    });
+
+    await fillTwoLane(page, CASE3_TWOLANE);
+    await expectTwoLaneOutputs(page, {
+      ffs: ['62.434', '62.434', '62.434', '62.45', '62.434'],
+      avgspd: ['58.812', '57.834', '58.878', '59.225', '58.873'],
+      pf: ['69.69', '60.689', '67.993', '67.801', '67.666'],
+      fd: ['10.715', '2.831', '8.251', '8.237', '8.764'],
+      seglos: ['D', 'B', 'D', 'D', 'D'],
+      los: 'Facility LOS: C',
+      fdF: 'Facility Follower Density: 7.271',
+    });
+  });
+
+  test('a completed run opens a printable report with the facility strip', async ({ page }) => {
+    await fillTwoLane(page, CASE3_TWOLANE);
+
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page.locator('.report-title')).toHaveText('Two-Lane Highways');
+    await expect(page.locator('.report-los .los-badge')).toHaveText('C');
+    // The report carries the facility, LOS chips and all, not a bare table.
+    await expect(page.locator('.report-diagram .facility-seg')).toHaveCount(5);
+    await expect(page.locator('.report-diagram .facility-seg .tls-los').first()).toHaveText('D');
+  });
 });
+
+type TwoLaneSeg = {
+  type: string;
+  length: string;
+  grade: string;
+  spl: string;
+  vi: string;
+  vo: string;
+  vc: string;
+  phf: string;
+  phv: string;
+};
+
+const CASE1_TWOLANE: TwoLaneSeg[] = [
+  { type: 'Passing Constrained', length: '0.75', grade: '0', spl: '50', vi: '752', vo: '0', vc: '1', phf: '0.94', phv: '5' },
+];
+
+const CASE3_TWOLANE: TwoLaneSeg[] = [
+  { type: 'Passing Constrained', length: '0.75', grade: '0', spl: '55', vi: '850', vo: '0', vc: '1', phf: '0.94', phv: '8' },
+  { type: 'Passing Lane', length: '1.5', grade: '0', spl: '55', vi: '825', vo: '0', vc: '1', phf: '0.95', phv: '8' },
+  { type: 'Passing Constrained', length: '1.0', grade: '0', spl: '55', vi: '820', vo: '0', vc: '1', phf: '0.95', phv: '8' },
+  { type: 'Passing Zone', length: '0.5', grade: '0', spl: '55', vi: '800', vo: '500', vc: '1', phf: '0.94', phv: '7.5' },
+  { type: 'Passing Constrained', length: '1.75', grade: '0', spl: '55', vi: '795', vo: '0', vc: '1', phf: '0.935', phv: '8' },
+];
+
+// Loads /hcm15, enters a facility, and runs it. The passing type goes in first
+// because changing it resets that segment's demand volumes.
+async function fillTwoLane(page: Page, segs: TwoLaneSeg[]) {
+  await page.goto('/hcm15');
+  const calculate = page.getByRole('button', { name: 'Calculate' });
+  await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+  for (let i = 1; i < segs.length; i++) {
+    await page.getByRole('button', { name: '+ Add Segment' }).first().click();
+  }
+
+  await page.locator('#LW_input').fill('12');
+  await page.locator('#SW_input').fill('6');
+  await page.locator('#APD_input').fill('0');
+  await page.locator('#PMHVFL_input').fill('0.4');
+
+  for (let i = 0; i < segs.length; i++) {
+    const n = i + 1;
+    const s = segs[i];
+    await page.locator(`#passing_type${n}`).selectOption(s.type);
+    await page.locator(`#seg_length${n}`).fill(s.length);
+    await page.locator(`#seg_grade${n}`).fill(s.grade);
+    await page.locator(`#seg_Spl${n}`).fill(s.spl);
+    await page.locator(`#vi_input${n}`).fill(s.vi);
+    await page.locator(`#vo_input${n}`).fill(s.vo);
+    await page.locator(`#vc_select${n}`).selectOption(s.vc);
+    await page.locator(`#PHF_input${n}`).fill(s.phf);
+    await page.locator(`#PHV_input${n}`).fill(s.phv);
+  }
+  await calculate.click();
+  await expect(page.locator('#seglos1')).not.toBeEmpty();
+}
+
+async function expectTwoLaneOutputs(
+  page: Page,
+  want: { ffs: string[]; avgspd: string[]; pf: string[]; fd: string[]; seglos: string[]; los: string; fdF: string }
+) {
+  for (const key of ['ffs', 'avgspd', 'pf', 'fd', 'seglos'] as const) {
+    for (let i = 0; i < want[key].length; i++) {
+      await expect(page.locator(`#${key}${i + 1}`)).toHaveText(want[key][i]);
+    }
+  }
+  await expect(page.locator('#los')).toHaveText(want.los);
+  await expect(page.locator('#fdF')).toHaveText(want.fdF);
+}

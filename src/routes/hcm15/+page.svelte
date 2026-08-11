@@ -5,25 +5,24 @@
 <script>
   import { preventDefault } from 'svelte/legacy';
 
-  import Row from '../Row/+page.svelte';
-  import SubRow from '../SubRow/+page.svelte';
-  import Calc from '../Calc/+page.svelte';
-  import RoadDiagram from '../RoadDiagram/+page.svelte';
-  import FacilityView from '../FacilityView/+page.svelte';
-  import ViewToggle from '$lib/ViewToggle.svelte';
   import init, { WasmSegment, WasmSubSegment, WasmTwoLaneHighways } from "HCM-middleware";
+  import RoadDiagram from '$lib/RoadDiagram.svelte';
+  import TwoLaneStrip from '$lib/TwoLaneStrip.svelte';
+  import TwoLaneFacility3D from '$lib/TwoLaneFacility3D.svelte';
+  import ViewToggle from '$lib/ViewToggle.svelte';
+  import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
-  let lane_width = $state(12);
-  let shoulder_width = $state(6);
-  let apd = $state(2);
-  let pmhvfl = $state(0);
-  let localRows = $state([]);
+  let ready = $state(false);
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
-    localRows = [{
-      seg_num: 1,
+    ready = true;
+  });
+
+  function blankSegment(seg_num) {
+    return {
+      seg_num,
       passing_type: '',
       seg_length: '',
       seg_grade: '0',
@@ -34,195 +33,97 @@
       vertical_class: '1',
       phf: '0.95',
       phv: '5',
-      subrows: [{
-        subseg_num: 1,
-        subseg_length: '0',
-        design_radius: '0',
-        superelevation: '0'
-      }]
-    }];
-  });
+      // Subsegment lengths are in FEET while the segment length above is in
+      // miles. The unit labels in both tables say so; the engine expects it.
+      subrows: [{ subseg_num: 1, subseg_length: '0', design_radius: '0', superelevation: '0' }],
+    };
+  }
 
-  let toggle_seg = -1;
+  let lane_width = $state(12);
+  let shoulder_width = $state(6);
+  let apd = $state(2);
+  let pmhvfl = $state(0);
+  let localRows = $state([blankSegment(1)]);
+
   let facilityExpanded = $state(false);
   let facilityMode = $state('2d');
   let selectedSeg = $state(-1);
 
-  // Show microsimulation
-  // function simResults() {
-
-  //   var wasmSubSegment = [WasmSubSegment.new(0.0, 0.0, 0, 0.0, 0.0)];
-  //   console.log(wasmSubSegment);
-  //   console.log(wasmSubSegment[0].get_avg_speed());
-  //   var wasmSegment = [WasmSegment.new(0, 0.75, 0.0, 50.0, false, 752.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0, 1, wasmSubSegment, 0.94, 5.0, 0.0, 0.0, 0)];
-  //   console.log(wasmSegment);
-  //   console.log(wasmSegment[0].get_length());
-  //   var wasmTwoLaneHighways = WasmTwoLaneHighways.new(wasmSegment, 12.0, 6.0, 0.0, 0.4, 0.0, 0.0);
-  //   console.log(wasmTwoLaneHighways)
-  //   console.log(wasmTwoLaneHighways.identify_vertical_class(0));
-  //   console.log(wasmTwoLaneHighways.determine_demand_flow(0));
-
-  // }
-
+  let results = $state(null);
+  let hasError = $state(false);
+  let errMessage = $state('');
 
   function addSegment() {
-    const newSubrows = [{
-        subseg_num: 1,
-        subseg_length: '0',
-        design_radius: '0',
-        superelevation: '0'
-    }];
-    const newSegNum = localRows.length + 1;
-
-    localRows = [
-      ...localRows,
-      {
-        seg_num: newSegNum,
-        subrows: newSubrows,
-        passing_type: '',
-        seg_length: '',
-        seg_grade: '0',
-        seg_spl: '',
-        is_hc: false,
-        vi: '0',
-        vo: '0',
-        vertical_class: '1',
-        phf: '0.95',
-        phv: '5',
-      }
-    ];
+    localRows = [...localRows, blankSegment(localRows.length + 1)];
   }
 
   function removeSegment() {
     if (localRows.length > 1) {
       localRows = localRows.slice(0, localRows.length - 1);
+      if (selectedSeg >= localRows.length) selectedSeg = -1;
     }
   }
 
   function changeSegment(seg_num) {
-    localRows = localRows.map(row => {
+    localRows = localRows.map((row) => {
       if (row.seg_num !== seg_num) return row;
+      // Demand volumes get a starting point that suits the new passing type.
+      return { ...row, vi: '1000', vo: row.passing_type === 'Passing Constrained' ? '1500' : '0' };
+    });
+  }
 
-      // default demand volumes based on passing type
-      let vi = '1000';
-      let vo = '0';
-
-      if (row.passing_type === 'Passing Constrained') {
-        vo = '1500';
-      }
-
+  function addSubSegment(seg_num) {
+    localRows = localRows.map((row) => {
+      if (row.seg_num !== seg_num) return row;
       return {
         ...row,
-        vi,
-        vo
+        subrows: [
+          ...row.subrows,
+          { subseg_num: row.subrows.length + 1, subseg_length: '0', design_radius: '0', superelevation: '0' },
+        ],
       };
     });
   }
 
-  // Toggle HC param slider
-  function toggleHCParams(seg_num, checked) {
-    
-    if (checked) {
-      if (toggle_seg == -1 || toggle_seg == seg_num) {
-        toggle_seg = seg_num;
-      } else {
-        console.log('Cannot toggle more than one');
-      }
-    } else {
-      if (toggle_seg == seg_num) {
-        toggle_seg = -1;
-      }
-    }
-  }
-
-  // If check horizontal curves button
-  function changeHC(seg_num, checked){
-    if (checked) {
-      toggle_seg = seg_num;
-      toggleHCParams(seg_num, checked);
-    }
-
-    if (!checked && (toggle_seg === seg_num)) {
-      toggle_seg = -1;
-    }
-  }
-
-  function addSubSegment(_seg_num) {
-    localRows = localRows.map(row => {
-      if (row.seg_num !== _seg_num) return row;
-
-      const newSubrows = [
-        ...row.subrows,
-        {
-          subseg_num: row.subrows.length + 1,
-          subseg_length: '0',
-          design_radius: '0',
-          superelevation: '0'
-        }
-      ];
-
-      return { ...row, subrows: newSubrows };
+  function removeSubSegment(seg_num) {
+    localRows = localRows.map((row) => {
+      if (row.seg_num !== seg_num || row.subrows.length <= 1) return row;
+      return { ...row, subrows: row.subrows.slice(0, row.subrows.length - 1) };
     });
   }
 
-  function removeSubSegment(_seg_num) {
-      localRows = localRows.map(row => {
-      if (row.seg_num !== _seg_num) return row;
-
-      if (row.subrows.length > 1) {
-        return {
-          ...row,
-          subrows: row.subrows.slice(0, row.subrows.length - 1)
-        };
-      }
-      return row;
-    });
-  }
-
-  let hasError = $state(false);
-  let isSuccessVisible = false;
-  let submitted = false;
-  let errMessage = $state("Here is the error");
-
-  function handleSubmit(){
-    submitted = true;
-    isSuccessVisible = true;
-
-    setTimeout(function(){
-        isSuccessVisible = false;
-    }, 4000);
+  function selectSeg(i) {
+    selectedSeg = selectedSeg === i ? -1 : i;
   }
 
   let json;
-	
-	async function jsonInputHandler(e) {
-		const file = e.target.files?.[0];
-		if (!file) {
-			json = null;
-			return;
-		}
-		
-    try {
 
-      const result = await readJsonFile(file);
-      json = result;
+  async function jsonInputHandler(e) {
+    const file = e.target.files?.[0];
+    if (!file) {
+      json = null;
+      return;
+    }
+
+    try {
+      json = await readJsonFile(file);
       fillInJsonValue(json);
+      hasError = false;
     } catch (err) {
       console.error("Error reading JSON file:", err);
       json = null;
       hasError = true;
       errMessage = "Invalid JSON file. Please upload a valid file.";
     }
-	}
+  }
 
-	function readJsonFile(file) {
+  function readJsonFile(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
 
       reader.onload = () => {
         try {
-          const parsed = JSON.parse(reader.result);
-          resolve(parsed);
+          resolve(JSON.parse(reader.result));
         } catch (err) {
           reject(new Error("Invalid JSON structure."));
         }
@@ -231,40 +132,36 @@
       reader.onerror = () => reject(new Error("File reading error."));
       reader.readAsText(file);
     });
-	}
+  }
 
-  async function fillInJsonValue(json) {
-
+  function fillInJsonValue(json) {
     lane_width = json.lane_width;
     shoulder_width = json.shoulder_width;
     apd = json.apd;
     pmhvfl = json.pmhvfl;
     const passTypes = ["Passing Constrained", "Passing Zone", "Passing Lane"];
 
-    localRows = json.segments.map((segment, index) => {
-
-      const passTypeText = passTypes[segment.passing_type] ?? "";
-
-      return {
-        seg_num: index + 1,
-        seg_length: segment.length,
-        seg_grade: segment.grade,
-        seg_spl: segment.spl,
-        is_hc: segment.is_hc,
-        vi: segment.volume,
-        vo: segment.volume_op,
-        vertical_class: segment.vertical_class,
-        phf: segment.phf,
-        phv: segment.phv,
-        passing_type: passTypeText,
-        subrows: segment.subsegments.map((subseg, j) => ({
-          subseg_num: j + 1,
-          subseg_length: subseg.length,
-          design_radius: subseg.design_radius,
-          superelevation: subseg.superelevation
-        }))
-      };
-    });
+    localRows = json.segments.map((segment, index) => ({
+      seg_num: index + 1,
+      seg_length: segment.length,
+      seg_grade: segment.grade,
+      seg_spl: segment.spl,
+      is_hc: segment.is_hc,
+      vi: segment.volume,
+      vo: segment.volume_op,
+      vertical_class: segment.vertical_class,
+      phf: segment.phf,
+      phv: segment.phv,
+      passing_type: passTypes[segment.passing_type] ?? "",
+      subrows: segment.subsegments.map((subseg, j) => ({
+        subseg_num: j + 1,
+        subseg_length: subseg.length,
+        design_radius: subseg.design_radius,
+        superelevation: subseg.superelevation,
+      })),
+    }));
+    results = null;
+    selectedSeg = -1;
   }
 
   function jsonOutputHandler() {
@@ -299,9 +196,9 @@
           design_radius: subrow.design_radius,
           superelevation: subrow.superelevation,
           avg_speed: 0.0,
-          hor_class: 0
-        }))
-      }))
+          hor_class: 0,
+        })),
+      })),
     };
 
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(jsonData));
@@ -316,45 +213,153 @@
     shoulder_width = 6;
     apd = 2;
     pmhvfl = 0;
-
-    localRows = [{
-      seg_num: 1,
-      passing_type: "",
-      seg_length: "",
-      seg_grade: "0",
-      seg_spl: "",
-      is_hc: false,
-      vi: "0",
-      vo: "0",
-      vertical_class: "1",
-      phf: "0.95",
-      phv: "5",
-      subrows: [{
-        subseg_num: 1,
-        subseg_length: 0,
-        design_radius: 0,
-        superelevation: 0
-      }]
-    }];
-
-
-    // Reset result fields
-    const resultKeys = ["ffs", "avgspd", "pf", "fd", "seglos"];
-    resultKeys.forEach((key) => {
-      for (let i = 1; i <= localRows.length; i++) {
-        const el = document.getElementById(`${key}${i}`);
-        if (el) el.innerText = "";
-      }
-    });
-    const los = document.getElementById("los");
-    const fdF = document.getElementById("fdF");
-    if (los) los.innerHTML = "Facility LOS: ";
-    if (fdF) fdF.innerHTML = "Facility Follower Density: ";
+    localRows = [blankSegment(1)];
+    selectedSeg = -1;
+    results = null;
+    hasError = false;
   }
 
+  const r3 = (v) => Math.round(v * 1000) / 1000;
+  const r2 = (v) => Math.round(v * 100) / 100;
 
+  function runAnalysis() {
+    hasError = false;
+    results = null;
+
+    try {
+      const wasmSegment = localRows.map((row) => {
+        // Left undefined when no type is picked, so an incomplete segment
+        // reaches the engine the same way it always has rather than as a
+        // plausible-looking index.
+        let passing_type;
+        if (row.passing_type === "Passing Constrained") passing_type = 0;
+        else if (row.passing_type === "Passing Zone") passing_type = 1;
+        else if (row.passing_type === "Passing Lane") passing_type = 2;
+
+        // The subsegment constructor order is (length, avg_speed, design_rad,
+        // central_angle, hor_class, sup_ele), which is NOT the core
+        // SubSegment::new order. Lengths here are feet.
+        const wasmSubSegment = (row.is_hc && row.subrows.length > 0)
+          ? row.subrows.map((subrow) => new WasmSubSegment(
+              parseFloat(String(subrow.subseg_length)),
+              0,
+              parseFloat(String(subrow.design_radius)),
+              0,
+              0,
+              parseFloat(String(subrow.superelevation))
+            ))
+          : [new WasmSubSegment()];
+
+        // spl is the POSTED speed limit, not the free-flow speed.
+        return new WasmSegment(
+          parseInt(passing_type), row.seg_length, row.seg_grade, row.seg_spl, row.is_hc,
+          row.vi, row.vo, 0.0, 0.0, 0, 0.0, 0.0, row.vertical_class, wasmSubSegment,
+          row.phf, row.phv, 0.0, 0.0, 0.0, 0
+        );
+      });
+
+      const facility = new WasmTwoLaneHighways(wasmSegment, lane_width, shoulder_width, apd, pmhvfl);
+
+      const segs = [];
+      let fd_f = 0, s_tot = 0, tot_len = 0;
+
+      for (let i = 0; i < localRows.length; i++) {
+        facility.identify_vertical_class(i);
+        const [, , capacity] = facility.determine_demand_flow(i);
+        facility.determine_vertical_alignment(i);
+        const ffs = facility.determine_free_flow_speed(i);
+        const [s] = facility.estimate_average_speed(i);
+        const pf = facility.estimate_percent_followers(i);
+
+        // A passing lane reports its midpoint follower density; every other
+        // segment reports the plain value, or the adjusted one when it falls
+        // inside the effective length downstream of a passing lane.
+        // determine_adjustment_to_follower_density runs for every segment,
+        // passing lanes included, because it advances the engine's
+        // passing-lane bookkeeping that later segments read.
+        const isPl = facility.get_segments()[i].passing_type == 2;
+        let fd_out, fd;
+        if (isPl) {
+          const [, fd_mid] = facility.determine_follower_density_pl(i);
+          fd_out = fd_mid;
+        } else {
+          fd = facility.determine_follower_density_pc_pz(i);
+        }
+        const fd_adj = facility.determine_adjustment_to_follower_density(i);
+        if (!isPl) {
+          fd_out = fd_adj > 0.0 ? fd_adj : fd;
+        }
+
+        const seg_len = facility.get_segments()[i].length;
+        fd_f += fd_out * seg_len;
+        s_tot += s * seg_len;
+        tot_len += seg_len;
+
+        segs.push({
+          ffs: r3(ffs),
+          avgspd: r3(s),
+          pf: r3(pf),
+          fd: r3(fd_out),
+          los: facility.determine_segment_los(i, s, capacity),
+        });
+      }
+
+      fd_f = fd_f / tot_len;
+      const average_speed = s_tot / tot_len;
+      const facilityLos = facility.determine_facility_los(fd_f, average_speed);
+
+      results = { segs, facilityLos, facilityFd: r3(fd_f) };
+
+      setReport({
+        chapter: 'Two-Lane Highways',
+        chapterRef: 'HCM Chapter 15',
+        href: '/hcm15',
+        generatedAt: new Date().toLocaleString(),
+        headline: { label: 'Facility LOS', value: facilityLos },
+        inputs: [
+          { label: 'Lane width', value: `${lane_width} ft` },
+          { label: 'Shoulder width', value: `${shoulder_width} ft` },
+          { label: 'Access point density', value: `${apd} /mi` },
+          { label: 'Heavy vehicles in passing lane', value: `${pmhvfl} %` },
+          { label: 'Segments', value: localRows.length },
+        ],
+        resultTable: {
+          columns: ['Quantity', ...segs.map((_, i) => `Segment ${i + 1}`)],
+          rows: [
+            ['Free-flow speed (mi/h)', ...segs.map((r) => r2(r.ffs))],
+            ['Average speed (mi/h)', ...segs.map((r) => r2(r.avgspd))],
+            ['Percent followers (%)', ...segs.map((r) => r2(r.pf))],
+            ['Follower density (followers/mi)', ...segs.map((r) => r2(r.fd))],
+            ['Segment LOS', ...segs.map((r) => r.los)],
+          ],
+        },
+        summary: [
+          { label: 'Facility LOS', value: facilityLos },
+          { label: 'Facility follower density', value: `${r3(fd_f)} followers/mi` },
+        ],
+        methodology: [
+          'HCM 7th Edition Chapter 15 (Two-Lane Highways).',
+          'Service measure: follower density (followers/mi); the facility value is length-weighted across segments.',
+          'Level of service is keyed on follower density; thresholds depend on posted speed (see the HCM).',
+        ],
+        diagram: {
+          kind: 'twolane',
+          props: {
+            rows: JSON.parse(JSON.stringify(localRows)),
+            laneWidth: Number(lane_width),
+            results: JSON.parse(JSON.stringify(results)),
+          },
+        },
+      });
+    } catch (err) {
+      console.error('Chapter 15 analysis failed:', err);
+      hasError = true;
+      errMessage = typeof err === 'string'
+        ? err
+        : (err && err.message) || 'The analysis could not be completed with the given inputs. Check the values and try again.';
+    }
+  }
 </script>
-
 
 <div class="hcm-page">
   <header class="page-header">
@@ -372,11 +377,7 @@
     </div>
   {/if}
 
-  <form
-    id="hcm15"
-    class="submitted:opacity-50 transition-opacity duration-300"
-    onsubmit={preventDefault(handleSubmit)}
-  >
+  <form id="hcm15" onsubmit={preventDefault(runAnalysis)}>
     <!-- Import -->
     <section class="panel">
       <div class="panel-head">
@@ -408,31 +409,165 @@
         </div>
       </div>
       <div class="w-full overflow-x-auto">
-      <table class="table seg-table w-full">
-        <thead>
-          <tr>
-            <!-- <th>Active</th> -->
-            <th>#</th>
-            <th>Passing Type</th>
-            <th>Length</th>
-            <th>Grade</th>
-            <th>Posted Speed</th>
-            <th>Horiz. Curves</th>
-            <th>Horiz. Params</th>
-            <th>Demand Vol.</th>
-            <th>Opposing Vol.</th>
-            <th>Vertical Class</th>
-            <th>PHF</th>
-            <th>% Heavy Veh.</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each localRows as row, i (row.seg_num)}
-            <Row bind:row={localRows[i]} seg_num={row.seg_num} changeSegment={changeSegment} changeHC={changeHC} toggleHCParams={toggleHCParams}
-                 selected={selectedSeg === i} onselect={() => (selectedSeg = i)} />
-          {/each}
-        </tbody>
-      </table>
+        <table class="table seg-table w-full">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Passing Type</th>
+              <th>Length</th>
+              <th>Grade</th>
+              <th>Posted Speed</th>
+              <th>Horiz. Curves</th>
+              <th>Demand Vol.</th>
+              <th>Opposing Vol.</th>
+              <th>Vertical Class</th>
+              <th>PHF</th>
+              <th>% Heavy Veh.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each localRows as row, i (row.seg_num)}
+              <tr class="subseg{row.seg_num}" class:seg-selected={selectedSeg === i} onclick={() => (selectedSeg = i)}>
+                <td><span class="seg-no">{row.seg_num}</span></td>
+                <td>
+                  <select
+                    class="select select-bordered select-sm passing_type"
+                    id="passing_type{row.seg_num}"
+                    name="pass_type"
+                    bind:value={localRows[i].passing_type}
+                    onchange={() => changeSegment(row.seg_num)}
+                    required
+                  >
+                    <option value="" disabled selected>Select type</option>
+                    <option>Passing Constrained</option>
+                    <option>Passing Zone</option>
+                    <option>Passing Lane</option>
+                  </select>
+                </td>
+                <td>
+                  <div class="cell-field">
+                    <input
+                      type="text"
+                      id="seg_length{row.seg_num}"
+                      name="seg_len"
+                      bind:value={localRows[i].seg_length}
+                      placeholder="0.0"
+                      class="input input-bordered input-sm seg_length"
+                      pattern="[+]?([0-9]|[0-9]*([.][0-9][0-9]*)|[1-9]|[1-9][0-9])$"
+                      autocomplete="off"
+                      required />
+                    <span class="unit">mi</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="cell-field">
+                    <input
+                      type="text"
+                      id="seg_grade{row.seg_num}"
+                      name="grade"
+                      bind:value={localRows[i].seg_grade}
+                      placeholder="0"
+                      class="input input-bordered input-sm seg_grade"
+                      pattern="[+\-]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+                      autocomplete="off"
+                      required />
+                    <span class="unit">%</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="cell-field">
+                    <input
+                      type="text"
+                      id="seg_Spl{row.seg_num}"
+                      name="posted speed"
+                      bind:value={localRows[i].seg_spl}
+                      placeholder="0"
+                      class="input input-bordered input-sm seg_spl"
+                      pattern="[+]?([1-9]|[1-9][0-9]|[1-9][0-9][0-9])$"
+                      autocomplete="off"
+                      required />
+                    <span class="unit">mph</span>
+                  </div>
+                </td>
+                <td class="cell-center">
+                  <input
+                    type="checkbox"
+                    class="checkbox checkbox-sm is_hc"
+                    id="is_hc{row.seg_num}"
+                    name="hor_cur"
+                    bind:checked={localRows[i].is_hc}
+                  />
+                </td>
+                <td>
+                  <div class="cell-field">
+                    <input
+                      type="text"
+                      id="vi_input{row.seg_num}"
+                      name="vd"
+                      bind:value={localRows[i].vi}
+                      placeholder="0"
+                      class="input input-bordered input-sm vi_input"
+                      pattern="[+]?([0-9]*|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
+                      autocomplete="off"
+                      required />
+                    <span class="unit">veh/h</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="cell-field">
+                    <input
+                      type="text"
+                      id="vo_input{row.seg_num}"
+                      name="vo"
+                      bind:value={localRows[i].vo}
+                      placeholder="0"
+                      class="input input-bordered input-sm vo_input"
+                      pattern="[+]?([0-9]*|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
+                      autocomplete="off"
+                      required />
+                    <span class="unit">veh/h</span>
+                  </div>
+                </td>
+                <td>
+                  <select class="select select-bordered select-sm" id="vc_select{row.seg_num}" name="ver_cls" bind:value={localRows[i].vertical_class} required>
+                    <option>1</option>
+                    <option>2</option>
+                    <option>3</option>
+                    <option>4</option>
+                    <option>5</option>
+                  </select>
+                </td>
+                <td>
+                  <div class="cell-field">
+                    <input
+                      type="text"
+                      id="PHF_input{row.seg_num}"
+                      placeholder="0.95"
+                      class="input input-bordered input-sm PHF_input"
+                      bind:value={localRows[i].phf}
+                      pattern="[+]?([0-9]*([.][0-9]*))$"
+                      autocomplete="off"
+                      required />
+                  </div>
+                </td>
+                <td>
+                  <div class="cell-field">
+                    <input
+                      type="text"
+                      id="PHV_input{row.seg_num}"
+                      placeholder="5"
+                      class="input input-bordered input-sm PHV_input"
+                      bind:value={localRows[i].phv}
+                      pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
+                      autocomplete="off"
+                      required />
+                    <span class="unit">%</span>
+                  </div>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -444,7 +579,6 @@
           <p class="panel-sub">Facility-wide values and horizontal-curve subsegments.</p>
         </div>
       </div>
-      <!-- Parameter Inputs -->
       <div class="param-grid">
         <div class="param-field">
           <label for="LW_input">Lane Width</label>
@@ -512,9 +646,9 @@
         </div>
       </div>
 
-      <!-- Segment Subtables -->
+      <!-- Horizontal-curve subsegments, one card per segment that has them -->
       <div class="hc-subtables">
-        {#each localRows as row}
+        {#each localRows as row, i (row.seg_num)}
           {#if row.is_hc}
             <div class="hc-card" id="hc_table{row.seg_num}">
               <div class="hc-card-head">
@@ -536,7 +670,50 @@
                 </thead>
                 <tbody>
                   {#each row.subrows as subrow, si}
-                    <SubRow bind:subrow={row.subrows[si]} subseg_num={subrow.subseg_num} />
+                    <tr>
+                      <td><span class="seg-no">{subrow.subseg_num}</span></td>
+                      <td>
+                        <div class="cell-field">
+                          <input
+                            type="text"
+                            placeholder="0"
+                            id="subseg_len{subrow.subseg_num}"
+                            name="subseg_len"
+                            class="subseg_len{subrow.subseg_num} input input-bordered input-sm"
+                            pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
+                            bind:value={localRows[i].subrows[si].subseg_length}
+                            autocomplete="off" />
+                          <!-- feet, unlike the segment length above -->
+                          <span class="unit">ft</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="cell-field">
+                          <input
+                            type="text"
+                            placeholder="0"
+                            id="design_radius{subrow.subseg_num}"
+                            class="design_radius{subrow.subseg_num} input input-bordered input-sm"
+                            pattern="[+]?([0-9]*([.][0-9]*)|[0-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
+                            bind:value={localRows[i].subrows[si].design_radius}
+                            autocomplete="off" />
+                          <span class="unit">ft</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="cell-field">
+                          <input
+                            type="text"
+                            placeholder="0"
+                            id="superelevation{subrow.subseg_num}"
+                            class="superelevation{subrow.subseg_num} input input-bordered input-sm"
+                            pattern="[+\-]?([0-9]*([.][0-9]*)|[0-9]|[1-9][0-9])$"
+                            bind:value={localRows[i].subrows[si].superelevation}
+                            autocomplete="off" />
+                          <span class="unit">%</span>
+                        </div>
+                      </td>
+                    </tr>
                   {/each}
                 </tbody>
               </table>
@@ -554,7 +731,7 @@
           <p class="panel-sub">
             {facilityExpanded
               ? 'Edit each segment here. Changes stay in sync with the Segments table.'
-              : 'Visual sequence of the configured segments. Expand to edit them here.'}
+              : 'Visual sequence of the configured segments. Select one in either view to highlight its row. Expand to edit them here.'}
           </p>
         </div>
         <div class="panel-actions">
@@ -576,28 +753,10 @@
 
       <div class="facility-overview" class:flat={facilityMode === '2d'}>
         {#if facilityMode === '3d'}
-          <FacilityView rows={localRows} laneWidth={lane_width} />
+          <TwoLaneFacility3D rows={localRows} laneWidth={lane_width} {results}
+                             selected={selectedSeg} onselect={selectSeg} />
         {:else}
-          <div class="facility-strip" id="seg_imgs">
-            {#each localRows as row, i}
-              <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-              <div class="facility-seg" class:seg-selected={selectedSeg === i}
-                   style="flex: {Number(row.seg_length) > 0 ? Number(row.seg_length) : 1} 1 0;"
-                   role="button" tabindex="-1"
-                   onclick={() => (selectedSeg = selectedSeg === i ? -1 : i)}>
-                <div class="facility-seg-head">
-                  <span class="seg-no">{row.seg_num}</span>
-                  <span class="facility-seg-type">{row.passing_type || 'Not set'}</span>
-                </div>
-                <div class="facility-seg-img">
-                  <RoadDiagram type={row.passing_type} />
-                </div>
-                <div class="facility-seg-len">
-                  {Number(row.seg_length) > 0 ? row.seg_length + ' mi' : '—'}
-                </div>
-              </div>
-            {/each}
-          </div>
+          <TwoLaneStrip rows={localRows} {results} selected={selectedSeg} onselect={selectSeg} />
         {/if}
       </div>
 
@@ -679,12 +838,7 @@
                   </span>
                 </label>
                 <label class="ff ff-check">
-                  <input
-                    type="checkbox"
-                    class="checkbox checkbox-sm"
-                    bind:checked={localRows[i].is_hc}
-                    onchange={(e) => changeHC(row.seg_num, e.target.checked)}
-                  />
+                  <input type="checkbox" class="checkbox checkbox-sm" bind:checked={localRows[i].is_hc} />
                   <span>Horizontal curves</span>
                 </label>
               </div>
@@ -698,71 +852,70 @@
     <div class="action-bar">
       <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
       <button class="btn btn-outline" onclick={jsonOutputHandler} id="jsonOutput" type="button">Export as JSON</button>
-      <Calc {lane_width} {shoulder_width} {apd} {pmhvfl} rows_len={localRows.length} rows={localRows}/>
+      <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
     </div>
-
   </form>
 
-  <!-- <canvas id="simulation-canvas"></canvas> -->
-  <pre id="simulation-canvas"></pre>
-
   <section class="panel results-panel">
-    <div class="panel-head">
+    <div class="panel-head with-actions">
       <div>
         <h2 class="panel-title">Outputs</h2>
         <p class="panel-sub">Results populate after pressing Calculate.</p>
       </div>
+      {#if results}
+        <div class="panel-actions">
+          <a class="btn btn-outline btn-sm" href="/report">Open printable report</a>
+        </div>
+      {/if}
     </div>
-  <div class="los overflow-x-auto">
-    <table class="table w-full">
-      <thead>
-        <tr>
-          <th></th>
-          {#each localRows as row}
-            <th>Segment {row.seg_num}</th>
-          {/each}
-        </tr>
-      </thead>
+    <div class="los overflow-x-auto">
+      <table class="table w-full">
+        <thead>
+          <tr>
+            <th></th>
+            {#each localRows as row}
+              <th>Segment {row.seg_num}</th>
+            {/each}
+          </tr>
+        </thead>
 
-      <tbody>
-        <tr>
-          <th id="ffs">Free-flow Speed (mi/hr): </th>
-          {#each localRows as row}
-            <td id="ffs{row.seg_num}"></td>
-          {/each}
-        </tr>
-        <tr>
-          <th id="avgspd">Average Speed (mi/hr): </th>
-          {#each localRows as row}
-            <td id="avgspd{row.seg_num}"></td>
-          {/each}
-        </tr>
-        <tr>
-          <th id="pf">Percent followers in the <br> analysis direction (%): </th>
-          {#each localRows as row}
-            <td id="pf{row.seg_num}"></td>
-          {/each}
-        </tr>
-        <tr>
-          <th id="fd">Followers Density (followers/mi): </th>
-          {#each localRows as row}
-            <td id="fd{row.seg_num}"></td>
-          {/each}
-        </tr>
-        <tr>
-          <th id="seglos">Segment LOS: </th>
-          {#each localRows as row}
-            <td id="seglos{row.seg_num}"></td>
-          {/each}
-        </tr>
-      </tbody>
-    </table>
-    <div class="facility-summary">
-      <p id="los">Facility LOS: </p>
-      <p id="fdF">Facility Follower Density: </p>
-      <p id="error">Error Message: </p>
+        <tbody>
+          <tr>
+            <th id="ffs">Free-flow Speed (mi/hr): </th>
+            {#each localRows as row, i}
+              <td id="ffs{row.seg_num}">{results && results.segs[i] ? results.segs[i].ffs : ''}</td>
+            {/each}
+          </tr>
+          <tr>
+            <th id="avgspd">Average Speed (mi/hr): </th>
+            {#each localRows as row, i}
+              <td id="avgspd{row.seg_num}">{results && results.segs[i] ? results.segs[i].avgspd : ''}</td>
+            {/each}
+          </tr>
+          <tr>
+            <th id="pf">Percent followers in the <br> analysis direction (%): </th>
+            {#each localRows as row, i}
+              <td id="pf{row.seg_num}">{results && results.segs[i] ? results.segs[i].pf : ''}</td>
+            {/each}
+          </tr>
+          <tr>
+            <th id="fd">Followers Density (followers/mi): </th>
+            {#each localRows as row, i}
+              <td id="fd{row.seg_num}">{results && results.segs[i] ? results.segs[i].fd : ''}</td>
+            {/each}
+          </tr>
+          <tr>
+            <th id="seglos">Segment LOS: </th>
+            {#each localRows as row, i}
+              <td id="seglos{row.seg_num}">{results && results.segs[i] ? results.segs[i].los : ''}</td>
+            {/each}
+          </tr>
+        </tbody>
+      </table>
+      <div class="facility-summary">
+        <p id="los">Facility LOS: {results ? results.facilityLos : ''}</p>
+        <p id="fdF">Facility Follower Density: {results ? results.facilityFd : ''}</p>
+      </div>
     </div>
-  </div>
   </section>
-
 </div>

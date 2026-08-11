@@ -15,20 +15,38 @@ export function planProjector(yawDeg, pitchDeg) {
   };
 }
 
+// Same rotation as planProjector, with an elevation term so a model that
+// carries height (road grade, superelevation banking) projects as height
+// rather than as a plan offset. Plan-only diagrams keep using planProjector;
+// both are accepted by fitTransform.
+export function planProjector3(yawDeg, pitchDeg) {
+  const ay = (yawDeg * Math.PI) / 180;
+  const ap = (pitchDeg * Math.PI) / 180;
+  const cay = Math.cos(ay), say = Math.sin(ay), cap = Math.cos(ap), sap = Math.sin(ap);
+  return (x, y, z = 0) => {
+    const x1 = x * cay - y * say;
+    const y1 = x * say + y * cay;
+    return { x: x1, y: -(y1 * cap + z * sap) };
+  };
+}
+
 // Rotation-invariant fit: scale from the plan bounding radius (so zooming the
 // camera around does not rescale), centered on the projected bounding box.
+// Points may be [x, y] or [x, y, z]; a plan-only projector ignores the z and
+// the elevation span collapses to zero, which leaves 2D models unchanged.
 export function fitTransform(project, planPts, viewW, viewH, pad, zoom, panX, panY, thick, fill = 1.28) {
-  const xs = planPts.map((p) => p[0]), ys = planPts.map((p) => p[1]);
+  const xs = planPts.map((p) => p[0]), ys = planPts.map((p) => p[1]), zs = planPts.map((p) => p[2] || 0);
   const rad = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) || 1;
-  const sc = Math.min((viewW - 2 * pad) / rad, (viewH - 2 * pad) / rad) * fill * zoom;
-  const pr = planPts.map(([x, y]) => project(x, y));
+  const spanZ = Math.max(...zs) - Math.min(...zs);
+  const sc = Math.min((viewW - 2 * pad) / rad, (viewH - 2 * pad) / (rad + spanZ)) * fill * zoom;
+  const pr = planPts.map((p) => project(p[0], p[1], p[2] || 0));
   const pxs = pr.map((p) => p.x), pys = pr.map((p) => p.y);
   const cxp = (Math.min(...pxs) + Math.max(...pxs)) / 2;
   const cyp = (Math.min(...pys) + Math.max(...pys)) / 2;
   const ox = viewW / 2 - cxp * sc + panX;
   const oy = viewH / 2 - cyp * sc + panY - thick / 2;
-  return (x, y) => {
-    const p = project(x, y);
+  return (x, y, z = 0) => {
+    const p = project(x, y, z);
     return { x: p.x * sc + ox, y: p.y * sc + oy };
   };
 }
@@ -59,7 +77,7 @@ export function cSample(p0, c1, c2, p1, n = 16) {
 
 // Path-string builders over a fitted transform.
 export function makeDrawers(tf, thick) {
-  const pt = ([x, y]) => tf(x, y);
+  const pt = ([x, y, z = 0]) => tf(x, y, z);
   const fmt = (p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
   const polygon = (pts) => 'M' + pts.map((p) => fmt(pt(p))).join(' L') + ' Z';
   const polyline = (pts) => 'M' + pts.map((p) => fmt(pt(p))).join(' L');

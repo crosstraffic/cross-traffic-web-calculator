@@ -2,7 +2,7 @@
 // Runs the four TwoLaneHighways fixture cases (case1..case4, the published
 // HCM Chapter 15 / Chapter 26 example-problem inputs used by the core tests)
 // through WasmSubSegment / WasmSegment / WasmTwoLaneHighways exactly the way
-// the production UI does (src/routes/Calc/+page.svelte), and asserts the same
+// the production UI does (src/routes/hcm15/+page.svelte), and asserts the same
 // step-by-step values as transportations-library/tests/twolanehighways_test.rs.
 //
 // Known binding footguns exercised here:

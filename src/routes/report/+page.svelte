@@ -8,7 +8,7 @@
   import { onMount } from 'svelte';
   import { reports, lastKey, loadReports } from '$lib/report';
   import FreewaySegment3D from '../FreewaySegment3D/+page.svelte';
-  import FacilityView from '../FacilityView/+page.svelte';
+  import TwoLaneStrip from '$lib/TwoLaneStrip.svelte';
   import WeavingDiagram from '$lib/WeavingDiagram.svelte';
   import RampDiagram from '$lib/RampDiagram.svelte';
   import SignalizedDiagram from '$lib/SignalizedDiagram.svelte';
@@ -121,7 +121,7 @@
 
       {#if current.diagram}
         <section class="report-section">
-          <h2>{current.diagram.kind === 'urban-facility' ? 'Facility' : 'Segment'}</h2>
+          <h2>{current.diagram.kind === 'urban-facility' || current.diagram.kind === 'twolane' ? 'Facility' : 'Segment'}</h2>
           <div class="report-diagram">
             {#if current.diagram.kind === 'freeway'}
               <FreewaySegment3D
@@ -132,7 +132,7 @@
                 lcR={current.diagram.props.lcR}
               />
             {:else if current.diagram.kind === 'twolane'}
-              <FacilityView rows={current.diagram.props.rows} laneWidth={current.diagram.props.laneWidth} />
+              <TwoLaneStrip rows={current.diagram.props.rows} results={current.diagram.props.results ?? null} interactive={false} />
             {:else if current.diagram.kind === 'weaving'}
               <WeavingDiagram
                 weavingType={current.diagram.props.weavingType}
