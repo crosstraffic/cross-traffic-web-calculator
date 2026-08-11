@@ -1320,17 +1320,29 @@ test.describe('chapter 23 interchange calculator', () => {
     // The page defaults are HCM Chapter 34, Example Problem 1 (conventional
     // diamond). The library integration suite holds the O-D delays and ETTs
     // within 1.0 s/veh of Exhibit 34-16 with LOS exact; the engine prints an
-    // interchange ETT of 52.4 s/veh, LOS C, and O-D A at 47.9 s ETT LOS C.
+    // interchange ETT of 50.4 s/veh, LOS C, and O-D A at 47.7 s ETT LOS C.
+    //
+    // Both dropped under library 0.3.1 (middleware 0.3.5), which evaluates the
+    // Equation 19-26 incremental delay d2 with the Step 7 lane group capacity
+    // instead of the per-lane capacity: interchange ETT was 52.4 and O-D A was
+    // 47.9 before. The published Exhibit 34-16 values are 52.4 and 47.5, and
+    // Example Problem 1 is the one worked example whose published d2
+    // reproduces only per-lane, so it is treated as a book defect outvoted by
+    // the equation text and by Example Problems 3 and 5. Every LOS letter here
+    // still matches the published one.
     await page.goto('/hcm23');
     const calculate = page.getByRole('button', { name: 'Calculate' });
     await expect(calculate).toBeEnabled({ timeout: 30_000 });
     await calculate.click();
 
     const rowA = page.locator('.results-panel tbody tr', { has: page.locator('th:text-is("A")') }).first();
-    await expect(rowA).toContainText('47.9');
+    await expect(rowA).toContainText('47.7');
     await expect(rowA).toContainText('C');
     await expect(page.getByText(/Interchange LOS: C/)).toBeVisible();
-    await expect(page.getByText(/52\.4/).first()).toBeVisible();
+    // Scoped to the interchange ETT row: the previous bare /52\.4/ page-wide
+    // match also hit two unrelated cells carrying the same digits.
+    await expect(page.locator('tr', { hasText: 'Interchange Experienced Travel Time' }))
+      .toContainText('50.4');
 
     await page.getByRole('link', { name: 'Open printable report' }).click();
     await expect(page.locator('.report-title')).toHaveText('Ramp Terminals and Alternative Intersections');
@@ -1338,9 +1350,17 @@ test.describe('chapter 23 interchange calculator', () => {
 
   test('the DDI form loads Example Problem 5 and reproduces its answer', async ({ page }) => {
     // Switching to the diverging diamond loads Chapter 34 Example Problem 5
-    // as defaults. The engine's demand-weighted interchange ETT is 34.8 s/veh
-    // LOS C against the published 34.9 C (library-documented delta), with the
-    // known O-D E band difference recorded in the library suite.
+    // as defaults. The engine's demand-weighted interchange ETT is 29.8 s/veh
+    // LOS B against the published 34.9 C (library-documented deviation), down
+    // from 34.8 C before library 0.3.1 evaluated the Equation 19-26
+    // incremental delay with the lane group capacity. That correction is what
+    // makes O-D E reproduce its published 24.7 s/veh and LOS B exactly, since
+    // it runs entirely on the 3-lane external crossover at X = 0.84. The
+    // westbound O-Ds run short and carry the aggregate down, but their
+    // Exhibit 34-64 movement delays are already documented in the library
+    // suite as not reproducible from the printed equations. The Exhibit 23-10
+    // B/C boundary is 30 s/veh, so the aggregate lands 0.2 s/veh on the far
+    // side of it and grades B against the published C.
     await page.goto('/hcm23');
     const calculate = page.getByRole('button', { name: 'Calculate' });
     await expect(calculate).toBeEnabled({ timeout: 30_000 });
@@ -1350,8 +1370,9 @@ test.describe('chapter 23 interchange calculator', () => {
     await expect(page.locator('.dd-diagram svg')).toHaveAttribute('aria-label', /diverging diamond/);
     await calculate.click();
 
-    await expect(page.getByText(/Interchange LOS: C/)).toBeVisible();
-    await expect(page.getByText(/34\.8/).first()).toBeVisible();
+    await expect(page.getByText(/Interchange LOS: B/)).toBeVisible();
+    await expect(page.locator('tr', { hasText: 'Interchange Experienced Travel Time' }))
+      .toContainText('29.8');
 
     // Lane configuration drives the geometry: dropping EB to two shared
     // lanes removes a lane line and merges the E left onto the through lane.
