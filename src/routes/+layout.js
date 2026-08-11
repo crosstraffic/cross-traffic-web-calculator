@@ -4,7 +4,7 @@ import { redirect } from '@sveltejs/kit';
 // exists in the repo but is not exposed publicly yet — a direct visit (or any
 // navigation) is redirected to the home page. Runs on both the server (typed
 // URL / bookmark) and the client. Add a route here to release it.
-const RELEASED = new Set(['/hcm10', '/hcm11', '/hcm12', '/hcm13', '/hcm14', '/hcm15', '/hcm16', '/hcm17', '/hcm18', '/hcm19', '/hcm20', '/hcm21', '/hcm22', '/hcm23', '/hcm24']);
+const RELEASED = new Set(['/hcm10', '/hcm11', '/hcm12', '/hcm12ml', '/hcm13', '/hcm14', '/hcm15', '/hcm16', '/hcm17', '/hcm18', '/hcm19', '/hcm20', '/hcm21', '/hcm22', '/hcm23', '/hcm24']);
 
 export function load({ url }) {
   const path = url.pathname.replace(/\/+$/, '') || '/';

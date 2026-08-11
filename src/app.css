@@ -517,6 +517,13 @@ a.chapter-row:hover {
     flex-shrink: 0;
 }
 
+/* Chapter sections that are their own page carry a suffix ("12ML"), which needs a step down in
+   size to stay inside the same 2.5rem gutter the bare numbers use. */
+.chapter-no-sub {
+    font-size: 0.8rem;
+    letter-spacing: -0.02em;
+}
+
 .chapter-body {
     display: flex;
     flex-direction: column;

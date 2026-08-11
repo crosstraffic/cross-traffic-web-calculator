@@ -119,6 +119,15 @@
       <span class="chapter-status available">Available</span>
     </a>
 
+    <a class="chapter-row" href="/hcm12ml">
+      <span class="chapter-no chapter-no-sub">12ML</span>
+      <span class="chapter-body">
+        <span class="chapter-name">Basic Managed Lane Segments</span>
+        <span class="chapter-desc">Capacity, speed, density, and level of service for a managed lane, including the friction effect of the adjacent general purpose lanes</span>
+      </span>
+      <span class="chapter-status beta">Beta</span>
+    </a>
+
     <a class="chapter-row" href="/hcm13">
       <span class="chapter-no">13</span>
       <span class="chapter-body">

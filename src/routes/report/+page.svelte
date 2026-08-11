@@ -18,6 +18,7 @@
   import PathDiagram from '$lib/PathDiagram.svelte';
   import UrbanSegmentDiagram from '$lib/UrbanSegmentDiagram.svelte';
   import UrbanFacilityDiagram from '$lib/UrbanFacilityDiagram.svelte';
+  import ManagedLaneDiagram from '$lib/ManagedLaneDiagram.svelte';
 
   onMount(() => { if (!Object.keys($reports).length) loadReports(); });
 
@@ -163,6 +164,8 @@
               <PathDiagram {...current.diagram.props} editable={false} />
             {:else if current.diagram.kind === 'urban-segment'}
               <UrbanSegmentDiagram {...current.diagram.props} editable={false} />
+            {:else if current.diagram.kind === 'managed-lane'}
+              <ManagedLaneDiagram {...current.diagram.props} />
             {:else if current.diagram.kind === 'urban-facility'}
               <UrbanFacilityDiagram
                 segments={current.diagram.props.segments}

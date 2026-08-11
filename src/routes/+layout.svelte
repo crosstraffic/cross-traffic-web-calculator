@@ -94,6 +94,7 @@
                 <li><a href="/hcm10">Freeway Facilities</a></li>
                 <li><a href="/hcm11">Freeway Reliability (Beta)</a></li>
                 <li><a href="/hcm12">Basic Freeway Segments</a></li>
+                <li><a href="/hcm12ml">Basic Managed Lane Segments (Beta)</a></li>
                 <li><a href="/hcm13">Freeway Weaving Segments</a></li>
                 <li><a href="/hcm14">Freeway Merge and Diverge Segments</a></li>
                 <li><a href="/hcm15">Two-Lane Highways</a></li>
@@ -130,6 +131,7 @@
               <li><a href="/hcm10">Freeway Facilities</a></li>
               <li><a href="/hcm11">Freeway Reliability (Beta)</a></li>
               <li><a href="/hcm12">Basic Freeway Segments</a></li>
+              <li><a href="/hcm12ml">Basic Managed Lane Segments (Beta)</a></li>
               <li><a href="/hcm13">Freeway Weaving Segments</a></li>
                 <li><a href="/hcm14">Freeway Merge and Diverge Segments</a></li>
               <li><a href="/hcm15">Two-Lane Highways</a></li>
