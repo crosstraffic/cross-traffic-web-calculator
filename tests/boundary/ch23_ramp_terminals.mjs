@@ -10,9 +10,10 @@
 //   Equation 23-69 weighted delay (Chapter 34 Example Problem 16, partial
 //   DLT; Exhibit 34-145), via the WasmDisplacedLeftTurn flat constructor.
 // * Inline configs — Part C RCUT journeys via WasmAlternativeIntersection:
-//   Example Problem 13 (STOP, Exhibits 34-128/34-129), Example Problem 14
-//   (signals, Exhibits 34-130/34-133), and MUT Example Problem 15 (Exhibits
-//   34-137/34-138), plus the EDTT / offset helper functions.
+//   Example Problem 12 (merges, Exhibits 34-123/34-125 with the results in
+//   the EP12 prose), Example Problem 13 (STOP, Exhibits 34-128/34-129),
+//   Example Problem 14 (signals, Exhibits 34-130/34-133), and MUT Example
+//   Problem 15 (Exhibits 34-137/34-138), plus the EDTT / offset helpers.
 import { loadWasm, loadCase, approx, exact, report } from './_harness.mjs';
 
 const m = await loadWasm();
@@ -209,6 +210,78 @@ function od(ods, mv, label) {
   exact(w.get_los(), 'C', 'EP16 DLT LOS');
 }
 
+// ── Example Problem 12: four-legged RCUT with merges ──────────────────────
+// Journeys per the bottom of Exhibit 23-48. The main street runs east-west,
+// so the eastbound and westbound movements are the major ones and the
+// northbound and southbound movements are the rerouted minor ones. The
+// minor-street lefts and throughs meet only free-flow merges, which is why
+// the book writes their control delay as "(0 + 0)" and their whole ETT comes
+// from the Equation 23-58 extra distance travel time; the two major-street
+// left turns are the only movements with control delay, taken from the
+// Chapter 20 gap-acceptance results quoted in the example (11.2 and 15.0
+// s/veh) since the book does not publish their conflicting flows.
+//
+// Demands are Exhibit 34-123 (D_t = D_f = 2,000 ft, storage 300 ft, PHF
+// 0.92, S_f = 60 mi/h, no trucks or grades). The eastbound and westbound
+// left readings are pinned by Exhibit 34-125, whose 130 and 196 veh/h
+// crossover flows are 120/0.92 and 180/0.92, and the minor-street approach
+// totals by Exhibit 34-124 (250 southbound, 490 northbound). The
+// southbound and northbound left/right readings are interchangeable here
+// because both approaches carry equal left and right demands.
+//
+// EP12 publishes its per-movement results as prose rather than a table
+// (there is no Exhibit 34-129 equivalent), and it publishes no Equation
+// 23-62 intersection aggregate, so nothing is asserted for the aggregate.
+{
+  const merge = () => ({ type: 'merge' });
+  const prov = (d) => ({ type: 'provided', control_delay_s: d });
+  const phf = 0.92;
+  const edttLeft = m.edtt_merge(2000, 2000, 60, 10);
+  const edttThrough = m.edtt_merge(2000, 2000, 60, 15);
+  approx(edttLeft, 55.4, 0.05, 'EP12 EDTT minor left (Equation 23-58, a = 10)');
+  approx(edttThrough, 60.4, 0.05, 'EP12 EDTT minor through (Equation 23-58, a = 15)');
+  const mv = (label, approach, demand, junctions, ed) => ({
+    label, approach, demand_veh_h: Math.round(demand / phf), edtt_s: ed, junctions,
+  });
+  const ix = new m.WasmAlternativeIntersection({
+    form: 'RcutFourLeg',
+    movements: [
+      mv('EB L', 'Eb', 120, [prov(11.2)], 0),
+      mv('EB T', 'Eb', 800, [], 0),
+      mv('EB R', 'Eb', 220, [], 0),
+      mv('WB L', 'Wb', 180, [prov(15.0)], 0),
+      mv('WB T', 'Wb', 500, [], 0),
+      mv('WB R', 'Wb', 110, [], 0),
+      mv('NB L', 'Nb', 200, [merge(), merge()], edttLeft),
+      mv('NB T', 'Nb', 90, [merge(), merge()], edttThrough),
+      mv('NB R', 'Nb', 200, [merge()], 0),
+      mv('SB L', 'Sb', 100, [merge(), merge()], edttLeft),
+      mv('SB T', 'Sb', 50, [merge(), merge()], edttThrough),
+      mv('SB R', 'Sb', 100, [merge()], 0),
+    ],
+  });
+  const rows = ix.movement_results_to_js_value();
+  const expected = [
+    ['EB L', 11.2, 'B'], ['WB L', 15.0, 'B'],
+    ['EB T', 0.0, 'A'], ['WB T', 0.0, 'A'],
+    ['EB R', 0.0, 'A'], ['WB R', 0.0, 'A'],
+    ['NB L', 55.4, 'E'], ['SB L', 55.4, 'E'],
+    ['NB T', 60.4, 'E'], ['SB T', 60.4, 'E'],
+    ['NB R', 0.0, 'A'], ['SB R', 0.0, 'A'],
+  ];
+  for (const [label, ett, los] of expected) {
+    const r = rows.find((x) => x.label === label);
+    approx(r.ett_s, ett, 0.05, `EP12 ETT ${label}`);
+    exact(r.los, los, `EP12 LOS ${label}`);
+  }
+  // A merge junction contributes no control delay, which is the whole point
+  // of the RCUT-with-merges form: the minor movements pay in distance only.
+  for (const label of ['NB L', 'NB T', 'SB L', 'SB T']) {
+    const r = rows.find((x) => x.label === label);
+    approx(r.total_control_delay_s, 0.0, 1e-12, `EP12 merge delay ${label}`);
+  }
+}
+
 // ── Example Problem 13: three-legged RCUT with STOP signs ─────────────────
 // Movement journeys per the bottom of Exhibit 23-49, with the Exhibit 34-128
 // junction inputs (flow-rate conversion, conflicting flows, and adjusted
@@ -361,4 +434,4 @@ function od(ods, mv, label) {
   approx(off.offset_supp_s, 45.2, 0.1, 'EP16 O_SUPP (Equations 23-66 to 23-68)');
 }
 
-report('ch23 ramp terminals + Part C (HCM Ch.34 EP1, EP5, EP13, EP14, EP15, EP16)');
+report('ch23 ramp terminals + Part C (HCM Ch.34 EP1, EP5, EP12, EP13, EP14, EP15, EP16)');

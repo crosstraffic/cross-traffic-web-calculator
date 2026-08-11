@@ -1448,6 +1448,47 @@ test.describe('chapter 23 part C alternative intersections', () => {
     await expect(page.locator('path.mv-ebl')).toHaveClass(/los-[a-f]/);
   });
 
+  test('the signalized RCUT form reproduces Example Problem 14', async ({ page }) => {
+    // Chapter 34 Example Problem 14 (four-legged RCUT with signals): the twelve
+    // Exhibit 34-132 junction delays enter as inputs, so Exhibit 34-133
+    // reproduces exactly. Equation 23-62 weights by flow rate, not raw demand:
+    // the Exhibit 34-130 demands sum to 3,250 veh/h and the published total of
+    // 3,500 is the flow-rate total. The engine lands at 22.854 s/veh, which
+    // prints as 22.9 at one decimal against the book's rounded 22.8.
+    await page.goto('/hcm23');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await page.locator('#PART_input').selectOption('C');
+    await page.locator('#PC_FORM_input').selectOption('RcutSignal');
+    await expect(page.locator('#PC_DIST_input')).toHaveValue('800');
+    await expect(page.locator('#PC_PHF_input')).toHaveValue('0.93');
+    await expect(page.locator('#PC_OD_sbt_input')).toHaveValue('1900');
+    await expect(page.locator('#PC_DJ_wM_ebR_input')).toHaveValue('35.1');
+    await expect(page.locator('#PC_DJ_eM_sbL_input')).toHaveValue('10.8');
+    await expect(page.getByText(/demands sum to 3,250/)).toBeVisible();
+    await page.getByRole('button', { name: 'Calculate' }).click();
+
+    const results = page.locator('.results-panel');
+    const row = (label: string) =>
+      results.locator('tbody tr', { has: page.locator(`th:text-is("${label}")`) }).first();
+    // Exhibit 34-133, all twelve movements.
+    for (const [label, ett, los] of [
+      ['NB L', '37.3', 'D'], ['SB L', '18.4', 'B'],
+      ['NB T', '10.5', 'B'], ['SB T', '13.0', 'B'],
+      ['NB R', '13.2', 'B'], ['SB R', '7.9', 'A'],
+      ['EB L', '79.4', 'E'], ['WB L', '72.9', 'E'],
+      ['EB T', '82.1', 'F'], ['WB T', '67.8', 'E'],
+      ['EB R', '35.1', 'D'], ['WB R', '12.4', 'B'],
+    ]) {
+      await expect(row(label)).toContainText(ett);
+      await expect(row(label)).toContainText(los);
+    }
+    // The three rerouted-journey movements carry the Equation 23-59 EDTT.
+    await expect(row('EB T')).toContainText('21.8');
+    await expect(row('NB T')).toContainText('4.1 + 6.4');
+    await expect(results).toContainText('22.9');
+    await expect(page.getByText(/Intersection LOS: C/)).toBeVisible();
+  });
+
   test('the MUT form reproduces Example Problem 15', async ({ page }) => {
     // Chapter 34 Example Problem 15 (four-legged MUT): the Exhibit 34-137
     // junction delays enter as inputs, so Exhibit 34-138 reproduces exactly:
@@ -1468,6 +1509,69 @@ test.describe('chapter 23 part C alternative intersections', () => {
     await expect(nbl).toContainText('78.0');
     await expect(nbl).toContainText('E');
     await expect(page.getByText(/Intersection LOS: C/)).toBeVisible();
+  });
+
+  test('the MUT diagram isolates an approach, edits demands, and colours by LOS', async ({ page }) => {
+    await page.goto('/hcm23');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await page.locator('#PART_input').selectOption('C');
+    await page.locator('#PC_FORM_input').selectOption('Mut');
+
+    const diagram = page.locator('.mu-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /median U-turn intersection/);
+
+    // Twelve chips would overwhelm the picture, so the legend groups the
+    // movements by approach and a hover isolates all three of that approach.
+    await page.locator('.mu-chip.chip-nb').hover();
+    await expect(page.locator('path.mv-nbl')).toHaveClass(/active/);
+    await expect(page.locator('path.mv-nbt')).toHaveClass(/active/);
+    await expect(page.locator('path.mv-sbt')).toHaveClass(/dim/);
+    await page.locator('.mu-note').hover();
+
+    // On-diagram demand editing two-way binds to the form field.
+    await page.locator('input[aria-label="NBL demand"]').fill('310');
+    await expect(page.locator('#PC_OD_nbl_input')).toHaveValue('310');
+
+    // After a run each path carries its own movement LOS as a class. The NB
+    // left is the movement the MUT penalises, so it is the one worth asserting.
+    await page.locator('#PC_OD_nbl_input').fill('280');
+    await page.getByRole('button', { name: 'Calculate' }).click();
+    await expect(page.locator('path.mv-nbl')).toHaveClass(/los-[a-f]/);
+    await expect(page.locator('path.mv-nbt')).toHaveClass(/los-[a-f]/);
+  });
+
+  test('the DLT diagram presents the three component intersections', async ({ page }) => {
+    await page.goto('/hcm23');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await page.locator('#PART_input').selectOption('C');
+    await page.locator('#PC_FORM_input').selectOption('Dlt');
+
+    const diagram = page.locator('.dl-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /partial displaced left-turn intersection/);
+    // The signals carry the same 1/2/3 numbering as the delay table.
+    await expect(page.locator('.dl-signal')).toHaveCount(3);
+
+    await page.locator('.dl-chip.chip-ebl').hover();
+    await expect(page.locator('path.mv-ebl')).toHaveClass(/active/);
+    await expect(page.locator('path.mv-wbl')).toHaveClass(/dim/);
+    await page.locator('.dl-note').hover();
+
+    // The dimension tracks the DLT roadway distance input.
+    await page.locator('#PC_TD_input').fill('420');
+    await expect(diagram).toContainText('420 ft');
+    await expect(diagram).toHaveAttribute('aria-label', /420 ft/);
+    await page.locator('#PC_TD_input').fill('350');
+
+    // A DLT has one intersection LOS rather than one per movement, so a run
+    // adds that letter as a class on every path and reports it on a badge.
+    await page.getByRole('button', { name: 'Calculate' }).click();
+    await expect(page.locator('path.mv-ebl')).toHaveClass(/los-c/);
+    await expect(page.locator('.dl-los')).toContainText('Intersection LOS C');
+    // The computed offset is bound back onto the picture.
+    await expect(diagram).toContainText('TT_DLT 6.8 s');
+    await expect(diagram).toContainText('O_SUPP 45.2 s');
   });
 
   test('the DLT form reproduces Example Problem 16', async ({ page }) => {
