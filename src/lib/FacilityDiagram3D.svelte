@@ -47,14 +47,17 @@
       const w = Math.max(30, Math.min(86, 16 + len / 85));
       const lanes = clampLanes(Number(s.lanes) || 3);
       // Work zone read off the same segment state the page hands to
-      // set_work_zone, on the same reading as the 2D strip: the coded lanes
-      // stay open and the closed lanes are extra pavement beside them.
+      // set_work_zone, on the same reading as the 2D strip: the closure takes
+      // its closed lanes out of the declared cross section rather than adding
+      // pavement beside it.
       const wz = s.work_zone;
-      const open = wz ? clampLanes(Number(wz.open_lanes) || 1) : 0;
-      const total = wz ? Math.max(open, clampLanes(Number(wz.total_lanes) || open)) : 0;
+      const wzOpen = wz ? clampLanes(Number(wz.open_lanes) || 1) : 0;
+      const total = wz ? Math.max(wzOpen, clampLanes(Number(wz.total_lanes) || wzOpen)) : 0;
+      const closed = wz ? total - wzOpen : 0;
+      const pav = wz ? Math.max(lanes, total) : lanes;
       const item = {
         x0: x, x1: x + w, lanes,
-        closed: wz ? total - open : 0,
+        open: pav - closed, pav, closed,
         soft: wz ? !!wz.soft_barrier : false,
         type: s.seg_type, num: s.seg_num,
       };
@@ -63,7 +66,7 @@
     });
   });
 
-  let maxLanes = $derived(Math.max(3, ...plan.map((p) => p.lanes + p.closed)));
+  let maxLanes = $derived(Math.max(3, ...plan.map((p) => p.pav)));
 
   function losFor(i) {
     return losMatrix && losMatrix[i] ? losMatrix[i][period] : null;
@@ -73,12 +76,12 @@
     return los ? LOS_COLOR[los] : 'var(--diag-pavement)';
   }
 
-  // Mainline occupies y in [0, lanes*LW] with the shared top edge at
+  // The travelled deck occupies y in [0, open*LW] with the shared top edge at
   // y = maxLanes*LW so segments of different lane counts align on the median
   // side and grow toward the ramp side, matching the 2D strip.
   function slab(p) {
     const yTop = maxLanes * LW;
-    const yBot = yTop - p.lanes * LW;
+    const yBot = yTop - p.open * LW;
     return [
       [p.x0, yBot],
       [p.x1, yBot],
@@ -87,13 +90,14 @@
     ];
   }
 
-  // Closed lanes extrude as their own slab off the ramp side of the deck, at
-  // the deck's own thickness because the pavement is the same pavement. Null
-  // with no work zone, which keeps every other slab byte-identical.
+  // Closed lanes extrude as their own slab between the travelled deck and the
+  // ramp-side pavement edge, at the deck's own thickness because the pavement
+  // is the same pavement. Null with no work zone, which keeps every other slab
+  // byte-identical.
   function wzSlab(p) {
     if (!p.closed) return null;
     const yTop = maxLanes * LW;
-    const yBot = yTop - p.lanes * LW;
+    const yBot = yTop - p.open * LW;
     return [
       [p.x0, yBot - p.closed * LW],
       [p.x1, yBot - p.closed * LW],
@@ -103,12 +107,12 @@
   }
 
   // Ramp geometry mirrors the 2D strip: an angled stub feeding an
-  // acceleration/deceleration lane that tapers into the deck edge. Ramps hang
-  // off the outside of the closure, so `p.closed` (zero without a work zone)
-  // moves them with it.
+  // acceleration/deceleration lane that tapers into the pavement edge, which
+  // is the outside of the closure where there is one (`p.pav` is the coded
+  // lane count without a work zone).
   function ramps(p) {
     const yTop = maxLanes * LW;
-    const yBot = yTop - (p.lanes + p.closed) * LW;
+    const yBot = yTop - p.pav * LW;
     const w = p.x1 - p.x0;
     const RL = LW * 0.75;
     const out = [];
@@ -201,18 +205,18 @@
       {#each plan as p, i}
         <path d={d.polygon(slab(p))} fill={topFill(i)} class="fd3-top fd3-deck" class:scored={losFor(i) != null}
               class:selected={selected === i} onpointerdown={(e) => pressTop(e, i)} />
-        {#each Array.from({ length: p.lanes - 1 }) as _, li}
+        {#each Array.from({ length: p.open - 1 }) as _, li}
           <path d={d.seg([p.x0, maxLanes * LW - LW * (li + 1)], [p.x1, maxLanes * LW - LW * (li + 1)])} class="fd3-lane-line" />
         {/each}
         {#if wzSlab(p)}
           {@const wz = wzSlab(p)}
-          {@const wc = tf((p.x0 + p.x1) / 2, maxLanes * LW - (p.lanes + p.closed / 2) * LW)}
+          {@const wc = tf((p.x0 + p.x1) / 2, maxLanes * LW - (p.open + p.closed / 2) * LW)}
           <path d={d.polygon(wz)} class="fd3-wz" />
           <path d={d.polygon(wz)} class="fd3-wz-hatch" fill="url(#{p.soft ? 'fd3WzSoft' : 'fd3WzHard'})" />
           <text x={wc.x} y={wc.y + 2.5} class="fd3-wz-label" text-anchor="middle">WZ</text>
         {/if}
         {#if losFor(i)}
-          {@const c = tf((p.x0 + p.x1) / 2, maxLanes * LW - (p.lanes * LW) / 2)}
+          {@const c = tf((p.x0 + p.x1) / 2, maxLanes * LW - (p.open * LW) / 2)}
           <text x={c.x} y={c.y + 3} class="fd3-los" text-anchor="middle">{losFor(i)}</text>
         {/if}
         {@const n = tf((p.x0 + p.x1) / 2, maxLanes * LW + 6)}
@@ -222,8 +226,8 @@
       <!-- travel direction arrow off the downstream end -->
       {#if plan.length}
         {@const last = plan.at(-1)}
-        {@const a0 = tf(last.x1 + 6, maxLanes * LW - (last.lanes * LW) / 2)}
-        {@const a1 = tf(last.x1 + 20, maxLanes * LW - (last.lanes * LW) / 2)}
+        {@const a0 = tf(last.x1 + 6, maxLanes * LW - (last.open * LW) / 2)}
+        {@const a1 = tf(last.x1 + 20, maxLanes * LW - (last.open * LW) / 2)}
         <line x1={a0.x} y1={a0.y} x2={a1.x} y2={a1.y} class="fd3-arrow" marker-end="url(#fd3ArrowHead)" />
         <defs>
           <marker id="fd3ArrowHead" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">

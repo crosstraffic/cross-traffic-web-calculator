@@ -38,10 +38,14 @@
   // three-to-two closure behind plastic drums, urban, daylight. The engine's
   // own WorkZone::default() differs (hard barrier, 6 ft lateral, 13.4% drop),
   // so these are shown in the panel rather than left implicit.
-  function defaultWorkZone() {
+  // Seeded consistently with the segment's own lane coding: the segment's
+  // `lanes` is the OPEN count during the closure (case4.json convention), so
+  // the seed closes one lane relative to it rather than always writing 3-to-2.
+  function defaultWorkZone(segLanes) {
+    const open = Math.max(1, Number(segLanes) || 2);
     return {
-      total_lanes: '3',
-      open_lanes: '2',
+      total_lanes: String(open + 1),
+      open_lanes: String(open),
       soft_barrier: true,
       rural: false,
       lateral_distance_ft: '0',
@@ -75,7 +79,7 @@
   // calls set_work_zone for that segment, which matters because the binding's
   // defaults describe a real three-to-two closure rather than a no-op.
   function toggleWorkZone(i) {
-    segments[i].work_zone = segments[i].work_zone ? null : defaultWorkZone();
+    segments[i].work_zone = segments[i].work_zone ? null : defaultWorkZone(segments[i].lanes);
   }
 
   function removeSegment() {

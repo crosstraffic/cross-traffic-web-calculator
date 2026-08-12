@@ -43,15 +43,18 @@
 
   // Per-segment work zone (HCM Chapter 10, Section 4), read off the same
   // `segments` state the page hands to set_work_zone so the picture cannot
-  // disagree with the run. The engine does not narrow the cross section on its
-  // own: it takes the segment's lane count as the lanes that stay open and
-  // folds the closure into CAF_wz and SAF_wz through the lane closure severity
-  // index (Equations 10-7, 10-11, 10-12). So the travelled band stays at
-  // `lanes` and the closed lanes are drawn as pavement outside it, which puts
-  // the pre-closure cross section back on the strip when the segment is coded
-  // the way the fixture codes it (Segment 11 of case4.json is two lanes with a
-  // three-to-two closure). When the coded lanes and the open lanes disagree the
-  // drawing says so instead of silently picking one.
+  // disagree with the run.
+  //
+  // A three-to-two closure takes a lane out of the cross section, it does not
+  // add one beside it: the drawn pavement is the normal lane count the closure
+  // declares, the closed lanes overlay its ramp-side lanes, and the travelled
+  // band is what is left. The engine does not do this narrowing itself. It
+  // takes the segment's lane count as the lanes that stay open and folds the
+  // closure into CAF_wz and SAF_wz through the lane closure severity index
+  // (Equations 10-7, 10-11, 10-12), which is why Segment 11 of case4.json is
+  // coded as two lanes carrying a three-to-two closure. Coded that way the
+  // drawing and the run agree exactly. Coded with the full three lanes they do
+  // not, and the chip says so instead of the strip silently picking one.
   function wzFor(s, lanes) {
     const wz = s.work_zone;
     if (!wz) return null;
@@ -70,7 +73,7 @@
 
   function wzNote(seg) {
     const base = `work zone ${seg.wz.total} to ${seg.wz.open} lanes, ${seg.wz.soft ? 'cones or drums' : 'hard barrier'}`;
-    return seg.wz.mismatch ? `${base}, but the segment is coded with ${seg.lanes} lanes` : base;
+    return seg.wz.mismatch ? `${base}, but the segment is coded with ${seg.lanes} lanes, which is what the run uses` : base;
   }
 
   let layout = $derived.by(() => {
@@ -81,15 +84,21 @@
       const lanes = clampLanes(Number(s.lanes) || 3);
       const ml = mlLanes && mlLanes[i] ? Math.max(1, Math.min(4, Number(mlLanes[i]) || 1)) : 0;
       const wz = wzFor(s, lanes);
-      const item = { x, w, lanes, ml, wz, depth: lanes + (wz ? wz.closed : 0), type: s.seg_type, num: s.seg_num };
+      // Drawn cross section: the wider of the coded lanes and the lanes the
+      // closure says are normally there, so a closure never hides coded
+      // pavement and never invents pavement past what it declares. `open` is
+      // the travelled band left after the closed lanes come off the ramp side.
+      const pav = wz ? Math.max(lanes, wz.total) : lanes;
+      const open = pav - (wz ? wz.closed : 0);
+      const item = { x, w, lanes, open, pav, ml, wz, type: s.seg_type, num: s.seg_num };
       x += w + 3;
       return item;
     });
   });
   let totalW = $derived((layout.at(-1)?.x ?? gutter) + (layout.at(-1)?.w ?? 0) + 8);
-  // Depth, not lane count: a closure adds drawn pavement below the travelled
-  // band, and the strip has to leave room for it.
-  let maxLanes = $derived(Math.max(3, ...layout.map((l) => l.depth)));
+  // Drawn pavement, not the coded lane count: on a work zone segment the two
+  // differ, and the strip has to leave room for the wider of them.
+  let maxLanes = $derived(Math.max(3, ...layout.map((l) => l.pav)));
   let maxMl = $derived(Math.max(0, ...layout.map((l) => l.ml)));
   // The managed lane group is painted above the general-purpose mainline, so
   // its depth pushes the mainline down rather than growing the strip in place.
@@ -141,8 +150,8 @@
       </pattern>
     </defs>
     {#each layout as seg, i}
-      {@const trav = top + seg.lanes * LANE}
-      {@const bot = trav + (seg.wz ? seg.wz.closed * LANE : 0)}
+      {@const trav = top + seg.open * LANE}
+      {@const bot = top + seg.pav * LANE}
       <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
       <g class="fd-seg" class:selected={selected === i} class:wz={!!seg.wz}
          data-wz-open={seg.wz ? seg.wz.open : null} data-wz-closed={seg.wz ? seg.wz.closed : null}
@@ -161,9 +170,9 @@
         {/if}
 
         <!-- mainline -->
-        <rect x={seg.x} y={top} width={seg.w} height={seg.lanes * LANE}
+        <rect x={seg.x} y={top} width={seg.w} height={seg.open * LANE}
               fill={fillFor(i)} class="fd-main" class:scored={losFor(i) != null} />
-        {#each Array.from({ length: seg.lanes - 1 }) as _, li}
+        {#each Array.from({ length: seg.open - 1 }) as _, li}
           <line x1={seg.x} y1={top + LANE * (li + 1)} x2={seg.x + seg.w} y2={top + LANE * (li + 1)} class="fd-lane-line" />
         {/each}
 
@@ -201,7 +210,7 @@
         <!-- labels -->
         <text x={seg.x + seg.w / 2} y={LABEL_TOP - 7} class="fd-num" text-anchor="middle">{seg.num}</text>
         {#if losFor(i)}
-          <text x={seg.x + seg.w / 2} y={top + (seg.lanes * LANE) / 2 + 3.5} class="fd-los" text-anchor="middle">{losFor(i)}</text>
+          <text x={seg.x + seg.w / 2} y={top + (seg.open * LANE) / 2 + 3.5} class="fd-los" text-anchor="middle">{losFor(i)}</text>
         {/if}
         {#if seg.wz}
           <text x={seg.x + seg.w / 2} y={seg.wz.closed > 0 ? trav + (seg.wz.closed * LANE) / 2 + 2.2 : trav - 2.5}

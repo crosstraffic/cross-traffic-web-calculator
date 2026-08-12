@@ -405,14 +405,20 @@ test.describe('chapter 10 freeway facilities calculator', () => {
     await expect(page.locator('path.fd3-wz-hatch')).toHaveAttribute('fill', 'url(#fd3WzSoft)');
     await page.getByRole('button', { name: '2D' }).click();
 
-    // A three-lane segment carrying a three-to-two closure is a coding
-    // mismatch (the engine reads the segment's lane count as the lanes that
-    // stay open), so the chip says so instead of the strip quietly drawing
-    // one reading or the other. Segment 1 is three lanes.
+    // The seed derives from the segment's own lane coding (lanes = the OPEN
+    // count during a closure), so adding a work zone on three-lane Segment 1
+    // seeds a consistent four-to-three closure with no mismatch flag.
     await page.locator('.seg-table tbody tr').nth(0)
       .getByRole('button', { name: '+ Add work zone' }).click();
     const chip1 = diagram.locator('[data-testid="wz-chip"]').first();
-    await expect(chip1).toHaveText('WZ 3→2 !');
+    await expect(chip1).toHaveText('WZ 4→3');
+    await expect(chip1).not.toHaveClass(/mismatch/);
+    // A deliberate inconsistency still gets flagged rather than silently
+    // drawn one way or the other: the mismatch condition is open lanes
+    // differing from the segment's coded lanes (which is what the run uses),
+    // so set open to 2 on the 3-lane segment.
+    await page.locator('#WZOL_input1').fill('2');
+    await expect(chip1).toHaveText('WZ 4→2 !');
     await expect(chip1).toHaveClass(/mismatch/);
     await page.locator('.seg-table tbody tr').nth(0)
       .getByRole('button', { name: 'Remove work zone' }).click();
