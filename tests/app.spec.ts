@@ -293,6 +293,157 @@ test.describe('chapter 10 freeway facilities calculator', () => {
     await expect(decks.first()).toHaveClass(/selected/);
     await expect(page.locator('.seg-table tbody tr').first()).toHaveClass(/seg-selected/);
   });
+
+  // Example Problems 4 and 5 run on the same 11-segment chain as Example
+  // Problem 1, differing only in the ramp demands, the Segment 11 cross
+  // section, and what is attached to it. Mirrors the construction in
+  // tests/boundary/ch10_freeway_facilities.mjs.
+  async function buildEp1Chain(page: Page, opts: Record<string, string>) {
+    for (let i = 0; i < 8; i++) {
+      await page.getByRole('button', { name: '+ Add Segment' }).click();
+    }
+    await setSegment(page, 0, { type: 'Basic', len: '5280', lanes: '3' });
+    await setSegment(page, 1, { type: 'Merge', len: '1500', lanes: '3', on: opts.on2 });
+    await setSegment(page, 2, { type: 'Basic', len: '2280', lanes: '3' });
+    await setSegment(page, 3, { type: 'Diverge', len: '1500', lanes: '3', off: opts.off4 });
+    await setSegment(page, 4, { type: 'Basic', len: '5280', lanes: '3' });
+    await setSegment(page, 5, { type: 'Weaving', len: '2640', lanes: '4', on: opts.on6, off: opts.off6 });
+    await setSegment(page, 6, { type: 'Basic', len: '5280', lanes: '3' });
+    await setSegment(page, 7, { type: 'Merge', len: '1140', lanes: '3', on: opts.on8 });
+    await setSegment(page, 8, { type: 'OverlappingRamp', len: '360', lanes: '3' });
+    await setSegment(page, 9, { type: 'Diverge', len: '1140', lanes: '3', off: opts.off10 });
+    await setSegment(page, 10, { type: 'Basic', len: '5280', lanes: opts.lanes11 });
+
+    await page.locator('#SL_input6').fill('1640');
+    await page.locator('#NWL_input6').fill('2');
+    await page.locator('#LCRF_input6').fill('1');
+    await page.locator('#LCFR_input6').fill('1');
+    await page.locator('#RR_input6').fill(opts.rr6);
+  }
+
+  test('a segment work zone moves the published Example Problem 4 capacity and v/c', async ({ page }) => {
+    // HCM Chapter 25, Example Problem 4: the Example Problem 1 facility with
+    // Segment 11 reduced to two open lanes behind plastic drums (the
+    // work_zone object of the library fixture case4.json). Exhibit 25-72
+    // publishes the Segment 11 period-1 demand-to-capacity ratio as 1.26.
+    //
+    // The control matters more than the pinned value here. Without the work
+    // zone the same two-lane cross section gives 1.12 at the unadjusted 4,499
+    // veh/h, which is exactly the tell the boundary suite pinned while
+    // set_work_zone was unbound. Asserting both proves the panel is what
+    // moves the number, not the lane count.
+    await page.goto('/hcm10');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#FFS_input').fill('60');
+    await page.locator('#HV_input').fill('2.25');
+    await page.locator('#PHF_input').fill('1.0');
+    await page.locator('#ID_input').fill('0.8');
+    await page.locator('#DEMAND_input').fill('4505, 4955, 5225, 4685, 3785');
+
+    await buildEp1Chain(page, {
+      on2: '450, 540, 630, 360, 180', off4: '270, 360, 270, 270, 270',
+      on6: '540, 720, 810, 360, 270', off6: '360, 360, 360, 360, 180',
+      on8: '450, 540, 630, 450, 270', off10: '270, 270, 450, 270, 180',
+      rr6: '50, 100, 150, 80, 50', lanes11: '2',
+    });
+
+    // Control: the two-lane Segment 11 with no work zone attached.
+    await calculate.click();
+    const capRow = () => page.locator('.cap-table tbody tr').nth(10);
+    await expect(capRow()).toContainText('4499 (v/c 1.12)');
+
+    // Opening the panel places the Example Problem 4 closure, and the panel
+    // shows the values it placed rather than leaving them implicit.
+    await page.locator('.seg-table tbody tr').nth(10)
+      .getByRole('button', { name: '+ Add work zone' }).click();
+    await expect(page.locator('#WZTL_input11')).toHaveValue('3');
+    await expect(page.locator('#WZOL_input11')).toHaveValue('2');
+    await expect(page.locator('#WZSL_input11')).toHaveValue('55');
+    await expect(page.locator('#WZQDD_input11')).toHaveValue('13.1');
+    await expect(page.locator('#WZLAT_input11')).toHaveValue('0');
+
+    await calculate.click();
+
+    // Exhibit 25-72 publishes 1.26, against the post-CAF_wz capacity of
+    // 4,499 x 0.892 (Equation 10-11).
+    await expect(capRow()).toContainText('4014 (v/c 1.26)');
+    await expect(capRow()).toContainText('Segment 11 (work zone)');
+
+    // The work zone drives the facility oversaturated, which Example
+    // Problem 4 is the demonstration of.
+    await expect(page.getByText(/Oversaturated: Yes/)).toBeVisible();
+
+    // Removing it restores the unadjusted capacity, so the panel is not a
+    // one-way door and set_work_zone is genuinely conditional.
+    await page.locator('.seg-table tbody tr').nth(10)
+      .getByRole('button', { name: 'Remove work zone' }).click();
+    await calculate.click();
+    await expect(capRow()).toContainText('4499 (v/c 1.12)');
+  });
+
+  test('the managed lane mode reproduces the published Example Problem 5 lane groups', async ({ page }) => {
+    // HCM Chapter 25, Example Problem 5 (fixture ml_case1.json): the Example
+    // Problem 1 chain carrying a one-lane continuous-access managed lane its
+    // whole length. Exhibit 25-87 publishes facility LOS C D D C C and
+    // Exhibit 25-81 the uniform ML capacity of 1,614 veh/h.
+    await page.goto('/hcm10');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#FFS_input').fill('60');
+    await page.locator('#HV_input').fill('2.25');
+    await page.locator('#PHF_input').fill('1.0');
+    await page.locator('#ID_input').fill('0.8');
+    await page.locator('#DEMAND_input').fill('4001, 4400, 4640, 4160, 3361');
+
+    await buildEp1Chain(page, {
+      on2: '500, 599, 699, 400, 200', off4: '300, 400, 300, 300, 300',
+      on6: '599, 799, 899, 400, 300', off6: '400, 400, 400, 400, 200',
+      on8: '500, 599, 699, 500, 300', off10: '300, 300, 500, 300, 200',
+      rr6: '56, 111, 167, 89, 56', lanes11: '3',
+    });
+
+    // Before enabling, the strip carries no ML band at all.
+    const diagram = page.locator('.fd-diagram');
+    await expect(diagram.locator('.fd-ml')).toHaveCount(0);
+
+    await page.getByLabel('Enable managed lane').check();
+    await expect(page.locator('#MLFFS_input')).toHaveValue('60');
+    await expect(page.locator('#MLDEMAND_input')).toHaveValue('1000, 1100, 1160, 1040, 840');
+
+    // The band appears from the form state, before any run.
+    await expect(diagram.locator('.fd-ml')).toHaveCount(11);
+
+    await calculate.click();
+
+    // Facility LOS by period, Exhibit 25-87: C D D C C. These are the two
+    // lane groups combined, not the general-purpose lanes alone.
+    const losRow = page.locator('tr', { has: page.getByText('Facility LOS:') }).first();
+    await expect(losRow.locator('td')).toHaveText(['C', 'D', 'D', 'C', 'C']);
+
+    // Lane group rows, Exhibit 25-86.
+    const gpRow = page.locator('tr', { has: page.getByText('GP Lane Group') }).first();
+    await expect(gpRow.locator('td').first()).toHaveText('57.7 · 24.9 · C');
+    const mlRow = page.locator('tr', { has: page.getByText('ML Lane Group') }).first();
+    await expect(mlRow.locator('td').first()).toHaveText('59.3 · 16.9 · B');
+
+    // ML segment cell, Exhibit 25-81: 1,614 veh/h uniform.
+    const mlSeg1 = page.locator('.ml-out-table tbody tr').first();
+    await expect(mlSeg1.locator('td').first()).toContainText('1614 veh/h');
+
+    // Step A-13 adjacent friction fires on Segment 8 in period 3, where the
+    // neighbouring GP density passes 35 pc/mi/ln (Exhibit 25-83).
+    const mlSeg8 = page.locator('.ml-out-table tbody tr').nth(7);
+    await expect(mlSeg8.locator('td').nth(2)).toContainText('friction');
+    await expect(mlSeg1.locator('td').first()).not.toContainText('friction');
+
+    // The band is scored after the run, in its own fill, and the GP mainline
+    // keeps its own.
+    await expect(diagram.locator('.fd-ml').first()).toHaveAttribute('fill', /^#/);
+    await expect(diagram.locator('.fd-ml-los')).toHaveCount(11);
+  });
 });
 
 test.describe('chapter 11 freeway reliability calculator', () => {
