@@ -18,6 +18,7 @@
   import PathDiagram from '$lib/PathDiagram.svelte';
   import UrbanSegmentDiagram from '$lib/UrbanSegmentDiagram.svelte';
   import UrbanFacilityDiagram from '$lib/UrbanFacilityDiagram.svelte';
+  import FacilityDiagram from '$lib/FacilityDiagram.svelte';
   import ManagedLaneDiagram from '$lib/ManagedLaneDiagram.svelte';
 
   onMount(() => { if (!Object.keys($reports).length) loadReports(); });
@@ -122,7 +123,7 @@
 
       {#if current.diagram}
         <section class="report-section">
-          <h2>{current.diagram.kind === 'urban-facility' || current.diagram.kind === 'twolane' ? 'Facility' : 'Segment'}</h2>
+          <h2>{['urban-facility', 'freeway-facility', 'twolane'].includes(current.diagram.kind) ? 'Facility' : 'Segment'}</h2>
           <div class="report-diagram">
             {#if current.diagram.kind === 'freeway'}
               <FreewaySegment3D
@@ -166,6 +167,11 @@
               <UrbanSegmentDiagram {...current.diagram.props} editable={false} />
             {:else if current.diagram.kind === 'managed-lane'}
               <ManagedLaneDiagram {...current.diagram.props} />
+            {:else if current.diagram.kind === 'freeway-facility'}
+              <FacilityDiagram
+                segments={current.diagram.props.segments}
+                mlLanes={current.diagram.props.mlLanes ?? null}
+                note={current.diagram.props.note ?? 'Segment chain, upstream to downstream.'} />
             {:else if current.diagram.kind === 'urban-facility'}
               <UrbanFacilityDiagram
                 segments={current.diagram.props.segments}

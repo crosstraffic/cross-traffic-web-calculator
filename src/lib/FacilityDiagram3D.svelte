@@ -38,19 +38,35 @@
 
   const LOS_COLOR = { A: '#22c55e', B: '#84cc16', C: '#eab308', D: '#f97316', E: '#ef4444', F: '#b91c1c' };
 
+  const clampLanes = (n) => Math.max(1, Math.min(8, n));
+
   let plan = $derived.by(() => {
     let x = 0;
     return (segments || []).map((s) => {
       const len = Math.max(200, Number(s.length_ft) || 1000);
       const w = Math.max(30, Math.min(86, 16 + len / 85));
-      const lanes = Math.max(1, Math.min(8, Number(s.lanes) || 3));
-      const item = { x0: x, x1: x + w, lanes, type: s.seg_type, num: s.seg_num };
+      const lanes = clampLanes(Number(s.lanes) || 3);
+      // Work zone read off the same segment state the page hands to
+      // set_work_zone, on the same reading as the 2D strip: the closure takes
+      // its closed lanes out of the declared cross section rather than adding
+      // pavement beside it.
+      const wz = s.work_zone;
+      const wzOpen = wz ? clampLanes(Number(wz.open_lanes) || 1) : 0;
+      const total = wz ? Math.max(wzOpen, clampLanes(Number(wz.total_lanes) || wzOpen)) : 0;
+      const closed = wz ? total - wzOpen : 0;
+      const pav = wz ? Math.max(lanes, total) : lanes;
+      const item = {
+        x0: x, x1: x + w, lanes,
+        open: pav - closed, pav, closed,
+        soft: wz ? !!wz.soft_barrier : false,
+        type: s.seg_type, num: s.seg_num,
+      };
       x += w;
       return item;
     });
   });
 
-  let maxLanes = $derived(Math.max(3, ...plan.map((p) => p.lanes)));
+  let maxLanes = $derived(Math.max(3, ...plan.map((p) => p.pav)));
 
   function losFor(i) {
     return losMatrix && losMatrix[i] ? losMatrix[i][period] : null;
@@ -60,12 +76,12 @@
     return los ? LOS_COLOR[los] : 'var(--diag-pavement)';
   }
 
-  // Mainline occupies y in [0, lanes*LW] with the shared top edge at
+  // The travelled deck occupies y in [0, open*LW] with the shared top edge at
   // y = maxLanes*LW so segments of different lane counts align on the median
   // side and grow toward the ramp side, matching the 2D strip.
   function slab(p) {
     const yTop = maxLanes * LW;
-    const yBot = yTop - p.lanes * LW;
+    const yBot = yTop - p.open * LW;
     return [
       [p.x0, yBot],
       [p.x1, yBot],
@@ -74,11 +90,29 @@
     ];
   }
 
+  // Closed lanes extrude as their own slab between the travelled deck and the
+  // ramp-side pavement edge, at the deck's own thickness because the pavement
+  // is the same pavement. Null with no work zone, which keeps every other slab
+  // byte-identical.
+  function wzSlab(p) {
+    if (!p.closed) return null;
+    const yTop = maxLanes * LW;
+    const yBot = yTop - p.open * LW;
+    return [
+      [p.x0, yBot - p.closed * LW],
+      [p.x1, yBot - p.closed * LW],
+      [p.x1, yBot],
+      [p.x0, yBot],
+    ];
+  }
+
   // Ramp geometry mirrors the 2D strip: an angled stub feeding an
-  // acceleration/deceleration lane that tapers into the deck edge.
+  // acceleration/deceleration lane that tapers into the pavement edge, which
+  // is the outside of the closure where there is one (`p.pav` is the coded
+  // lane count without a work zone).
   function ramps(p) {
     const yTop = maxLanes * LW;
-    const yBot = yTop - p.lanes * LW;
+    const yBot = yTop - p.pav * LW;
     const w = p.x1 - p.x0;
     const RL = LW * 0.75;
     const out = [];
@@ -105,6 +139,8 @@
     const pts = [];
     for (const p of plan) {
       pts.push(...slab(p));
+      const wz = wzSlab(p);
+      if (wz) pts.push(...wz);
       for (const r of ramps(p)) pts.push(...r);
     }
     return pts.length ? pts : [[0, 0], [1, 1]];
@@ -120,9 +156,23 @@
       {@const tf = fitTransform(project, planPts, VIEW_W, VIEW_H, 26, zoom, panX, panY, THICK)}
       {@const d = makeDrawers(tf, THICK)}
 
+      <defs>
+        <!-- Same barrier reading as the 2D strip: continuous diagonal for a
+             hard barrier, interrupted for cones and drums. -->
+        <pattern id="fd3WzHard" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="6" class="fd3-wz-stripe" />
+        </pattern>
+        <pattern id="fd3WzSoft" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="6" class="fd3-wz-stripe soft" />
+        </pattern>
+      </defs>
+
       <!-- shadows first -->
       {#each plan as p}
         <path d={d.shadow(slab(p))} class="fd3-shadow" />
+        {#if wzSlab(p)}
+          <path d={d.shadow(wzSlab(p))} class="fd3-shadow" />
+        {/if}
         {#each ramps(p) as r}
           <path d={d.shadow(r)} class="fd3-shadow" />
         {/each}
@@ -146,15 +196,27 @@
         {#each d.walls(slab(p)) as w}
           <path d={w} class="fd3-wall" />
         {/each}
+        {#if wzSlab(p)}
+          {#each d.walls(wzSlab(p)) as w}
+            <path d={w} class="fd3-wall" />
+          {/each}
+        {/if}
       {/each}
       {#each plan as p, i}
         <path d={d.polygon(slab(p))} fill={topFill(i)} class="fd3-top fd3-deck" class:scored={losFor(i) != null}
               class:selected={selected === i} onpointerdown={(e) => pressTop(e, i)} />
-        {#each Array.from({ length: p.lanes - 1 }) as _, li}
+        {#each Array.from({ length: p.open - 1 }) as _, li}
           <path d={d.seg([p.x0, maxLanes * LW - LW * (li + 1)], [p.x1, maxLanes * LW - LW * (li + 1)])} class="fd3-lane-line" />
         {/each}
+        {#if wzSlab(p)}
+          {@const wz = wzSlab(p)}
+          {@const wc = tf((p.x0 + p.x1) / 2, maxLanes * LW - (p.open + p.closed / 2) * LW)}
+          <path d={d.polygon(wz)} class="fd3-wz" />
+          <path d={d.polygon(wz)} class="fd3-wz-hatch" fill="url(#{p.soft ? 'fd3WzSoft' : 'fd3WzHard'})" />
+          <text x={wc.x} y={wc.y + 2.5} class="fd3-wz-label" text-anchor="middle">WZ</text>
+        {/if}
         {#if losFor(i)}
-          {@const c = tf((p.x0 + p.x1) / 2, maxLanes * LW - (p.lanes * LW) / 2)}
+          {@const c = tf((p.x0 + p.x1) / 2, maxLanes * LW - (p.open * LW) / 2)}
           <text x={c.x} y={c.y + 3} class="fd3-los" text-anchor="middle">{losFor(i)}</text>
         {/if}
         {@const n = tf((p.x0 + p.x1) / 2, maxLanes * LW + 6)}
@@ -164,8 +226,8 @@
       <!-- travel direction arrow off the downstream end -->
       {#if plan.length}
         {@const last = plan.at(-1)}
-        {@const a0 = tf(last.x1 + 6, maxLanes * LW - (last.lanes * LW) / 2)}
-        {@const a1 = tf(last.x1 + 20, maxLanes * LW - (last.lanes * LW) / 2)}
+        {@const a0 = tf(last.x1 + 6, maxLanes * LW - (last.open * LW) / 2)}
+        {@const a1 = tf(last.x1 + 20, maxLanes * LW - (last.open * LW) / 2)}
         <line x1={a0.x} y1={a0.y} x2={a1.x} y2={a1.y} class="fd3-arrow" marker-end="url(#fd3ArrowHead)" />
         <defs>
           <marker id="fd3ArrowHead" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
@@ -192,8 +254,14 @@
   .fd3-top.scored { stroke: rgba(15, 23, 42, 0.4); }
   .fd3-top.selected { stroke: var(--accent); stroke-width: 2.5; }
   .fd3-lane-line { stroke: var(--diag-lane-line); stroke-width: 1; stroke-dasharray: 5 4; fill: none; vector-effect: non-scaling-stroke; opacity: 0.8; }
+  /* Closure deck, on the warning tokens rather than the LOS colours. */
+  .fd3-wz { fill: var(--warn-bg); stroke: var(--diag-edge); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .fd3-wz-hatch { stroke: none; }
+  .fd3-wz-stripe { stroke: var(--warn-text); stroke-width: 1.4; opacity: 0.85; }
+  .fd3-wz-stripe.soft { stroke-dasharray: 2 2.2; }
+  .fd3-wz-label { font-size: 6.5px; font-weight: 700; fill: var(--warn-text); paint-order: stroke; stroke: var(--warn-bg); stroke-width: 2px; }
   /* Labels and markings must not swallow slab taps. */
-  .fd3-los, .fd3-num, .fd3-lane-line, .fd3-arrow { pointer-events: none; }
+  .fd3-los, .fd3-num, .fd3-lane-line, .fd3-arrow, .fd3-wz-hatch, .fd3-wz-label { pointer-events: none; }
   .fd3-los { font-size: 9px; fill: #fff; font-weight: 700; paint-order: stroke; stroke: rgba(15, 23, 42, 0.45); stroke-width: 2px; }
   .fd3-num { font-size: 7.5px; fill: var(--text-muted); font-weight: 600; }
   .fd3-arrow { stroke: var(--diag-dim); stroke-width: 2; }
