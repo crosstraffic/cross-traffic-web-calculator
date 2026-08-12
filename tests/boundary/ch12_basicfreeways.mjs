@@ -8,14 +8,14 @@
 // length, highway_type, city_type). p_t is a DECIMAL share (0.05), matching
 // the fixture and the Rust struct.
 //
-// Known surface gaps (see report): the constructor exposes neither
-// sut_percentage nor e_t. BasicFreeways::new() defaults sut_percentage to 50,
-// which routes f_HV through the ET_TABLE_50SUT PCE lookup keyed by
-// (p_t*100, length*1000, grade*100); length 2.0 mi has no table entry, so
-// e_t becomes None and f_HV is computed as 1/(1 - p_t) instead of the
-// Exhibit 12-25 value the Rust tests use (fixtures carry sut_percentage: 0
-// and an explicit e_t). Demand/density/LOS checks below are expected to
-// expose this; they are left in place deliberately.
+// History note (the f_HV defect, fixed): the binding once left the core's
+// then-default sut_percentage of 50, routing f_HV through the sparse SUT
+// table and silently degrading to 1/(1 - p_t) off-grid (EP1 printed LOS B
+// against the published C). The core now defaults sut_percentage to 0
+// (general-terrain Exhibit 12-25 E_T), the constructor exposes
+// sut_percentage and e_t, and off-grid SUT mixes error naming Exhibits
+// 12-26..12-28. The demand/density/LOS checks below assert the published
+// values on the corrected path.
 import { loadWasm, loadCase, approx, exact, report } from './_harness.mjs';
 
 const m = await loadWasm();
