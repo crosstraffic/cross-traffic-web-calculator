@@ -354,6 +354,11 @@ test.describe('chapter 10 freeway facilities calculator', () => {
     const capRow = () => page.locator('.cap-table tbody tr').nth(10);
     await expect(capRow()).toContainText('4499 (v/c 1.12)');
 
+    // Nothing on the strip claims a closure yet.
+    const diagram = page.locator('.fd-diagram');
+    await expect(diagram.locator('.fd-wz')).toHaveCount(0);
+    await expect(diagram.locator('[data-testid="wz-chip"]')).toHaveCount(0);
+
     // Opening the panel places the Example Problem 4 closure, and the panel
     // shows the values it placed rather than leaving them implicit.
     await page.locator('.seg-table tbody tr').nth(10)
@@ -363,6 +368,24 @@ test.describe('chapter 10 freeway facilities calculator', () => {
     await expect(page.locator('#WZSL_input11')).toHaveValue('55');
     await expect(page.locator('#WZQDD_input11')).toHaveValue('13.1');
     await expect(page.locator('#WZLAT_input11')).toHaveValue('0');
+
+    // The closure appears on the strip from the same form state, before any
+    // run: one closed lane of hatched pavement on Segment 11 alone, in the
+    // cone-and-drum stripe because Example Problem 4 is a soft barrier.
+    await expect(diagram.locator('.fd-wz')).toHaveCount(1);
+    await expect(diagram.locator('.fd-wz-hatch')).toHaveAttribute('fill', 'url(#fdWzSoft)');
+    await expect(diagram.locator('[data-testid="wz-chip"]')).toHaveText('WZ 3→2');
+    await expect(diagram.locator('[data-testid="wz-chip"]')).not.toHaveClass(/mismatch/);
+
+    // The band that carries traffic is the two open lanes, one lane shallower
+    // than the three-lane Segment 10 beside it, and the closed lane is drawn
+    // outside it rather than inside. Heights, not pixels: LANE is 10.
+    const seg11 = diagram.locator('.fd-seg').nth(10);
+    await expect(seg11).toHaveAttribute('data-wz-open', '2');
+    await expect(seg11).toHaveAttribute('data-wz-closed', '1');
+    await expect(diagram.locator('.fd-main').nth(10)).toHaveAttribute('height', '20');
+    await expect(diagram.locator('.fd-main').nth(9)).toHaveAttribute('height', '30');
+    await expect(diagram.locator('.fd-wz')).toHaveAttribute('height', '10');
 
     await calculate.click();
 
@@ -375,12 +398,58 @@ test.describe('chapter 10 freeway facilities calculator', () => {
     // Problem 4 is the demonstration of.
     await expect(page.getByText(/Oversaturated: Yes/)).toBeVisible();
 
+    // The 3D view extrudes the same closure as its own deck beside the
+    // narrowed mainline.
+    await page.getByRole('button', { name: '3D' }).click();
+    await expect(page.locator('path.fd3-wz')).toHaveCount(1);
+    await expect(page.locator('path.fd3-wz-hatch')).toHaveAttribute('fill', 'url(#fd3WzSoft)');
+    await page.getByRole('button', { name: '2D' }).click();
+
+    // A three-lane segment carrying a three-to-two closure is a coding
+    // mismatch (the engine reads the segment's lane count as the lanes that
+    // stay open), so the chip says so instead of the strip quietly drawing
+    // one reading or the other. Segment 1 is three lanes.
+    await page.locator('.seg-table tbody tr').nth(0)
+      .getByRole('button', { name: '+ Add work zone' }).click();
+    const chip1 = diagram.locator('[data-testid="wz-chip"]').first();
+    await expect(chip1).toHaveText('WZ 3→2 !');
+    await expect(chip1).toHaveClass(/mismatch/);
+    await page.locator('.seg-table tbody tr').nth(0)
+      .getByRole('button', { name: 'Remove work zone' }).click();
+
     // Removing it restores the unadjusted capacity, so the panel is not a
     // one-way door and set_work_zone is genuinely conditional.
     await page.locator('.seg-table tbody tr').nth(10)
       .getByRole('button', { name: 'Remove work zone' }).click();
     await calculate.click();
     await expect(capRow()).toContainText('4499 (v/c 1.12)');
+
+    // And the strip drops the closure with it.
+    await expect(diagram.locator('.fd-wz')).toHaveCount(0);
+    await expect(diagram.locator('[data-testid="wz-chip"]')).toHaveCount(0);
+    await page.getByRole('button', { name: '3D' }).click();
+    await expect(page.locator('path.fd3-wz')).toHaveCount(0);
+  });
+
+  test('the printable report carries the facility strip with its closure', async ({ page }) => {
+    await page.goto('/hcm10');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    // Two open lanes behind a three-to-two closure, the coding the engine
+    // reads, on the default three-segment facility.
+    await page.locator('.seg-table tbody tr').nth(0).locator('td').nth(3).locator('input').fill('2');
+    await page.locator('.seg-table tbody tr').nth(0)
+      .getByRole('button', { name: '+ Add work zone' }).click();
+    await calculate.click();
+
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page).toHaveURL(/\/report$/);
+    // The report reuses the 2D component, so the closure comes with it.
+    const strip = page.locator('.report-diagram .fd-diagram');
+    await expect(strip.locator('.fd-wz')).toHaveCount(1);
+    await expect(strip.locator('[data-testid="wz-chip"]')).toHaveText('WZ 3→2');
+    await expect(page.locator('.report-diagram')).toContainText('closed by the work zone on segment 1');
   });
 
   test('the managed lane mode reproduces the published Example Problem 5 lane groups', async ({ page }) => {

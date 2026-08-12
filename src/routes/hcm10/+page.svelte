@@ -261,6 +261,7 @@
       }
 
       const worstLos = perPeriod.reduce((w, p) => (p.los > w ? p.los : w), 'A');
+      const wzNums = segments.filter((s) => s.work_zone).map((s) => s.seg_num);
       setReport({
         chapter: 'Freeway Facilities Core Methodology',
         chapterRef: 'HCM Chapter 10',
@@ -294,6 +295,16 @@
         resultTable: {
           columns: ['Period', 'Space mean speed (mi/h)', 'Average density (veh/mi/ln)', 'LOS'],
           rows: results.perPeriod.map((p, i) => [`${i + 1}`, p.speed.toFixed(1), p.density.toFixed(1), p.los]),
+        },
+        // Geometry copy of the strip. Deep-copied because the report is
+        // JSON-persisted to sessionStorage while `segments` keeps mutating.
+        diagram: {
+          kind: 'freeway-facility',
+          props: {
+            segments: JSON.parse(JSON.stringify(segments)),
+            mlLanes: mlLanesForDiagram ? [...mlLanesForDiagram] : null,
+            note: `Segment chain, upstream to downstream. Widths follow segment length.${wzNums.length ? ` Hatched lanes are closed by the work zone on segment ${wzNums.join(', ')}.` : ''}`,
+          },
         },
         summary: [
           { label: 'Facility length', value: `${results.total_length.toFixed(2)} mi` },

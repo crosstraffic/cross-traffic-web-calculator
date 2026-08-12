@@ -39,20 +39,57 @@
   // left gutter wide enough to name which is which.
   let gutter = $derived(mlLanes && mlLanes.some((n) => n) ? 22 : 8);
 
+  const clampLanes = (n) => Math.max(1, Math.min(8, n));
+
+  // Per-segment work zone (HCM Chapter 10, Section 4), read off the same
+  // `segments` state the page hands to set_work_zone so the picture cannot
+  // disagree with the run. The engine does not narrow the cross section on its
+  // own: it takes the segment's lane count as the lanes that stay open and
+  // folds the closure into CAF_wz and SAF_wz through the lane closure severity
+  // index (Equations 10-7, 10-11, 10-12). So the travelled band stays at
+  // `lanes` and the closed lanes are drawn as pavement outside it, which puts
+  // the pre-closure cross section back on the strip when the segment is coded
+  // the way the fixture codes it (Segment 11 of case4.json is two lanes with a
+  // three-to-two closure). When the coded lanes and the open lanes disagree the
+  // drawing says so instead of silently picking one.
+  function wzFor(s, lanes) {
+    const wz = s.work_zone;
+    if (!wz) return null;
+    const open = clampLanes(Number(wz.open_lanes) || 1);
+    const total = Math.max(open, clampLanes(Number(wz.total_lanes) || open));
+    const mismatch = lanes !== open;
+    return {
+      open,
+      total,
+      closed: total - open,
+      soft: !!wz.soft_barrier,
+      mismatch,
+      label: `WZ ${total}→${open}${mismatch ? ' !' : ''}`,
+    };
+  }
+
+  function wzNote(seg) {
+    const base = `work zone ${seg.wz.total} to ${seg.wz.open} lanes, ${seg.wz.soft ? 'cones or drums' : 'hard barrier'}`;
+    return seg.wz.mismatch ? `${base}, but the segment is coded with ${seg.lanes} lanes` : base;
+  }
+
   let layout = $derived.by(() => {
     let x = gutter;
     return (segments || []).map((s, i) => {
       const len = Math.max(200, Number(s.length_ft) || 1000);
       const w = Math.max(36, Math.min(120, 22 + len / 55));
-      const lanes = Math.max(1, Math.min(8, Number(s.lanes) || 3));
+      const lanes = clampLanes(Number(s.lanes) || 3);
       const ml = mlLanes && mlLanes[i] ? Math.max(1, Math.min(4, Number(mlLanes[i]) || 1)) : 0;
-      const item = { x, w, lanes, ml, type: s.seg_type, num: s.seg_num };
+      const wz = wzFor(s, lanes);
+      const item = { x, w, lanes, ml, wz, depth: lanes + (wz ? wz.closed : 0), type: s.seg_type, num: s.seg_num };
       x += w + 3;
       return item;
     });
   });
   let totalW = $derived((layout.at(-1)?.x ?? gutter) + (layout.at(-1)?.w ?? 0) + 8);
-  let maxLanes = $derived(Math.max(3, ...layout.map((l) => l.lanes)));
+  // Depth, not lane count: a closure adds drawn pavement below the travelled
+  // band, and the strip has to leave room for it.
+  let maxLanes = $derived(Math.max(3, ...layout.map((l) => l.depth)));
   let maxMl = $derived(Math.max(0, ...layout.map((l) => l.ml)));
   // The managed lane group is painted above the general-purpose mainline, so
   // its depth pushes the mainline down rather than growing the strip in place.
@@ -92,13 +129,26 @@
 <div class="fd-diagram">
   <svg viewBox="0 0 {totalW} {H}" preserveAspectRatio="xMidYMid meet" role="img"
        aria-label="freeway facility, {segments.length} segments upstream to downstream">
+    <defs>
+      <!-- Closure hatch. A hard barrier reads as a continuous diagonal
+           (concrete), cones and drums as an interrupted one, both at the same
+           pitch so two closures compare at a glance. -->
+      <pattern id="fdWzHard" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <line x1="0" y1="0" x2="0" y2="6" class="fd-wz-stripe" />
+      </pattern>
+      <pattern id="fdWzSoft" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <line x1="0" y1="0" x2="0" y2="6" class="fd-wz-stripe soft" />
+      </pattern>
+    </defs>
     {#each layout as seg, i}
-      {@const bot = top + seg.lanes * LANE}
+      {@const trav = top + seg.lanes * LANE}
+      {@const bot = trav + (seg.wz ? seg.wz.closed * LANE : 0)}
       <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-      <g class="fd-seg" class:selected={selected === i}
+      <g class="fd-seg" class:selected={selected === i} class:wz={!!seg.wz}
+         data-wz-open={seg.wz ? seg.wz.open : null} data-wz-closed={seg.wz ? seg.wz.closed : null}
          onclick={() => pick(i)} role="button" tabindex="-1"
-         aria-label="segment {seg.num}, {seg.type}{losFor(i) ? `, LOS ${losFor(i)}` : ''}{seg.ml ? ', managed lane' : ''}">
-        <title>Segment {seg.num} · {seg.type}{losFor(i) ? ` · LOS ${losFor(i)} · ${densityFor(i)?.toFixed(1)} veh/mi/ln` : ''}{seg.ml && mlLosFor(i) ? ` · ML LOS ${mlLosFor(i)} · ${mlDensityFor(i)?.toFixed(1)} veh/mi/ln` : ''}</title>
+         aria-label="segment {seg.num}, {seg.type}{losFor(i) ? `, LOS ${losFor(i)}` : ''}{seg.ml ? ', managed lane' : ''}{seg.wz ? `, ${wzNote(seg)}` : ''}">
+        <title>Segment {seg.num} · {seg.type}{losFor(i) ? ` · LOS ${losFor(i)} · ${densityFor(i)?.toFixed(1)} veh/mi/ln` : ''}{seg.ml && mlLosFor(i) ? ` · ML LOS ${mlLosFor(i)} · ${mlDensityFor(i)?.toFixed(1)} veh/mi/ln` : ''}{seg.wz ? ` · ${wzNote(seg)}` : ''}</title>
 
         <!-- adjacent managed lane group, drawn above the mainline it parallels -->
         {#if seg.ml}
@@ -116,6 +166,14 @@
         {#each Array.from({ length: seg.lanes - 1 }) as _, li}
           <line x1={seg.x} y1={top + LANE * (li + 1)} x2={seg.x + seg.w} y2={top + LANE * (li + 1)} class="fd-lane-line" />
         {/each}
+
+        <!-- closed lanes: pavement fill, then the barrier hatch over it, so the
+             hatch never doubles the pavement edge -->
+        {#if seg.wz && seg.wz.closed > 0}
+          <rect x={seg.x} y={trav} width={seg.w} height={seg.wz.closed * LANE} class="fd-wz" />
+          <rect x={seg.x} y={trav} width={seg.w} height={seg.wz.closed * LANE} class="fd-wz-hatch"
+                fill="url(#{seg.wz.soft ? 'fdWzSoft' : 'fdWzHard'})" />
+        {/if}
 
         <!-- ramp geometry below the mainline: an angled entry/exit stub feeding
              an acceleration or deceleration lane that tapers into the mainline -->
@@ -144,6 +202,11 @@
         <text x={seg.x + seg.w / 2} y={LABEL_TOP - 7} class="fd-num" text-anchor="middle">{seg.num}</text>
         {#if losFor(i)}
           <text x={seg.x + seg.w / 2} y={top + (seg.lanes * LANE) / 2 + 3.5} class="fd-los" text-anchor="middle">{losFor(i)}</text>
+        {/if}
+        {#if seg.wz}
+          <text x={seg.x + seg.w / 2} y={seg.wz.closed > 0 ? trav + (seg.wz.closed * LANE) / 2 + 2.2 : trav - 2.5}
+                class="fd-wz-chip" class:mismatch={seg.wz.mismatch} data-testid="wz-chip"
+                text-anchor="middle">{seg.wz.label}</text>
         {/if}
         <text x={seg.x + seg.w / 2} y={H - 6} class="fd-type" text-anchor="middle">{seg.type === 'OverlappingRamp' ? 'Ovlp' : seg.type}</text>
       </g>
@@ -193,6 +256,14 @@
   .fd-main.scored, .fd-ramp.scored, .fd-ml.scored { stroke: rgba(15, 23, 42, 0.35); }
   .fd-seg.selected .fd-main, .fd-seg.selected .fd-ml { stroke: var(--accent); stroke-width: 2.5; }
   .fd-lane-line { stroke: var(--diag-lane-line); stroke-width: 1; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; opacity: 0.8; }
+  /* Closure tint comes off the warning tokens, which are defined in both
+     themes and sit outside the LOS colour channel. */
+  .fd-wz { fill: var(--warn-bg); stroke: var(--diag-edge); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .fd-wz-hatch { stroke: none; pointer-events: none; }
+  .fd-wz-stripe { stroke: var(--warn-text); stroke-width: 1.4; opacity: 0.85; }
+  .fd-wz-stripe.soft { stroke-dasharray: 2 2.2; }
+  .fd-wz-chip { font-size: 6px; font-weight: 700; fill: var(--warn-text); paint-order: stroke; stroke: var(--warn-bg); stroke-width: 2px; pointer-events: none; }
+  .fd-wz-chip.mismatch { font-style: italic; }
   .fd-num { font-size: 8px; fill: var(--text-muted); font-weight: 600; }
   .fd-los { font-size: 9px; fill: #ffffff; font-weight: 700; paint-order: stroke; stroke: rgba(15, 23, 42, 0.45); stroke-width: 2px; }
   .fd-ml-los { font-size: 8px; fill: #ffffff; font-weight: 700; paint-order: stroke; stroke: rgba(15, 23, 42, 0.45); stroke-width: 2px; }
