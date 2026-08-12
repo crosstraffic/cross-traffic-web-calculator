@@ -6,6 +6,8 @@
 //   (conventional diamond; Exhibits 34-3..34-16), via WasmInterchange(cfg).
 // * RampTerminals/case2.json — Chapter 34, Example Problem 5 (DDI with
 //   signal control; Exhibits 34-62..34-65), via WasmInterchange(cfg).
+// * RampTerminals/case6.json — Chapter 34, Example Problem 2 (Parclo A-2Q,
+//   I-75 at Newberry Avenue; Exhibits 34-17..34-29), via WasmInterchange(cfg).
 // * AlternativeIntersections/case4.json dlt block — Chapter 23 Part C
 //   Equation 23-69 weighted delay (Chapter 34 Example Problem 16, partial
 //   DLT; Exhibit 34-145), via the WasmDisplacedLeftTurn flat constructor.
@@ -222,6 +224,178 @@ function od(ods, mv, label) {
   // the Step 9 aggregation itself.
   exact(ix.get_interchange_los(), 'B', 'EP5 interchange LOS');
   approx(ix.get_interchange_ett_s(), 29.8, 0.5, 'EP5 interchange ETT');
+}
+
+// ── Example Problem 2: Parclo A-2Q (case6.json) ───────────────────────────
+// The first interchange at this boundary that is not the diamond skeleton.
+// Each arterial direction has an external through, an external left onto the
+// loop quadrant, and an internal shared through-and-right; neither internal
+// approach has a left turn at all. Those lane groups can only be named
+// because library 0.3.3 made InterchangeMovement a composition of approach,
+// position, and turn, so this block is also the check that the composed names
+// survive the JSON round trip through wasm.
+//
+// Tolerances mirror the Rust test: effective greens exact, saturation flows
+// +-5 veh/h, capacities +-2, v/c +-0.01, upstream filtering +-0.005, control
+// delays +-0.15, O-D ETT +-0.8 against the published Exhibit 34-29 column
+// with LOS letters and both flags exact.
+{
+  const ix = new m.WasmInterchange(loadCase('RampTerminals', 'case6.json'));
+  // The form is the one input whose being wrong still produces a plausible
+  // answer, so it is read back rather than assumed from the lane groups.
+  exact(ix.get_form(), 'ParcloA2Q', 'EP2 interchange form');
+  ix.analyze();
+  const groups = ix.lane_group_results_to_js_value();
+  const ods = ix.od_results_to_js_value();
+
+  // Effective greens, Exhibits 34-24 through 34-26. Every approach carries the
+  // same 6 s total lost time, so g' is the displayed green less 1 s and every
+  // value is exact. WbExtThrough is the case that needs the green window to
+  // wrap the cycle boundary: 95 s of displayed green, not the 90 s the two
+  // Exhibit 34-23 rows add up to.
+  const greens = [
+    ['EbExtThrough', 89.0],
+    ['EbExtLeft', 24.0],
+    ['EbIntThroughRight', 64.0],
+    ['WbExtThrough', 94.0],
+    ['WbExtLeft', 24.0],
+    ['WbIntThroughRight', 59.0],
+    ['NbRampLeft', 34.0],
+    ['NbRampRight', 34.0],
+    ['SbRampLeft', 39.0],
+    ['SbRampRight', 39.0],
+  ];
+  for (const [mv, g] of greens) {
+    approx(group(groups, mv, 'EP2').effective_green_s, g, 0.01, `EP2 g ${mv}`);
+  }
+
+  // Neither internal approach is starved and no approach carries additional
+  // lost time from a downstream queue: every Exhibit 34-24 DQ clears the 200 ft
+  // threshold on an 800 ft internal link. The starvation term is zero for a
+  // structural reason rather than an arithmetic one, since a parclo A internal
+  // approach has no left turn and every Intersection I phase feeds the
+  // eastbound link.
+  for (const mv of ['EbExtThrough', 'WbExtThrough', 'NbRampLeft', 'SbRampLeft']) {
+    approx(group(groups, mv, 'EP2').downstream_queue_lost_time_s, 0.0, 1e-12, `EP2 L_D ${mv}`);
+  }
+  for (const mv of ['EbIntThroughRight', 'WbIntThroughRight']) {
+    approx(group(groups, mv, 'EP2').demand_starvation_lost_time_s, 0.0, 1e-12, `EP2 L_DS ${mv}`);
+  }
+
+  // Saturation flows (Exhibits 34-21/34-22), capacities and v/c (Exhibits
+  // 34-25/34-26), Equation 19-6 upstream filtering, and control delays
+  // (Exhibits 34-27/34-28), for the eight groups that are not an internal
+  // shared through-and-right. The v/c tolerance is +-0.01 rather than the
+  // +-0.005 Example Problem 3 gets because the four single-lane ramp groups
+  // land 1 to 2 veh/h under the published capacity, the exhibits rounding
+  // f_HVg and f_v to three decimals being worth 0.2% of the saturation flow
+  // there.
+  const rows = [
+    ['EbExtThrough', 3786.0, 2407.0, 0.44, 1.00, 13.5],
+    ['EbExtLeft', 1798.0, 308.0, 1.02, 1.00, 115.7],
+    ['WbExtThrough', 3310.0, 2222.0, 0.56, 1.00, 13.2],
+    ['WbExtLeft', 1733.0, 297.0, 0.58, 1.00, 61.6],
+    ['NbRampLeft', 1674.0, 407.0, 0.56, 1.00, 52.1],
+    ['NbRampRight', 1658.0, 403.0, 0.65, 1.00, 55.7],
+    ['SbRampLeft', 1701.0, 474.0, 0.61, 1.00, 49.7],
+    ['SbRampRight', 1617.0, 450.0, 0.28, 1.00, 41.1],
+  ];
+  for (const [mv, s, c, x, i, d] of rows) {
+    const r = group(groups, mv, 'EP2');
+    approx(r.sat_flow, s, 5.0, `EP2 s ${mv}`);
+    approx(r.capacity, c, 2.0, `EP2 c ${mv}`);
+    approx(r.vc_ratio, x, 0.01, `EP2 X ${mv}`);
+    approx(r.upstream_filtering, i, 0.005, `EP2 I ${mv}`);
+    approx(r.control_delay_s, d, 0.15, `EP2 d ${mv}`);
+  }
+
+  // Exhibit 34-25: the eastbound external left is the movement that fails, at
+  // v/c 1.02 and a queue 1.96 times its 200 ft bay. That pair is what puts
+  // O-D F on LOS F below regardless of its travel time.
+  const ebl = group(groups, 'EbExtLeft', 'EP2');
+  exact(ebl.vc_ratio > 1.0, true, 'EP2 EB EXT-L v/c > 1');
+  approx(ebl.queue_storage_ratio, 1.96, 0.01, 'EP2 EB EXT-L R_Q');
+
+  // Book defect 1 of 3 (documented in the library, mirrored here rather than
+  // matched): Exhibit 34-22 gives the two internal shared through-and-right
+  // groups a lane utilization factor of 1.000 where Chapter 19's Exhibit 19-15
+  // default for a three-lane through group is 0.908. Chapter 23 Step 3 sends
+  // every non-external approach to Chapter 19, and Example Problems 1, 3, and
+  // 4 all print 0.908 in their own f_LU column, so the text and three worked
+  // examples outvote one column. Overriding to the published 1.000 reproduces
+  // the published saturation flows to within 4 veh/h but makes the O-D table
+  // worse, mean absolute error against the ten Exhibit 34-29 ETTs rising from
+  // 0.26 to 0.63 s/veh. The engine values are asserted with the published ones
+  // inline.
+  const internals = [
+    ['EbIntThroughRight', 4766.5, 21.03, 0.90], // published s 5,253, d 20.3
+    ['WbIntThroughRight', 4784.1, 26.85, 0.81], // published s 5,271, d 26.8
+  ];
+  for (const [mv, s, d, i] of internals) {
+    const r = group(groups, mv, 'EP2');
+    approx(r.lane_utilization, 0.908, 1e-9, `EP2 f_LU ${mv}`);
+    approx(r.sat_flow, s, 0.5, `EP2 s ${mv}`);
+    approx(r.control_delay_s, d, 0.05, `EP2 d ${mv}`);
+    approx(r.upstream_filtering, i, 0.005, `EP2 I ${mv}`);
+  }
+
+  // Book defects 2 and 3 are inputs rather than outputs, so they leave no cell
+  // to assert here and are recorded for the reader. Exhibit 34-25 prints a
+  // demand of 1,282 veh/h for the eastbound internal group where the Exhibit
+  // 34-163 worksheet composes 1,356, and Exhibit 34-27's own v/c of 0.56 and
+  // Exhibit 34-25's own 0.38 veh/s arrival rate both give 1,356. Exhibit
+  // 34-20's rightmost-lane utilization shares need an Exhibit 23-24
+  // coefficient of 0.655 where the exhibit prints 0.605, the same unprinted
+  // value implied independently by both approaches; the fixture therefore
+  // supplies the published Exhibit 34-20 factors as overrides (0.7328 EB /
+  // 0.6332 WB) and the engine keeps the printed 0.605.
+
+  // O-D results against Exhibit 34-29. This is the routing check for the
+  // family: every O-D takes a different turn from its diamond counterpart at
+  // one terminal or the other, and the published delay column decomposes into
+  // the Exhibit 34-27/34-28 movement delays, which is what fixes the routing.
+  // O-D E is the external through plus the internal through-and-right
+  // (13.5 + 20.3 = 33.8) where a diamond would send it through an internal
+  // left; O-D F is the external left alone (115.7) where a diamond would share
+  // it with the external through; O-D A is the ramp left plus the opposite
+  // internal through-and-right (52.1 + 26.8 = 78.9).
+  const odExpected = [
+    ['A', 229.0, 99.5, 'E', false],
+    ['B', 263.0, 40.1, 'C', false],
+    ['C', 126.0, 25.5, 'B', false],
+    ['D', 289.0, 90.6, 'E', false],
+    ['E', 198.0, 71.5, 'D', false],
+    ['F', 316.0, 136.3, 'F', true],
+    ['G', 174.0, 82.2, 'D', false],
+    ['H', 368.0, 77.7, 'D', false],
+    ['I', 868.0, 33.8, 'C', false],
+    ['J', 881.0, 40.0, 'C', false],
+  ];
+  for (const [mv, demand, ett, los, flagged] of odExpected) {
+    const r = od(ods, mv, 'EP2');
+    approx(r.demand, demand, 1.0, `EP2 demand ${mv}`);
+    approx(r.ett_s, ett, 0.8, `EP2 ETT ${mv}`);
+    exact(r.los, los, `EP2 LOS ${mv}`);
+    exact(r.vc_exceeds_one, flagged, `EP2 v/c flag ${mv}`);
+    exact(r.rq_exceeds_one, flagged, `EP2 R_Q flag ${mv}`);
+  }
+
+  // EDTT is the other thing library 0.3.3 added, a per-movement design speed
+  // on top of the interchange-wide one. Equation 23-50 defines v_D per
+  // diverted movement and this example mixes two: the six diverted O-Ds that
+  // stay on the arterial run the 800 ft interchange spacing at 35 mi/h, and
+  // the two loop-ramp O-Ds (E and H) run 1,200 ft at 25 mi/h plus the 5 s
+  // deceleration/acceleration term. The published Exhibit 34-29 column is
+  // 20.6 / -15.6 / 37.7; the engine runs 0.05 s/veh short throughout because
+  // Equation 23-50's printed 1.47 conversion leaves the 15.6 s term at 15.55.
+  for (const [mv, edtt] of [['A', 20.55], ['B', -15.55], ['E', 37.65], ['H', 37.65], ['I', 0.0]]) {
+    approx(od(ods, mv, 'EP2').edtt_s, edtt, 0.05, `EP2 EDTT ${mv}`);
+  }
+
+  // Interchange ETT 61.5 s/veh against the published 61.3 (Exhibit 34-29
+  // totals row), LOS D either way.
+  approx(ix.get_interchange_ett_s(), 61.3, 0.5, 'EP2 interchange ETT');
+  exact(ix.get_interchange_los(), 'D', 'EP2 interchange LOS');
 }
 
 // ── Example Problem 16: partial DLT weighted delay (Equation 23-69) ───────
@@ -462,4 +636,4 @@ function od(ods, mv, label) {
   approx(off.offset_supp_s, 45.2, 0.1, 'EP16 O_SUPP (Equations 23-66 to 23-68)');
 }
 
-report('ch23 ramp terminals + Part C (HCM Ch.34 EP1, EP5, EP12, EP13, EP14, EP15, EP16)');
+report('ch23 ramp terminals + Part C (HCM Ch.34 EP1, EP2, EP5, EP12, EP13, EP14, EP15, EP16)');
