@@ -1786,11 +1786,12 @@ const WasmFreewayReliabilityFinalization = (typeof FinalizationRegistry === 'und
     : new FinalizationRegistry(ptr => wasm.__wbg_wasmfreewayreliability_free(ptr >>> 0));
 /**
 * HCM Chapter 11 freeway reliability analysis (Steps B-1 through B-13),
-* scoped to demand variability plus optional incidents. The scenario
-* generator defaults to a whole-year reliability reporting period
-* (12 months, Monday through Friday, Exhibit 11-18 urban demand ratios).
-* Weather events, work zones, and special events are not exposed by this
-* binding.
+* scoped to demand variability plus optional weather and incidents. The
+* scenario generator defaults to a whole-year reliability reporting period
+* (12 months, Monday through Friday, Exhibit 11-18 urban demand ratios) with
+* no weather; `set_weather()` and `set_demand_multipliers()` replace those
+* two defaults. Work zones and special events, and with them the Chapter 37
+* ATDM strategies built on top of them, are not exposed by this binding.
 */
 export class WasmFreewayReliability {
 
@@ -1806,6 +1807,14 @@ export class WasmFreewayReliability {
         wasm.__wbg_wasmfreewayreliability_free(ptr);
     }
     /**
+    * The four trailing facility parameters are the ones
+    * `WasmFreewayFacility` has always taken and this constructor used to
+    * pass as `None`: jam density, the queue discharge capacity drop, total
+    * ramp density, and interchange density. Omitting any of them keeps the
+    * core default, which for the first three is the value Example Problem 7
+    * itself uses (190 pc/mi/ln, 7%, 1.0 ramps/mi) but for interchange
+    * density is `None`, and the core then falls back to the total ramp
+    * density rather than to Example Problem 7's 0.8 interchanges/mi.
     * @param {(WasmFacilitySegment)[]} wasm_segments
     * @param {Float64Array} mainline_demand
     * @param {number | undefined} ffs
@@ -1821,8 +1830,12 @@ export class WasmFreewayReliability {
     * @param {number | undefined} [incident_to_crash_ratio]
     * @param {number | undefined} [rng_seed]
     * @param {boolean | undefined} [vmt_weighted]
+    * @param {number | undefined} [jam_density_pc]
+    * @param {number | undefined} [queue_discharge_drop]
+    * @param {number | undefined} [total_ramp_density]
+    * @param {number | undefined} [interchange_density]
     */
-    constructor(wasm_segments, mainline_demand, ffs, heavy_vehicle_pct, terrain, city_type, phf, months, replications, seed_month, seed_weekday, crash_rate_per_100mvmt, incident_to_crash_ratio, rng_seed, vmt_weighted) {
+    constructor(wasm_segments, mainline_demand, ffs, heavy_vehicle_pct, terrain, city_type, phf, months, replications, seed_month, seed_weekday, crash_rate_per_100mvmt, incident_to_crash_ratio, rng_seed, vmt_weighted, jam_density_pc, queue_discharge_drop, total_ramp_density, interchange_density) {
         const ptr0 = passArrayJsValueToWasm0(wasm_segments, wasm.__wbindgen_malloc);
         const len0 = WASM_VECTOR_LEN;
         const ptr1 = passArrayF64ToWasm0(mainline_demand, wasm.__wbindgen_malloc);
@@ -1835,9 +1848,90 @@ export class WasmFreewayReliability {
         const len4 = WASM_VECTOR_LEN;
         var ptr5 = isLikeNone(seed_weekday) ? 0 : passStringToWasm0(seed_weekday, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         var len5 = WASM_VECTOR_LEN;
-        const ret = wasm.wasmfreewayreliability_new(ptr0, len0, ptr1, len1, !isLikeNone(ffs), isLikeNone(ffs) ? 0 : ffs, !isLikeNone(heavy_vehicle_pct), isLikeNone(heavy_vehicle_pct) ? 0 : heavy_vehicle_pct, ptr2, len2, ptr3, len3, !isLikeNone(phf), isLikeNone(phf) ? 0 : phf, ptr4, len4, !isLikeNone(replications), isLikeNone(replications) ? 0 : replications, !isLikeNone(seed_month), isLikeNone(seed_month) ? 0 : seed_month, ptr5, len5, !isLikeNone(crash_rate_per_100mvmt), isLikeNone(crash_rate_per_100mvmt) ? 0 : crash_rate_per_100mvmt, !isLikeNone(incident_to_crash_ratio), isLikeNone(incident_to_crash_ratio) ? 0 : incident_to_crash_ratio, !isLikeNone(rng_seed), isLikeNone(rng_seed) ? 0 : rng_seed, isLikeNone(vmt_weighted) ? 0xFFFFFF : vmt_weighted ? 1 : 0);
+        const ret = wasm.wasmfreewayreliability_new(ptr0, len0, ptr1, len1, !isLikeNone(ffs), isLikeNone(ffs) ? 0 : ffs, !isLikeNone(heavy_vehicle_pct), isLikeNone(heavy_vehicle_pct) ? 0 : heavy_vehicle_pct, ptr2, len2, ptr3, len3, !isLikeNone(phf), isLikeNone(phf) ? 0 : phf, ptr4, len4, !isLikeNone(replications), isLikeNone(replications) ? 0 : replications, !isLikeNone(seed_month), isLikeNone(seed_month) ? 0 : seed_month, ptr5, len5, !isLikeNone(crash_rate_per_100mvmt), isLikeNone(crash_rate_per_100mvmt) ? 0 : crash_rate_per_100mvmt, !isLikeNone(incident_to_crash_ratio), isLikeNone(incident_to_crash_ratio) ? 0 : incident_to_crash_ratio, !isLikeNone(rng_seed), isLikeNone(rng_seed) ? 0 : rng_seed, isLikeNone(vmt_weighted) ? 0xFFFFFF : vmt_weighted ? 1 : 0, !isLikeNone(jam_density_pc), isLikeNone(jam_density_pc) ? 0 : jam_density_pc, !isLikeNone(queue_discharge_drop), isLikeNone(queue_discharge_drop) ? 0 : queue_discharge_drop, !isLikeNone(total_ramp_density), isLikeNone(total_ramp_density) ? 0 : total_ramp_density, !isLikeNone(interchange_density), isLikeNone(interchange_density) ? 0 : interchange_density);
         this.__wbg_ptr = ret >>> 0;
         return this;
+    }
+    /**
+    * Place the Step B-6 weather inputs, from a configuration object in the
+    * serde schema of the library's `WeatherInputs`, so the `weather` object
+    * of `tests/ExampleCases/hcm/FreewayReliability/case1.json` passes
+    * verbatim. The inputs are a 12-by-10 timewise probability matrix
+    * (Equation 25-75, months by `SEVERE_WEATHER_TYPES`), the ten mean event
+    * durations, optional per-type CAF and SAF overrides on the Exhibit
+    * 11-20/11-21 defaults, and the event demand adjustment factor, so they
+    * arrive as one config object rather than as a further row of positional
+    * arguments. Without this the generator sees no weather at all, which is
+    * a milder facility rather than a differently parameterized one.
+    *
+    * The shapes are checked here because `WeatherInputs` is `serde(default)`:
+    * a misspelled or transposed probability matrix would otherwise
+    * deserialize into the all-zero default and silently generate the same
+    * weather-free distribution the caller was trying to leave behind.
+    * @param {any} config
+    */
+    set_weather(config) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmfreewayreliability_set_weather(retptr, this.__wbg_ptr, addHeapObject(config));
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Remove the weather inputs, returning the generator to its default of
+    * modeling no weather events.
+    */
+    clear_weather() {
+        wasm.wasmfreewayreliability_clear_weather(this.__wbg_ptr);
+    }
+    /**
+    * @returns {boolean}
+    */
+    has_weather() {
+        const ret = wasm.wasmfreewayreliability_has_weather(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+    * Replace the demand multipliers DM of Equation 25-72 with a local
+    * table: 12 rows (January through December) of 7 columns (Monday through
+    * Sunday). Only ratios to the seed date's multiplier are used, so any
+    * common base works, which is why Example Problem 7's Exhibit 25-100
+    * table (an ADT-based rescaling of Exhibit 11-18) gives a July Friday DAF
+    * of 1.329/0.995 = 1.3357 where the Exhibit 11-18 default gives
+    * 1.62/1.21 = 1.3388.
+    *
+    * The shape is checked because the core's lookup returns 1.0 for a month
+    * or weekday the table does not reach, so a transposed or short table
+    * would quietly flatten part of the year to no demand variation at all.
+    * @param {any} rows
+    */
+    set_demand_multipliers(rows) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmfreewayreliability_set_demand_multipliers(retptr, this.__wbg_ptr, addHeapObject(rows));
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Demand multiplier DM(Seed) of the seed dataset date, the denominator
+    * of every scenario's DAF (Equation 25-72).
+    * @returns {number}
+    */
+    seed_demand_multiplier() {
+        const ret = wasm.wasmfreewayreliability_seed_demand_multiplier(this.__wbg_ptr);
+        return ret;
     }
     /**
     * Run the full reliability methodology (scenario generation plus one
@@ -1922,6 +2016,26 @@ export class WasmFreewayReliability {
         return ret;
     }
     /**
+    * Largest TTI in the weighted distribution. This is the single worst
+    * scenario-period, so it is the measure most exposed to the Monte Carlo
+    * pairing of an incident with a high-demand scenario.
+    * @returns {number}
+    */
+    tti_max() {
+        const ret = wasm.wasmfreewayreliability_tti_max(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+    * Percentage of the weighted distribution above a TTI threshold, e.g.
+    * 2.0 for the Exhibit 25-104 "%VMT at TTI > 2" row.
+    * @param {number} threshold
+    * @returns {number}
+    */
+    pct_tti_above(threshold) {
+        const ret = wasm.wasmfreewayreliability_pct_tti_above(this.__wbg_ptr, threshold);
+        return ret;
+    }
+    /**
     * Misery index (mean of the worst 5% of TTIs).
     * @returns {number}
     */
@@ -1953,6 +2067,17 @@ export class WasmFreewayReliability {
     */
     failure_pct_below_speed(target_speed_mi_h) {
         const ret = wasm.wasmfreewayreliability_failure_pct_below_speed(this.__wbg_ptr, target_speed_mi_h);
+        return ret;
+    }
+    /**
+    * Percentage of the weighted distribution at or above the target
+    * facility space mean speed, %. The complement of
+    * `failure_pct_below_speed()` at the same target.
+    * @param {number} target_speed_mi_h
+    * @returns {number}
+    */
+    on_time_pct_at_speed(target_speed_mi_h) {
+        const ret = wasm.wasmfreewayreliability_on_time_pct_at_speed(this.__wbg_ptr, target_speed_mi_h);
         return ret;
     }
     /**
@@ -2061,6 +2186,44 @@ export class WasmFreewayReliability {
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             var v1 = getArrayF64FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 8, 8);
+            return v1;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Expected weather event counts E[n_w,j] by month (12 rows, January
+    * first) and severe weather type (10 columns, `SEVERE_WEATHER_TYPES`
+    * order), Equation 25-76. These are the deterministic counts the
+    * stochastic assignment then places, so they are the part of the
+    * weather step that reproduces exactly. Empty before `run()`.
+    * @returns {any}
+    */
+    expected_weather_event_counts() {
+        const ret = wasm.wasmfreewayreliability_expected_weather_event_counts(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+    * Total weather events generated across the whole scenario set.
+    * @returns {number}
+    */
+    total_weather_events() {
+        const ret = wasm.wasmfreewayreliability_total_weather_events(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+    * Number of weather events assigned to each scenario, sharing the
+    * ordering of `scenario_probabilities()`.
+    * @returns {Uint32Array}
+    */
+    scenario_weather_event_counts() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmfreewayreliability_scenario_weather_event_counts(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var v1 = getArrayU32FromWasm0(r0, r1).slice();
+            wasm.__wbindgen_free(r0, r1 * 4, 4);
             return v1;
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
@@ -2762,7 +2925,7 @@ export class WasmManagedLanes {
     * @returns {number}
     */
     get_capacity() {
-        const ret = wasm.wasminterchange_get_cycle_length_s(this.__wbg_ptr);
+        const ret = wasm.wasmmanagedlanes_get_capacity(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -6558,7 +6721,7 @@ export class WasmWeavingSegment {
     * @returns {number}
     */
     get_flow_nonweaving() {
-        const ret = wasm.wasmweavingsegment_get_flow_nonweaving(this.__wbg_ptr);
+        const ret = wasm.wasmbasicfreeways_get_e_t(this.__wbg_ptr);
         return ret;
     }
     /**
@@ -6921,18 +7084,6 @@ function __wbg_get_imports() {
         const ret = result;
         return ret;
     };
-    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
-        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
-    imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
-        const ret = WasmSubSegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
-    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
-        const ret = WasmSegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
     imports.wbg.__wbindgen_jsval_loose_eq = function(arg0, arg1) {
         const ret = getObject(arg0) == getObject(arg1);
         return ret;
@@ -6968,14 +7119,26 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_set_20cbc34131e76824 = function(arg0, arg1, arg2) {
         getObject(arg0)[takeObject(arg1)] = takeObject(arg2);
     };
-    imports.wbg.__wbindgen_in = function(arg0, arg1) {
-        const ret = getObject(arg0) in getObject(arg1);
-        return ret;
-    };
     imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
         const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
         return ret;
     }, arguments) };
+    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
+        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
+    imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
+        const ret = WasmSubSegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
+    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
+        const ret = WasmSegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
+    imports.wbg.__wbindgen_in = function(arg0, arg1) {
+        const ret = getObject(arg0) in getObject(arg1);
+        return ret;
+    };
     imports.wbg.__wbindgen_is_bigint = function(arg0) {
         const ret = typeof(getObject(arg0)) === 'bigint';
         return ret;
