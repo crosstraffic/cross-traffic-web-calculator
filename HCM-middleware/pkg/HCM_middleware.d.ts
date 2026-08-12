@@ -730,15 +730,24 @@ export class WasmFreewayFacility {
 }
 /**
 * HCM Chapter 11 freeway reliability analysis (Steps B-1 through B-13),
-* scoped to demand variability plus optional incidents. The scenario
-* generator defaults to a whole-year reliability reporting period
-* (12 months, Monday through Friday, Exhibit 11-18 urban demand ratios).
-* Weather events, work zones, and special events are not exposed by this
-* binding.
+* scoped to demand variability plus optional weather and incidents. The
+* scenario generator defaults to a whole-year reliability reporting period
+* (12 months, Monday through Friday, Exhibit 11-18 urban demand ratios) with
+* no weather; `set_weather()` and `set_demand_multipliers()` replace those
+* two defaults. Work zones and special events, and with them the Chapter 37
+* ATDM strategies built on top of them, are not exposed by this binding.
 */
 export class WasmFreewayReliability {
   free(): void;
 /**
+* The four trailing facility parameters are the ones
+* `WasmFreewayFacility` has always taken and this constructor used to
+* pass as `None`: jam density, the queue discharge capacity drop, total
+* ramp density, and interchange density. Omitting any of them keeps the
+* core default, which for the first three is the value Example Problem 7
+* itself uses (190 pc/mi/ln, 7%, 1.0 ramps/mi) but for interchange
+* density is `None`, and the core then falls back to the total ramp
+* density rather than to Example Problem 7's 0.8 interchanges/mi.
 * @param {(WasmFacilitySegment)[]} wasm_segments
 * @param {Float64Array} mainline_demand
 * @param {number | undefined} ffs
@@ -754,8 +763,61 @@ export class WasmFreewayReliability {
 * @param {number | undefined} [incident_to_crash_ratio]
 * @param {number | undefined} [rng_seed]
 * @param {boolean | undefined} [vmt_weighted]
+* @param {number | undefined} [jam_density_pc]
+* @param {number | undefined} [queue_discharge_drop]
+* @param {number | undefined} [total_ramp_density]
+* @param {number | undefined} [interchange_density]
 */
-  constructor(wasm_segments: (WasmFacilitySegment)[], mainline_demand: Float64Array, ffs: number | undefined, heavy_vehicle_pct: number | undefined, terrain: string | undefined, city_type: string | undefined, phf: number | undefined, months: Uint32Array, replications?: number, seed_month?: number, seed_weekday?: string, crash_rate_per_100mvmt?: number, incident_to_crash_ratio?: number, rng_seed?: number, vmt_weighted?: boolean);
+  constructor(wasm_segments: (WasmFacilitySegment)[], mainline_demand: Float64Array, ffs: number | undefined, heavy_vehicle_pct: number | undefined, terrain: string | undefined, city_type: string | undefined, phf: number | undefined, months: Uint32Array, replications?: number, seed_month?: number, seed_weekday?: string, crash_rate_per_100mvmt?: number, incident_to_crash_ratio?: number, rng_seed?: number, vmt_weighted?: boolean, jam_density_pc?: number, queue_discharge_drop?: number, total_ramp_density?: number, interchange_density?: number);
+/**
+* Place the Step B-6 weather inputs, from a configuration object in the
+* serde schema of the library's `WeatherInputs`, so the `weather` object
+* of `tests/ExampleCases/hcm/FreewayReliability/case1.json` passes
+* verbatim. The inputs are a 12-by-10 timewise probability matrix
+* (Equation 25-75, months by `SEVERE_WEATHER_TYPES`), the ten mean event
+* durations, optional per-type CAF and SAF overrides on the Exhibit
+* 11-20/11-21 defaults, and the event demand adjustment factor, so they
+* arrive as one config object rather than as a further row of positional
+* arguments. Without this the generator sees no weather at all, which is
+* a milder facility rather than a differently parameterized one.
+*
+* The shapes are checked here because `WeatherInputs` is `serde(default)`:
+* a misspelled or transposed probability matrix would otherwise
+* deserialize into the all-zero default and silently generate the same
+* weather-free distribution the caller was trying to leave behind.
+* @param {any} config
+*/
+  set_weather(config: any): void;
+/**
+* Remove the weather inputs, returning the generator to its default of
+* modeling no weather events.
+*/
+  clear_weather(): void;
+/**
+* @returns {boolean}
+*/
+  has_weather(): boolean;
+/**
+* Replace the demand multipliers DM of Equation 25-72 with a local
+* table: 12 rows (January through December) of 7 columns (Monday through
+* Sunday). Only ratios to the seed date's multiplier are used, so any
+* common base works, which is why Example Problem 7's Exhibit 25-100
+* table (an ADT-based rescaling of Exhibit 11-18) gives a July Friday DAF
+* of 1.329/0.995 = 1.3357 where the Exhibit 11-18 default gives
+* 1.62/1.21 = 1.3388.
+*
+* The shape is checked because the core's lookup returns 1.0 for a month
+* or weekday the table does not reach, so a transposed or short table
+* would quietly flatten part of the year to no demand variation at all.
+* @param {any} rows
+*/
+  set_demand_multipliers(rows: any): void;
+/**
+* Demand multiplier DM(Seed) of the seed dataset date, the denominator
+* of every scenario's DAF (Equation 25-72).
+* @returns {number}
+*/
+  seed_demand_multiplier(): number;
 /**
 * Run the full reliability methodology (scenario generation plus one
 * Chapter 10 core-methodology evaluation per scenario). Throws with the
@@ -803,6 +865,20 @@ export class WasmFreewayReliability {
 */
   tti_percentile(p: number): number;
 /**
+* Largest TTI in the weighted distribution. This is the single worst
+* scenario-period, so it is the measure most exposed to the Monte Carlo
+* pairing of an incident with a high-demand scenario.
+* @returns {number}
+*/
+  tti_max(): number;
+/**
+* Percentage of the weighted distribution above a TTI threshold, e.g.
+* 2.0 for the Exhibit 25-104 "%VMT at TTI > 2" row.
+* @param {number} threshold
+* @returns {number}
+*/
+  pct_tti_above(threshold: number): number;
+/**
 * Misery index (mean of the worst 5% of TTIs).
 * @returns {number}
 */
@@ -824,6 +900,14 @@ export class WasmFreewayReliability {
 * @returns {number}
 */
   failure_pct_below_speed(target_speed_mi_h: number): number;
+/**
+* Percentage of the weighted distribution at or above the target
+* facility space mean speed, %. The complement of
+* `failure_pct_below_speed()` at the same target.
+* @param {number} target_speed_mi_h
+* @returns {number}
+*/
+  on_time_pct_at_speed(target_speed_mi_h: number): number;
 /**
 * Scenario probabilities (one entry per generated scenario).
 * @returns {Float64Array}
@@ -863,6 +947,26 @@ export class WasmFreewayReliability {
 * @returns {Float64Array}
 */
   monthly_incident_frequencies(): Float64Array;
+/**
+* Expected weather event counts E[n_w,j] by month (12 rows, January
+* first) and severe weather type (10 columns, `SEVERE_WEATHER_TYPES`
+* order), Equation 25-76. These are the deterministic counts the
+* stochastic assignment then places, so they are the part of the
+* weather step that reproduces exactly. Empty before `run()`.
+* @returns {any}
+*/
+  expected_weather_event_counts(): any;
+/**
+* Total weather events generated across the whole scenario set.
+* @returns {number}
+*/
+  total_weather_events(): number;
+/**
+* Number of weather events assigned to each scenario, sharing the
+* ordering of `scenario_probabilities()`.
+* @returns {Uint32Array}
+*/
+  scenario_weather_event_counts(): Uint32Array;
 /**
 * Total incidents generated across the whole scenario set. The count
 * is a draw, not the expectation, so it moves with the rng seed.
@@ -3078,22 +3182,51 @@ export interface InitOutput {
   readonly wasmplanningfacility_results_to_js_value: (a: number) => number;
   readonly wasmmanagedlanefacility_num_segments: (a: number) => number;
   readonly wasmmanagedlanefacility_num_periods: (a: number) => number;
-  readonly __wbg_wasmbasicfreeways_free: (a: number) => void;
-  readonly wasmbasicfreeways_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number) => number;
-  readonly wasmbasicfreeways_run_operational_analysis: (a: number, b: number) => void;
-  readonly wasmbasicfreeways_determine_free_flow_speed: (a: number) => number;
-  readonly wasmbasicfreeways_get_ffs: (a: number) => number;
-  readonly wasmbasicfreeways_get_ffs_adj: (a: number) => number;
-  readonly wasmbasicfreeways_get_breakpoint: (a: number) => number;
-  readonly wasmbasicfreeways_get_capacity: (a: number) => number;
-  readonly wasmbasicfreeways_get_adjusted_capacity: (a: number) => number;
-  readonly wasmbasicfreeways_get_speed: (a: number) => number;
-  readonly wasmbasicfreeways_get_density: (a: number) => number;
-  readonly wasmbasicfreeways_get_vc_ratio: (a: number) => number;
-  readonly wasmbasicfreeways_get_demand_volume: (a: number) => number;
-  readonly wasmbasicfreeways_get_lane_count: (a: number) => number;
-  readonly wasmbasicfreeways_get_e_t: (a: number) => number;
-  readonly wasmbasicfreeways_results_to_js_value: (a: number) => number;
+  readonly __wbg_wasmexclusivepedestrianfacility_free: (a: number) => void;
+  readonly wasmexclusivepedestrianfacility_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => number;
+  readonly wasmexclusivepedestrianfacility_analyze: (a: number, b: number) => void;
+  readonly wasmexclusivepedestrianfacility_get_effective_width: (a: number) => number;
+  readonly wasmexclusivepedestrianfacility_get_flow_rate_15min: (a: number) => number;
+  readonly wasmexclusivepedestrianfacility_get_unit_flow_rate: (a: number) => number;
+  readonly wasmexclusivepedestrianfacility_get_pedestrian_space: (a: number) => number;
+  readonly wasmexclusivepedestrianfacility_get_vc_ratio: (a: number) => number;
+  readonly wasmexclusivepedestrianfacility_results_to_js_value: (a: number) => number;
+  readonly __wbg_wasmsharedusepathpedestrian_free: (a: number) => void;
+  readonly wasmsharedusepathpedestrian_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => number;
+  readonly wasmsharedusepathpedestrian_analyze: (a: number, b: number) => void;
+  readonly wasmsharedusepathpedestrian_get_meeting_events: (a: number) => number;
+  readonly wasmsharedusepathpedestrian_results_to_js_value: (a: number) => number;
+  readonly __wbg_wasmoffstreetbicyclefacility_free: (a: number) => void;
+  readonly wasmoffstreetbicyclefacility_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number) => number;
+  readonly wasmoffstreetbicyclefacility_analyze: (a: number, b: number) => void;
+  readonly wasmoffstreetbicyclefacility_get_active_passings_per_minute: (a: number) => number;
+  readonly wasmoffstreetbicyclefacility_get_meetings_per_minute: (a: number) => number;
+  readonly wasmoffstreetbicyclefacility_get_effective_lanes: (a: number) => number;
+  readonly wasmoffstreetbicyclefacility_get_probability_delayed_passing: (a: number) => number;
+  readonly wasmoffstreetbicyclefacility_get_delayed_passings_per_minute: (a: number) => number;
+  readonly wasmoffstreetbicyclefacility_get_weighted_events_per_minute: (a: number) => number;
+  readonly wasmoffstreetbicyclefacility_get_blos_score: (a: number) => number;
+  readonly wasmoffstreetbicyclefacility_results_to_js_value: (a: number) => number;
+  readonly wasmsharedusepathpedestrian_get_passing_events: (a: number) => number;
+  readonly wasmsharedusepathpedestrian_get_total_events: (a: number) => number;
+  readonly __wbg_wasmmanagedlanes_free: (a: number) => void;
+  readonly wasmmanagedlanes_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => number;
+  readonly wasmmanagedlanes_run_analysis: (a: number, b: number) => void;
+  readonly wasmmanagedlanes_calculate_breakpoint: (a: number) => number;
+  readonly wasmmanagedlanes_calculate_capacity: (a: number) => number;
+  readonly wasmmanagedlanes_calculate_speed: (a: number) => number;
+  readonly wasmmanagedlanes_calculate_density: (a: number) => number;
+  readonly wasmmanagedlanes_determine_los: (a: number, b: number) => void;
+  readonly wasmmanagedlanes_set_demand: (a: number, b: number) => void;
+  readonly wasmmanagedlanes_set_gp_density: (a: number, b: number) => void;
+  readonly wasmmanagedlanes_get_breakpoint: (a: number) => number;
+  readonly wasmmanagedlanes_get_capacity: (a: number) => number;
+  readonly wasmmanagedlanes_get_speed: (a: number) => number;
+  readonly wasmmanagedlanes_get_density: (a: number) => number;
+  readonly wasmmanagedlanes_get_los: (a: number, b: number) => void;
+  readonly wasmmanagedlanes_has_friction_effect: (a: number) => number;
+  readonly wasmmanagedlanes_is_friction_active: (a: number) => number;
+  readonly wasmmanagedlanes_results_to_js_value: (a: number) => number;
   readonly __wbg_wasmrampsegment_free: (a: number) => void;
   readonly wasmrampsegment_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number, j1: number, k1: number, l1: number, m1: number, n1: number, o1: number, p1: number, q1: number, r1: number, s1: number, t1: number, u1: number, v1: number, w1: number, x1: number) => number;
   readonly wasmrampsegment_version: (a: number, b: number) => void;
@@ -3122,231 +3255,6 @@ export interface InitOutput {
   readonly wasmrampsegment_get_speed_avg: (a: number) => number;
   readonly wasmrampsegment_get_los: (a: number, b: number) => void;
   readonly wasmrampsegment_results_to_js_value: (a: number) => number;
-  readonly __wbg_wasmurbansegment_free: (a: number) => void;
-  readonly wasmurbansegment_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number, j1: number, k1: number, l1: number, m1: number, n1: number, o1: number, p1: number, q1: number, r1: number, s1: number, t1: number, u1: number, v1: number, w1: number, x1: number, y1: number, z1: number, a2: number, b2: number, c2: number, d2: number, e2: number, f2: number, g2: number, h2: number, i2: number, j2: number, k2: number, l2: number, m2: number, n2: number, o2: number, p2: number) => number;
-  readonly wasmurbansegment_add_access_point: (a: number, b: number, c: number) => void;
-  readonly wasmurbansegment_analyze: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_speed_constant: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_f_cs: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_f_a: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_f_pk: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_f_l: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_f_v: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_base_ffs: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_free_flow_speed: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_running_time: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_running_speed: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_proportion_arriving_green: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_access_point_delay: (a: number, b: number) => void;
-  readonly wasmurbansegment_access_point_delays_computed: (a: number) => number;
-  readonly wasmurbansegment_get_through_delay: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_full_stop_rate: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_travel_speed: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_spatial_stop_rate: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_vc_ratio: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_demand_exceeds_capacity: (a: number) => number;
-  readonly wasmurbansegment_get_perception_score: (a: number, b: number) => void;
-  readonly wasmurbansegment_get_los: (a: number, b: number) => void;
-  readonly wasmurbansegment_results_to_js_value: (a: number) => number;
-  readonly __wbg_wasmtwsc_free: (a: number) => void;
-  readonly wasmtwsc_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number, j1: number, k1: number, l1: number, m1: number, n1: number, o1: number, p1: number, q1: number, r1: number, s1: number, t1: number, u1: number, v1: number, w1: number, x1: number, y1: number, z1: number, a2: number, b2: number, c2: number, d2: number, e2: number, f2: number, g2: number, h2: number, i2: number, j2: number, k2: number, l2: number, m2: number, n2: number, o2: number, p2: number, q2: number, r2: number) => void;
-  readonly wasmtwsc_add_conflicting_flow_override: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
-  readonly wasmtwsc_clear_conflicting_flow_overrides: (a: number) => void;
-  readonly wasmtwsc_analyze: (a: number) => void;
-  readonly wasmtwsc_get_flow_rate: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmtwsc_get_conflicting_flow: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmtwsc_get_potential_capacity: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmtwsc_get_movement_capacity: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmtwsc_get_movement_delay: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmtwsc_get_movement_los: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmtwsc_get_movement_queue_95: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmtwsc_get_lane_count: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmtwsc_lane_result_to_js_value: (a: number, b: number, c: number, d: number, e: number) => void;
-  readonly wasmtwsc_get_approach_delays: (a: number, b: number) => void;
-  readonly wasmtwsc_get_intersection_delay: (a: number, b: number) => void;
-  readonly wasmtwsc_results_to_js_value: (a: number) => number;
-  readonly __wbg_wasmexclusivepedestrianfacility_free: (a: number) => void;
-  readonly wasmexclusivepedestrianfacility_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => number;
-  readonly wasmexclusivepedestrianfacility_analyze: (a: number, b: number) => void;
-  readonly wasmexclusivepedestrianfacility_get_effective_width: (a: number) => number;
-  readonly wasmexclusivepedestrianfacility_get_flow_rate_15min: (a: number) => number;
-  readonly wasmexclusivepedestrianfacility_get_unit_flow_rate: (a: number) => number;
-  readonly wasmexclusivepedestrianfacility_get_pedestrian_space: (a: number) => number;
-  readonly wasmexclusivepedestrianfacility_get_vc_ratio: (a: number) => number;
-  readonly wasmexclusivepedestrianfacility_results_to_js_value: (a: number) => number;
-  readonly __wbg_wasmsharedusepathpedestrian_free: (a: number) => void;
-  readonly wasmsharedusepathpedestrian_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => number;
-  readonly wasmsharedusepathpedestrian_analyze: (a: number, b: number) => void;
-  readonly wasmsharedusepathpedestrian_get_meeting_events: (a: number) => number;
-  readonly wasmsharedusepathpedestrian_results_to_js_value: (a: number) => number;
-  readonly __wbg_wasmoffstreetbicyclefacility_free: (a: number) => void;
-  readonly wasmoffstreetbicyclefacility_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number) => number;
-  readonly wasmoffstreetbicyclefacility_analyze: (a: number, b: number) => void;
-  readonly wasmoffstreetbicyclefacility_get_active_passings_per_minute: (a: number) => number;
-  readonly wasmoffstreetbicyclefacility_get_meetings_per_minute: (a: number) => number;
-  readonly wasmoffstreetbicyclefacility_get_effective_lanes: (a: number) => number;
-  readonly wasmoffstreetbicyclefacility_get_probability_delayed_passing: (a: number) => number;
-  readonly wasmoffstreetbicyclefacility_get_delayed_passings_per_minute: (a: number) => number;
-  readonly wasmoffstreetbicyclefacility_get_weighted_events_per_minute: (a: number) => number;
-  readonly wasmoffstreetbicyclefacility_get_blos_score: (a: number) => number;
-  readonly wasmoffstreetbicyclefacility_results_to_js_value: (a: number) => number;
-  readonly wasmsharedusepathpedestrian_get_passing_events: (a: number) => number;
-  readonly wasmsharedusepathpedestrian_get_total_events: (a: number) => number;
-  readonly __wbg_wasmweavingsegment_free: (a: number) => void;
-  readonly wasmweavingsegment_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number, j1: number, k1: number, l1: number, m1: number, n1: number, o1: number, p1: number, q1: number, r1: number, s1: number, t1: number, u1: number, v1: number) => number;
-  readonly wasmweavingsegment_version: (a: number, b: number) => void;
-  readonly wasmweavingsegment_set_version: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmweavingsegment_analysis_v7_1: (a: number, b: number) => void;
-  readonly wasmweavingsegment_run_analysis: (a: number, b: number) => void;
-  readonly wasmweavingsegment_determine_demand_flow: (a: number, b: number) => void;
-  readonly wasmweavingsegment_determine_configuration_characteristics: (a: number, b: number) => void;
-  readonly wasmweavingsegment_determine_max_weaving_length: (a: number, b: number) => void;
-  readonly wasmweavingsegment_determine_capacity: (a: number, b: number) => void;
-  readonly wasmweavingsegment_determine_lane_changing_rates: (a: number, b: number) => void;
-  readonly wasmweavingsegment_estimate_speed: (a: number, b: number) => void;
-  readonly wasmweavingsegment_determine_density: (a: number, b: number) => void;
-  readonly wasmweavingsegment_determine_los: (a: number, b: number) => void;
-  readonly wasmweavingsegment_get_flow_weaving: (a: number) => number;
-  readonly wasmweavingsegment_get_flow_nonweaving: (a: number) => number;
-  readonly wasmweavingsegment_get_flow_total: (a: number) => number;
-  readonly wasmweavingsegment_get_volume_ratio: (a: number) => number;
-  readonly wasmweavingsegment_get_lc_min: (a: number) => number;
-  readonly wasmweavingsegment_get_l_max: (a: number) => number;
-  readonly wasmweavingsegment_is_weaving: (a: number) => number;
-  readonly wasmweavingsegment_get_c_iwl: (a: number) => number;
-  readonly wasmweavingsegment_get_capacity: (a: number) => number;
-  readonly wasmweavingsegment_get_capacity_weaving: (a: number, b: number) => void;
-  readonly wasmweavingsegment_get_vc_ratio: (a: number) => number;
-  readonly wasmweavingsegment_get_lc_w: (a: number) => number;
-  readonly wasmweavingsegment_get_lc_nw: (a: number) => number;
-  readonly wasmweavingsegment_get_lc_all: (a: number) => number;
-  readonly wasmweavingsegment_get_speed_weaving: (a: number) => number;
-  readonly wasmweavingsegment_get_speed_nonweaving: (a: number) => number;
-  readonly wasmweavingsegment_get_speed_avg: (a: number) => number;
-  readonly wasmweavingsegment_get_density: (a: number) => number;
-  readonly wasmweavingsegment_get_los: (a: number, b: number) => void;
-  readonly wasmweavingsegment_results_to_js_value: (a: number) => number;
-  readonly __wbg_wasmalternativeintersection_free: (a: number) => void;
-  readonly wasmalternativeintersection_new: (a: number, b: number) => void;
-  readonly wasmalternativeintersection_movement_results_to_js_value: (a: number) => number;
-  readonly wasmalternativeintersection_get_approach_ett_s: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmalternativeintersection_get_intersection_ett_s: (a: number, b: number) => void;
-  readonly wasmalternativeintersection_get_intersection_los: (a: number, b: number) => void;
-  readonly edtt_merge: (a: number, b: number, c: number, d: number) => number;
-  readonly edtt_stop_or_signal: (a: number, b: number, c: number) => number;
-  readonly uturn_saturation_adjustment: (a: number) => number;
-  readonly stop_junction_delay: (a: number, b: number, c: number, d: number, e: number) => number;
-  readonly dlt_offset: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
-  readonly __wbg_wasmmanagedlanes_free: (a: number) => void;
-  readonly wasmmanagedlanes_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => number;
-  readonly wasmmanagedlanes_run_analysis: (a: number, b: number) => void;
-  readonly wasmmanagedlanes_calculate_breakpoint: (a: number) => number;
-  readonly wasmmanagedlanes_calculate_capacity: (a: number) => number;
-  readonly wasmmanagedlanes_calculate_speed: (a: number) => number;
-  readonly wasmmanagedlanes_calculate_density: (a: number) => number;
-  readonly wasmmanagedlanes_determine_los: (a: number, b: number) => void;
-  readonly wasmmanagedlanes_set_demand: (a: number, b: number) => void;
-  readonly wasmmanagedlanes_set_gp_density: (a: number, b: number) => void;
-  readonly wasmmanagedlanes_get_breakpoint: (a: number) => number;
-  readonly wasmmanagedlanes_get_speed: (a: number) => number;
-  readonly wasmmanagedlanes_get_density: (a: number) => number;
-  readonly wasmmanagedlanes_get_los: (a: number, b: number) => void;
-  readonly wasmmanagedlanes_has_friction_effect: (a: number) => number;
-  readonly wasmmanagedlanes_is_friction_active: (a: number) => number;
-  readonly wasmmanagedlanes_results_to_js_value: (a: number) => number;
-  readonly __wbg_wasmroundabouts_free: (a: number) => void;
-  readonly wasmroundabouts_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number) => void;
-  readonly wasmroundabouts_analyze: (a: number) => void;
-  readonly wasmroundabouts_set_calibration: (a: number, b: number, c: number) => void;
-  readonly wasmroundabouts_get_circulating_flow_pce: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmroundabouts_get_lane_count: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmroundabouts_lane_result_to_js_value: (a: number, b: number, c: number, d: number, e: number) => void;
-  readonly wasmroundabouts_bypass_result_to_js_value: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmroundabouts_get_approach_delay: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmroundabouts_get_approach_los: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmroundabouts_get_intersection_delay: (a: number, b: number) => void;
-  readonly wasmroundabouts_get_intersection_los: (a: number, b: number) => void;
-  readonly wasmroundabouts_results_to_js_value: (a: number) => number;
-  readonly __wbg_wasminterchange_free: (a: number) => void;
-  readonly wasminterchange_new: (a: number, b: number) => void;
-  readonly wasminterchange_analyze: (a: number) => void;
-  readonly wasminterchange_get_cycle_length_s: (a: number) => number;
-  readonly wasminterchange_get_peak_hour_factor: (a: number) => number;
-  readonly wasminterchange_get_interchange_ett_s: (a: number, b: number) => void;
-  readonly wasminterchange_get_interchange_los: (a: number, b: number) => void;
-  readonly wasminterchange_od_results_to_js_value: (a: number) => number;
-  readonly wasminterchange_lane_group_results_to_js_value: (a: number) => number;
-  readonly __wbg_wasmdisplacedleftturn_free: (a: number) => void;
-  readonly wasmdisplacedleftturn_new: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
-  readonly wasmdisplacedleftturn_get_intersection_ett_s: (a: number) => number;
-  readonly wasmdisplacedleftturn_get_los: (a: number, b: number) => void;
-  readonly wasmmanagedlanes_get_capacity: (a: number) => number;
-  readonly __wbg_wasmurbanfacility_free: (a: number) => void;
-  readonly wasmurbanfacility_new: (a: number, b: number) => number;
-  readonly wasmurbanfacility_add_segment: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number, j1: number, k1: number, l1: number, m1: number, n1: number, o1: number, p1: number, q1: number, r1: number, s1: number, t1: number, u1: number, v1: number, w1: number, x1: number, y1: number, z1: number, a2: number, b2: number, c2: number, d2: number, e2: number) => void;
-  readonly wasmurbanfacility_add_segment_from_config: (a: number, b: number, c: number) => void;
-  readonly wasmurbanfacility_add_segment_summary: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => void;
-  readonly wasmurbanfacility_aggregate: (a: number, b: number) => void;
-  readonly wasmurbanfacility_analyze: (a: number, b: number) => void;
-  readonly wasmurbanfacility_num_segments: (a: number) => number;
-  readonly wasmurbanfacility_get_length_ft: (a: number) => number;
-  readonly wasmurbanfacility_get_base_ffs: (a: number, b: number) => void;
-  readonly wasmurbanfacility_get_travel_speed: (a: number, b: number) => void;
-  readonly wasmurbanfacility_get_travel_time: (a: number, b: number) => void;
-  readonly wasmurbanfacility_get_base_free_flow_travel_time: (a: number, b: number) => void;
-  readonly wasmurbanfacility_get_spatial_stop_rate: (a: number, b: number) => void;
-  readonly wasmurbanfacility_get_critical_vc_ratio: (a: number, b: number) => void;
-  readonly wasmurbanfacility_get_perception_score: (a: number, b: number) => void;
-  readonly wasmurbanfacility_get_los: (a: number, b: number) => void;
-  readonly wasmurbanfacility_get_poorest_segment_los: (a: number, b: number) => void;
-  readonly wasmurbanfacility_segments_to_js_value: (a: number) => number;
-  readonly wasmurbanfacility_results_to_js_value: (a: number) => number;
-  readonly __wbg_wasmurbanreliability_free: (a: number) => void;
-  readonly wasmurbanreliability_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number) => void;
-  readonly wasmurbanreliability_add_atdm_strategy: (a: number, b: number, c: number) => void;
-  readonly wasmurbanreliability_add_segment: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number) => void;
-  readonly wasmurbanreliability_run: (a: number, b: number) => void;
-  readonly wasmurbanreliability_num_segments: (a: number) => number;
-  readonly wasmurbanreliability_num_scenarios: (a: number) => number;
-  readonly wasmurbanreliability_num_weather_events: (a: number) => number;
-  readonly wasmurbanreliability_num_incidents: (a: number) => number;
-  readonly wasmurbanreliability_num_oversaturated_scenarios: (a: number) => number;
-  readonly wasmurbanreliability_get_base_free_flow_travel_time: (a: number, b: number) => void;
-  readonly wasmurbanreliability_get_mean_travel_time: (a: number, b: number) => void;
-  readonly wasmurbanreliability_get_total_vhd: (a: number, b: number) => void;
-  readonly wasmurbanreliability_tti_mean: (a: number) => number;
-  readonly wasmurbanreliability_tti_percentile: (a: number, b: number) => number;
-  readonly wasmurbanreliability_reliability_rating: (a: number) => number;
-  readonly wasmurbanreliability_results_to_js_value: (a: number) => number;
-  readonly __wbg_wasmsignalizedintersection_free: (a: number) => void;
-  readonly wasmsignalizedintersection_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number) => number;
-  readonly wasmsignalizedintersection_from_config: (a: number, b: number) => void;
-  readonly wasmsignalizedintersection_analyze: (a: number) => void;
-  readonly wasmsignalizedintersection_get_cycle_length_s: (a: number) => number;
-  readonly wasmsignalizedintersection_get_intersection_delay_s: (a: number, b: number) => void;
-  readonly wasmsignalizedintersection_get_intersection_los: (a: number, b: number) => void;
-  readonly wasmsignalizedintersection_get_critical_vc_ratio: (a: number, b: number) => void;
-  readonly wasmsignalizedintersection_approach_delay_s: (a: number, b: number, c: number) => number;
-  readonly wasmsignalizedintersection_approach_los: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmsignalizedintersection_lane_groups_to_js_value: (a: number) => number;
-  readonly wasmsignalizedintersection_results_to_js_value: (a: number) => number;
-  readonly __wbg_wasmawsc_free: (a: number) => void;
-  readonly wasmawsc_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number) => void;
-  readonly wasmawsc_analyze: (a: number) => void;
-  readonly wasmawsc_get_iterations: (a: number, b: number) => void;
-  readonly wasmawsc_get_lane_count: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmawsc_get_departure_headway: (a: number, b: number, c: number, d: number, e: number) => void;
-  readonly wasmawsc_get_degree_of_utilization: (a: number, b: number, c: number, d: number, e: number) => void;
-  readonly wasmawsc_get_service_time: (a: number, b: number, c: number, d: number, e: number) => void;
-  readonly wasmawsc_get_lane_delay: (a: number, b: number, c: number, d: number, e: number) => void;
-  readonly wasmawsc_get_lane_los: (a: number, b: number, c: number, d: number, e: number) => void;
-  readonly wasmawsc_get_lane_queue_95: (a: number, b: number, c: number, d: number, e: number) => void;
-  readonly wasmawsc_compute_lane_capacity: (a: number, b: number, c: number, d: number, e: number) => void;
-  readonly wasmawsc_get_approach_delay: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmawsc_get_approach_los: (a: number, b: number, c: number, d: number) => void;
-  readonly wasmawsc_get_intersection_delay: (a: number, b: number) => void;
-  readonly wasmawsc_get_intersection_los: (a: number, b: number) => void;
-  readonly wasmawsc_results_to_js_value: (a: number) => number;
   readonly __wbg_wasmsubsegment_free: (a: number) => void;
   readonly wasmsubsegment_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => number;
   readonly wasmsubsegment_to_js_value: (a: number) => number;
@@ -3398,8 +3306,76 @@ export interface InitOutput {
   readonly wasmsubsegment_get_sup_ele: (a: number) => number;
   readonly wasmsegment_subsegs_to_js_value: (a: number) => number;
   readonly wasmtwolanehighways_segs_to_js_value: (a: number) => number;
+  readonly __wbg_wasmbasicfreeways_free: (a: number) => void;
+  readonly wasmbasicfreeways_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number) => number;
+  readonly wasmbasicfreeways_run_operational_analysis: (a: number, b: number) => void;
+  readonly wasmbasicfreeways_determine_free_flow_speed: (a: number) => number;
+  readonly wasmbasicfreeways_get_ffs: (a: number) => number;
+  readonly wasmbasicfreeways_get_ffs_adj: (a: number) => number;
+  readonly wasmbasicfreeways_get_breakpoint: (a: number) => number;
+  readonly wasmbasicfreeways_get_capacity: (a: number) => number;
+  readonly wasmbasicfreeways_get_adjusted_capacity: (a: number) => number;
+  readonly wasmbasicfreeways_get_speed: (a: number) => number;
+  readonly wasmbasicfreeways_get_density: (a: number) => number;
+  readonly wasmbasicfreeways_get_vc_ratio: (a: number) => number;
+  readonly wasmbasicfreeways_get_demand_volume: (a: number) => number;
+  readonly wasmbasicfreeways_get_lane_count: (a: number) => number;
+  readonly wasmbasicfreeways_get_e_t: (a: number) => number;
+  readonly wasmbasicfreeways_results_to_js_value: (a: number) => number;
+  readonly __wbg_wasmweavingsegment_free: (a: number) => void;
+  readonly wasmweavingsegment_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number, j1: number, k1: number, l1: number, m1: number, n1: number, o1: number, p1: number, q1: number, r1: number, s1: number, t1: number, u1: number, v1: number) => number;
+  readonly wasmweavingsegment_version: (a: number, b: number) => void;
+  readonly wasmweavingsegment_set_version: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmweavingsegment_analysis_v7_1: (a: number, b: number) => void;
+  readonly wasmweavingsegment_run_analysis: (a: number, b: number) => void;
+  readonly wasmweavingsegment_determine_demand_flow: (a: number, b: number) => void;
+  readonly wasmweavingsegment_determine_configuration_characteristics: (a: number, b: number) => void;
+  readonly wasmweavingsegment_determine_max_weaving_length: (a: number, b: number) => void;
+  readonly wasmweavingsegment_determine_capacity: (a: number, b: number) => void;
+  readonly wasmweavingsegment_determine_lane_changing_rates: (a: number, b: number) => void;
+  readonly wasmweavingsegment_estimate_speed: (a: number, b: number) => void;
+  readonly wasmweavingsegment_determine_density: (a: number, b: number) => void;
+  readonly wasmweavingsegment_determine_los: (a: number, b: number) => void;
+  readonly wasmweavingsegment_get_flow_weaving: (a: number) => number;
+  readonly wasmweavingsegment_get_flow_total: (a: number) => number;
+  readonly wasmweavingsegment_get_volume_ratio: (a: number) => number;
+  readonly wasmweavingsegment_get_lc_min: (a: number) => number;
+  readonly wasmweavingsegment_get_l_max: (a: number) => number;
+  readonly wasmweavingsegment_is_weaving: (a: number) => number;
+  readonly wasmweavingsegment_get_c_iwl: (a: number) => number;
+  readonly wasmweavingsegment_get_capacity: (a: number) => number;
+  readonly wasmweavingsegment_get_capacity_weaving: (a: number, b: number) => void;
+  readonly wasmweavingsegment_get_vc_ratio: (a: number) => number;
+  readonly wasmweavingsegment_get_lc_w: (a: number) => number;
+  readonly wasmweavingsegment_get_lc_nw: (a: number) => number;
+  readonly wasmweavingsegment_get_lc_all: (a: number) => number;
+  readonly wasmweavingsegment_get_speed_weaving: (a: number) => number;
+  readonly wasmweavingsegment_get_speed_nonweaving: (a: number) => number;
+  readonly wasmweavingsegment_get_speed_avg: (a: number) => number;
+  readonly wasmweavingsegment_get_density: (a: number) => number;
+  readonly wasmweavingsegment_get_los: (a: number, b: number) => void;
+  readonly wasmweavingsegment_results_to_js_value: (a: number) => number;
+  readonly wasmweavingsegment_get_flow_nonweaving: (a: number) => number;
+  readonly __wbg_wasminterchange_free: (a: number) => void;
+  readonly wasminterchange_new: (a: number, b: number) => void;
+  readonly wasminterchange_analyze: (a: number) => void;
+  readonly wasminterchange_get_cycle_length_s: (a: number) => number;
+  readonly wasminterchange_get_peak_hour_factor: (a: number) => number;
+  readonly wasminterchange_get_interchange_ett_s: (a: number, b: number) => void;
+  readonly wasminterchange_get_interchange_los: (a: number, b: number) => void;
+  readonly wasminterchange_od_results_to_js_value: (a: number) => number;
+  readonly wasminterchange_lane_group_results_to_js_value: (a: number) => number;
+  readonly __wbg_wasmdisplacedleftturn_free: (a: number) => void;
+  readonly wasmdisplacedleftturn_new: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
+  readonly wasmdisplacedleftturn_get_intersection_ett_s: (a: number) => number;
+  readonly wasmdisplacedleftturn_get_los: (a: number, b: number) => void;
   readonly __wbg_wasmfreewayreliability_free: (a: number) => void;
-  readonly wasmfreewayreliability_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number) => number;
+  readonly wasmfreewayreliability_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number, j1: number, k1: number) => number;
+  readonly wasmfreewayreliability_set_weather: (a: number, b: number, c: number) => void;
+  readonly wasmfreewayreliability_clear_weather: (a: number) => void;
+  readonly wasmfreewayreliability_has_weather: (a: number) => number;
+  readonly wasmfreewayreliability_set_demand_multipliers: (a: number, b: number, c: number) => void;
+  readonly wasmfreewayreliability_seed_demand_multiplier: (a: number) => number;
   readonly wasmfreewayreliability_run: (a: number, b: number) => void;
   readonly wasmfreewayreliability_seed_total_vmt: (a: number) => number;
   readonly wasmfreewayreliability_seed_num_periods: (a: number) => number;
@@ -3409,19 +3385,158 @@ export interface InitOutput {
   readonly wasmfreewayreliability_expected_vhd: (a: number) => number;
   readonly wasmfreewayreliability_tti_mean: (a: number) => number;
   readonly wasmfreewayreliability_tti_percentile: (a: number, b: number) => number;
+  readonly wasmfreewayreliability_tti_max: (a: number) => number;
+  readonly wasmfreewayreliability_pct_tti_above: (a: number, b: number) => number;
   readonly wasmfreewayreliability_misery_index: (a: number) => number;
   readonly wasmfreewayreliability_reliability_rating: (a: number) => number;
   readonly wasmfreewayreliability_semi_std_dev: (a: number) => number;
   readonly wasmfreewayreliability_failure_pct_below_speed: (a: number, b: number) => number;
+  readonly wasmfreewayreliability_on_time_pct_at_speed: (a: number, b: number) => number;
   readonly wasmfreewayreliability_scenario_probabilities: (a: number, b: number) => void;
   readonly wasmfreewayreliability_scenario_months: (a: number, b: number) => void;
   readonly wasmfreewayreliability_scenario_weekdays: (a: number, b: number) => void;
   readonly wasmfreewayreliability_scenario_dafs: (a: number, b: number) => void;
   readonly wasmfreewayreliability_scenario_incident_counts: (a: number, b: number) => void;
   readonly wasmfreewayreliability_monthly_incident_frequencies: (a: number, b: number) => void;
+  readonly wasmfreewayreliability_expected_weather_event_counts: (a: number) => number;
+  readonly wasmfreewayreliability_total_weather_events: (a: number) => number;
+  readonly wasmfreewayreliability_scenario_weather_event_counts: (a: number, b: number) => void;
   readonly wasmfreewayreliability_total_incidents: (a: number) => number;
   readonly wasmfreewayreliability_scenario_tti_matrix: (a: number) => number;
   readonly wasmfreewayreliability_results_to_js_value: (a: number) => number;
+  readonly __wbg_wasmurbanreliability_free: (a: number) => void;
+  readonly wasmurbanreliability_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number) => void;
+  readonly wasmurbanreliability_add_atdm_strategy: (a: number, b: number, c: number) => void;
+  readonly wasmurbanreliability_add_segment: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number) => void;
+  readonly wasmurbanreliability_run: (a: number, b: number) => void;
+  readonly wasmurbanreliability_num_segments: (a: number) => number;
+  readonly wasmurbanreliability_num_scenarios: (a: number) => number;
+  readonly wasmurbanreliability_num_weather_events: (a: number) => number;
+  readonly wasmurbanreliability_num_incidents: (a: number) => number;
+  readonly wasmurbanreliability_num_oversaturated_scenarios: (a: number) => number;
+  readonly wasmurbanreliability_get_base_free_flow_travel_time: (a: number, b: number) => void;
+  readonly wasmurbanreliability_get_mean_travel_time: (a: number, b: number) => void;
+  readonly wasmurbanreliability_get_total_vhd: (a: number, b: number) => void;
+  readonly wasmurbanreliability_tti_mean: (a: number) => number;
+  readonly wasmurbanreliability_tti_percentile: (a: number, b: number) => number;
+  readonly wasmurbanreliability_reliability_rating: (a: number) => number;
+  readonly wasmurbanreliability_results_to_js_value: (a: number) => number;
+  readonly __wbg_wasmurbanfacility_free: (a: number) => void;
+  readonly wasmurbanfacility_new: (a: number, b: number) => number;
+  readonly wasmurbanfacility_add_segment: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number, j1: number, k1: number, l1: number, m1: number, n1: number, o1: number, p1: number, q1: number, r1: number, s1: number, t1: number, u1: number, v1: number, w1: number, x1: number, y1: number, z1: number, a2: number, b2: number, c2: number, d2: number, e2: number) => void;
+  readonly wasmurbanfacility_add_segment_from_config: (a: number, b: number, c: number) => void;
+  readonly wasmurbanfacility_add_segment_summary: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => void;
+  readonly wasmurbanfacility_aggregate: (a: number, b: number) => void;
+  readonly wasmurbanfacility_analyze: (a: number, b: number) => void;
+  readonly wasmurbanfacility_num_segments: (a: number) => number;
+  readonly wasmurbanfacility_get_length_ft: (a: number) => number;
+  readonly wasmurbanfacility_get_base_ffs: (a: number, b: number) => void;
+  readonly wasmurbanfacility_get_travel_speed: (a: number, b: number) => void;
+  readonly wasmurbanfacility_get_travel_time: (a: number, b: number) => void;
+  readonly wasmurbanfacility_get_base_free_flow_travel_time: (a: number, b: number) => void;
+  readonly wasmurbanfacility_get_spatial_stop_rate: (a: number, b: number) => void;
+  readonly wasmurbanfacility_get_critical_vc_ratio: (a: number, b: number) => void;
+  readonly wasmurbanfacility_get_perception_score: (a: number, b: number) => void;
+  readonly wasmurbanfacility_get_los: (a: number, b: number) => void;
+  readonly wasmurbanfacility_get_poorest_segment_los: (a: number, b: number) => void;
+  readonly wasmurbanfacility_segments_to_js_value: (a: number) => number;
+  readonly wasmurbanfacility_results_to_js_value: (a: number) => number;
+  readonly __wbg_wasmurbansegment_free: (a: number) => void;
+  readonly wasmurbansegment_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number, j1: number, k1: number, l1: number, m1: number, n1: number, o1: number, p1: number, q1: number, r1: number, s1: number, t1: number, u1: number, v1: number, w1: number, x1: number, y1: number, z1: number, a2: number, b2: number, c2: number, d2: number, e2: number, f2: number, g2: number, h2: number, i2: number, j2: number, k2: number, l2: number, m2: number, n2: number, o2: number, p2: number) => number;
+  readonly wasmurbansegment_add_access_point: (a: number, b: number, c: number) => void;
+  readonly wasmurbansegment_analyze: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_speed_constant: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_f_cs: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_f_a: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_f_pk: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_f_l: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_f_v: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_base_ffs: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_free_flow_speed: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_running_time: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_running_speed: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_proportion_arriving_green: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_access_point_delay: (a: number, b: number) => void;
+  readonly wasmurbansegment_access_point_delays_computed: (a: number) => number;
+  readonly wasmurbansegment_get_through_delay: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_full_stop_rate: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_travel_speed: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_spatial_stop_rate: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_vc_ratio: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_demand_exceeds_capacity: (a: number) => number;
+  readonly wasmurbansegment_get_perception_score: (a: number, b: number) => void;
+  readonly wasmurbansegment_get_los: (a: number, b: number) => void;
+  readonly wasmurbansegment_results_to_js_value: (a: number) => number;
+  readonly __wbg_wasmawsc_free: (a: number) => void;
+  readonly wasmawsc_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number) => void;
+  readonly wasmawsc_analyze: (a: number) => void;
+  readonly wasmawsc_get_iterations: (a: number, b: number) => void;
+  readonly wasmawsc_get_lane_count: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmawsc_get_departure_headway: (a: number, b: number, c: number, d: number, e: number) => void;
+  readonly wasmawsc_get_degree_of_utilization: (a: number, b: number, c: number, d: number, e: number) => void;
+  readonly wasmawsc_get_service_time: (a: number, b: number, c: number, d: number, e: number) => void;
+  readonly wasmawsc_get_lane_delay: (a: number, b: number, c: number, d: number, e: number) => void;
+  readonly wasmawsc_get_lane_los: (a: number, b: number, c: number, d: number, e: number) => void;
+  readonly wasmawsc_get_lane_queue_95: (a: number, b: number, c: number, d: number, e: number) => void;
+  readonly wasmawsc_compute_lane_capacity: (a: number, b: number, c: number, d: number, e: number) => void;
+  readonly wasmawsc_get_approach_delay: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmawsc_get_approach_los: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmawsc_get_intersection_delay: (a: number, b: number) => void;
+  readonly wasmawsc_get_intersection_los: (a: number, b: number) => void;
+  readonly wasmawsc_results_to_js_value: (a: number) => number;
+  readonly __wbg_wasmroundabouts_free: (a: number) => void;
+  readonly wasmroundabouts_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number) => void;
+  readonly wasmroundabouts_analyze: (a: number) => void;
+  readonly wasmroundabouts_set_calibration: (a: number, b: number, c: number) => void;
+  readonly wasmroundabouts_get_circulating_flow_pce: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmroundabouts_get_lane_count: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmroundabouts_lane_result_to_js_value: (a: number, b: number, c: number, d: number, e: number) => void;
+  readonly wasmroundabouts_bypass_result_to_js_value: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmroundabouts_get_approach_delay: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmroundabouts_get_approach_los: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmroundabouts_get_intersection_delay: (a: number, b: number) => void;
+  readonly wasmroundabouts_get_intersection_los: (a: number, b: number) => void;
+  readonly wasmroundabouts_results_to_js_value: (a: number) => number;
+  readonly __wbg_wasmtwsc_free: (a: number) => void;
+  readonly wasmtwsc_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number, c1: number, d1: number, e1: number, f1: number, g1: number, h1: number, i1: number, j1: number, k1: number, l1: number, m1: number, n1: number, o1: number, p1: number, q1: number, r1: number, s1: number, t1: number, u1: number, v1: number, w1: number, x1: number, y1: number, z1: number, a2: number, b2: number, c2: number, d2: number, e2: number, f2: number, g2: number, h2: number, i2: number, j2: number, k2: number, l2: number, m2: number, n2: number, o2: number, p2: number, q2: number, r2: number) => void;
+  readonly wasmtwsc_add_conflicting_flow_override: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+  readonly wasmtwsc_clear_conflicting_flow_overrides: (a: number) => void;
+  readonly wasmtwsc_analyze: (a: number) => void;
+  readonly wasmtwsc_get_flow_rate: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmtwsc_get_conflicting_flow: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmtwsc_get_potential_capacity: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmtwsc_get_movement_capacity: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmtwsc_get_movement_delay: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmtwsc_get_movement_los: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmtwsc_get_movement_queue_95: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmtwsc_get_lane_count: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmtwsc_lane_result_to_js_value: (a: number, b: number, c: number, d: number, e: number) => void;
+  readonly wasmtwsc_get_approach_delays: (a: number, b: number) => void;
+  readonly wasmtwsc_get_intersection_delay: (a: number, b: number) => void;
+  readonly wasmtwsc_results_to_js_value: (a: number) => number;
+  readonly __wbg_wasmalternativeintersection_free: (a: number) => void;
+  readonly wasmalternativeintersection_new: (a: number, b: number) => void;
+  readonly wasmalternativeintersection_movement_results_to_js_value: (a: number) => number;
+  readonly wasmalternativeintersection_get_approach_ett_s: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmalternativeintersection_get_intersection_ett_s: (a: number, b: number) => void;
+  readonly wasmalternativeintersection_get_intersection_los: (a: number, b: number) => void;
+  readonly edtt_merge: (a: number, b: number, c: number, d: number) => number;
+  readonly edtt_stop_or_signal: (a: number, b: number, c: number) => number;
+  readonly uturn_saturation_adjustment: (a: number) => number;
+  readonly stop_junction_delay: (a: number, b: number, c: number, d: number, e: number) => number;
+  readonly dlt_offset: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
+  readonly __wbg_wasmsignalizedintersection_free: (a: number) => void;
+  readonly wasmsignalizedintersection_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number, p: number, q: number, r: number, s: number, t: number, u: number, v: number, w: number, x: number, y: number, z: number, a1: number, b1: number) => number;
+  readonly wasmsignalizedintersection_from_config: (a: number, b: number) => void;
+  readonly wasmsignalizedintersection_analyze: (a: number) => void;
+  readonly wasmsignalizedintersection_get_cycle_length_s: (a: number) => number;
+  readonly wasmsignalizedintersection_get_intersection_delay_s: (a: number, b: number) => void;
+  readonly wasmsignalizedintersection_get_intersection_los: (a: number, b: number) => void;
+  readonly wasmsignalizedintersection_get_critical_vc_ratio: (a: number, b: number) => void;
+  readonly wasmsignalizedintersection_approach_delay_s: (a: number, b: number, c: number) => number;
+  readonly wasmsignalizedintersection_approach_los: (a: number, b: number, c: number, d: number) => void;
+  readonly wasmsignalizedintersection_lane_groups_to_js_value: (a: number) => number;
+  readonly wasmsignalizedintersection_results_to_js_value: (a: number) => number;
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_exn_store: (a: number) => void;
