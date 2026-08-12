@@ -818,6 +818,12 @@ test.describe('chapter 12 managed lane calculator', () => {
 
   test('raising the GP demand reproduces Case 2 and activates friction', async ({ page }) => {
     await page.goto('/hcm12ml');
+    // Wait for hydration before touching an input. Filling a bind:value number
+    // field while the page is still the server-rendered markup appends to the
+    // seeded value instead of replacing it on webkit, so 3800 becomes 20003800
+    // and the analysis runs on twenty million veh/h without erroring. Every
+    // other test in this file reaches an input only after this gate.
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
     await page.locator('#GPDEMAND_input').fill('3800');
     await calculate(page);
 
