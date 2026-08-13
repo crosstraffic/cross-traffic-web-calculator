@@ -251,6 +251,22 @@ function getArrayF64FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
 }
+
+function getArrayU32FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getUint32Memory0().subarray(ptr / 4, ptr / 4 + len);
+}
+
+function getArrayJsValueFromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    const mem = getUint32Memory0();
+    const slice = mem.subarray(ptr / 4, ptr / 4 + len);
+    const result = [];
+    for (let i = 0; i < slice.length; i++) {
+        result.push(takeObject(slice[i]));
+    }
+    return result;
+}
 /**
 * HCM Equation 23-58: extra distance travel time for a rerouted movement
 * at an RCUT with merges, s/veh.
@@ -342,22 +358,6 @@ export function stop_junction_delay(flow_veh_h, conflicting_flow_veh_h, critical
 export function dlt_offset(td_dlt_ft, sf_dlt_mph, lag_dlt_s, lag_th_s, offset_supp_s, offset_main_s, cycle_s) {
     const ret = wasm.dlt_offset(td_dlt_ft, sf_dlt_mph, lag_dlt_s, lag_th_s, offset_supp_s, offset_main_s, cycle_s);
     return takeObject(ret);
-}
-
-function getArrayU32FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getUint32Memory0().subarray(ptr / 4, ptr / 4 + len);
-}
-
-function getArrayJsValueFromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    const mem = getUint32Memory0();
-    const slice = mem.subarray(ptr / 4, ptr / 4 + len);
-    const result = [];
-    for (let i = 0; i < slice.length; i++) {
-        result.push(takeObject(slice[i]));
-    }
-    return result;
 }
 
 const WasmAlternativeIntersectionFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -2283,15 +2283,24 @@ export class WasmInterchange {
     *
     * `form` is one of the nine Exhibit 23-17 / 23-18 names: `"Diamond"`,
     * `"Ddi"`, `"ParcloA2Q"`, `"ParcloA4Q"`, `"ParcloAB2Q"`, `"ParcloAB4Q"`,
-    * `"ParcloB2Q"`, `"ParcloB4Q"`, `"Spui"`. Only `Diamond`, `Ddi`, and
-    * `ParcloA2Q` are validated against a published example problem; the
-    * other six route and analyze but have no published answer column behind
-    * them (the library says the same in `docs/hcm/VERIFICATION.md`).
+    * `"ParcloB2Q"`, `"ParcloB4Q"`, `"Spui"`. Only `Diamond`, `Ddi`,
+    * `ParcloA2Q`, and `Spui` are validated against a published example
+    * problem; the other five route and analyze but have no published answer
+    * column behind them (the library says the same in
+    * `docs/hcm/VERIFICATION.md`).
     *
     * A lane group's `movement` is the composed name approach + position +
     * turn, e.g. `"EbExtThrough"`, `"EbExtLeft"`, `"EbIntThroughRight"`,
     * `"NbRampTwoLeft"`. The ten diamond names are unchanged compositions, so
     * a configuration written against 0.3.7 keeps its meaning.
+    *
+    * A lane group may carry an optional `protected_permitted_left` object
+    * (`permitted_green_s`, `unblocked_green_s`, `opposing_flow_veh_h`, and an
+    * optional `permitted_sat_flow_override`), which makes it one lane group
+    * with two phase components rather than two lane groups. Its results then
+    * carry `protected_sat_flow` and `permitted_sat_flow` alongside the single
+    * recombined `sat_flow` of Exhibit 34-78; both are `null` on every
+    * single-component lane group.
     *
     * An unknown form or movement name is rejected here rather than defaulted,
     * which matters because a form that silently fell back to `Diamond` would
@@ -3165,6 +3174,149 @@ export class WasmOffStreetBicycleFacility {
     results_to_js_value() {
         const ret = wasm.wasmoffstreetbicyclefacility_results_to_js_value(this.__wbg_ptr);
         return takeObject(ret);
+    }
+}
+
+const WasmPedestrianCrossingFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmpedestriancrossing_free(ptr >>> 0));
+/**
+* Pedestrian mode at a TWSC or midblock crossing (HCM Chapter 20, Section 5).
+*
+* This is the pedestrian mode proper, where the pedestrian is the subject and
+* the service measure is the proportion of pedestrians who would rate the
+* crossing "dissatisfied" or worse. It is a different procedure from the
+* Section 4 pedestrian-impedance extension, which is reached through the
+* `v13_ped` through `v16_ped` arguments of [`WasmTwsc`] and reduces vehicular
+* movement capacity instead.
+*/
+export class WasmPedestrianCrossing {
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        WasmPedestrianCrossingFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_wasmpedestriancrossing_free(ptr);
+    }
+    /**
+    * Build a pedestrian crossing from a configuration object matching the
+    * serde schema of `hcm::twsc::pedestrian::PedestrianCrossing`:
+    *
+    * ```json
+    * {
+    *   "stages": [
+    *     { "crossing_length_ft": 20.0, "conflicting_flow_veh_h": 850.0,
+    *       "through_lanes": 2 },
+    *     { "crossing_length_ft": 20.0, "conflicting_flow_veh_h": 850.0,
+    *       "through_lanes": 2 }
+    *   ],
+    *   "walk_speed_fps": 4.0,
+    *   "startup_clearance_s": 1.0,
+    *   "motorist_yield_rate": 0.5,
+    *   "pedestrian_platooning": false,
+    *   "peak_hour_volume_veh_h": 1700.0,
+    *   "k_factor": 0.08,
+    *   "has_rrfb": false,
+    *   "has_marked_crosswalk": true,
+    *   "has_median_refuge": true
+    * }
+    * ```
+    *
+    * One `stages` entry per crossing stage in travel order (Step 1): a single
+    * entry spanning the street, or one per side of a median refuge, each
+    * carrying only the lanes and conflicting flow of its own side. AADT for
+    * Equation 20-95 comes from `aadt_veh` when given and otherwise from
+    * `peak_hour_volume_veh_h / k_factor`. `crosswalk_width_ft` and
+    * `pedestrian_flow_p_h` are read only when `pedestrian_platooning` is
+    * true, since Equations 20-77 and 20-78 are skipped otherwise.
+    *
+    * An empty or missing `stages` list is rejected here rather than passed
+    * through. `PedestrianCrossing` is `serde(default)` at both levels, so a
+    * misspelled or omitted `stages` key deserializes into a crossing with no
+    * stages, which analyzes to zero delay and LOS A rather than failing. That
+    * is the one input mistake on this surface whose result still reads like a
+    * finished answer.
+    * @param {any} config
+    */
+    constructor(config) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmpedestriancrossing_new(retptr, addHeapObject(config));
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Full evaluation as a JS object in the serde schema of
+    * `PedestrianCrossingAnalysis`: the per-stage `stages` array carrying the
+    * Step 2 through Step 5 chain (`critical_headway`, `platoon_size`,
+    * `spatial_distribution`, `group_critical_headway`, `prob_blocked_lane`,
+    * `prob_delayed_crossing`, `gap_delay`, `gap_delay_when_delayed`,
+    * `average_short_headway`, `yield_events`, the `prob_yield` array indexed
+    * from P(Y_0) = 0, and the stage `delay`), then the Step 6 total `delay`
+    * with its Exhibit 20-29 `delay_interpretation`, the Step 7 satisfaction
+    * odds and probabilities, `prob_non_delayed`, `proportion_dissatisfied`,
+    * and the Exhibit 20-3 `los` letter.
+    * @returns {any}
+    */
+    results_to_js_value() {
+        const ret = wasm.wasmpedestriancrossing_results_to_js_value(this.__wbg_ptr);
+        return takeObject(ret);
+    }
+    /**
+    * Number of crossing stages this configuration deserialized into. A
+    * two-stage crossing that arrives as one stage is the failure the
+    * constructor cannot catch, because one stage is a valid crossing.
+    * @returns {number}
+    */
+    get_stage_count() {
+        const ret = wasm.wasmpedestriancrossing_get_stage_count(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+    * Average pedestrian control delay over all stages d_p, s
+    * (Equation 20-94).
+    * @returns {number}
+    */
+    get_delay() {
+        const ret = wasm.wasmpedestriancrossing_get_delay(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+    * Pedestrian LOS letter from the average proportion of "dissatisfied"
+    * ratings (Exhibit 20-3), e.g. "C". Note this is a satisfaction basis, not
+    * a delay basis: the Exhibit 20-29 delay interpretation in the results
+    * object is commentary and does not set the letter.
+    * @returns {string}
+    */
+    get_los() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmpedestriancrossing_get_los(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
     }
 }
 
@@ -7161,22 +7313,22 @@ function __wbg_get_imports() {
         const ret = getObject(arg0) in getObject(arg1);
         return ret;
     };
-    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
-        const ret = WasmSegment.__unwrap(takeObject(arg0));
+    imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
+        const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
+        return ret;
+    }, arguments) };
+    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
+        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
         return ret;
     };
     imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
         const ret = WasmSubSegment.__unwrap(takeObject(arg0));
         return ret;
     };
-    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
-        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
+    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
+        const ret = WasmSegment.__unwrap(takeObject(arg0));
         return ret;
     };
-    imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
-        const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
-        return ret;
-    }, arguments) };
     imports.wbg.__wbindgen_is_bigint = function(arg0) {
         const ret = typeof(getObject(arg0)) === 'bigint';
         return ret;
