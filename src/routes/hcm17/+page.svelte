@@ -376,7 +376,7 @@
     </div>
   {/if}
 
-  <form id="hcm17" onsubmit={preventDefault(runAnalysis)}>
+  <form id="hcm17" onsubmit={preventDefault(runAnalysis)} inert={!ready}>
     <!-- Facility strip -->
     <section class="panel">
       <div class="panel-head">

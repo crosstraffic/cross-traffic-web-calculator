@@ -185,6 +185,53 @@ test.describe('navigation and route gating', () => {
   });
 });
 
+test.describe('pre-hydration input guard', () => {
+  // Every calculator page server-renders a fully painted form whose fields
+  // already hold their defaults, and each field only becomes a real binding
+  // once onMount finishes loading the wasm module. Typing into that window
+  // wrote into a DOM the framework had not adopted yet, and on webkit the edit
+  // combined with the server-rendered value rather than replacing it, so a
+  // field seeded with 2000 could end up holding 20003800 and the analysis ran
+  // on twenty million veh/h without throwing anything.
+  //
+  // The specs in this file have always gated on Calculate being enabled, so
+  // they never saw it. Users have no such gate. Each page's form now carries
+  // inert={!ready}, which makes the whole subtree unfocusable and uneditable
+  // until hydration and costs no visual change.
+  //
+  // A warm preview server hydrates faster than a fill can land, which is why
+  // this delays the JS responses: that is the condition the bug needs, a slow
+  // connection where the form is painted long before it is live.
+  for (const [route, field, seeded] of [
+    ['/hcm12ml', '#GPDEMAND_input', '2000'],
+    ['/hcm19', '#PHF_input', '0.92'],
+  ] as const) {
+    test(`${route} refuses edits until hydration`, async ({ page }) => {
+      await page.route('**/*.js', async (route_) => {
+        await new Promise((r) => setTimeout(r, 2500));
+        await route_.continue();
+      });
+      await page.goto(route, { waitUntil: 'commit' });
+
+      const input = page.locator(field);
+      await expect(input).toHaveValue(seeded); // painted, not yet live
+      await expect(page.locator('form[inert]')).toHaveCount(1);
+
+      // The fill is attempted with no readiness gate, the way a user types.
+      // It must not land, so the field still holds exactly its default.
+      await input.fill('3800', { timeout: 3000 }).catch(() => { /* refused is also a pass */ });
+      await expect(input).toHaveValue(seeded);
+
+      // And the guard must actually lift, or it would be a very effective way
+      // of breaking every page.
+      await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+      await expect(page.locator('form[inert]')).toHaveCount(0);
+      await input.fill('3800');
+      await expect(input).toHaveValue('3800');
+    });
+  }
+});
+
 test.describe('chapter 10 freeway facilities calculator', () => {
   // Cell order in the segment table: 0 #, 1 type select, 2 length, 3 lanes,
   // 4 on-ramp demand, 5 off-ramp demand, 6 ramp FFS, 7 accel, 8 decel.
@@ -522,6 +569,21 @@ test.describe('chapter 10 freeway facilities calculator', () => {
 });
 
 test.describe('chapter 11 freeway reliability calculator', () => {
+  // Retries here are a mitigation, not a fix, and they are scoped to this
+  // chapter on purpose. Chapter 11 is the only page that runs hundreds of
+  // core-methodology evaluations in one click, and on webkit that run
+  // intermittently traps in the wasm module with "Unreachable code should not
+  // be executed (evaluating 't.wasmfreewayreliability_run(...)')", leaving the
+  // page showing its error alert. It is not caused by anything here: the
+  // pre-existing default-facility test below fails about 1 run in 10 on webkit
+  // at main (295e206) as well as on this branch, measured with --repeat-each
+  // on both. It is also not memory exhaustion, since 25 consecutive runs in
+  // one reused page never trip it while a fresh browser context does, which
+  // points at cold wasm instantiation rather than accumulation. Chromium and
+  // firefox have never reproduced it. Tracked for the engine side; until then
+  // this keeps a known browser fault from reading as a failed assertion.
+  test.describe.configure({ retries: 2 });
+
   test('seed facility diagram renders in both views without LOS coloring', async ({ page }) => {
     await page.goto('/hcm11');
     const calculate = page.getByRole('button', { name: 'Calculate' });

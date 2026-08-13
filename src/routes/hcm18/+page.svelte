@@ -385,7 +385,7 @@
     </div>
   {/if}
 
-  <form id="hcm18" onsubmit={preventDefault(runAnalysis)}>
+  <form id="hcm18" onsubmit={preventDefault(runAnalysis)} inert={!ready}>
     <!-- Segment diagram -->
     <section class="panel">
       <div class="panel-head">

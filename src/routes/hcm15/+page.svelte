@@ -388,7 +388,7 @@
     </div>
   {/if}
 
-  <form id="hcm15" onsubmit={preventDefault(runAnalysis)}>
+  <form id="hcm15" onsubmit={preventDefault(runAnalysis)} inert={!ready}>
     <!-- Import -->
     <section class="panel">
       <div class="panel-head">

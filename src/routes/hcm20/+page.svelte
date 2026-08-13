@@ -209,7 +209,7 @@
     </div>
   {/if}
 
-  <form id="hcm20" onsubmit={preventDefault(runAnalysis)}>
+  <form id="hcm20" onsubmit={preventDefault(runAnalysis)} inert={!ready}>
     <!-- Geometry -->
     <section class="panel">
       <div class="panel-head">
