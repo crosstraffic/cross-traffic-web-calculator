@@ -8,6 +8,7 @@
   import init, { WasmInterchange } from "HCM-middleware";
   import DiamondDiagram from '$lib/DiamondDiagram.svelte';
   import DiamondDiagram3D from '$lib/DiamondDiagram3D.svelte';
+  import ParcloDiagram from '$lib/ParcloDiagram.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import PartCAlternative from '$lib/PartCAlternative.svelte';
 
@@ -28,7 +29,8 @@
 
   // Interchange form. Diamond defaults follow HCM Chapter 34 Example
   // Problem 1; switching to the DDI loads Example Problem 5 (Exhibits 34-58
-  // through 34-65).
+  // through 34-65) and to the Parclo A-2Q loads Example Problem 2 (Exhibits
+  // 34-17 through 34-29).
   let form = $state('Diamond');
   let ddi_eb_config = $state('ThreeLaneExclusive');
   let ddi_wb_config = $state('TwoLaneShared');
@@ -43,6 +45,12 @@
   let ramp_grade = $state(2);
   let extra_dist = $state(100);
   let design_speed = $state(35);
+  // Loop-ramp terms, parclo only. Equation 23-50 takes a design speed per
+  // diverted movement, and Example Problem 2 mixes two of them: its two loop
+  // O-Ds run 1,200 ft at 25 mi/h while the rest of its diverted O-Ds run the
+  // interchange spacing at 35.
+  let loop_dist = $state(1200);
+  let loop_speed = $state(25);
 
   const defaultOd = () => ([
     { key: 'a', label: 'A · NB off-ramp left (to WB)', value: 210 },
@@ -104,6 +112,49 @@
     { movement: 'SbRampRight', label: 'SB off-ramp right', lanes: 1, begin: 35, green: 35, is_ramp: true, turn_radius: 75, shared_right_radius: null, arrival: 3, storage: null, hv: 6.1, grade: 0, overlap: 4.9, dq: null, speed: 35 }
   ]);
 
+  // Chapter 34 Example Problem 2, the Parclo A-2Q at I-75 and Newberry Avenue
+  // (Exhibit 34-19 demands).
+  const parcloOd = () => ([
+    { key: 'a', label: 'A · NB off-ramp left (to WB)', value: 218 },
+    { key: 'b', label: 'B · NB off-ramp right (to EB)', value: 250 },
+    { key: 'c', label: 'C · SB off-ramp right (to WB)', value: 120 },
+    { key: 'd', label: 'D · SB off-ramp left (to EB)', value: 275 },
+    { key: 'e', label: 'E · EB to NB on-ramp (SE loop)', value: 188 },
+    { key: 'f', label: 'F · EB to SB on-ramp (external left)', value: 300 },
+    { key: 'g', label: 'G · WB to NB on-ramp (external left)', value: 165 },
+    { key: 'h', label: 'H · WB to SB on-ramp (NW loop)', value: 350 },
+    { key: 'i', label: 'I · EB arterial through', value: 825 },
+    { key: 'j', label: 'J · WB arterial through', value: 837 },
+    { key: 'k', label: 'K · NB frontage through', value: 0 },
+    { key: 'l', label: 'L · SB frontage through', value: 0 },
+    { key: 'm', label: 'M · NB freeway U-turn', value: 0 },
+    { key: 'n', label: 'N · SB freeway U-turn', value: 0 }
+  ]);
+
+  // Chapter 34 Example Problem 2 lane groups, mirroring
+  // transportations-library/tests/ExampleCases/hcm/RampTerminals/case6.json.
+  // These are not the diamond skeleton: each arterial direction has an
+  // external through, an external left onto the loop quadrant, and an internal
+  // shared through-and-right, and neither internal approach has a left turn.
+  // Green windows are Exhibit 34-23 with both offsets zero, and the westbound
+  // external through is entered as one window wrapping the cycle boundary
+  // because it holds NEMA 6 through two consecutive phases of Intersection II
+  // (Exhibit 34-24 prints G = 95 s and g' = 94 s, which only that reading
+  // gives). lu carries the published Exhibit 34-20 lane utilization factors,
+  // su the 3 s start-up lost time the example uses throughout.
+  const parcloLaneGroups = () => ([
+    { movement: 'EbExtThrough', label: 'EB external through', lanes: 3, begin: 0, green: 90, is_ramp: false, turn_radius: null, shared_right_radius: null, arrival: 3, storage: 800, hv: 11.7, grade: 0, lu: 0.7328, su: 3 },
+    { movement: 'EbExtLeft', label: 'EB external left (to SB on-ramp)', lanes: 1, begin: 0, green: 25, is_ramp: false, turn_radius: 80, shared_right_radius: null, arrival: 3, storage: 200, hv: 0, grade: 0, su: 3 },
+    { movement: 'EbIntThroughRight', label: 'EB internal through + right (to NB loop)', lanes: 3, begin: 70, green: 65, is_ramp: false, turn_radius: null, shared_right_radius: 50, arrival: 4, storage: 800, hv: 11.7, grade: 0, su: 3 },
+    { movement: 'WbExtThrough', label: 'WB external through', lanes: 3, begin: 70, green: 95, is_ramp: false, turn_radius: null, shared_right_radius: null, arrival: 3, storage: 800, hv: 11.7, grade: 0, lu: 0.6332, su: 3 },
+    { movement: 'WbExtLeft', label: 'WB external left (to NB on-ramp)', lanes: 1, begin: 0, green: 25, is_ramp: false, turn_radius: 80, shared_right_radius: null, arrival: 3, storage: 200, hv: 0, grade: 0, su: 3 },
+    { movement: 'WbIntThroughRight', label: 'WB internal through + right (to SB loop)', lanes: 3, begin: 30, green: 60, is_ramp: false, turn_radius: null, shared_right_radius: 50, arrival: 4, storage: 800, hv: 11.7, grade: 0, su: 3 },
+    { movement: 'NbRampLeft', label: 'NB off-ramp left', lanes: 1, begin: 30, green: 35, is_ramp: true, turn_radius: 50, shared_right_radius: null, arrival: 3, storage: 400, hv: 0, grade: 2, su: 3 },
+    { movement: 'NbRampRight', label: 'NB off-ramp right', lanes: 1, begin: 30, green: 35, is_ramp: true, turn_radius: 50, shared_right_radius: null, arrival: 3, storage: 400, hv: 0, grade: 2, su: 3 },
+    { movement: 'SbRampLeft', label: 'SB off-ramp left', lanes: 1, begin: 95, green: 40, is_ramp: true, turn_radius: 50, shared_right_radius: null, arrival: 3, storage: 400, hv: 0, grade: 2, su: 3 },
+    { movement: 'SbRampRight', label: 'SB off-ramp right', lanes: 1, begin: 95, green: 40, is_ramp: true, turn_radius: 50, shared_right_radius: null, arrival: 3, storage: 400, hv: 0, grade: 2, su: 3 }
+  ]);
+
   let odDemands = $state(defaultOd());
   let laneGroups = $state(defaultLaneGroups());
 
@@ -116,12 +167,25 @@
       cycle_length = 70;
       phf = 1.0;
       distance = 500;
+      extra_dist = 100;
+    } else if (form === 'ParcloA2Q') {
+      odDemands = parcloOd();
+      laneGroups = parcloLaneGroups();
+      cycle_length = 140;
+      phf = 0.95;
+      distance = 800;
+      // The Exhibit 34-29 EDTT column is the interchange spacing on the six
+      // diverted O-Ds that stay on the arterial, so the two track together.
+      extra_dist = 800;
+      loop_dist = 1200;
+      loop_speed = 25;
     } else {
       odDemands = defaultOd();
       laneGroups = defaultLaneGroups();
       cycle_length = 160;
       phf = 0.90;
       distance = 500;
+      extra_dist = 100;
     }
     results = null;
   }
@@ -135,17 +199,36 @@
     ? Object.fromEntries(results.od_results.filter((o) => o.los).map((o) => [o.movement, o.los]))
     : {});
 
+  // Extra travel distances per O-D letter A..N (Exhibit 23-8 sign convention:
+  // positive for left turns, negative for right turns), as the Equation 23-50
+  // input objects.
+  function extraDistances() {
+    const dt = Number(extra_dist);
+    if (form === 'ParcloA2Q') {
+      // Every parclo A-2Q O-D except the two arterial throughs is diverted, so
+      // all eight carry the 5 s deceleration/acceleration term except the two
+      // off-ramp rights, which are the only movements that shorten their path.
+      // O-Ds E and H run the loop, at their own design speed.
+      const loop = { distance_ft: Number(loop_dist), accel_decel_s: 5.0, design_speed_mph: Number(loop_speed) };
+      const div = (sign, a) => ({ distance_ft: sign * dt, accel_decel_s: a });
+      const nil = { distance_ft: 0.0, accel_decel_s: 0.0 };
+      return [
+        div(1, 5), div(-1, 0), div(-1, 0), div(1, 5),
+        loop, div(1, 5), div(1, 5), loop,
+        nil, nil, nil, nil, nil, nil,
+      ];
+    }
+    const signed = form === 'Ddi'
+      ? [dt, -dt, -dt, dt, dt, 0, 0, dt, 40, 40, 0, 0, 0, 0]
+      : [dt, -dt, -dt, dt, dt, -dt, -dt, dt, 0, 0, 0, 0, 0, 0];
+    return signed.map((d) => ({ distance_ft: d, accel_decel_s: 0.0 }));
+  }
+
   function buildConfig() {
     const od = {};
     for (const d of odDemands) {
       od[d.key] = Number(d.value);
     }
-    // Extra travel distances per O-D letter A..N (Exhibit 23-8 sign
-    // convention: positive for left turns, negative for right turns).
-    const dt = Number(extra_dist);
-    const signed = form === 'Ddi'
-      ? [dt, -dt, -dt, dt, dt, 0, 0, dt, 40, 40, 0, 0, 0, 0]
-      : [dt, -dt, -dt, dt, dt, -dt, -dt, dt, 0, 0, 0, 0, 0, 0];
 
     return {
       form,
@@ -157,11 +240,15 @@
       distance_between_intersections_ft: Number(distance),
       queue_spacing_ft: 25.0,
       od,
-      eb_external_right_shared: form !== 'Ddi',
-      wb_external_right_shared: form !== 'Ddi',
+      // Only the conventional diamond shares its external right turn with the
+      // external through group. The DDI carries it on a free-flow bypass, and
+      // in a parclo A-2Q the movement is not a right turn at all: it is the
+      // external left onto the loop quadrant, which has its own lane group.
+      eb_external_right_shared: form === 'Diamond',
+      wb_external_right_shared: form === 'Diamond',
       ddi_eb_lane_config: form === 'Ddi' ? ddi_eb_config : null,
       ddi_wb_lane_config: form === 'Ddi' ? ddi_wb_config : null,
-      extra_distances: signed.map((d) => ({ distance_ft: d, accel_decel_s: 0.0 })),
+      extra_distances: extraDistances(),
       extra_distance_speed_mph: Number(design_speed),
       lane_groups: laneGroups.map((g) => ({
         movement: g.movement,
@@ -181,7 +268,7 @@
         lane_utilization_override: g.lu ?? null,
         downstream_queue_lost_time_s: g.dq ?? null,
         overlap_lost_time_s: g.overlap ?? 0.0,
-        start_up_lost_time_s: 2.0,
+        start_up_lost_time_s: g.su ?? 2.0,
         extension_of_green_s: 2.0,
         upstream_filtering_override: null,
         speed_limit_mph: g.speed ?? 40.0,
@@ -211,7 +298,7 @@
         generatedAt: new Date().toLocaleString(),
         headline: { label: 'Interchange LOS', value: results.los },
         inputs: [
-          { label: 'Interchange form', value: form === 'Ddi' ? 'Diverging diamond (DDI), pretimed signals' : 'Conventional diamond, pretimed signals' },
+          { label: 'Interchange form', value: form === 'Ddi' ? 'Diverging diamond (DDI), pretimed signals' : form === 'ParcloA2Q' ? 'Partial cloverleaf A-2Q, pretimed signals' : 'Conventional diamond, pretimed signals' },
           { label: 'Cycle length', value: `${cycle_length} s` },
           { label: 'Distance between terminals', value: `${distance} ft` },
           { label: 'Peak hour factor', value: phf },
@@ -271,8 +358,12 @@
     <span>
       The compute engine reproduces the published HCM Chapter 34 example
       problems within the library's documented tolerances: the conventional
-      diamond and diverging diamond with pretimed signals under Part B, and the
-      STOP-controlled RCUT, the MUT, and the DLT evaluations under Part C.
+      diamond, the diverging diamond, and the Parclo A-2Q with pretimed signals
+      under Part B, and the STOP-controlled RCUT, the MUT, and the DLT
+      evaluations under Part C. The other five partial cloverleaf forms of
+      Exhibit 23-17 (A-4Q, AB-2Q, AB-4Q, B-2Q, B-4Q) and the SPUI of Exhibit
+      23-18 are supported by the engine but have no published example problem
+      behind them, so they are not offered here.
       Verify results
       independently before relying on them in engineering work, and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
@@ -321,9 +412,29 @@
           <select id="FORM_input" class="select select-bordered select-sm" value={form} onchange={(e) => applyForm(e.target.value)}>
             <option value="Diamond">Conventional diamond</option>
             <option value="Ddi">Diverging diamond (DDI)</option>
+            <option value="ParcloA2Q">Parclo A-2Q</option>
           </select>
           <p class="param-hint">Switching loads that form's published example as defaults.</p>
         </div>
+
+        {#if form === 'ParcloA2Q'}
+          <div class="param-field">
+            <label for="LOOPD_input">Loop Ramp Extra Distance</label>
+            <div class="cell-field">
+              <input id="LOOPD_input" type="number" min="0" class="input input-bordered input-sm" bind:value={loop_dist} placeholder="1200" required />
+              <span class="unit">ft</span>
+            </div>
+            <p class="param-hint">Applied to O-Ds E and H, the two movements that leave on a loop.</p>
+          </div>
+          <div class="param-field">
+            <label for="LOOPS_input">Loop Ramp Design Speed</label>
+            <div class="cell-field">
+              <input id="LOOPS_input" type="number" min="5" class="input input-bordered input-sm" bind:value={loop_speed} placeholder="25" required />
+              <span class="unit">mph</span>
+            </div>
+            <p class="param-hint">Equation 23-50 takes a design speed per diverted movement, so the loops need not match the rest.</p>
+          </div>
+        {/if}
 
         {#if form === 'Ddi'}
           <div class="param-field">
@@ -435,11 +546,20 @@
           <h2 class="panel-title">Interchange</h2>
           <p class="panel-sub">O-D movements per Exhibit 23-8. Hover the legend to isolate a group; demands are editable on the 2D picture, and the traffic animation slows per O-D LOS after a run.</p>
         </div>
-        <div class="panel-actions">
-          <ViewToggle bind:mode={diagramMode} label="Interchange view mode" />
-        </div>
+        {#if form !== 'ParcloA2Q'}
+          <div class="panel-actions">
+            <ViewToggle bind:mode={diagramMode} label="Interchange view mode" />
+          </div>
+        {/if}
       </div>
-      {#if diagramMode === '3d'}
+      {#if form === 'ParcloA2Q'}
+        <!-- The parclo has a plan view only. Its ramps leave the arterial in
+             two quadrants and return to the freeway on structure, which the
+             shared Camera3DSvg projection has no way to show without a
+             second deck, so offering a 3D toggle here would promise a view
+             that does not exist. -->
+        <ParcloDiagram bind:odDemands odLos={losByOd} spacingFt={distance} loopDist={loop_dist} loopSpeed={loop_speed} />
+      {:else if diagramMode === '3d'}
         <DiamondDiagram3D {odDemands} odLos={losByOd} {form} ddiEb={ddi_eb_config} ddiWb={ddi_wb_config} />
       {:else}
         <DiamondDiagram bind:odDemands odLos={losByOd} {form} ddiEb={ddi_eb_config} ddiWb={ddi_wb_config} />

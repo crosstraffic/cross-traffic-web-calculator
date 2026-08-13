@@ -1624,6 +1624,88 @@ test.describe('chapter 23 interchange calculator', () => {
     await expect(page.locator('.dd-diagram-3d path.dd3-deck')).toHaveCount(1);
   });
 
+  test('the parclo form loads Example Problem 2 and reproduces its answer', async ({ page }) => {
+    // Switching to the Parclo A-2Q loads Chapter 34 Example Problem 2 as
+    // defaults, the I-75 at Newberry Avenue interchange: C = 140 s, PHF 0.95,
+    // D = 800 ft, and the Exhibit 34-19 demands. It is the first form on this
+    // page whose lane groups are not the diamond skeleton, so it is also the
+    // check that the composed movement names of library 0.3.3 survive the
+    // round trip from this page's config object through wasm.
+    //
+    // The engine reads an interchange ETT of 61.5 s/veh and LOS D against the
+    // published 61.3 and D (Exhibit 34-29 totals row). Per O-D: A reads 99.5 s
+    // LOS E on its published value, and I reads 34.6 s LOS C against a
+    // published 33.8, the 0.8 being the Exhibit 34-22 lane utilization defect
+    // reaching the internal through-and-right group I runs on. O-D F is the
+    // failing movement at v/c 1.02 with a queue 1.96 times its bay, which is
+    // what puts it on LOS F whatever its travel time.
+    await page.goto('/hcm23');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#FORM_input').selectOption('ParcloA2Q');
+    await expect(page.locator('#CYCLE_input')).toHaveValue('140');
+    await expect(page.locator('#PHF_input')).toHaveValue('0.95');
+    await expect(page.locator('#DIST_input')).toHaveValue('800');
+    // Equation 23-50 takes a design speed per diverted movement, and the two
+    // loop O-Ds of this example do not share the interchange-wide one.
+    await expect(page.locator('#LOOPD_input')).toHaveValue('1200');
+    await expect(page.locator('#LOOPS_input')).toHaveValue('25');
+    await calculate.click();
+
+    await expect(page.getByText(/Interchange LOS: D/)).toBeVisible();
+    await expect(page.locator('tr', { hasText: 'Interchange Experienced Travel Time' }))
+      .toContainText(/61\.[56]/);
+
+    const rowA = page.locator('.results-panel tbody tr', { has: page.locator('th:text-is("A")') }).first();
+    await expect(rowA).toContainText('99.5');
+    await expect(rowA).toContainText('E');
+    const rowI = page.locator('.results-panel tbody tr', { has: page.locator('th:text-is("I")') }).first();
+    await expect(rowI).toContainText('34.6'); // published 33.8
+    await expect(rowI).toContainText('C');
+
+    // The other five Exhibit 23-17 parclos are structurally supported by the
+    // engine and unvalidated, so they get no selector entry and the note says
+    // why rather than leaving their absence unexplained.
+    await expect(page.locator('#FORM_input option')).toHaveCount(3);
+    await expect(page.locator('.beta-note')).toContainText('A-4Q');
+  });
+
+  test('the parclo diagram isolates O-Ds, edits demands, and colours by LOS', async ({ page }) => {
+    await page.goto('/hcm23');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await page.locator('#FORM_input').selectOption('ParcloA2Q');
+
+    const diagram = page.locator('.pc-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /Parclo A-2Q interchange/);
+    // The parclo has a plan view only, so the 2D/3D toggle is not offered.
+    await expect(page.locator('.panel-actions .view-toggle')).toHaveCount(0);
+
+    // Hovering a group chip isolates its O-D paths.
+    await page.locator('.pc-chip.chip-ebg').hover();
+    await expect(page.locator('.pc-diagram path[data-od="I"]')).toHaveClass(/active/);
+    await expect(page.locator('.pc-diagram path[data-od="A"]')).toHaveClass(/dim/);
+
+    // On-diagram O-D editing two-way binds to the form.
+    await page.locator('input[aria-label="O-D I demand"]').fill('700');
+    await expect(page.locator('#OD_i_input')).toHaveValue('700');
+
+    // After a run the movement carries its own O-D LOS rather than its group
+    // identity, and the chip reports the poorest letter in its group.
+    await page.getByRole('button', { name: 'Calculate' }).click();
+    await expect(page.getByText(/Interchange LOS: D/)).toBeVisible();
+    await expect(page.locator('.pc-diagram path[data-od="F"]')).toHaveAttribute('data-los', 'F');
+    await expect(page.locator('.pc-diagram path[data-od="C"]')).toHaveAttribute('data-los', 'B');
+    await expect(page.locator('.pc-chip.chip-ebg')).toContainText('worst LOS F');
+
+    // Animation runs and stops.
+    await page.getByRole('button', { name: 'Animate traffic' }).click();
+    expect(await page.locator('g.pc-veh').count()).toBeGreaterThan(8);
+    await page.getByRole('button', { name: 'Stop traffic' }).click();
+    await expect(page.locator('g.pc-veh')).toHaveCount(0);
+  });
+
   test('the diamond diagram groups O-Ds, edits demands, and animates', async ({ page }) => {
     await page.goto('/hcm23');
     await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready

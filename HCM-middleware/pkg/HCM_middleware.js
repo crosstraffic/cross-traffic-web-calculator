@@ -251,22 +251,6 @@ function getArrayF64FromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
 }
-
-function getArrayU32FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getUint32Memory0().subarray(ptr / 4, ptr / 4 + len);
-}
-
-function getArrayJsValueFromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    const mem = getUint32Memory0();
-    const slice = mem.subarray(ptr / 4, ptr / 4 + len);
-    const result = [];
-    for (let i = 0; i < slice.length; i++) {
-        result.push(takeObject(slice[i]));
-    }
-    return result;
-}
 /**
 * HCM Equation 23-58: extra distance travel time for a rerouted movement
 * at an RCUT with merges, s/veh.
@@ -358,6 +342,22 @@ export function stop_junction_delay(flow_veh_h, conflicting_flow_veh_h, critical
 export function dlt_offset(td_dlt_ft, sf_dlt_mph, lag_dlt_s, lag_th_s, offset_supp_s, offset_main_s, cycle_s) {
     const ret = wasm.dlt_offset(td_dlt_ft, sf_dlt_mph, lag_dlt_s, lag_th_s, offset_supp_s, offset_main_s, cycle_s);
     return takeObject(ret);
+}
+
+function getArrayU32FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getUint32Memory0().subarray(ptr / 4, ptr / 4 + len);
+}
+
+function getArrayJsValueFromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    const mem = getUint32Memory0();
+    const slice = mem.subarray(ptr / 4, ptr / 4 + len);
+    const result = [];
+    for (let i = 0; i < slice.length; i++) {
+        result.push(takeObject(slice[i]));
+    }
+    return result;
 }
 
 const WasmAlternativeIntersectionFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -2280,6 +2280,22 @@ export class WasmInterchange {
     * (same shape as `tests/ExampleCases/hcm/RampTerminals/case1.json`):
     * interchange form, cycle length, O-D demands A..N, and the per-lane-group
     * geometry and signal timing.
+    *
+    * `form` is one of the nine Exhibit 23-17 / 23-18 names: `"Diamond"`,
+    * `"Ddi"`, `"ParcloA2Q"`, `"ParcloA4Q"`, `"ParcloAB2Q"`, `"ParcloAB4Q"`,
+    * `"ParcloB2Q"`, `"ParcloB4Q"`, `"Spui"`. Only `Diamond`, `Ddi`, and
+    * `ParcloA2Q` are validated against a published example problem; the
+    * other six route and analyze but have no published answer column behind
+    * them (the library says the same in `docs/hcm/VERIFICATION.md`).
+    *
+    * A lane group's `movement` is the composed name approach + position +
+    * turn, e.g. `"EbExtThrough"`, `"EbExtLeft"`, `"EbIntThroughRight"`,
+    * `"NbRampTwoLeft"`. The ten diamond names are unchanged compositions, so
+    * a configuration written against 0.3.7 keeps its meaning.
+    *
+    * An unknown form or movement name is rejected here rather than defaulted,
+    * which matters because a form that silently fell back to `Diamond` would
+    * route every O-D through lane groups the interchange does not have.
     * @param {any} config
     */
     constructor(config) {
@@ -2296,6 +2312,28 @@ export class WasmInterchange {
             return this;
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Interchange form as parsed, e.g. `"ParcloA2Q"`. This is the readback
+    * that lets a caller prove the configuration it sent is the form the
+    * engine analyzed, rather than inferring it from the lane groups.
+    * @returns {string}
+    */
+    get_form() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasminterchange_get_form(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
         }
     }
     /**
@@ -7119,26 +7157,26 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_set_20cbc34131e76824 = function(arg0, arg1, arg2) {
         getObject(arg0)[takeObject(arg1)] = takeObject(arg2);
     };
-    imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
-        const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
-        return ret;
-    }, arguments) };
-    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
-        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
-    imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
-        const ret = WasmSubSegment.__unwrap(takeObject(arg0));
+    imports.wbg.__wbindgen_in = function(arg0, arg1) {
+        const ret = getObject(arg0) in getObject(arg1);
         return ret;
     };
     imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
         const ret = WasmSegment.__unwrap(takeObject(arg0));
         return ret;
     };
-    imports.wbg.__wbindgen_in = function(arg0, arg1) {
-        const ret = getObject(arg0) in getObject(arg1);
+    imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
+        const ret = WasmSubSegment.__unwrap(takeObject(arg0));
         return ret;
     };
+    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
+        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
+    imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
+        const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
+        return ret;
+    }, arguments) };
     imports.wbg.__wbindgen_is_bigint = function(arg0) {
         const ret = typeof(getObject(arg0)) === 'bigint';
         return ret;
