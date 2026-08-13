@@ -364,7 +364,7 @@
     </div>
   {/if}
 
-  <form id="hcm16" onsubmit={preventDefault(runAnalysis)}>
+  <form id="hcm16" onsubmit={preventDefault(runAnalysis)} inert={!ready}>
     <!-- Facility -->
     <section class="panel">
       <div class="panel-head">

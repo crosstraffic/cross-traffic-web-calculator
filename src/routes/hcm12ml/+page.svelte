@@ -241,7 +241,7 @@
     </div>
   {/if}
 
-  <form id="hcm12ml" onsubmit={preventDefault(runAnalysis)}>
+  <form id="hcm12ml" onsubmit={preventDefault(runAnalysis)} inert={!ready}>
     <!-- Managed lane -->
     <section class="panel">
       <div class="panel-head">

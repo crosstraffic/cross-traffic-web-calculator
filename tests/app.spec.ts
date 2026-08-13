@@ -185,6 +185,53 @@ test.describe('navigation and route gating', () => {
   });
 });
 
+test.describe('pre-hydration input guard', () => {
+  // Every calculator page server-renders a fully painted form whose fields
+  // already hold their defaults, and each field only becomes a real binding
+  // once onMount finishes loading the wasm module. Typing into that window
+  // wrote into a DOM the framework had not adopted yet, and on webkit the edit
+  // combined with the server-rendered value rather than replacing it, so a
+  // field seeded with 2000 could end up holding 20003800 and the analysis ran
+  // on twenty million veh/h without throwing anything.
+  //
+  // The specs in this file have always gated on Calculate being enabled, so
+  // they never saw it. Users have no such gate. Each page's form now carries
+  // inert={!ready}, which makes the whole subtree unfocusable and uneditable
+  // until hydration and costs no visual change.
+  //
+  // A warm preview server hydrates faster than a fill can land, which is why
+  // this delays the JS responses: that is the condition the bug needs, a slow
+  // connection where the form is painted long before it is live.
+  for (const [route, field, seeded] of [
+    ['/hcm12ml', '#GPDEMAND_input', '2000'],
+    ['/hcm19', '#PHF_input', '0.92'],
+  ] as const) {
+    test(`${route} refuses edits until hydration`, async ({ page }) => {
+      await page.route('**/*.js', async (route_) => {
+        await new Promise((r) => setTimeout(r, 2500));
+        await route_.continue();
+      });
+      await page.goto(route, { waitUntil: 'commit' });
+
+      const input = page.locator(field);
+      await expect(input).toHaveValue(seeded); // painted, not yet live
+      await expect(page.locator('form[inert]')).toHaveCount(1);
+
+      // The fill is attempted with no readiness gate, the way a user types.
+      // It must not land, so the field still holds exactly its default.
+      await input.fill('3800', { timeout: 3000 }).catch(() => { /* refused is also a pass */ });
+      await expect(input).toHaveValue(seeded);
+
+      // And the guard must actually lift, or it would be a very effective way
+      // of breaking every page.
+      await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+      await expect(page.locator('form[inert]')).toHaveCount(0);
+      await input.fill('3800');
+      await expect(input).toHaveValue('3800');
+    });
+  }
+});
+
 test.describe('chapter 10 freeway facilities calculator', () => {
   // Cell order in the segment table: 0 #, 1 type select, 2 length, 3 lanes,
   // 4 on-ramp demand, 5 off-ramp demand, 6 ramp FFS, 7 accel, 8 decel.
@@ -522,6 +569,21 @@ test.describe('chapter 10 freeway facilities calculator', () => {
 });
 
 test.describe('chapter 11 freeway reliability calculator', () => {
+  // Retries here are a mitigation, not a fix, and they are scoped to this
+  // chapter on purpose. Chapter 11 is the only page that runs hundreds of
+  // core-methodology evaluations in one click, and on webkit that run
+  // intermittently traps in the wasm module with "Unreachable code should not
+  // be executed (evaluating 't.wasmfreewayreliability_run(...)')", leaving the
+  // page showing its error alert. It is not caused by anything here: the
+  // pre-existing default-facility test below fails about 1 run in 10 on webkit
+  // at main (295e206) as well as on this branch, measured with --repeat-each
+  // on both. It is also not memory exhaustion, since 25 consecutive runs in
+  // one reused page never trip it while a fresh browser context does, which
+  // points at cold wasm instantiation rather than accumulation. Chromium and
+  // firefox have never reproduced it. Tracked for the engine side; until then
+  // this keeps a known browser fault from reading as a failed assertion.
+  test.describe.configure({ retries: 2 });
+
   test('seed facility diagram renders in both views without LOS coloring', async ({ page }) => {
     await page.goto('/hcm11');
     const calculate = page.getByRole('button', { name: 'Calculate' });
@@ -540,15 +602,27 @@ test.describe('chapter 11 freeway reliability calculator', () => {
   test('default inputs run a deterministic whole-year scenario set', async ({ page }) => {
     test.slow(); // 240 scenarios of wasm compute; tight under parallel load
 
-    // No published example fits this page's reduced scope (no weather model, no
-    // custom demand multipliers), so this pins the engine's deterministic output
-    // for the default facility with rng seed 1: 12 months x 5 weekdays x 4
-    // replications = 240 scenarios, 4 periods each = 960 observations, and the
-    // exact metric values the seeded run produces. Any engine change that moves
-    // these numbers must be deliberate.
+    // The default facility is not a published example, so this pins the
+    // engine's deterministic output for it with rng seed 1: 12 months x 5
+    // weekdays x 4 replications = 240 scenarios, 4 periods each = 960
+    // observations, and the exact metric values the seeded run produces. Any
+    // engine change that moves these numbers must be deliberate. Example
+    // Problem 7 is pinned separately below, on its own facility.
     await page.goto('/hcm11');
     const calculate = page.getByRole('button', { name: 'Calculate' });
     await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    // The three fidelity panels are opt-in, and these numbers are the
+    // fifteen-argument no-weather run they must leave untouched while closed.
+    // Asserting their inactive state here is what makes the pins below
+    // evidence that nothing leaked in by default.
+    // Scoped to the panel summaries: the beta note also contains the words
+    // "not modeled", so a bare text lookup is ambiguous.
+    const panelState = (title: string) =>
+      page.locator('.fidelity-panel', { hasText: title }).locator('.fidelity-state');
+    await expect(panelState('Weather Events')).toHaveText('Not modeled');
+    await expect(panelState('Demand Multipliers')).toHaveText('Exhibit 11-18 defaults');
+    await expect(panelState('Facility Parameters')).toHaveText('Engine defaults');
 
     await calculate.click();
 
@@ -565,6 +639,96 @@ test.describe('chapter 11 freeway reliability calculator', () => {
     // handful of reclassified scenarios can move — mean TTI, the median, and
     // PTI above are all unchanged to three decimals on the same run.
     await expect(page.getByText(/Reliability Rating: 62\.8/)).toBeVisible();
+  });
+
+  test('Example Problem 7 reproduces the boundary suite at full fidelity', async ({ page }) => {
+    test.slow(); // 240 scenarios over an 11-segment facility
+
+    // HCM Chapter 25, Example Problem 7 (Exhibits 25-97 through 25-105). With
+    // the weather panel, the Exhibit 25-100 demand multipliers and the four
+    // facility parameters all seeded, the page runs the same experiment as
+    // tests/boundary/ch11_freeway_reliability.mjs, so these are that file's
+    // assertions at the page's three-decimal precision. The published value is
+    // named beside each; the tail measures are the documented reproduction
+    // gaps, pinned at what this engine computes because the published ones come
+    // from FREEVAL's Monte Carlo stream at seed 1, which it cannot replay.
+    await page.goto('/hcm11');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.getByRole('button', { name: 'Load Example Problem 7' }).click();
+
+    // The loader brings the whole published facility, not only the panels: the
+    // Exhibit 25-104 metrics belong to EP7's own 11-segment geometry.
+    await expect(page.locator('.fd-diagram .fd-seg')).toHaveCount(11);
+    await expect(page.getByRole('heading', { name: /Segment 6 · Weaving Details/ })).toBeVisible();
+    // Scoped to the panel summaries: the beta note also contains the words
+    // "not modeled", so a bare text lookup is ambiguous.
+    const panelState = (title: string) =>
+      page.locator('.fidelity-panel', { hasText: title }).locator('.fidelity-state');
+    await expect(panelState('Weather Events')).toHaveText('Active');
+    await expect(panelState('Demand Multipliers')).toHaveText('Local table');
+    await expect(panelState('Facility Parameters')).toHaveText('Overridden');
+
+    await calculate.click();
+
+    const cell = (label: string) => page.locator('tr', { hasText: label }).first().locator('td');
+    // 12 months x 5 weekdays x 4 replications, 12 analysis periods each.
+    await expect(cell('Scenarios Evaluated:')).toHaveText('240', { timeout: 60_000 });
+    await expect(cell('Travel Time Observations:')).toHaveText('2880');
+    await expect(cell('Free-Flow Travel Time (min):')).toHaveText('6.00'); // 6 mi at 60 mi/h
+    await expect(cell('Mean TTI:')).toHaveText('1.323');          // published 1.30
+    await expect(cell('50th Percentile TTI:')).toHaveText('1.033'); // published 1.03
+    await expect(cell('Misery Index:')).toHaveText('5.630');       // published 5.76
+    await expect(cell('Semi-Standard Deviation:')).toHaveText('1.963'); // published 2.05
+    await expect(cell('95th Percentile TTI (PTI):')).toHaveText('1.970'); // published 1.67, a known gap
+    // Probability-weighted, which is how Exhibit 25-104 reports EP7, so the
+    // rating here is over observations rather than the HCM's VMT weighting
+    // (the boundary's VMT-weighted run gives 84.4 against a published 90.8).
+    await expect(page.getByText(/Reliability Rating: 87\.0 % of observations/)).toBeVisible();
+  });
+
+  test('closing the fidelity panels restores the no-weather run', async ({ page }) => {
+    test.slow();
+
+    // The control for the pins above: the panels must be removable, not just
+    // openable. After loading EP7 and then switching every panel back off and
+    // clearing the four parameters, the same facility must return to the
+    // Exhibit 11-18, weather-free numbers. Without this, an "off" state that
+    // silently kept applying something would still pass every assertion above.
+    await page.goto('/hcm11');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.getByRole('button', { name: 'Load Example Problem 7' }).click();
+
+    const panel = (title: string) => page.locator('.fidelity-panel', { hasText: title });
+    for (const title of ['Weather Events', 'Demand Multipliers', 'Facility Parameters']) {
+      await panel(title).locator('summary').click();
+    }
+    await page.locator('#WX_input').uncheck();
+    await page.locator('#DM_input').uncheck();
+    for (const id of ['#JAM_input', '#QDROP_input', '#TRD_input', '#ID_input']) {
+      await page.locator(id).fill('');
+    }
+    await page.locator('#WEIGHT_input').selectOption('vmt');
+
+    const panelState = (title: string) =>
+      page.locator('.fidelity-panel', { hasText: title }).locator('.fidelity-state');
+    await expect(panelState('Weather Events')).toHaveText('Not modeled');
+    await expect(panelState('Demand Multipliers')).toHaveText('Exhibit 11-18 defaults');
+    await expect(panelState('Facility Parameters')).toHaveText('Engine defaults');
+
+    await calculate.click();
+
+    const cell = (label: string) => page.locator('tr', { hasText: label }).first().locator('td');
+    await expect(cell('Scenarios Evaluated:')).toHaveText('240', { timeout: 60_000 });
+    await expect(cell('Travel Time Observations:')).toHaveText('2880');
+    // Milder than the full-fidelity run above on the same geometry: no weather,
+    // the Exhibit 11-18 national ratios, and the interchange-density fallback.
+    await expect(cell('Mean TTI:')).toHaveText('1.218');
+    await expect(cell('Misery Index:')).toHaveText('3.257');
+    await expect(page.getByText(/Reliability Rating: 85\.8 % of travel/)).toBeVisible();
   });
 });
 

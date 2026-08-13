@@ -1,6 +1,9 @@
-// HCM Chapter 25, Example Problem 7 (Chapter 11 freeway reliability,
-// Exhibits 25-97 .. 25-105) through the WASM boundary, mirroring
-// transportations-library/tests/chapter11_integration.rs.
+// HCM Chapter 25, Example Problems 7 and 8 (Chapter 11 freeway reliability,
+// Exhibits 25-97 .. 25-107) through the WASM boundary, mirroring
+// transportations-library/tests/chapter11_integration.rs. Example Problem 8
+// is the geometric-improvement alternative on the same facility and the same
+// scenario draw; Example Problem 9 is not here, and the block near the end
+// says exactly which binding is missing.
 //
 // The whole fixture now passes through the binding: middleware 0.3.7 added
 // set_weather() and set_demand_multipliers() for the two scenario-generation
@@ -15,7 +18,8 @@
 //
 // STILL OUT OF BINDING SCOPE: work zones and special events on the scenario
 // generator, and with them the two Chapter 37 ATDM direction-of-effect tests
-// (shoulder lane, ramp metering), which the Rust suite covers.
+// (shoulder lane, ramp metering), which the Rust suite covers; and the
+// incident duration parameters, which is what keeps Example Problem 9 out.
 //
 // Published vs computed: the Exhibit 25-104 values come from FREEVAL's Monte
 // Carlo stream at seed 1, which this implementation cannot replay. The
@@ -289,6 +293,112 @@ exact(JSON.stringify(rel.scenario_tti_matrix()) !== JSON.stringify(relC.scenario
   true, 'EP7 different rng seed changes the results');
 
 // ═══════════════════════════════════════════════════════════════════════
+// (d) Example Problem 8: reliability analysis with geometric improvements
+// (Exhibits 25-106 and 25-107). Segments 7-11 of the same facility gain a
+// lane, everything else including the rng seed held fixed, so the scenario
+// set is identical and the delta is purely geometric. This mirrors the Rust
+// test ep8_geometric_improvement_improves_reliability(), which asserts the
+// direction only; the value pins below are this engine's computed numbers
+// with the Exhibit 25-107 published value named beside each.
+//
+// The book text says the improvement is applied to "Example Problem 6",
+// which is the planning-level analysis of a different facility. Exhibit
+// 25-106 draws the EP1/EP7 facility with the added lane boxed on Segments
+// 7-11, and the reliability inputs it inherits exist only in EP7, so the
+// reference is read as EP7 here. Two published figures cannot be taken at
+// face value either way: the narrative's "1.54" baseline mean TTI is not the
+// 1.30 of Exhibit 25-104, and the published PTI of 1.17 sits below the
+// published mean of 1.18, which no right-skewed TTI distribution allows.
+// Neither is resolvable from the book, so neither is asserted as a target.
+// ═══════════════════════════════════════════════════════════════════════
+function buildWidened(rngSeed, vmtWeighted) {
+  // Segments 7-11 are fixture indices 6-10.
+  const widened = fac.segments.map((s, i) => new m.WasmFacilitySegment(
+    s.seg_type, s.length_ft, s.lanes + (i >= 6 && i <= 10 ? 1 : 0),
+    s.on_ramp_demand ?? [], s.off_ramp_demand ?? [], s.ramp_to_ramp_demand ?? [],
+    s.ramp_ffs, s.accel_lane_ft, s.decel_lane_ft, s.short_length_ft,
+    s.num_weaving_lanes, s.lc_rf, s.lc_fr, s.ffs, s.caf, s.saf, s.daf));
+  const r = new m.WasmFreewayReliability(
+    widened, fac.mainline_demand, fac.ffs, fac.heavy_vehicle_pct,
+    fac.terrain, fac.city_type, fac.phf, sg.months, sg.replications,
+    sg.seed_month, sg.seed_weekday, sg.incidents.crash_rate_per_100mvmt,
+    sg.incidents.incident_to_crash_ratio, rngSeed, vmtWeighted,
+    fac.jam_density_pc, fac.queue_discharge_drop, fac.total_ramp_density,
+    fac.interchange_density);
+  r.set_weather(sg.weather);
+  r.set_demand_multipliers(sg.demand_multipliers);
+  return r;
+}
+
+const ep8 = buildWidened(sg.rng_seed, false);
+ep8.run();
+
+// The widened facility is the same experiment on different geometry.
+exact(ep8.num_scenarios(), 240, 'EP8 scenario count matches the EP7 draw');
+exact(ep8.num_observations(), 2880, 'EP8 observation count matches the EP7 draw');
+exact(JSON.stringify(ep8.scenario_dafs()) === JSON.stringify(rel.scenario_dafs()), true,
+  'EP8 runs the identical scenario set (same seed, same demand table)');
+approx(ep8.free_flow_travel_time_min(), 6.0, 0.01, 'EP8 free-flow TT unchanged by widening (min)');
+
+// Direction, as the Rust test asserts it.
+exact(ep8.tti_mean() < rel.tti_mean(), true,
+  `EP8 widening lowers mean TTI (${rel.tti_mean().toFixed(4)} -> ${ep8.tti_mean().toFixed(4)})`);
+exact(ep8.reliability_rating() > rel.reliability_rating(), true,
+  `EP8 widening raises the reliability rating (${rel.reliability_rating().toFixed(2)} -> ${ep8.reliability_rating().toFixed(2)})`);
+exact(ep8.tti_percentile(95) <= rel.tti_percentile(95) + 1e-9, true,
+  `EP8 widening does not worsen the PTI (${rel.tti_percentile(95).toFixed(4)} -> ${ep8.tti_percentile(95).toFixed(4)})`);
+exact(ep8.misery_index() < rel.misery_index(), true,
+  `EP8 widening lowers the misery index (${rel.misery_index().toFixed(3)} -> ${ep8.misery_index().toFixed(3)})`);
+exact(ep8.pct_tti_above(2.0) < rel.pct_tti_above(2.0), true,
+  `EP8 widening cuts the share above TTI 2 (${rel.pct_tti_above(2.0).toFixed(2)} -> ${ep8.pct_tti_above(2.0).toFixed(2)})`);
+
+// Value pins. The central measures land close to Exhibit 25-107; the tail
+// carries the same Monte Carlo gap Example Problem 7 documents.
+approx(ep8.tti_mean(), 1.198, 0.01, 'EP8 TTI_mean computed (Exhibit 25-107 published 1.18)');
+approx(ep8.tti_percentile(50), 1.028, 0.01, 'EP8 TTI_50 computed (published 1.02)');
+approx(ep8.misery_index(), 4.170, 0.10, 'EP8 misery index computed (published 4.07)');
+approx(ep8.semi_std_dev(), 1.526, 0.06, 'EP8 semi-std dev computed (published 1.71)');
+approx(ep8.tti_percentile(95), 1.297, 0.05, 'EP8 PTI computed (published 1.17, which is below the published mean)');
+approx(ep8.tti_max(), 36.73, 2.0, 'EP8 TTI_max computed (published 33.5)');
+approx(ep8.pct_tti_above(2.0), 2.19, 0.5, 'EP8 %obs at TTI>2 computed (published 1.42% of VMT)');
+
+// The reliability rating is defined on VMT, so it is read from the
+// VMT-weighted pair rather than from the probability-weighted one above.
+const ep8v = buildWidened(sg.rng_seed, fx.vmt_weighted);
+ep8v.run();
+approx(ep8v.reliability_rating(), 95.5, 1.5, 'EP8 reliability rating computed (published 97.56)');
+exact(ep8v.reliability_rating() > relv.reliability_rating(), true,
+  `EP8 widening raises the VMT-weighted rating (${relv.reliability_rating().toFixed(2)} -> ${ep8v.reliability_rating().toFixed(2)})`);
+
+// ═══════════════════════════════════════════════════════════════════════
+// EXAMPLE PROBLEM 9 IS NOT ASSERTABLE HERE, and the gap is one input.
+// EP9 (Exhibit 25-108, improved incident management) is the same facility
+// and the same scenario draw with every incident severity's mean duration
+// and standard deviation cut by 30%. The Rust test
+// ep9_incident_management_improves_reliability() reaches that by scaling
+// `scenario_generation.incidents.duration_params` on the loaded case, which
+// the fixture leaves to IncidentInputs::default() rather than writing out.
+// The wasm surface takes incidents as exactly two constructor arguments, the
+// crash rate and the incident-to-crash ratio, and builds an
+// IncidentInputs::default() around them, so duration_params is unreachable
+// from JS and there is nothing to scale. Closing it wants a
+// set_incidents(config) taking the serde shape of the library's
+// IncidentInputs, the way set_weather() already takes WeatherInputs. The
+// guard below fails the moment that lands, which is what should force this
+// block to be written rather than left as a comment.
+//
+// The same two-argument constructor drops the fixture's own
+// severity_distribution. That is harmless today only because the fixture's
+// value is the library default, so it is asserted here rather than assumed:
+// the day the fixture's distribution stops matching the default, this run
+// silently stops being the published experiment.
+// ═══════════════════════════════════════════════════════════════════════
+exact(typeof m.WasmFreewayReliability.prototype.set_incidents, 'undefined',
+  'EP9 still blocked: no set_incidents() on the surface (delete this guard and assert EP9 when it lands)');
+exact(JSON.stringify(sg.incidents.severity_distribution), '[0.754,0.196,0.031,0.019,0]',
+  'EP7 fixture severity distribution still equals the library default the binding substitutes');
+
+// ═══════════════════════════════════════════════════════════════════════
 // LEGACY SHAPE: the pre-0.3.7 call, with none of the three inputs above.
 // Kept as the regression anchor for callers built on the old signature (the
 // hcm11 page is one), and as the control that the new inputs bite: this
@@ -343,4 +453,4 @@ function throws(fn, label) {
   exact(probe.has_weather(), false, 'a rejected weather config leaves the generator weather-free');
 }
 
-report('ch11 freeway reliability (HCM Ch.25 EP7, full fidelity; work zones/special events/ATDM out of binding scope)');
+report('ch11 freeway reliability (HCM Ch.25 EP7 full fidelity + EP8 geometric improvement; EP9/work zones/special events/ATDM out of binding scope)');

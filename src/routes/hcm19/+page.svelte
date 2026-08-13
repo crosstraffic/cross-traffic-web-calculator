@@ -182,7 +182,7 @@
     </div>
   {/if}
 
-  <form id="hcm19" onsubmit={preventDefault(runAnalysis)}>
+  <form id="hcm19" onsubmit={preventDefault(runAnalysis)} inert={!ready}>
     <!-- Signal Timing -->
     <section class="panel">
       <div class="panel-head">
