@@ -1,9 +1,8 @@
-// HCM Chapter 25, Example Problems 7 and 8 (Chapter 11 freeway reliability,
-// Exhibits 25-97 .. 25-107) through the WASM boundary, mirroring
-// transportations-library/tests/chapter11_integration.rs. Example Problem 8
-// is the geometric-improvement alternative on the same facility and the same
-// scenario draw; Example Problem 9 is not here, and the block near the end
-// says exactly which binding is missing.
+// HCM Chapter 25, Example Problems 7, 8 and 9 (Chapter 11 freeway
+// reliability, Exhibits 25-97 .. 25-108) through the WASM boundary, mirroring
+// transportations-library/tests/chapter11_integration.rs. Example Problems 8
+// and 9 are the geometric-improvement and incident-management alternatives on
+// the same facility and the same scenario draw.
 //
 // The whole fixture now passes through the binding: middleware 0.3.7 added
 // set_weather() and set_demand_multipliers() for the two scenario-generation
@@ -15,11 +14,12 @@
 // Exhibit 25-100 table, and an interchange density of 1.0 (the total ramp
 // density fallback) instead of 0.8 -- so the Exhibit 25-104 metrics could
 // only be checked as invariants and sanity bands. They are asserted here.
+// Middleware 0.3.9 added set_incidents(), the last scenario-generation input
+// with no way in, which is what opens Example Problem 9 (section (e)).
 //
 // STILL OUT OF BINDING SCOPE: work zones and special events on the scenario
 // generator, and with them the two Chapter 37 ATDM direction-of-effect tests
-// (shoulder lane, ramp metering), which the Rust suite covers; and the
-// incident duration parameters, which is what keeps Example Problem 9 out.
+// (shoulder lane, ramp metering), which the Rust suite covers.
 //
 // Published vs computed: the Exhibit 25-104 values come from FREEVAL's Monte
 // Carlo stream at seed 1, which this implementation cannot replay. The
@@ -371,32 +371,102 @@ exact(ep8v.reliability_rating() > relv.reliability_rating(), true,
   `EP8 widening raises the VMT-weighted rating (${relv.reliability_rating().toFixed(2)} -> ${ep8v.reliability_rating().toFixed(2)})`);
 
 // ═══════════════════════════════════════════════════════════════════════
-// EXAMPLE PROBLEM 9 IS NOT ASSERTABLE HERE, and the gap is one input.
-// EP9 (Exhibit 25-108, improved incident management) is the same facility
-// and the same scenario draw with every incident severity's mean duration
-// and standard deviation cut by 30%. The Rust test
-// ep9_incident_management_improves_reliability() reaches that by scaling
-// `scenario_generation.incidents.duration_params` on the loaded case, which
-// the fixture leaves to IncidentInputs::default() rather than writing out.
-// The wasm surface takes incidents as exactly two constructor arguments, the
-// crash rate and the incident-to-crash ratio, and builds an
-// IncidentInputs::default() around them, so duration_params is unreachable
-// from JS and there is nothing to scale. Closing it wants a
-// set_incidents(config) taking the serde shape of the library's
-// IncidentInputs, the way set_weather() already takes WeatherInputs. The
-// guard below fails the moment that lands, which is what should force this
-// block to be written rather than left as a comment.
+// (e) Example Problem 9: evaluation of incident management (Exhibit
+// 25-108). The same facility and the same scenario draw with every incident
+// severity's mean duration and standard deviation cut by 30%, the minima and
+// maxima left alone. This mirrors the Rust test
+// ep9_incident_management_improves_reliability(), which scales
+// `scenario_generation.incidents.duration_params` on the loaded case.
 //
-// The same two-argument constructor drops the fixture's own
-// severity_distribution. That is harmless today only because the fixture's
-// value is the library default, so it is asserted here rather than assumed:
-// the day the fixture's distribution stops matching the default, this run
-// silently stops being the published experiment.
+// Two guards used to sit here instead, because the wasm surface took
+// incidents as exactly two constructor arguments (the crash rate and the
+// incident-to-crash ratio) wrapped in an IncidentInputs::default(), which put
+// duration_params out of reach from JS and dropped the fixture's own
+// severity_distribution. Middleware 0.3.9 added set_incidents(), taking the
+// serde shape of the library's IncidentInputs the way set_weather() takes
+// WeatherInputs, and that is what this block is. The guards did their job:
+// the method probe failed on the first package built against 0.3.9.
+//
+// The reliability rating and mean TTI the Rust test compares are read from
+// the fixture's own weighting (vmt_weighted = true), so the baseline here is
+// the VMT-weighted `relv` rather than the probability-weighted `rel`.
 // ═══════════════════════════════════════════════════════════════════════
-exact(typeof m.WasmFreewayReliability.prototype.set_incidents, 'undefined',
-  'EP9 still blocked: no set_incidents() on the surface (delete this guard and assert EP9 when it lands)');
-exact(JSON.stringify(sg.incidents.severity_distribution), '[0.754,0.196,0.031,0.019,0]',
-  'EP7 fixture severity distribution still equals the library default the binding substitutes');
+for (const fn of ['set_incidents', 'clear_incidents', 'has_incidents', 'incident_duration_params']) {
+  exact(typeof m.WasmFreewayReliability.prototype[fn], 'function',
+    `EP9 binding exposes WasmFreewayReliability.${fn}()`);
+}
+
+// The duration parameters the constructor installs are the Exhibit 11-22 /
+// Exhibit 25-41 national defaults, read back rather than transcribed here, so
+// the 30% cut below is applied to the same numbers the core would use.
+const ep9 = buildReliability(sg.rng_seed, fx.vmt_weighted);
+exact(ep9.has_incidents(), true, 'EP9 constructor crash rate models incidents');
+const dp = ep9.incident_duration_params();
+exact(dp.length, 5, 'EP9 duration parameters, one per Equation 25-85 severity');
+[[34.0, 15.1, 8.7, 58.0], [34.6, 13.8, 16.0, 58.2], [53.6, 13.9, 30.5, 66.9],
+  [67.9, 21.9, 36.0, 93.3], [67.9, 21.9, 36.0, 93.3]].forEach(([mean, sd, mn, mx], i) => {
+  exact(dp[i].mean === mean && dp[i].std_dev === sd && dp[i].min === mn && dp[i].max === mx, true,
+    `EP9 Exhibit 11-22 defaults, severity ${i + 1} (${dp[i].mean}/${dp[i].std_dev}/${dp[i].min}/${dp[i].max})`);
+});
+
+// What the retired severity-distribution guard was pinning by string
+// comparison is now provable: sending the fixture's whole incidents object
+// through the setter reproduces the two-argument constructor path exactly, so
+// the EP7 numbers above are the fixture's incident inputs and not a default
+// that happens to resemble them.
+const fixtureInc = buildReliability(sg.rng_seed, fx.vmt_weighted);
+fixtureInc.set_incidents({ ...sg.incidents, duration_params: dp });
+fixtureInc.run();
+exact(JSON.stringify(fixtureInc.scenario_tti_matrix()) === JSON.stringify(relv.scenario_tti_matrix()),
+  true, 'EP7 fixture incidents through the setter reproduce the constructor path exactly');
+
+ep9.set_incidents({
+  ...sg.incidents,
+  duration_params: dp.map(p => ({ ...p, mean: p.mean * 0.70, std_dev: p.std_dev * 0.70 })),
+});
+const sent = ep9.incident_duration_params();
+exact(sent.every((p, i) => p.mean === dp[i].mean * 0.70 && p.std_dev === dp[i].std_dev * 0.70
+  && p.min === dp[i].min && p.max === dp[i].max), true,
+  'EP9 duration parameters read back as sent (means and standard deviations cut 30%, ranges kept)');
+ep9.run();
+
+// Same draw, different clearance times.
+exact(ep9.num_scenarios(), 240, 'EP9 scenario count matches the EP7 draw');
+exact(ep9.total_incidents(), relv.total_incidents(),
+  `EP9 runs the identical incident draw (${relv.total_incidents()} incidents)`);
+exact(JSON.stringify(ep9.scenario_incident_counts()) === JSON.stringify(relv.scenario_incident_counts()),
+  true, 'EP9 assigns incidents to the same scenarios');
+
+// Direction, as the Rust test asserts it. Exhibit 25-108 publishes a mean TTI
+// of 1.35 -> 1.20 and a mean speed of 44.4 -> 50.0 mi/h; as with Example
+// Problem 8 the published baseline is not the Exhibit 25-104 value for the
+// same facility, so the published pair is named rather than asserted.
+exact(ep9.tti_mean() < relv.tti_mean(), true,
+  `EP9 faster clearance lowers mean TTI (${relv.tti_mean().toFixed(5)} -> ${ep9.tti_mean().toFixed(5)}; published 1.35 -> 1.20)`);
+exact(ep9.reliability_rating() > relv.reliability_rating(), true,
+  `EP9 faster clearance raises the reliability rating (${relv.reliability_rating().toFixed(3)} -> ${ep9.reliability_rating().toFixed(3)})`);
+exact(ep9.misery_index() < relv.misery_index(), true,
+  `EP9 faster clearance lowers the misery index (${relv.misery_index().toFixed(4)} -> ${ep9.misery_index().toFixed(4)})`);
+exact(ep9.tti_max() < relv.tti_max(), true,
+  `EP9 faster clearance cuts the worst period (${relv.tti_max().toFixed(2)} -> ${ep9.tti_max().toFixed(2)})`);
+
+// Value pins. Unlike the EP7 and EP8 pins above, these are not book numbers
+// with a Monte Carlo gap behind them: they are the values the library's own
+// EP9 path computes natively on this fixture, so the tolerance is the
+// wasm-versus-native math-library gap and nothing else. That gap measures
+// 2e-12 across these ten measures, and the pins are set at 1e-9 so an engine
+// change fails here rather than passing inside a book-sized band.
+approx(relv.tti_mean(), 1.23776960774207834, 1e-9, 'EP7 VMT-weighted TTI_mean (core EP9-test baseline)');
+approx(ep9.tti_mean(), 1.21130324922242227, 1e-9, 'EP9 TTI_mean (published 1.20)');
+approx(ep9.tti_percentile(50), 1.03727689973000747, 1e-9, 'EP9 TTI_50');
+approx(ep9.tti_percentile(80), 1.22854003536663847, 1e-9, 'EP9 TTI_80');
+approx(ep9.tti_percentile(95), 1.90776750198548761, 1e-9, 'EP9 PTI');
+approx(ep9.tti_max(), 32.3542467510951397, 1e-7, 'EP9 TTI_max');
+approx(ep9.misery_index(), 3.08690563642527005, 1e-9, 'EP9 misery index');
+approx(ep9.semi_std_dev(), 0.895404883170202393, 1e-9, 'EP9 semi-std dev');
+approx(ep9.reliability_rating(), 85.4208221102839218, 1e-9, 'EP9 reliability rating');
+approx(ep9.pct_tti_above(2.0), 3.78101337000392324, 1e-9, 'EP9 %obs at TTI>2');
+approx(ep9.expected_vhd(), 233.482534688971327, 1e-7, 'EP9 expected VHD (veh-h)');
 
 // ═══════════════════════════════════════════════════════════════════════
 // LEGACY SHAPE: the pre-0.3.7 call, with none of the three inputs above.
@@ -451,6 +521,33 @@ function throws(fn, label) {
   throws(() => probe.set_weather({ ...sg.weather, durations_min: sg.weather.durations_min.slice(0, 3) }),
     'set_weather rejects a short duration vector');
   exact(probe.has_weather(), false, 'a rejected weather config leaves the generator weather-free');
+
+  // The incident config has the same shape of hazard, three times over. The
+  // core looks duration_params up per severity with the Exhibit 11-22 default
+  // as the fallback, so a four-entry cut silently restores the book duration
+  // for the severity it omits -- which is precisely the mistake this EP9 block
+  // would otherwise invite. It checks the severity distribution's sum but not
+  // its length, and it reads the monthly frequency table with a 0.0 fallback,
+  // so a short table models an incident-free month. The fourth case is a
+  // config with no frequency source at all, which is what a wholly misspelled
+  // object deserializes into: it generates no incidents while reporting that
+  // incidents are modeled.
+  throws(() => probe.set_incidents({ ...sg.incidents, duration_params: dp.slice(0, 4) }),
+    'set_incidents rejects a four-entry duration_params');
+  throws(() => probe.set_incidents({ ...sg.incidents, severity_distribution: [0.754, 0.196, 0.031, 0.019] }),
+    'set_incidents rejects a four-entry severity distribution');
+  throws(() => probe.set_incidents({ ...sg.incidents, severity_distribution: [0.754, 0.196, 0.031, 0.019, 0.0, 0.0] }),
+    'set_incidents rejects a six-entry severity distribution');
+  throws(() => probe.set_incidents({ ...sg.incidents, monthly_frequencies: new Array(11).fill(0.8) }),
+    'set_incidents rejects an eleven-month frequency table');
+  throws(() => probe.set_incidents({ crash_rate_per_100_mvmt: 150.0 }),
+    'set_incidents rejects a config with no frequency source (a misspelled crash rate)');
+  exact(probe.has_incidents(), true, 'a rejected incidents config leaves the constructor inputs in place');
+  exact(JSON.stringify(probe.incident_duration_params()), JSON.stringify(dp),
+    'a rejected incidents config leaves the Exhibit 11-22 defaults in place');
+  probe.clear_incidents();
+  exact(probe.has_incidents(), false, 'clear_incidents() removes the incident inputs');
+  exact(probe.incident_duration_params(), null, 'incident duration parameters are null with no incidents');
 }
 
-report('ch11 freeway reliability (HCM Ch.25 EP7 full fidelity + EP8 geometric improvement; EP9/work zones/special events/ATDM out of binding scope)');
+report('ch11 freeway reliability (HCM Ch.25 EP7 full fidelity + EP8 geometric improvement + EP9 incident management; work zones/special events/ATDM out of binding scope)');
