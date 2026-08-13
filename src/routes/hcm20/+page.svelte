@@ -8,11 +8,17 @@
   import init, { WasmTwsc } from "HCM-middleware";
   import TwscDiagram from '$lib/TwscDiagram.svelte';
   import TwscDiagram3D from '$lib/TwscDiagram3D.svelte';
+  import PedestrianCrossingMode from '$lib/PedestrianCrossingMode.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
   import { onMount } from "svelte";
 
   let diagramMode = $state('2d');
+
+  // Which Chapter 20 mode the page analyzes. The vehicular mode is Section 4, where the answer
+  // is a vehicle delay per movement and lane. The pedestrian mode is Section 5, a separate
+  // procedure whose subject is the pedestrian and whose LOS comes from a satisfaction model.
+  let mode = $state('vehicular');
 
   let ready = $state(false);
 
@@ -189,7 +195,8 @@
     <h1 class="page-title">Two-Way STOP-Controlled Intersections</h1>
     <p class="page-sub">
       Estimate movement capacities, control delay, queues, and level of service
-      for the controlled movements at a two-way STOP-controlled intersection.
+      for the controlled movements at a two-way STOP-controlled intersection,
+      or evaluate a pedestrian crossing the major street.
     </p>
   </header>
 
@@ -197,11 +204,37 @@
     <span>
       The compute engine reproduces the published HCM worked examples for this
       chapter and applies the December 2022 HCM corrections, including the
-      corrected Stage II conflicting movements and the Exhibit 20-14 swap.
+      corrected Stage II conflicting movements and the Exhibit 20-14 swap. The
+      pedestrian mode reproduces all three scenarios of Chapter 32 Example
+      Problem 2, with the caveat noted there that two coefficients of Equation
+      20-95 are clipped out of the published text and were recovered by fitting
+      that example.
       Verify results independently before relying on them in engineering work,
       and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2 class="panel-title">Analysis Mode</h2>
+        <p class="panel-sub">Section 4 evaluates the vehicular movements at the intersection. Section 5 evaluates a pedestrian crossing the uncontrolled major-street traffic stream, which is a separate procedure with its own service measure. The same Section 5 method applies to a midblock crossing.</p>
+      </div>
+    </div>
+    <div class="param-grid">
+      <div class="param-field">
+        <label for="MODE_input">Chapter 20 Mode</label>
+        <select id="MODE_input" class="select select-bordered select-sm" bind:value={mode}>
+          <option value="vehicular">Vehicular TWSC · Section 4</option>
+          <option value="pedestrian">Pedestrian crossing · Section 5</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  {#if mode === 'pedestrian'}
+    <PedestrianCrossingMode {ready} />
+  {:else}
 
   {#if hasError}
     <div class="alert alert-error shadow-sm mb-6">
@@ -555,4 +588,5 @@
       </div>
     </div>
   </section>
+  {/if}
 </div>

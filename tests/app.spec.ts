@@ -1432,6 +1432,174 @@ test.describe('chapter 20 TWSC calculator', () => {
   });
 });
 
+test.describe('chapter 20 pedestrian crossing mode', () => {
+  // HCM Chapter 20 Section 5, driven by the three scenarios of Chapter 32 TWSC
+  // Example Problem 2. Published totals and letters: A = 761 s LOS F,
+  // B = 6.0 s LOS C, C = 3.0 s LOS A. The page prints one decimal, and the
+  // engine's values sit inside the book's own tolerances (0.5% on Scenario A,
+  // whose delay is published to three significant figures, and 0.5 s on the
+  // other two), so the pins below are the printed values with the published
+  // ones named alongside.
+  const openPedestrianMode = async (page: Page) => {
+    await page.goto('/hcm20');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await page.locator('#MODE_input').selectOption('pedestrian');
+    await expect(page.locator('#PEDSCEN_input')).toBeVisible();
+  };
+
+  const calculate = async (page: Page) => {
+    await page.locator('#hcm20ped').getByRole('button', { name: 'Calculate' }).click();
+    await expect(page.getByTestId('ped-total-delay')).not.toBeEmpty();
+  };
+
+  test('scenario B is the default and reproduces 6.0 s at LOS C', async ({ page }) => {
+    await openPedestrianMode(page);
+    await expect(page.locator('#PEDSCEN_input')).toHaveValue('B');
+
+    // Step 1 loads as the two-stage crossing of Scenario B.
+    await expect(page.getByTestId('ped-stage-row-1')).toBeVisible();
+    await expect(page.getByTestId('ped-stage-row-2')).toBeVisible();
+    await expect(page.locator('#PEDL0_input')).toHaveValue('20');
+    await expect(page.locator('#PEDN0_input')).toHaveValue('2');
+    await expect(page.locator('#PEDV0_input')).toHaveValue('850');
+    await expect(page.locator('#PEDMY_input')).toHaveValue('50');
+    // AADT reaches Equation 20-95 through the K-factor, 1,700 / 0.08.
+    await expect(page.getByTestId('ped-aadt-used')).toContainText('21250');
+
+    await calculate(page);
+
+    // The published Step 2 through Step 5 chain for a stage of Scenario B:
+    // t_c = 6.0 s, P_b = 0.508, P_d = 0.758, d_g = 7.2 s, d_gd = 9.5 s,
+    // h = 2.3 s, n = 4, and d_p,s = 3.0 s.
+    const stage1 = page.getByTestId('ped-result-stage-1');
+    await expect(stage1.locator('td').nth(1)).toHaveText('6.0');   // t_c
+    await expect(stage1.locator('td').nth(4)).toHaveText('0.508'); // P_b
+    await expect(stage1.locator('td').nth(5)).toHaveText('0.757'); // P_d, published 0.758
+    await expect(stage1.locator('td').nth(6)).toHaveText('7.2');   // d_g
+    await expect(stage1.locator('td').nth(7)).toHaveText('9.5');   // d_gd
+    await expect(stage1.locator('td').nth(8)).toHaveText('2.3');   // h
+    await expect(stage1.locator('td').nth(9)).toHaveText('4');     // n
+    await expect(stage1.locator('td').nth(10)).toHaveText('3.0');  // stage delay
+    // Both stages are identical by construction, so Equation 20-94 doubles it.
+    await expect(page.getByTestId('ped-result-stage-2').locator('td').nth(10)).toHaveText('3.0');
+
+    // The yield chain, P(Y_0) = 0 then the published P(Y_1) = 0.314.
+    await expect(page.getByTestId('ped-yield-stage-1')).toContainText('P(Y_0) 0.000');
+    await expect(page.getByTestId('ped-yield-stage-1')).toContainText('P(Y_1) 0.314');
+
+    // Step 6 and Step 7. Exhibit 32-7: P_nd = 0.481, P_D = 0.207, LOS C.
+    await expect(page.getByTestId('ped-total-delay')).toHaveText('6.0');
+    await expect(page.getByTestId('ped-p-nd')).toHaveText('0.481');
+    await expect(page.getByTestId('ped-p-d')).toHaveText('0.206');
+    await expect(page.getByTestId('ped-los')).toContainText('C');
+    // LOS is on the satisfaction basis of Exhibit 20-3, not on the delay, and
+    // the page has to say so because 6.0 s reads like a very good delay.
+    await expect(page.getByTestId('ped-los')).toContainText('dissatisfied');
+    await expect(page.getByTestId('ped-delay-interpretation')).toContainText('Occasionally some delay');
+
+    // The two-stage caveat is shown only where it applies.
+    await expect(page.locator('.facility-summary')).toContainText('uses the first stage');
+  });
+
+  test('scenario A reproduces 761 s at LOS F', async ({ page }) => {
+    await openPedestrianMode(page);
+    await page.locator('#PEDSCEN_input').selectOption('A');
+
+    // One 46-ft stage across all four lanes, no countermeasures, no yielding.
+    await expect(page.getByTestId('ped-stage-row-1')).toBeVisible();
+    await expect(page.getByTestId('ped-stage-row-2')).toHaveCount(0);
+    await expect(page.locator('#PEDL0_input')).toHaveValue('46');
+    await expect(page.locator('#PEDN0_input')).toHaveValue('4');
+    await expect(page.locator('#PEDV0_input')).toHaveValue('1700');
+    await expect(page.locator('#PEDMY_input')).toHaveValue('0');
+
+    await calculate(page);
+
+    // Published: t_c = 12.5 s, P_b = 0.771, P_d = 0.997, d_g = 761 s,
+    // d_gd = 763 s, d_p = 761 s (the engine's 760.6 is inside the 0.5% band
+    // of a three-significant-figure publication), P_nd = 0.003, LOS F.
+    const stage1 = page.getByTestId('ped-result-stage-1');
+    await expect(stage1.locator('td').nth(1)).toHaveText('12.5');  // t_c
+    await expect(stage1.locator('td').nth(4)).toHaveText('0.771'); // P_b
+    await expect(stage1.locator('td').nth(5)).toHaveText('0.997'); // P_d
+    await expect(stage1.locator('td').nth(6)).toHaveText('760.6'); // d_g, published 761
+    await expect(stage1.locator('td').nth(7)).toHaveText('762.6'); // d_gd, published 763
+    await expect(page.getByTestId('ped-total-delay')).toHaveText('760.6');
+    await expect(page.getByTestId('ped-p-nd')).toHaveText('0.003');
+    await expect(page.getByTestId('ped-p-d')).toHaveText('0.862');
+    await expect(page.getByTestId('ped-los')).toContainText('F');
+    await expect(page.getByTestId('ped-delay-interpretation')).toContainText('exceeds tolerance level');
+
+    // No refuge, so the two-stage caveat is absent here.
+    await expect(page.locator('.facility-summary')).not.toContainText('uses the first stage');
+  });
+
+  test('scenario C reproduces 3.0 s at LOS A', async ({ page }) => {
+    await openPedestrianMode(page);
+    await page.locator('#PEDSCEN_input').selectOption('C');
+    await expect(page.locator('#PEDMY_input')).toHaveValue('80');
+    await expect(page.locator('#PEDRRFB_input')).toHaveValue('true');
+
+    await calculate(page);
+
+    // Published: P(Y_1) = 0.565, d_p,1 = 1.5 s, d_p = 3.0 s (the engine's 2.9
+    // is inside the 0.5 s tolerance), P_nd = 0.670, P_D = 0.029, LOS A.
+    await expect(page.getByTestId('ped-yield-stage-1')).toContainText('P(Y_1) 0.565');
+    await expect(page.getByTestId('ped-result-stage-1').locator('td').nth(10)).toHaveText('1.5');
+    await expect(page.getByTestId('ped-total-delay')).toHaveText('2.9');
+    await expect(page.getByTestId('ped-p-nd')).toHaveText('0.670');
+    await expect(page.getByTestId('ped-p-d')).toHaveText('0.029');
+    await expect(page.getByTestId('ped-los')).toContainText('A');
+
+    // The countermeasure the scenario adds is load-bearing rather than
+    // decorative: clearing the RRFB indicator alone moves the letter to C.
+    await page.locator('#PEDRRFB_input').selectOption('false');
+    await calculate(page);
+    await expect(page.getByTestId('ped-p-d')).toHaveText('0.156');
+    await expect(page.getByTestId('ped-los')).toContainText('C');
+  });
+
+  test('the crossing diagram follows the staging, and the report carries it', async ({ page }) => {
+    await openPedestrianMode(page);
+    // The role and the label sit on the wrapper rather than the svg, which is
+    // the convention of the other cross-section diagrams here.
+    const diagram = page.locator('.pedx-diagram');
+    await expect(diagram.locator('svg')).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /2-stage pedestrian crossing of 2 lanes at 850 veh\/h then 2 lanes at 850 veh\/h/);
+    await expect(page.getByTestId('pedx-refuge')).toBeVisible();
+    await expect(page.getByTestId('pedx-stage-1')).toHaveText('Stage 1 · 2 lanes · 20 ft · 850 veh/h');
+    await expect(page.getByTestId('pedx-headline')).toHaveText('2-stage crossing · median refuge · 4.0 ft/s');
+
+    // Editing a stage redraws it, and dropping to one stage removes the refuge.
+    await page.locator('#PEDN0_input').fill('3');
+    await expect(page.getByTestId('pedx-stage-1')).toHaveText('Stage 1 · 3 lanes · 20 ft · 850 veh/h');
+    await page.getByRole('button', { name: 'Remove stage 2' }).click();
+    await expect(page.getByTestId('pedx-refuge')).toHaveCount(0);
+    await expect(page.getByTestId('pedx-headline')).toHaveText('One-stage crossing · 4.0 ft/s');
+
+    // Switching scenarios restores the published staging, and a run publishes
+    // a printable report carrying the crossing diagram and the LOS.
+    await page.locator('#PEDSCEN_input').selectOption('B');
+    await calculate(page);
+    await expect(page.getByTestId('pedx-footline')).toHaveText('d_p 6.0 s · LOS C');
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page.locator('.report-title')).toHaveText('Pedestrian Crossing at a Two-Way STOP-Controlled Intersection');
+    await expect(page.locator('.report-diagram .pedx-diagram svg')).toBeVisible();
+  });
+
+  test('a crossing with no stages cannot be sent to the engine', async ({ page }) => {
+    // The binding rejects a stageless crossing, because the core's serde
+    // defaults would otherwise analyze it to zero delay and LOS A. The page
+    // never lets the user build one, which is the same guarantee one layer up.
+    await openPedestrianMode(page);
+    await page.locator('#PEDSCEN_input').selectOption('A');
+    const remove = page.getByRole('button', { name: 'Remove stage 1' });
+    await expect(remove).toBeDisabled();
+    await calculate(page);
+    await expect(page.getByTestId('ped-los')).toContainText('F');
+  });
+});
+
 test.describe('chapter 21 AWSC calculator', () => {
   test('reproduces the published three-leg example problem on defaults', async ({ page }) => {
     // The page defaults are HCM Chapter 32, AWSC Example Problem 1. Published
