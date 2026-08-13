@@ -13,6 +13,7 @@
   import RampDiagram from '$lib/RampDiagram.svelte';
   import SignalizedDiagram from '$lib/SignalizedDiagram.svelte';
   import TwscDiagram from '$lib/TwscDiagram.svelte';
+  import PedCrossingDiagram from '$lib/PedCrossingDiagram.svelte';
   import AwscDiagram from '$lib/AwscDiagram.svelte';
   import RoundaboutDiagram from '$lib/RoundaboutDiagram.svelte';
   import PathDiagram from '$lib/PathDiagram.svelte';
@@ -157,6 +158,8 @@
               <SignalizedDiagram approaches={current.diagram.props.approaches} editable={false} />
             {:else if current.diagram.kind === 'twsc'}
               <TwscDiagram {...current.diagram.props} editable={false} />
+            {:else if current.diagram.kind === 'ped-crossing'}
+              <PedCrossingDiagram {...current.diagram.props} />
             {:else if current.diagram.kind === 'awsc'}
               <AwscDiagram approaches={current.diagram.props.approaches} editable={false} />
             {:else if current.diagram.kind === 'roundabout'}

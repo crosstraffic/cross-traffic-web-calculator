@@ -9,7 +9,7 @@ use crosstraffic_middleware::wasm_urban_facilities::WasmUrbanFacility;
 use crosstraffic_middleware::wasm_urban_reliability::WasmUrbanReliability;
 use crosstraffic_middleware::wasm_urban_segments::WasmUrbanSegment;
 use crosstraffic_middleware::wasm_signalized::WasmSignalizedIntersection;
-use crosstraffic_middleware::wasm_twsc::WasmTwsc;
+use crosstraffic_middleware::wasm_twsc::{ WasmTwsc, WasmPedestrianCrossing };
 use crosstraffic_middleware::wasm_awsc::WasmAwsc;
 use crosstraffic_middleware::wasm_roundabouts::WasmRoundabouts;
 use crosstraffic_middleware::wasm_interchange::{ WasmInterchange, WasmDisplacedLeftTurn };
