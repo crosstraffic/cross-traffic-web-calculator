@@ -2283,15 +2283,24 @@ export class WasmInterchange {
     *
     * `form` is one of the nine Exhibit 23-17 / 23-18 names: `"Diamond"`,
     * `"Ddi"`, `"ParcloA2Q"`, `"ParcloA4Q"`, `"ParcloAB2Q"`, `"ParcloAB4Q"`,
-    * `"ParcloB2Q"`, `"ParcloB4Q"`, `"Spui"`. Only `Diamond`, `Ddi`, and
-    * `ParcloA2Q` are validated against a published example problem; the
-    * other six route and analyze but have no published answer column behind
-    * them (the library says the same in `docs/hcm/VERIFICATION.md`).
+    * `"ParcloB2Q"`, `"ParcloB4Q"`, `"Spui"`. Only `Diamond`, `Ddi`,
+    * `ParcloA2Q`, and `Spui` are validated against a published example
+    * problem; the other five route and analyze but have no published answer
+    * column behind them (the library says the same in
+    * `docs/hcm/VERIFICATION.md`).
     *
     * A lane group's `movement` is the composed name approach + position +
     * turn, e.g. `"EbExtThrough"`, `"EbExtLeft"`, `"EbIntThroughRight"`,
     * `"NbRampTwoLeft"`. The ten diamond names are unchanged compositions, so
     * a configuration written against 0.3.7 keeps its meaning.
+    *
+    * A lane group may carry an optional `protected_permitted_left` object
+    * (`permitted_green_s`, `unblocked_green_s`, `opposing_flow_veh_h`, and an
+    * optional `permitted_sat_flow_override`), which makes it one lane group
+    * with two phase components rather than two lane groups. Its results then
+    * carry `protected_sat_flow` and `permitted_sat_flow` alongside the single
+    * recombined `sat_flow` of Exhibit 34-78; both are `null` on every
+    * single-component lane group.
     *
     * An unknown form or movement name is rejected here rather than defaulted,
     * which matters because a form that silently fell back to `Diamond` would
@@ -7304,14 +7313,14 @@ function __wbg_get_imports() {
         const ret = getObject(arg0) in getObject(arg1);
         return ret;
     };
-    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
-        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
     imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
         const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
         return ret;
     }, arguments) };
+    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
+        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
     imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
         const ret = WasmSubSegment.__unwrap(takeObject(arg0));
         return ret;

@@ -9,6 +9,7 @@
   import DiamondDiagram from '$lib/DiamondDiagram.svelte';
   import DiamondDiagram3D from '$lib/DiamondDiagram3D.svelte';
   import ParcloDiagram from '$lib/ParcloDiagram.svelte';
+  import SpuiDiagram from '$lib/SpuiDiagram.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import PartCAlternative from '$lib/PartCAlternative.svelte';
 
@@ -155,6 +156,49 @@
     { movement: 'SbRampRight', label: 'SB off-ramp right', lanes: 1, begin: 95, green: 40, is_ramp: true, turn_radius: 50, shared_right_radius: null, arrival: 3, storage: 400, hv: 0, grade: 2, su: 3 }
   ]);
 
+  // Chapter 34 Example Problem 7, the SPUI at I-95 and University Drive
+  // (Exhibit 34-72 demands, Exhibit 34-74 after the 0.95 PHF).
+  const spuiOd = () => ([
+    { key: 'a', label: 'A · NB off-ramp left (to WB)', value: 165 },
+    { key: 'b', label: 'B · NB off-ramp right (to EB)', value: 160 },
+    { key: 'c', label: 'C · SB off-ramp right (to WB)', value: 120 },
+    { key: 'd', label: 'D · SB off-ramp left (to EB)', value: 520 },
+    { key: 'e', label: 'E · EB left to NB on-ramp', value: 168 },
+    { key: 'f', label: 'F · EB right to SB on-ramp', value: 80 },
+    { key: 'g', label: 'G · WB right to NB on-ramp', value: 210 },
+    { key: 'h', label: 'H · WB left to SB on-ramp', value: 184 },
+    { key: 'i', label: 'I · EB arterial through', value: 865 },
+    { key: 'j', label: 'J · WB arterial through', value: 837 },
+    { key: 'k', label: 'K · NB frontage through', value: 0 },
+    { key: 'l', label: 'L · SB frontage through', value: 0 },
+    { key: 'm', label: 'M · NB freeway U-turn', value: 0 },
+    { key: 'n', label: 'N · SB freeway U-turn', value: 0 }
+  ]);
+
+  // Chapter 34 Example Problem 7 lane groups, mirroring
+  // transportations-library/tests/ExampleCases/hcm/RampTerminals/case7.json.
+  // Every approach is external, because a SPUI has no internal link: the four
+  // ramp approaches and the two arterial approaches all meet at one signal.
+  // Green windows are the Exhibit 34-73 three-phase plan, 0-16 for the
+  // protected arterial lefts with the ramp rights, 24-56 for the arterial
+  // throughs with the permitted arterial lefts, and 64-102 for the ramp lefts
+  // with the arterial rights, on a 110 s cycle with 8 s of yellow plus all-red.
+  // The two arterial lefts carry `perm`, which is the second green window and
+  // the protected-plus-permitted parameters at once, so the phase the engine
+  // sees and the phase the left turn is told about cannot drift apart.
+  const spuiLaneGroups = () => ([
+    { movement: 'EbExtLeft', label: 'EB arterial left (to NB on-ramp)', lanes: 1, begin: 0, green: 16, is_ramp: false, turn_radius: 87, shared_right_radius: null, arrival: 3, storage: 200, hv: 3.4, grade: 2, width: 10.3, perm: { begin: 24, green: 32, gu: 13.01 } },
+    { movement: 'EbExtThrough', label: 'EB arterial through', lanes: 2, begin: 24, green: 32, is_ramp: false, turn_radius: null, shared_right_radius: null, arrival: 3, storage: 600, hv: 3.4, grade: 2, width: 10.3 },
+    { movement: 'EbExtRight', label: 'EB arterial right (to SB on-ramp)', lanes: 1, begin: 64, green: 38, is_ramp: false, turn_radius: 50, shared_right_radius: null, arrival: 3, storage: 600, hv: 3.4, grade: 2, width: 10.3 },
+    { movement: 'WbExtLeft', label: 'WB arterial left (to SB on-ramp)', lanes: 1, begin: 0, green: 16, is_ramp: false, turn_radius: 87, shared_right_radius: null, arrival: 3, storage: 200, hv: 3.4, grade: 2, width: 10.3, perm: { begin: 24, green: 32, gu: 11.78 } },
+    { movement: 'WbExtThrough', label: 'WB arterial through', lanes: 2, begin: 24, green: 32, is_ramp: false, turn_radius: null, shared_right_radius: null, arrival: 3, storage: 600, hv: 3.4, grade: 2, width: 10.3 },
+    { movement: 'WbExtRight', label: 'WB arterial right (to NB on-ramp)', lanes: 1, begin: 64, green: 38, is_ramp: false, turn_radius: 50, shared_right_radius: null, arrival: 3, storage: 600, hv: 3.4, grade: 2, width: 10.3 },
+    { movement: 'NbRampLeft', label: 'NB off-ramp left', lanes: 1, begin: 64, green: 38, is_ramp: true, turn_radius: 87, shared_right_radius: null, arrival: 3, storage: 600, hv: 5, grade: 0, width: 10.3 },
+    { movement: 'NbRampRight', label: 'NB off-ramp right', lanes: 1, begin: 0, green: 16, is_ramp: true, turn_radius: 50, shared_right_radius: null, arrival: 3, storage: 600, hv: 5, grade: 0, width: 10.3 },
+    { movement: 'SbRampLeft', label: 'SB off-ramp left', lanes: 1, begin: 64, green: 38, is_ramp: true, turn_radius: 87, shared_right_radius: null, arrival: 3, storage: 600, hv: 5, grade: 0, width: 10.3 },
+    { movement: 'SbRampRight', label: 'SB off-ramp right', lanes: 1, begin: 0, green: 16, is_ramp: true, turn_radius: 50, shared_right_radius: null, arrival: 3, storage: 600, hv: 5, grade: 0, width: 10.3 }
+  ]);
+
   let odDemands = $state(defaultOd());
   let laneGroups = $state(defaultLaneGroups());
 
@@ -168,6 +212,7 @@
       phf = 1.0;
       distance = 500;
       extra_dist = 100;
+      yellow_all_red = 5;
     } else if (form === 'ParcloA2Q') {
       odDemands = parcloOd();
       laneGroups = parcloLaneGroups();
@@ -179,6 +224,19 @@
       extra_dist = 800;
       loop_dist = 1200;
       loop_speed = 25;
+      yellow_all_red = 5;
+    } else if (form === 'Spui') {
+      odDemands = spuiOd();
+      laneGroups = spuiLaneGroups();
+      cycle_length = 110;
+      phf = 0.95;
+      // A SPUI has one signalized point, so there is no second terminal to be
+      // spaced from and no path that leaves the arterial and rejoins it. Both
+      // are zero rather than small, which is why Exhibit 34-82's ETT column
+      // equals its control delay column exactly.
+      distance = 0;
+      extra_dist = 0;
+      yellow_all_red = 8;
     } else {
       odDemands = defaultOd();
       laneGroups = defaultLaneGroups();
@@ -186,9 +244,12 @@
       phf = 0.90;
       distance = 500;
       extra_dist = 100;
+      yellow_all_red = 5;
     }
     results = null;
   }
+
+  let hasPermitted = $derived(laneGroups.some((g) => g.perm));
 
   let results = $state(null);
   let hasError = $state(false);
@@ -218,11 +279,19 @@
         nil, nil, nil, nil, nil, nil,
       ];
     }
+    // The SPUI takes the same left-positive / right-negative convention as the
+    // diamond and needs no branch of its own, because Example Problem 7 sets
+    // the extra distance to zero: one signalized point means no O-D leaves the
+    // arterial and rejoins it, which is why Exhibit 34-82's ETT column equals
+    // its control delay column.
     const signed = form === 'Ddi'
       ? [dt, -dt, -dt, dt, dt, 0, 0, dt, 40, 40, 0, 0, 0, 0]
       : [dt, -dt, -dt, dt, dt, -dt, -dt, dt, 0, 0, 0, 0, 0, 0];
     return signed.map((d) => ({ distance_ft: d, accel_decel_s: 0.0 }));
   }
+
+  // Which O-D through movement opposes each protected-plus-permitted left.
+  const OPPOSING_OD = { EbExtLeft: 'j', WbExtLeft: 'i' };
 
   function buildConfig() {
     const od = {};
@@ -253,14 +322,31 @@
       lane_groups: laneGroups.map((g) => ({
         movement: g.movement,
         lanes: Number(g.lanes),
-        greens: [{ begin_s: Number(g.begin), duration_s: Number(g.green) }],
+        // A protected-plus-permitted left turn is one lane group running in two
+        // phases, so its second green window and its permitted-phase parameters
+        // come from the same `perm` object.
+        greens: g.perm
+          ? [
+              { begin_s: Number(g.begin), duration_s: Number(g.green) },
+              { begin_s: Number(g.perm.begin), duration_s: Number(g.perm.green) }
+            ]
+          : [{ begin_s: Number(g.begin), duration_s: Number(g.green) }],
+        ...(g.perm ? { protected_permitted_left: {
+          permitted_green_s: Number(g.perm.green),
+          unblocked_green_s: Number(g.perm.gu),
+          // The opposing flow of an arterial left at a single point is the
+          // other direction's through movement, the only movement running with
+          // the permitted phase (Exhibit 34-73 phase 2). Derived rather than
+          // typed in, so editing a through demand cannot leave it stale.
+          opposing_flow_veh_h: Number(od[OPPOSING_OD[g.movement]] ?? 0) / Number(phf)
+        } } : {}),
         yellow_all_red_s: Number(yellow_all_red),
         control: 'Signalized',
         turn_radius_ft: g.turn_radius,
         shared_right_turn_radius_ft: g.shared_right_radius,
         pct_heavy_vehicles: g.hv ?? (g.is_ramp ? 0.0 : Number(phv)),
         grade_pct: g.grade ?? (g.is_ramp ? Number(ramp_grade) : 0.0),
-        lane_width_ft: 12.0,
+        lane_width_ft: g.width ?? 12.0,
         parking_maneuvers_h: null,
         bus_stops_h: 0.0,
         arrival_type: g.arrival,
@@ -298,9 +384,9 @@
         generatedAt: new Date().toLocaleString(),
         headline: { label: 'Interchange LOS', value: results.los },
         inputs: [
-          { label: 'Interchange form', value: form === 'Ddi' ? 'Diverging diamond (DDI), pretimed signals' : form === 'ParcloA2Q' ? 'Partial cloverleaf A-2Q, pretimed signals' : 'Conventional diamond, pretimed signals' },
+          { label: 'Interchange form', value: form === 'Ddi' ? 'Diverging diamond (DDI), pretimed signals' : form === 'ParcloA2Q' ? 'Partial cloverleaf A-2Q, pretimed signals' : form === 'Spui' ? 'Single-point urban interchange (SPUI), pretimed signals' : 'Conventional diamond, pretimed signals' },
           { label: 'Cycle length', value: `${cycle_length} s` },
-          { label: 'Distance between terminals', value: `${distance} ft` },
+          { label: 'Distance between terminals', value: form === 'Spui' ? 'one signalized point' : `${distance} ft` },
           { label: 'Peak hour factor', value: phf },
           { label: 'Heavy vehicles (arterial)', value: `${phv} %` },
           { label: 'Ramp grade', value: `${ramp_grade} %` },
@@ -358,12 +444,12 @@
     <span>
       The compute engine reproduces the published HCM Chapter 34 example
       problems within the library's documented tolerances: the conventional
-      diamond, the diverging diamond, and the Parclo A-2Q with pretimed signals
-      under Part B, and the STOP-controlled RCUT, the MUT, and the DLT
-      evaluations under Part C. The other five partial cloverleaf forms of
-      Exhibit 23-17 (A-4Q, AB-2Q, AB-4Q, B-2Q, B-4Q) and the SPUI of Exhibit
-      23-18 are supported by the engine but have no published example problem
-      behind them, so they are not offered here.
+      diamond, the diverging diamond, the Parclo A-2Q, and the single-point
+      urban interchange with pretimed signals under Part B, and the
+      STOP-controlled RCUT, the MUT, and the DLT evaluations under Part C. The
+      other five partial cloverleaf forms of Exhibit 23-17 (A-4Q, AB-2Q, AB-4Q,
+      B-2Q, B-4Q) are supported by the engine but have no published example
+      problem behind them, so they are not offered here.
       Verify results
       independently before relying on them in engineering work, and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
@@ -397,6 +483,37 @@
     </div>
   {/if}
 
+  {#if form === 'Spui'}
+    <div class="alert alert-info shadow-sm mb-6 spui-note" role="note">
+      <span>
+        Defaults are HCM Chapter 34, Example Problem 7, the SPUI at I-95 and
+        University Drive (Exhibits 34-72 through 34-80). It is the one worked
+        example on this page whose saturation flow worksheets were carried over
+        from a superseded edition, and seven documented defects follow from
+        that. Exhibits 34-75 and 34-76 print a lane width factor of 0.967 for
+        the stated 10.3 ft lanes, which is the HCM 2000 continuous form and
+        which HCM 7 Exhibit 19-20 cannot produce for any width from 10.0 to
+        12.9 ft; Exhibit 34-76 then prints a heavy vehicle and grade factor of
+        1.000 on the two ramp approaches where the example's own 5% heavy
+        vehicles give 0.961; the traffic pressure row reproduces Equation 23-15
+        exactly for the eight columns that are not a left-turn phase component
+        and for none of the four that are, and it prints different values for
+        the protected and permitted halves of a single movement at a single
+        demand, which the equation cannot do. Exhibit 34-77 then contradicts
+        itself three ways: its own g<sub>u</sub> = G<sub>perm</sub> − g<sub>q</sub> − l<sub>1</sub>
+        relation closes eastbound and misses westbound by 1.8 s, it prints a
+        westbound uniform delay of 22.7 s/veh where Exhibit 34-80's own sum
+        needs 22.8, and it labels its queue breakpoints in feet where Chapter
+        31 defines every one of them in vehicles. Exhibit 34-78 finally omits
+        the Equation 31-124 sneaker term from the left-turn capacity, worth
+        about 65 veh/h, which the engine omits too because Chapter 34 does.
+        Eight of the ten published O-D LOS letters and the interchange LOS
+        still reproduce. The two that differ, D and E, are the two sitting
+        closest to an Exhibit 23-10 band edge.
+      </span>
+    </div>
+  {/if}
+
   <form id="hcm23" onsubmit={preventDefault(runAnalysis)} inert={!ready}>
     <!-- Configuration -->
     <section class="panel">
@@ -413,6 +530,7 @@
             <option value="Diamond">Conventional diamond</option>
             <option value="Ddi">Diverging diamond (DDI)</option>
             <option value="ParcloA2Q">Parclo A-2Q</option>
+            <option value="Spui">Single-point urban (SPUI)</option>
           </select>
           <p class="param-hint">Switching loads that form's published example as defaults.</p>
         </div>
@@ -472,13 +590,19 @@
           </div>
         </div>
 
-        <div class="param-field">
-          <label for="DIST_input">Intersection Spacing</label>
-          <div class="cell-field">
-            <input id="DIST_input" type="number" min="100" class="input input-bordered input-sm" bind:value={distance} placeholder="500" required />
-            <span class="unit">ft</span>
+        <!-- A SPUI has one signalized point, so there is no spacing to enter.
+             The field is withheld rather than shown at zero, because its
+             min="100" would otherwise block the form from submitting at all
+             and Calculate would silently do nothing. -->
+        {#if form !== 'Spui'}
+          <div class="param-field">
+            <label for="DIST_input">Intersection Spacing</label>
+            <div class="cell-field">
+              <input id="DIST_input" type="number" min="100" class="input input-bordered input-sm" bind:value={distance} placeholder="500" required />
+              <span class="unit">ft</span>
+            </div>
           </div>
-        </div>
+        {/if}
 
         <div class="param-field">
           <label for="SAT_input">Base Saturation Flow</label>
@@ -546,13 +670,22 @@
           <h2 class="panel-title">Interchange</h2>
           <p class="panel-sub">O-D movements per Exhibit 23-8. Hover the legend to isolate a group; demands are editable on the 2D picture, and the traffic animation slows per O-D LOS after a run.</p>
         </div>
-        {#if form !== 'ParcloA2Q'}
+        {#if form !== 'ParcloA2Q' && form !== 'Spui'}
           <div class="panel-actions">
             <ViewToggle bind:mode={diagramMode} label="Interchange view mode" />
           </div>
         {/if}
       </div>
-      {#if form === 'ParcloA2Q'}
+      {#if form === 'Spui'}
+        <!-- Plan view only. What distinguishes a SPUI from every other form on
+             this page is that its four left turns cross one another inside a
+             single junction, and that crossing is a planar fact: in the shared
+             Camera3DSvg projection the four paths meet at the vanishing centre
+             of the deck and foreshorten into each other exactly where they
+             need to be legible. Elevation would hide the one thing the picture
+             exists to show, so it is not offered. -->
+        <SpuiDiagram bind:odDemands odLos={losByOd} {laneGroups} cycleLength={cycle_length} />
+      {:else if form === 'ParcloA2Q'}
         <!-- The parclo has a plan view only. Its ramps leave the arterial in
              two quadrants and return to the freeway on structure, which the
              shared Camera3DSvg projection has no way to show without a
@@ -591,7 +724,7 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Lane Groups and Green Times</h2>
-          <p class="panel-sub">Lanes and displayed green interval for each interchange lane group. Green begin times are measured from the start of the common cycle and may wrap past the end of the cycle.</p>
+          <p class="panel-sub">Lanes and displayed green interval for each interchange lane group. Green begin times are measured from the start of the common cycle and may wrap past the end of the cycle.{hasPermitted ? ' The two arterial left turns run twice per cycle, protected in the first green window and permitted in the second, so they carry a second window and the part of it the opposing queue leaves unblocked.' : ''}</p>
         </div>
       </div>
       <div class="overflow-x-auto">
@@ -602,6 +735,11 @@
               <th>Lanes</th>
               <th>Green Begin (s)</th>
               <th>Green Duration (s)</th>
+              {#if hasPermitted}
+                <th>Permitted Begin (s)</th>
+                <th>Permitted Green (s)</th>
+                <th>Unblocked g<sub>u</sub> (s)</th>
+              {/if}
             </tr>
           </thead>
           <tbody>
@@ -617,11 +755,29 @@
                 <td>
                   <input id="LG_{g.movement}_green" aria-label="{g.label} green duration" type="number" step="0.1" min="1" class="input input-bordered input-sm" bind:value={g.green} required />
                 </td>
+                {#if hasPermitted}
+                  {#if g.perm}
+                    <td>
+                      <input id="LG_{g.movement}_permbegin" aria-label="{g.label} permitted green begin" type="number" step="0.1" min="0" class="input input-bordered input-sm" bind:value={g.perm.begin} required />
+                    </td>
+                    <td>
+                      <input id="LG_{g.movement}_permgreen" aria-label="{g.label} permitted green duration" type="number" step="0.1" min="1" class="input input-bordered input-sm" bind:value={g.perm.green} required />
+                    </td>
+                    <td>
+                      <input id="LG_{g.movement}_gu" aria-label="{g.label} unblocked permitted green" type="number" step="0.01" min="0" class="input input-bordered input-sm" bind:value={g.perm.gu} required />
+                    </td>
+                  {:else}
+                    <td>—</td><td>—</td><td>—</td>
+                  {/if}
+                {/if}
               </tr>
             {/each}
           </tbody>
         </table>
       </div>
+      {#if hasPermitted}
+        <p class="panel-sub">g<sub>u</sub> is the part of the permitted green the opposing queue leaves unblocked (Equation 31-95), carried as an input because Exhibit 34-77 publishes it directly and its own g<sub>q</sub> row does not reproduce it westbound. The opposing flow follows the other direction's through demand, so it is not entered separately.</p>
+      {/if}
     </section>
 
     <!-- Form Actions -->

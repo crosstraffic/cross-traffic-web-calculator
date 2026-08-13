@@ -1998,9 +1998,157 @@ test.describe('chapter 23 interchange calculator', () => {
 
     // The other five Exhibit 23-17 parclos are structurally supported by the
     // engine and unvalidated, so they get no selector entry and the note says
-    // why rather than leaving their absence unexplained.
-    await expect(page.locator('#FORM_input option')).toHaveCount(3);
+    // why rather than leaving their absence unexplained. The fourth entry is
+    // the SPUI, which does have a published example (Example Problem 7).
+    await expect(page.locator('#FORM_input option')).toHaveCount(4);
     await expect(page.locator('.beta-note')).toContainText('A-4Q');
+    await expect(page.locator('.beta-note')).not.toContainText('SPUI of Exhibit');
+  });
+
+  test('the SPUI form loads Example Problem 7 and reproduces its answer', async ({ page }) => {
+    // Switching to the single-point urban interchange loads Chapter 34 Example
+    // Problem 7 as defaults, I-95 at University Drive: C = 110 s, PHF 0.95, and
+    // the Exhibit 34-72 demands. It is the first form on this page with no
+    // internal link and the first with a lane group that runs in two phases,
+    // so it is also the check that the library 0.3.4
+    // `protected_permitted_left` object survives the round trip from this
+    // page's config object through wasm.
+    //
+    // The engine reads an interchange ETT of 45.4 s/veh and LOS C against the
+    // published 48.3 and C (Exhibit 34-82 totals row). Eight of the ten
+    // published O-D LOS letters reproduce; D and E do not, and they are the
+    // two nearest an Exhibit 23-10 band edge. The gap is the Exhibit
+    // 34-75/34-76 saturation flow worksheets, which were carried over from a
+    // superseded edition and which the page's own note enumerates.
+    await page.goto('/hcm23');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#FORM_input').selectOption('Spui');
+    await expect(page.locator('#CYCLE_input')).toHaveValue('110');
+    await expect(page.locator('#PHF_input')).toHaveValue('0.95');
+    await expect(page.locator('#YAR_input')).toHaveValue('8');
+    // A SPUI has one signalized point, so there is no spacing to enter. The
+    // field is withheld rather than shown at zero, because its min="100" would
+    // block the form from submitting and Calculate would silently do nothing.
+    await expect(page.locator('#DIST_input')).toHaveCount(0);
+    // The two arterial lefts run twice per cycle and carry the Equation 31-95
+    // unblocked green, which the other eight lane groups do not.
+    await expect(page.locator('#LG_EbExtLeft_gu')).toHaveValue('13.01');
+    await expect(page.locator('#LG_WbExtLeft_gu')).toHaveValue('11.78');
+    await expect(page.locator('#LG_NbRampLeft_gu')).toHaveCount(0);
+    await expect(page.locator('.spui-note')).toContainText('0.967');
+
+    await calculate.click();
+    await expect(page.getByText(/Interchange LOS: C/)).toBeVisible();
+    await expect(page.locator('tr', { hasText: 'Interchange Experienced Travel Time' }))
+      .toContainText('45.4');
+
+    // One signalized point means no O-D leaves the arterial and rejoins it, so
+    // every EDTT is exactly zero and every ETT is its movement's control delay.
+    // That is the property Exhibit 34-82 shows and the one that separates this
+    // form from every other on the page.
+    const rows = page.locator('.results-panel tbody tr');
+    for (const [letter, ett, los] of [['A', '27.7', 'B'], ['B', '64.0', 'D'], ['I', '50.3', 'C']]) {
+      const row = rows.filter({ has: page.locator(`th:text-is("${letter}")`) }).first();
+      await expect(row).toContainText(ett);
+      await expect(row).toContainText(los);
+    }
+    for (const letter of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']) {
+      const cells = rows.filter({ has: page.locator(`th:text-is("${letter}")`) }).first().locator('td');
+      // Columns are demand, control delay, EDTT, ETT, LOS.
+      await expect(cells.nth(2)).toHaveText('0.0');
+      await expect(cells.nth(3)).toHaveText(await cells.nth(1).innerText());
+    }
+  });
+
+  test('the SPUI diagram draws one junction and puts every left across the opposing through', async ({ page }) => {
+    await page.goto('/hcm23');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await page.locator('#FORM_input').selectOption('Spui');
+
+    const diagram = page.locator('.sp-diagram svg');
+    await expect(diagram).toBeVisible();
+    await expect(diagram).toHaveAttribute('aria-label', /Single-point urban interchange/);
+    // Plan view only. The crossing of the left turns with the through
+    // movements is a planar fact, and the shared Camera3DSvg projection would
+    // foreshorten the four paths into each other at the centre of the deck,
+    // which is exactly where they have to stay legible.
+    await expect(page.locator('.panel-actions .view-toggle')).toHaveCount(0);
+    // One signalized point, not two ramp terminals.
+    await expect(page.locator('.sp-diagram circle.sp-signal')).toHaveCount(1);
+    await expect(diagram).toContainText('C = 110 s');
+    await expect(diagram).toContainText('EB 13.01 · WB 11.78');
+
+    // The picture has to give the same answer as the Exhibit 34-73 phase table,
+    // so the paths are sampled rather than eyeballed. Phase 1 runs both
+    // arterial lefts (NEMA 1+5) and phase 3 runs both ramp lefts (3+8), so
+    // neither pair may cross itself; what each left must cross is the opposing
+    // through, which is why the arterial lefts are permitted in phase 2.
+    const crosses = await page.evaluate(() => {
+      const at = (od: string, n: number) => {
+        const p = document.querySelector(`.sp-diagram path[data-od="${od}"]`) as SVGPathElement;
+        const len = p.getTotalLength();
+        return Array.from({ length: n }, (_, i) => {
+          const q = p.getPointAtLength((i * len) / (n - 1));
+          return [q.x, q.y] as [number, number];
+        });
+      };
+      // Two polylines cross if any pair of their segments intersects.
+      const seg = (a: number[], b: number[], c: number[], d: number[]) => {
+        const s = (p: number[], q: number[], r: number[]) =>
+          Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+        return s(a, b, c) !== s(a, b, d) && s(c, d, a) !== s(c, d, b);
+      };
+      const cross = (u: string, v: string) => {
+        const A = at(u, 400), B = at(v, 400);
+        for (let i = 1; i < A.length; i++) {
+          for (let j = 1; j < B.length; j++) if (seg(A[i - 1], A[i], B[j - 1], B[j])) return true;
+        }
+        return false;
+      };
+      return {
+        ebLeftVsWbLeft: cross('E', 'H'),
+        nbLeftVsSbLeft: cross('A', 'D'),
+        ebLeftVsWbThrough: cross('E', 'J'),
+        wbLeftVsEbThrough: cross('H', 'I'),
+        nbLeftVsEbThrough: cross('A', 'I'),
+        sbLeftVsWbThrough: cross('D', 'J'),
+      };
+    });
+    expect(crosses).toEqual({
+      ebLeftVsWbLeft: false,
+      nbLeftVsSbLeft: false,
+      ebLeftVsWbThrough: true,
+      wbLeftVsEbThrough: true,
+      nbLeftVsEbThrough: true,
+      sbLeftVsWbThrough: true,
+    });
+
+    // Hovering a group chip isolates its O-D paths.
+    await page.locator('.sp-chip.chip-ebg').hover();
+    await expect(page.locator('.sp-diagram path[data-od="E"]')).toHaveClass(/active/);
+    await expect(page.locator('.sp-diagram path[data-od="A"]')).toHaveClass(/dim/);
+    await page.mouse.move(0, 0);
+
+    // On-diagram O-D editing two-way binds to the form.
+    await page.locator('input[aria-label="O-D I demand"]').fill('700');
+    await expect(page.locator('#OD_i_input')).toHaveValue('700');
+    await page.locator('input[aria-label="O-D I demand"]').fill('865');
+
+    // After a run the movement carries its own O-D LOS rather than its group
+    // identity, and the chip reports the poorest letter in its group.
+    await page.getByRole('button', { name: 'Calculate' }).click();
+    await expect(page.getByText(/Interchange LOS: C/)).toBeVisible();
+    await expect(page.locator('.sp-diagram path[data-od="B"]')).toHaveAttribute('data-los', 'D');
+    await expect(page.locator('.sp-diagram path[data-od="A"]')).toHaveAttribute('data-los', 'B');
+    await expect(page.locator('.sp-chip.chip-nboff')).toContainText('worst LOS D');
+
+    // Animation runs and stops.
+    await page.getByRole('button', { name: 'Animate traffic' }).click();
+    expect(await page.locator('g.sp-veh').count()).toBeGreaterThan(8);
+    await page.getByRole('button', { name: 'Stop traffic' }).click();
+    await expect(page.locator('g.sp-veh')).toHaveCount(0);
   });
 
   test('the parclo diagram isolates O-Ds, edits demands, and colours by LOS', async ({ page }) => {

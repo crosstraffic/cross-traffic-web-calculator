@@ -8,6 +8,9 @@
 //   signal control; Exhibits 34-62..34-65), via WasmInterchange(cfg).
 // * RampTerminals/case6.json — Chapter 34, Example Problem 2 (Parclo A-2Q,
 //   I-75 at Newberry Avenue; Exhibits 34-17..34-29), via WasmInterchange(cfg).
+// * RampTerminals/case7.json — Chapter 34, Example Problem 7 (single-point
+//   urban interchange, I-95 at University Drive; Exhibits 34-72..34-82), via
+//   WasmInterchange(cfg).
 // * AlternativeIntersections/case4.json dlt block — Chapter 23 Part C
 //   Equation 23-69 weighted delay (Chapter 34 Example Problem 16, partial
 //   DLT; Exhibit 34-145), via the WasmDisplacedLeftTurn flat constructor.
@@ -398,6 +401,181 @@ function od(ods, mv, label) {
   exact(ix.get_interchange_los(), 'D', 'EP2 interchange LOS');
 }
 
+// ── Example Problem 7: single-point urban interchange (case7.json) ────────
+// The first interchange at this boundary with no internal link at all. Every
+// approach is external, all six meet at one signal, and the two arterial left
+// turns are one lane group running in two phases rather than two lane groups,
+// which is the surface library 0.3.4 and middleware 0.3.9 added
+// (`protected_permitted_left` in, `protected_sat_flow` and
+// `permitted_sat_flow` out). This block is therefore both the SPUI check and
+// the check that the two-phase lane group survives the JSON round trip
+// through wasm.
+//
+// Tolerances mirror the Rust test: effective greens exact, the component
+// recombination identity to 1e-9, O-D demands +-0.6 veh/h, O-D ETT +-0.05
+// s/veh at the engine values with the published Exhibit 34-82 column inline,
+// and eight of the ten published LOS letters exact.
+{
+  const ix = new m.WasmInterchange(loadCase('RampTerminals', 'case7.json'));
+  exact(ix.get_form(), 'Spui', 'EP7 interchange form');
+  ix.analyze();
+  const groups = ix.lane_group_results_to_js_value();
+  const ods = ix.od_results_to_js_value();
+
+  // The single-point convention, which is visible from the results alone:
+  // every O-D resolves onto exactly one lane group, so there is no extra
+  // distance to travel and the O-D's experienced travel time is that
+  // movement's control delay unchanged. Exhibit 34-82 shows the same thing by
+  // printing its ETT column equal to the Exhibit 34-80/34-81 delays. This is
+  // what separates a SPUI from every other form at this boundary and it is
+  // asserted to the last bit rather than to a tolerance.
+  for (const r of ods) {
+    approx(r.edtt_s, 0.0, 1e-12, `EP7 EDTT ${r.movement}`);
+    approx(r.ett_s, r.control_delay_s, 1e-12, `EP7 ETT = d ${r.movement}`);
+  }
+  // ... and the lane group each O-D lands on, by the delay they share.
+  const odsLaneGroup = [
+    ['A', 'NbRampLeft'], ['B', 'NbRampRight'], ['C', 'SbRampRight'], ['D', 'SbRampLeft'],
+    ['E', 'EbExtLeft'], ['F', 'EbExtRight'], ['G', 'WbExtRight'], ['H', 'WbExtLeft'],
+    ['I', 'EbExtThrough'], ['J', 'WbExtThrough'],
+  ];
+  for (const [mv, lg] of odsLaneGroup) {
+    approx(od(ods, mv, 'EP7').control_delay_s, group(groups, lg, 'EP7').control_delay_s,
+      1e-12, `EP7 O-D ${mv} is ${lg} alone`);
+  }
+
+  // Effective greens, Exhibits 34-78 and 34-79. Total lost time is 4 s on
+  // every approach, so g' is the displayed green less nothing here: the
+  // published g row is the displayed green itself. The two arterial lefts
+  // carry the sum of their protected and permitted windows, 16 + 32 = 48 s,
+  // which is what Exhibit 34-78 prints for a movement it has already
+  // collapsed into one column.
+  const greens = [
+    ['EbExtLeft', 48.0], ['EbExtThrough', 32.0], ['EbExtRight', 38.0],
+    ['WbExtLeft', 48.0], ['WbExtThrough', 32.0], ['WbExtRight', 38.0],
+    ['NbRampLeft', 38.0], ['NbRampRight', 16.0],
+    ['SbRampLeft', 38.0], ['SbRampRight', 16.0],
+  ];
+  for (const [mv, g] of greens) {
+    approx(group(groups, mv, 'EP7').effective_green_s, g, 1e-9, `EP7 g ${mv}`);
+  }
+
+  // The two-phase lane groups, and only those two. A dropped or misspelled
+  // `protected_permitted_left` would leave a protected-only left turn that
+  // still analyzes and still prints a number, so its arrival is asserted by
+  // the fields it produces rather than by the input being present.
+  for (const mv of ['EbExtLeft', 'WbExtLeft']) {
+    const r = group(groups, mv, 'EP7');
+    exact(r.protected_sat_flow > 0, true, `EP7 ${mv} has a protected component`);
+    exact(r.permitted_sat_flow > 0, true, `EP7 ${mv} has a permitted component`);
+  }
+  for (const r of groups) {
+    if (r.movement === 'EbExtLeft' || r.movement === 'WbExtLeft') continue;
+    exact(r.protected_sat_flow == null && r.permitted_sat_flow == null, true,
+      `EP7 ${r.movement} carries no phase components`);
+  }
+
+  // Recombination is capacity addition (Exhibit 34-78 collapses the pair into
+  // one saturation flow, one capacity and one v/c before Steps 6, 7 and 9 run).
+  // The identity is asserted rather than the number, because the number
+  // depends on the components and the identity is what the engine promises.
+  const C = ix.get_cycle_length_s();
+  approx(C, 110.0, 1e-12, 'EP7 cycle length');
+  for (const [mv, gProt, gPerm, gU] of [['EbExtLeft', 16.0, 32.0, 13.01], ['WbExtLeft', 16.0, 32.0, 11.78]]) {
+    const r = group(groups, mv, 'EP7');
+    const sum = r.protected_sat_flow * gProt + r.permitted_sat_flow * gU;
+    approx(r.capacity, sum / C, 1e-9, `EP7 ${mv} c = component addition`);
+    approx(r.sat_flow, sum / (gProt + gPerm), 1e-9, `EP7 ${mv} s over the summed green`);
+  }
+  // Exhibit 34-78's published 672 and 661 veh/h are what the same identity
+  // gives when it is fed the exhibit's OWN component saturation flows
+  // (Exhibit 34-75: 1,560 and 561 eastbound, 1,561 and 573 westbound). They
+  // are not what the engine's components give, because the exhibits carry HCM
+  // 2000 adjustment factors; that is the defect block below. The arithmetic
+  // is pinned here so the two claims cannot be confused for each other.
+  for (const [label, sProt, sPerm, gU, published] of [
+    ['eastbound', 1560.0, 561.0, 13.01, 672.0],
+    ['westbound', 1561.0, 573.0, 11.78, 661.0],
+  ]) {
+    approx(Math.round((sProt * 16.0 + sPerm * gU) / 48.0), published, 0,
+      `EP7 published ${label} components recombine to Exhibit 34-78`);
+  }
+
+  // Saturation flow, capacity, v/c, and queue storage ratio. Column 1 is the
+  // asserted engine value and the comment carries the published Exhibit 34-78
+  // / 34-79 pair, which the engine does not reproduce anywhere on this
+  // example. Every published saturation flow is a per-lane figure, so the two
+  // through groups are compared against twice the published number.
+  //
+  // Book defects, all in the saturation flow chain and all documented in the
+  // library. Exhibits 34-75 and 34-76 print f_w = 0.967 for the stated 10.3
+  // ft lanes; HCM 7's Exhibit 19-20 is a three-tier lookup returning 1.000 for
+  // every width from 10.0 to 12.9 ft, and 0.967 is the HCM 2000 continuous
+  // form 1 + (W - 12)/30 at 11 ft. Exhibit 34-76 then prints f_HVg = 1.000 on
+  // the northbound and southbound approaches, which the example's own text
+  // gives 5% heavy vehicles and Equation 19-10 gives 0.961. The two deviations
+  // nearly cancel on the ramp approaches, which is why those rows land within
+  // 1% and the arterial rows run about 3.5% high. The traffic pressure row
+  // reproduces Equation 23-15 exactly for the eight columns that are not a
+  // left-turn phase component and for none of the four that are, and it prints
+  // different values for the protected and permitted halves of a single
+  // movement at a single demand, which the equation cannot do.
+  const rows = [
+    // movement,          s,      c,     X,      R_Q      published s / c / X / R_Q
+    ['EbExtLeft',     714.5,  311.8, 0.5672, 0.500], //   672 /  293 / 0.60 / 0.61
+    ['EbExtThrough', 3468.5, 1009.0, 0.9024, 0.561], // 3,352 /  975 / 0.93 / 0.69
+    ['EbExtRight',   1552.6,  536.3, 0.1570, 0.067], // 1,659 /  573 / 0.15 / 0.08
+    ['WbExtLeft',     697.5,  304.4, 0.6364, 0.584], //   661 /  288 / 0.67 / 0.71
+    ['WbExtThrough', 3460.9, 1006.8, 0.8751, 0.527], // 3,346 /  973 / 0.91 / 0.64
+    ['WbExtRight',   1583.0,  546.9, 0.4042, 0.198], // 1,673 /  578 / 0.38 / 0.23
+    ['NbRampLeft',   1658.4,  572.9, 0.3032, 0.149], // 1,597 /  552 / 0.31
+    ['NbRampRight',  1571.0,  228.5, 0.7370, 0.238], // 1,580 /  230 / 0.73
+    ['SbRampLeft',   1791.2,  618.8, 0.8846, 0.694], // 1,724 /  596 / 0.92
+    ['SbRampRight',  1561.7,  227.2, 0.5561, 0.161], // 1,571 /  228 / 0.55
+  ];
+  for (const [mv, s, c, x, rq] of rows) {
+    const r = group(groups, mv, 'EP7');
+    approx(r.sat_flow, s, 0.5, `EP7 s ${mv}`);
+    approx(r.capacity, c, 0.5, `EP7 c ${mv}`);
+    approx(r.vc_ratio, x, 0.001, `EP7 X ${mv}`);
+    approx(r.queue_storage_ratio, rq, 0.002, `EP7 R_Q ${mv}`);
+    exact(r.vc_ratio < 1.0, true, `EP7 ${mv} v/c < 1`);
+    exact(r.queue_storage_ratio < 1.0, true, `EP7 ${mv} R_Q < 1`);
+  }
+
+  // O-D results against Exhibit 34-82. Asserted at the engine values with the
+  // published ETT inline, because Exhibits 34-75 and 34-76 are not
+  // reproducible from the HCM 7 equations. Eight of the ten published LOS
+  // letters land exactly; the two that do not, D and E, are the two sitting
+  // closest to an Exhibit 23-10 band edge, D running 5.2 s/veh short of the
+  // 55 s C/D line and E 1.8 s/veh short of the 30 s B/C line.
+  const odExpected = [
+    ['A', 174.0, 27.68, 'B'],   // published 27.9  B
+    ['B', 168.0, 64.01, 'D'],   // published 63.6  D
+    ['C', 126.0, 53.17, 'C'],   // published 53.0  C
+    ['D', 547.0, 50.77, null],  // published 56.0  D; engine C
+    ['E', 177.0, 29.18, null],  // published 31.0  C; engine B
+    ['F',  84.0, 25.54, 'B'],   // published 25.4  B
+    ['G', 221.0, 29.60, 'B'],   // published 29.1  B
+    ['H', 194.0, 32.33, 'C'],   // published 34.6  C
+    ['I', 911.0, 50.27, 'C'],   // published 54.6  C
+    ['J', 881.0, 47.64, 'C'],   // published 51.0  C
+  ];
+  for (const [mv, demand, ett, los] of odExpected) {
+    const r = od(ods, mv, 'EP7');
+    approx(r.demand, demand, 0.6, `EP7 demand ${mv}`);
+    approx(r.ett_s, ett, 0.05, `EP7 ETT ${mv}`);
+    exact(r.vc_exceeds_one, false, `EP7 v/c flag ${mv}`);
+    exact(r.rq_exceeds_one, false, `EP7 R_Q flag ${mv}`);
+    if (los) exact(r.los, los, `EP7 LOS ${mv}`);
+  }
+
+  // Interchange ETT 45.35 s/veh against the published 48.3 (Exhibit 34-82
+  // totals row), LOS C either way.
+  approx(ix.get_interchange_ett_s(), 45.35, 0.05, 'EP7 interchange ETT');
+  exact(ix.get_interchange_los(), 'C', 'EP7 interchange LOS');
+}
+
 // ── Example Problem 16: partial DLT weighted delay (Equation 23-69) ───────
 // The per-junction flow/delay table of Exhibit 34-145 from the fixture's dlt
 // block, through the WasmDisplacedLeftTurn flat constructor (form DltPartial
@@ -636,4 +814,4 @@ function od(ods, mv, label) {
   approx(off.offset_supp_s, 45.2, 0.1, 'EP16 O_SUPP (Equations 23-66 to 23-68)');
 }
 
-report('ch23 ramp terminals + Part C (HCM Ch.34 EP1, EP2, EP5, EP12, EP13, EP14, EP15, EP16)');
+report('ch23 ramp terminals + Part C (HCM Ch.34 EP1, EP2, EP5, EP7, EP12, EP13, EP14, EP15, EP16)');
