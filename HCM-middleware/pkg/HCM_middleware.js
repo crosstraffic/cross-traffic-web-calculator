@@ -233,6 +233,11 @@ function passArrayJsValueToWasm0(array, malloc) {
     return ptr;
 }
 
+function getArrayF64FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
+}
+
 function _assertClass(instance, klass) {
     if (!(instance instanceof klass)) {
         throw new Error(`expected instance of ${klass.name}`);
@@ -245,11 +250,6 @@ function passArray32ToWasm0(arg, malloc) {
     getUint32Memory0().set(arg, ptr / 4);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
-}
-
-function getArrayF64FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
 }
 
 function getArrayU32FromWasm0(ptr, len) {
@@ -1790,8 +1790,10 @@ const WasmFreewayReliabilityFinalization = (typeof FinalizationRegistry === 'und
 * scenario generator defaults to a whole-year reliability reporting period
 * (12 months, Monday through Friday, Exhibit 11-18 urban demand ratios) with
 * no weather; `set_weather()` and `set_demand_multipliers()` replace those
-* two defaults. Work zones and special events, and with them the Chapter 37
-* ATDM strategies built on top of them, are not exposed by this binding.
+* two defaults, and `set_incidents()` replaces the incident inputs the
+* constructor's two scalars can only partly describe. Work zones and special
+* events, and with them the Chapter 37 ATDM strategies built on top of them,
+* are not exposed by this binding.
 */
 export class WasmFreewayReliability {
 
@@ -1896,6 +1898,80 @@ export class WasmFreewayReliability {
     has_weather() {
         const ret = wasm.wasmfreewayreliability_has_weather(this.__wbg_ptr);
         return ret !== 0;
+    }
+    /**
+    * Place the Step B-7 incident inputs, from a configuration object in the
+    * serde schema of the library's `IncidentInputs`, so the `incidents`
+    * object of `tests/ExampleCases/hcm/FreewayReliability/case1.json` passes
+    * verbatim. This replaces whatever the constructor's `crash_rate_per_100mvmt`
+    * and `incident_to_crash_ratio` arguments built, which is an
+    * `IncidentInputs::default()` carrying those two scalars and the national
+    * defaults for everything else. Three of those defaults are analysis
+    * inputs in their own right and had no way in: the Equation 25-77 monthly
+    * frequencies when local counts are known rather than a crash rate, the
+    * Equation 25-85 severity distribution G(i), and the Exhibit 11-22
+    * lognormal duration parameters by severity. The last of those is what
+    * Chapter 25 Example Problem 9 changes, cutting every severity's mean
+    * duration and standard deviation by 30% to model improved incident
+    * management, so before this setter the published incident-management
+    * alternative could not be expressed through the binding at all.
+    *
+    * The shapes are checked here because `IncidentInputs` is `serde(default)`
+    * and the core reads all three leniently. `duration_params` is looked up
+    * as `get(severity).unwrap_or(Exhibit 11-22 default)`, so a four-entry
+    * list quietly restores the book durations for the severity it omits,
+    * which is the exact mistake a 30% cut written out by hand invites.
+    * `severity_distribution` is validated by the core for its sum but not
+    * its length, so a short one drops severities and a long one indexes past
+    * the five of Equation 25-85. `monthly_frequencies` is read as
+    * `get(month).unwrap_or(0.0)`, so an eleven-month table silently models a
+    * year with one incident-free month. Finally, an incident configuration
+    * with neither `monthly_frequencies` nor `crash_rate_per_100mvmt` has no
+    * frequency source at all and generates zero incidents while reporting
+    * that incidents are modeled, which is what a wholly misspelled config
+    * deserializes into, so it is rejected rather than run.
+    * @param {any} config
+    */
+    set_incidents(config) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmfreewayreliability_set_incidents(retptr, this.__wbg_ptr, addHeapObject(config));
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Remove the incident inputs, returning the generator to modeling no
+    * incidents at all. This is the state a constructor called without a
+    * crash rate leaves behind.
+    */
+    clear_incidents() {
+        wasm.wasmfreewayreliability_clear_incidents(this.__wbg_ptr);
+    }
+    /**
+    * @returns {boolean}
+    */
+    has_incidents() {
+        const ret = wasm.wasmfreewayreliability_has_incidents(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+    * The Exhibit 11-22 lognormal duration parameters as the generator will
+    * use them, one object per severity in Equation 25-85 order, or `null`
+    * when no incidents are modeled. A caller scaling the book defaults (the
+    * Example Problem 9 alternative) reads them here rather than transcribing
+    * the exhibit, and a caller that supplied its own can confirm the list
+    * that arrived is the list that will run.
+    * @returns {any}
+    */
+    incident_duration_params() {
+        const ret = wasm.wasmfreewayreliability_incident_duration_params(this.__wbg_ptr);
+        return takeObject(ret);
     }
     /**
     * Replace the demand multipliers DM of Equation 25-72 with a local
@@ -7313,14 +7389,14 @@ function __wbg_get_imports() {
         const ret = getObject(arg0) in getObject(arg1);
         return ret;
     };
-    imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
-        const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
-        return ret;
-    }, arguments) };
     imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
         const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
         return ret;
     };
+    imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
+        const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
+        return ret;
+    }, arguments) };
     imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
         const ret = WasmSubSegment.__unwrap(takeObject(arg0));
         return ret;
