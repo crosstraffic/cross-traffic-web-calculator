@@ -569,20 +569,14 @@ test.describe('chapter 10 freeway facilities calculator', () => {
 });
 
 test.describe('chapter 11 freeway reliability calculator', () => {
-  // Retries here are a mitigation, not a fix, and they are scoped to this
-  // chapter on purpose. Chapter 11 is the only page that runs hundreds of
-  // core-methodology evaluations in one click, and on webkit that run
-  // intermittently traps in the wasm module with "Unreachable code should not
-  // be executed (evaluating 't.wasmfreewayreliability_run(...)')", leaving the
-  // page showing its error alert. It is not caused by anything here: the
-  // pre-existing default-facility test below fails about 1 run in 10 on webkit
-  // at main (295e206) as well as on this branch, measured with --repeat-each
-  // on both. It is also not memory exhaustion, since 25 consecutive runs in
-  // one reused page never trip it while a fresh browser context does, which
-  // points at cold wasm instantiation rather than accumulation. Chromium and
-  // firefox have never reproduced it. Tracked for the engine side; until then
-  // this keeps a known browser fault from reading as a failed assertion.
-  test.describe.configure({ retries: 2 });
+  // This block used to carry two retries for an intermittent webkit fault in
+  // the Chapter 11 run, described there as an engine matter in cold wasm
+  // instantiation. It is neither. Instantiation always succeeds, and the fault
+  // is WebKit miscompiling the first heavy run in a fresh context, which is why
+  // a reused page never trips it. The page now recovers on its own through
+  // withWasmRetry, so the retries are gone: keeping them would hide a
+  // regression of that fix, and the point of the fix is that a Safari user does
+  // not see the failure either. VALIDATION.md carries the measurements.
 
   test('seed facility diagram renders in both views without LOS coloring', async ({ page }) => {
     await page.goto('/hcm11');
