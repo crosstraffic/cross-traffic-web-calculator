@@ -83,9 +83,9 @@ approx(mf.get_density(), r5.d_mix, 1e-9, 'EP5 get_density agrees with the result
 // oversaturated case as a speed.
 const over = new m.WasmMixedFlow({ ...ep5, v_mix: 2000.0 }).results_to_js_value();
 exact(over.oversaturated, true, 'EP5 at 2,000 veh/h/ln is oversaturated');
-exact(over.s_mix, undefined, 'EP5 oversaturated S_mix is undefined, not a speed');
-exact(over.d_mix, undefined, 'EP5 oversaturated D_mix is undefined, not a density');
-exact(typeof over.s_mix, 'undefined', 'EP5 oversaturated S_mix is absent rather than 0');
+exact(typeof over.s_mix, 'undefined', 'EP5 oversaturated S_mix is absent, not a speed');
+exact(typeof over.d_mix, 'undefined', 'EP5 oversaturated D_mix is absent, not a density');
+exact(Object.prototype.hasOwnProperty.call(over, 'oversaturated'), true, 'oversaturated flag is present alongside the absent measures');
 
 // --- HCM Ch.25 Example Problem 11: three grades in the order a vehicle meets
 // them (1.5 mi at 3%, 2.0 mi at 2%, 1.0 mi at 5%), same six-lane freeway,
@@ -206,8 +206,8 @@ try {
   refusal = String(e);
 }
 exact(refusal !== null, true, 'EP5 at FFS 70 throws rather than extrapolating');
-exact(refusal.includes('Chapter 26 Appendix A'), true, `refusal names the exhibit that would have to be digitised, got: ${refusal}`);
-exact(refusal.includes('70 mi/h FFS'), true, 'refusal names the speed that is missing');
+exact(String(refusal).includes('Chapter 26 Appendix A'), true, `refusal names the exhibit that would have to be digitised, got: ${refusal}`);
+exact(String(refusal).includes('70 mi/h FFS'), true, 'refusal names the speed that is missing');
 
 let refusal25 = null;
 try {
@@ -217,6 +217,20 @@ try {
   refusal25 = String(e);
 }
 exact(refusal25 !== null, true, 'EP11 with a 7% grade throws rather than extrapolating');
-exact(refusal25.includes('Exhibit 25-20/25-21'), true, `composite refusal names the exhibit, got: ${refusal25}`);
+exact(String(refusal25).includes('Exhibit 25-20/25-21'), true, `composite refusal names the exhibit, got: ${refusal25}`);
+
+// --- A misspelled optional key is rejected, not silently dropped. caf_ao is the
+// one serde-defaulted field on either surface, so before library 0.3.5's
+// deny_unknown_fields a typo'd key was discarded and the analysis ran
+// unadjusted at 1.0 with no error.
+let typo = null;
+try {
+  const { caf_ao, ...rest } = ep5;
+  new m.WasmMixedFlow({ ...rest, caf_a0: 0.85 });
+} catch (e) {
+  typo = String(e);
+}
+exact(typo !== null, true, 'a misspelled caf_ao key is rejected at construction');
+exact(String(typo).includes('caf_a0'), true, `the rejection names the unknown key, got: ${typo}`);
 
 report('ch25/26 mixed-flow model (HCM Ch.26 EP5 mixed-flow half, Ch.25 EP11)');
