@@ -1,5 +1,5 @@
 // HCM Chapter 14 freeway merge and diverge segments through the WASM
-// boundary, run against HCM Chapter 28 Example Problems 1-4. Expected values
+// boundary, run against HCM Chapter 28 Example Problems 1-5. Expected values
 // and tolerances mirror transportations-library/tests/chapter14_integration.rs.
 //
 // Constructor order under test: (ramp_type, ramp_side, ramp_lanes,
@@ -157,4 +157,128 @@ function build(c) {
   approx(seg.get_speed_avg(), 56.5, 0.5, 'EP4 S (mi/h)');
 }
 
-report('ch14 merge/diverge (HCM Ch.28 EP1-EP4)');
+// --- HCM Ch.28 Example Problem 5: service flow rates and service volumes for
+// an isolated single-lane, right-hand on-ramp on a six-lane freeway
+// (FFS = 70 mi/h, ramp FFS = 40 mi/h, L_A = 1,000 ft, level terrain).
+//
+// EP5 has no fixture: the Rust test builds the geometry inline in
+// `ep5_template()` and drives it with `ramp_service_flow_rate_ideal` and
+// `ramp_service_volumes`. Neither of those free functions, nor the
+// `ServiceDemandBasis` enum they take, is exported through the middleware
+// shim, so the solver itself has no WASM surface to test. What IS reachable
+// through WasmRampSegment is the same equation run forward, and that is what
+// this block does: it feeds each published service flow rate back in as demand
+// under ideal conditions (PHF = 1, 0% heavy vehicles, so Equation 14-1 passes
+// the value through unchanged) and asserts the engine returns the Exhibit 14-3
+// threshold density that the book solved for. The published numbers are
+// therefore checked at the boundary, but the search that produces them is not,
+// and the prevailing-condition SF/SV columns of Exhibits 28-4 and 28-5 stay
+// out of reach until `ramp_service_volumes` is bound.
+//
+// Threshold densities are exact HCM Exhibit 14-3 values. Inverting the check
+// also inverts the tolerance, so this file's usual +-0.5 pc/mi/ln band is not
+// used here: at these flows it would accept a service flow rate wrong by
+// roughly 90 pc/h, which is far looser than the Rust test allows. Equation
+// 14-22 is linear in the demands, and the density response was measured at
+// 0.0327 pc/mi/ln per 6 pc/h of v_F and 0.0220 per 3 pc/h of v_R, so the
+// Rust tolerances of +-6 pc/h (case 1) and +-3 pc/h (case 2) map to +-0.033
+// and +-0.022 pc/mi/ln. Worst observed residual is 0.017, at case 1 LOS C,
+// which is the book linearizing Equation 14-22 with a rounded slope of
+// 0.005454 against the exact 0.0054569 -- the same rounding the Rust test
+// widened its flow tolerance to absorb.
+const TOL_D_CASE1 = 0.033;
+const TOL_D_CASE2 = 0.022;
+
+function ep5(freewayDemand, rampDemand) {
+  return new m.WasmRampSegment(
+    'OnRamp', 'Right', 1, 3, 70.0, 40.0, 1000.0, undefined,
+    undefined, undefined, freewayDemand, rampDemand, 1.0, 0.0, 0.0,
+    'Level', 'None', undefined, undefined, 'None', undefined, undefined,
+    1.0, 1.0);
+}
+
+// Case 1 (Exhibit 28-4): ramp demand fixed at 10% of the approaching freeway
+// demand, service flow rates expressed as approaching freeway flows.
+{
+  // Capacity constraints the whole example rests on: the Chapter 28 text
+  // states 7,200 pc/h downstream freeway (FFS = 70) and 2,000 pc/h ramp
+  // (ramp FFS = 40), from Exhibits 14-10 and 14-12.
+  const cap = ep5(0.0, 0.0);
+  cap.run_analysis();
+  approx(cap.get_capacity_freeway(), 7200.0, 1.0, 'EP5 downstream freeway capacity (pc/h, Ch.28 text)');
+  approx(cap.get_capacity_ramp(), 2000.0, 1.0, 'EP5 ramp capacity (pc/h, Ch.28 text)');
+
+  // Equation 14-3 with L_A = 1,000 ft; the Case 2 text quotes P_FM = 0.6055.
+  approx(cap.get_p_f(), 0.6055, 0.002, 'EP5 P_FM (Ch.28 text)');
+
+  // Exhibit 28-4 SFI column, fed back as demand. Each one should land on its
+  // Exhibit 14-3 threshold density.
+  for (const [los, sfi, threshold] of [['A', 1979.0, 10.0], ['B', 3813.0, 20.0], ['C', 5280.0, 28.0]]) {
+    const seg = ep5(sfi, 0.10 * sfi);
+    seg.run_analysis();
+    approx(seg.get_flow_freeway(), sfi, 5.0, `EP5 case 1 LOS ${los} v_F (pc/h, Exhibit 28-4)`);
+    approx(seg.get_density(), threshold, TOL_D_CASE1, `EP5 case 1 LOS ${los} D_R at SFI ${sfi} (pc/mi/ln, Exhibit 14-3)`);
+  }
+
+  // LOS E is the capacity limit, not a density limit: the downstream freeway
+  // reaches 7,200 pc/h, so v_F = 7,200 / 1.10 = 6,545 pc/h (Exhibit 28-4).
+  const sfiE = 6545.0;
+  const segE = ep5(sfiE, 0.10 * sfiE);
+  segE.run_analysis();
+  approx(segE.get_flow_freeway() + segE.get_flow_ramp(), 7200.0, 2.0, 'EP5 case 1 LOS E downstream flow at capacity (pc/h, Exhibit 28-4)');
+  exact(0.10 * sfiE < segE.get_capacity_ramp(), true, 'EP5 case 1 LOS E ramp flow (655 pc/h) within ramp capacity');
+  exact(segE.get_demand_exceeds_capacity(), false, 'EP5 case 1 LOS E demand within capacity');
+
+  // Exhibit 28-4 reports NA for LOS D: capacity is reached at a density below
+  // the 35-pc/mi/ln threshold, so the LOS D service flow rate is unachievable.
+  // The book states the conclusion but prints no density for it, so 34.92 is
+  // measured from this engine at the published LOS E flow, pinned loosely; the
+  // assertion that carries the Exhibit 28-4 claim is the strict inequality.
+  approx(segE.get_density(), 34.92, 0.5, 'EP5 case 1 D_R at LOS E capacity (pc/mi/ln, measured; Exhibit 28-4 LOS D = NA)');
+  exact(segE.get_density() < 35.0, true, 'EP5 case 1 LOS D unachievable (D_R at capacity below 35)');
+}
+
+// Case 2 (Exhibit 28-5): approaching freeway demand held at 4,000 veh/h,
+// service flow rates expressed as ramp demands.
+{
+  // 4,000 veh/h converted to ideal pc/h through Equation 14-1 with PHF = 0.87
+  // and f_HV = 1 / (1 + 0.065 (2 - 1)) = 0.939; the Ch.28 text quotes 4,896 pc/h.
+  const vF = 4000.0 / (0.87 * (1.0 / (1.0 + 0.065 * (2.0 - 1.0))));
+  approx(vF, 4896.0, 2.0, 'EP5 case 2 v_F ideal (pc/h, Ch.28 text)');
+
+  // Exhibit 28-5 reports NA for LOS A and B: even at zero ramp flow the
+  // density already exceeds the 20-pc/mi/ln LOS B threshold. The book asserts
+  // this without printing the density, so 22.33 is the value the Rust test
+  // computes and this engine reproduces; the inequality carries the claim.
+  const segZero = ep5(vF, 0.0);
+  segZero.run_analysis();
+  approx(segZero.get_density(), 22.33, 0.5, 'EP5 case 2 D_R at zero ramp flow (pc/mi/ln, measured; Exhibit 28-5 LOS A/B = NA)');
+  exact(segZero.get_density() > 20.0, true, 'EP5 case 2 LOS A and B unachievable (minimum D_R above 20)');
+
+  // LOS C and D ramp service flow rates. Exhibit 28-5 is internally
+  // inconsistent: its SFI column prints 769 and 1,723, but its own SF
+  // arithmetic in the next column multiplies 772 and 1,726 by 0.939. The Rust
+  // test takes the arithmetic values, and so does this block, because the
+  // engine agrees with them -- at the tolerance used here the two readings are
+  // distinguishable, and the SFI column loses. Measured: 772 gives D_R =
+  // 27.997 against the 28 threshold, while 769 gives 27.973, a residual of
+  // 0.027 that exceeds the +-0.022 band. Likewise 1,726 gives 35.000 and
+  // 1,723 gives 34.975.
+  for (const [los, sfi, threshold] of [['C', 772.0, 28.0], ['D', 1726.0, 35.0]]) {
+    const seg = ep5(vF, sfi);
+    seg.run_analysis();
+    approx(seg.get_flow_ramp(), sfi, 3.0, `EP5 case 2 LOS ${los} v_R (pc/h, Exhibit 28-5)`);
+    approx(seg.get_density(), threshold, TOL_D_CASE2, `EP5 case 2 LOS ${los} D_R at SFI ${sfi} (pc/mi/ln, Exhibit 14-3)`);
+  }
+
+  // LOS E: the downstream-capacity ramp flow (7,200 - 4,896 = 2,304 pc/h)
+  // violates the 2,000 pc/h ramp capacity, so LOS E is capped at the ramp
+  // capacity (Exhibit 28-5 SFI = 2,000).
+  const segE = ep5(vF, 2000.0);
+  const losE = segE.run_analysis();
+  exact(segE.get_capacity_freeway() - vF > segE.get_capacity_ramp(), true, 'EP5 case 2 LOS E governed by ramp capacity, not downstream freeway');
+  approx(Math.min(segE.get_capacity_freeway() - vF, segE.get_capacity_ramp()), 2000.0, 1.0, 'EP5 case 2 LOS E v_R SFI (pc/h, Exhibit 28-5)');
+  exact(losE, 'E', 'EP5 case 2 LOS at the capacity-limited ramp flow');
+}
+
+report('ch14 merge/diverge (HCM Ch.28 EP1-EP5)');
