@@ -7,6 +7,7 @@
 
   import init, { WasmFacilitySegment, WasmFreewayReliability } from "HCM-middleware";
   import { setReport } from '$lib/report';
+  import { withWasmRetry } from '$lib/wasmRetry';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import FacilityDiagram from '$lib/FacilityDiagram.svelte';
   import FacilityDiagram3D from '$lib/FacilityDiagram3D.svelte';
@@ -308,63 +309,71 @@
         throw new Error('Enter at least one mainline demand value.');
       }
 
-      const wasmSegments = segments.map((s) => new WasmFacilitySegment(
-        s.seg_type,
-        Number(s.length_ft),
-        Number(s.lanes),
-        parseList(s.on_ramp),
-        parseList(s.off_ramp),
-        parseList(s.ramp_to_ramp),
-        Number(s.ramp_ffs),
-        Number(s.accel),
-        Number(s.decel),
-        s.short_length !== '' ? Number(s.short_length) : undefined,
-        Number(s.weaving_lanes),
-        Number(s.lc_rf),
-        Number(s.lc_fr),
-        undefined,             // segment FFS override, mi/h
-        undefined,             // calibration CAF
-        undefined,             // calibration SAF
-        undefined              // calibration DAF
-      ));
+      // The segments are rebuilt inside the retry along with the facility, not
+      // hoisted out of it. The constructor takes ownership of every
+      // WasmFacilitySegment handed to it, so a second pass over the same array
+      // would give the engine already-moved handles and fail with "array
+      // contains a value of the wrong type" instead of recovering.
+      const rel = withWasmRetry(() => {
+        const wasmSegments = segments.map((s) => new WasmFacilitySegment(
+          s.seg_type,
+          Number(s.length_ft),
+          Number(s.lanes),
+          parseList(s.on_ramp),
+          parseList(s.off_ramp),
+          parseList(s.ramp_to_ramp),
+          Number(s.ramp_ffs),
+          Number(s.accel),
+          Number(s.decel),
+          s.short_length !== '' ? Number(s.short_length) : undefined,
+          Number(s.weaving_lanes),
+          Number(s.lc_rf),
+          Number(s.lc_fr),
+          undefined,             // segment FFS override, mi/h
+          undefined,             // calibration CAF
+          undefined,             // calibration SAF
+          undefined              // calibration DAF
+        ));
 
-      const relArgs = [
-        wasmSegments,
-        demand,
-        Number(ffs),
-        Number(hv_pct) / 100.0,             // UI takes percent, the engine takes a decimal
-        terrain,
-        city_type,
-        1.0,                                 // PHF, 15-min flow rates assumed
-        [],                                  // months, empty means the whole year
-        Number(replications),
-        Number(seed_month),
-        seed_weekday,
-        include_incidents ? Number(crash_rate) : undefined,
-        include_incidents ? Number(incident_crash_ratio) : undefined,
-        Number(rng_seed),
-        tti_weighting === 'vmt'
-      ];
-      // The four facility parameters ride only when the user filled at least
-      // one in, so an untouched form makes the same fifteen-argument call it
-      // always has and the core's own defaults stay in charge.
-      if (facilityParamsActive) {
-        relArgs.push(
-          jamDensityVal,
-          queueDropVal === undefined ? undefined : queueDropVal / 100.0,   // UI takes percent, the engine takes a decimal
-          rampDensityVal,
-          interchangeDensityVal
-        );
-      }
+        const relArgs = [
+          wasmSegments,
+          demand,
+          Number(ffs),
+          Number(hv_pct) / 100.0,             // UI takes percent, the engine takes a decimal
+          terrain,
+          city_type,
+          1.0,                                 // PHF, 15-min flow rates assumed
+          [],                                  // months, empty means the whole year
+          Number(replications),
+          Number(seed_month),
+          seed_weekday,
+          include_incidents ? Number(crash_rate) : undefined,
+          include_incidents ? Number(incident_crash_ratio) : undefined,
+          Number(rng_seed),
+          tti_weighting === 'vmt'
+        ];
+        // The four facility parameters ride only when the user filled at least
+        // one in, so an untouched form makes the same fifteen-argument call it
+        // always has and the core's own defaults stay in charge.
+        if (facilityParamsActive) {
+          relArgs.push(
+            jamDensityVal,
+            queueDropVal === undefined ? undefined : queueDropVal / 100.0,   // UI takes percent, the engine takes a decimal
+            rampDensityVal,
+            interchangeDensityVal
+          );
+        }
 
-      const rel = new WasmFreewayReliability(...relArgs);
+        const r = new WasmFreewayReliability(...relArgs);
 
-      // Both setters throw on a table of the wrong shape rather than falling
-      // back to a default, so a mistyped grid surfaces as an error here.
-      if (weather) rel.set_weather(weatherConfig(weather));
-      if (demand_multipliers) rel.set_demand_multipliers(numericGrid(demand_multipliers, 'Demand multipliers', MONTH_NAMES, WEEKDAY_NAMES));
+        // Both setters throw on a table of the wrong shape rather than falling
+        // back to a default, so a mistyped grid surfaces as an error here.
+        if (weather) r.set_weather(weatherConfig(weather));
+        if (demand_multipliers) r.set_demand_multipliers(numericGrid(demand_multipliers, 'Demand multipliers', MONTH_NAMES, WEEKDAY_NAMES));
 
-      rel.run();
+        r.run();
+        return r;
+      });
 
       results = {
         num_scenarios: rel.num_scenarios(),
