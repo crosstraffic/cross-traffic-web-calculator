@@ -214,6 +214,11 @@ function passArrayF64ToWasm0(arg, malloc) {
     return ptr;
 }
 
+function getArrayF64FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
+}
+
 let cachedUint32Memory0 = null;
 
 function getUint32Memory0() {
@@ -231,11 +236,6 @@ function passArrayJsValueToWasm0(array, malloc) {
     }
     WASM_VECTOR_LEN = array.length;
     return ptr;
-}
-
-function getArrayF64FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
 }
 
 function _assertClass(instance, klass) {
@@ -1059,6 +1059,166 @@ export class WasmBasicFreeways {
     }
 }
 
+const WasmCompositeGradeFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmcompositegrade_free(ptr >>> 0));
+/**
+* Composite-grade mixed-flow analysis (HCM Chapter 25, Equations 25-53 through 25-70).
+*
+* Chapter 25 states that its equations are the Chapter 26 ones under different numbers, and the
+* thing it adds is chaining: a truck enters each grade at the speed the grade above it left it
+* at, rather than at free-flow speed. That is the whole point of the surface. Analysing the
+* three grades of Example Problem 11 independently and averaging them would report a facility
+* that is optimistic on every segment, with nothing failing anywhere.
+*/
+export class WasmCompositeGrade {
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        WasmCompositeGradeFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_wasmcompositegrade_free(ptr);
+    }
+    /**
+    * Build a composite-grade analysis from a configuration object matching the serde schema of
+    * the library's `CompositeGrade` — the shape of the library's own fixtures, so the
+    * `tests/ExampleCases/hcm/Chapter25/ep11_composite_grade.json` of Example Problem 11 passes
+    * verbatim:
+    *
+    * ```json
+    * {
+    *   "ffs": 65.0, "v_mix": 1500.0, "p_sut": 0.05, "p_tt": 0.10, "caf_ao": 1.0,
+    *   "segments": [
+    *     { "length": 1.5, "grade": 3.0 },
+    *     { "length": 2.0, "grade": 2.0 },
+    *     { "length": 1.0, "grade": 5.0 }
+    *   ]
+    * }
+    * ```
+    *
+    * `segments` is in the order a vehicle meets the grades, and the order is an input rather
+    * than a presentation detail: reversing the three grades of Example Problem 11 puts the 5%
+    * first and slows the trucks to speeds no digitised curve covers, which is refused by name.
+    * Units follow the single-grade surface, `length` in miles and `grade` in percent, with the
+    * truck proportions as decimals and shared across all segments.
+    *
+    * This constructor adds no validation of its own, which is worth saying because the rest of
+    * this crate's config-object bindings do. `segments` has no serde default, so an omitted or
+    * misspelled key is rejected by deserialization rather than deserializing into an empty
+    * facility, and an explicitly empty list is rejected by the core's own `validate` before it
+    * reaches the per-segment capacity minimum that would panic on it. The only serde-defaulted
+    * field on either mixed-flow surface is `caf_ao`, whose default of 1.0 is the
+    * no-adjustment case rather than a stand-in for something the caller meant to supply. So
+    * there is no input here that arrives wrong and still produces a finished answer, which is
+    * the condition the guards elsewhere in this crate exist for.
+    * @param {any} config
+    */
+    constructor(config) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmcompositegrade_new(retptr, addHeapObject(config));
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Full Chapter 25 chain as a JS object in the serde schema of `CompositeGradeResult`: a
+    * `segments` array carrying each grade's capacity side (`caf_g_mix`, `caf_mix`,
+    * `capacity_mix`), the rates the chaining is built from (`tau_f_sut_kin`, `tau_f_tt_kin`,
+    * `tau_s_sut_kin`, `tau_s_tt_kin`, `tau_f_a`, `tau_s_a`, `decelerating`), and the segment
+    * answer (`tau_mix`, `s_mix`, `travel_time`, `spot_speeds`, `space_speeds`); then the
+    * governing `capacity_mix` with the `governing_segment` index that sets it, the
+    * `entry_spot_speeds` at the facility entry, `total_length`, `total_travel_time`, the
+    * Equation 25-70 `s_mix_overall`, `overall_space_speeds`, and `oversaturated`.
+    *
+    * `spot_speeds`, `space_speeds` and `overall_space_speeds` are `[automobiles, SUTs, TTs]`.
+    *
+    * Throws when the chain reaches a grade or an entry speed outside the digitised truck
+    * curves, naming what is missing. This is more reachable here than on the single-grade
+    * surface, because the entry speed into each segment is computed rather than given, so a
+    * configuration whose every field is inside the digitised range can still walk out of it.
+    * @returns {any}
+    */
+    results_to_js_value() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmcompositegrade_results_to_js_value(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Number of grades this configuration deserialized into. A composite grade that arrives
+    * short a segment is the failure the constructor cannot catch, because a shorter facility
+    * is a valid one, and it moves every number rather than failing.
+    * @returns {number}
+    */
+    get_segment_count() {
+        const ret = wasm.wasmcompositegrade_get_segment_count(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+    * Governing mixed-flow capacity, veh/h/ln — the tightest of the per-segment capacities,
+    * 1,746 in Example Problem 11, set by the 1 mi 5% grade.
+    * @returns {number}
+    */
+    get_capacity_mix() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmcompositegrade_get_capacity_mix(retptr, this.__wbg_ptr);
+            var r0 = getFloat64Memory0()[retptr / 8 + 0];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
+            return r0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Equation 25-70 overall mixed-flow speed S_mix,oa, mi/h: the total length over the summed
+    * segment travel times, 55.6 in Example Problem 11.
+    * @returns {number}
+    */
+    get_overall_speed() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmcompositegrade_get_overall_speed(retptr, this.__wbg_ptr);
+            var r0 = getFloat64Memory0()[retptr / 8 + 0];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
+            return r0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+}
+
 const WasmDisplacedLeftTurnFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_wasmdisplacedleftturn_free(ptr >>> 0));
@@ -1361,9 +1521,9 @@ export class WasmFacilitySegment {
     * }
     * ```
     *
-    * The work zone is a structured input with eleven fields, all of which
+    * The work zone is a structured input with ten fields, all of which
     * enter Equations 10-7 through 10-12, so it arrives as a config object
-    * rather than as eleven more trailing constructor arguments, the same
+    * rather than as ten more trailing constructor arguments, the same
     * choice `WasmManagedLaneFacility` makes for the other Chapter 10 input
     * that has no home on a segment. This is a setter rather than an
     * eighteenth constructor argument so that the seventeen-argument
@@ -3107,6 +3267,160 @@ export class WasmManagedLanes {
     results_to_js_value() {
         const ret = wasm.wasmmanagedlanes_results_to_js_value(this.__wbg_ptr);
         return takeObject(ret);
+    }
+}
+
+const WasmMixedFlowFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_wasmmixedflow_free(ptr >>> 0));
+/**
+* Single-grade mixed-flow analysis (HCM Chapter 26, Equations 26-1 through 26-22).
+*
+* This is the alternative to the passenger-car-equivalent method that [`WasmBasicFreeways`]
+* runs. Chapter 12 converts trucks into passenger cars and analyses one homogeneous stream,
+* which stops describing anything real on a sustained steep grade, where the trucks settle
+* towards a crawl speed the automobiles never approach. The mixed-flow model carries
+* automobiles, single-unit trucks and tractor-trailers as three populations with their own
+* travel time rates and combines them at the end. The two disagree on purpose: on the 5% grade
+* of Chapter 26 Example Problem 5 the PCE path gives 25.2 veh/mi/ln and this one gives 31.7.
+*
+* [`WasmBasicFreeways`]: crate::middleware::corust::wasm_basicfreeways::WasmBasicFreeways
+*/
+export class WasmMixedFlow {
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        WasmMixedFlowFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_wasmmixedflow_free(ptr);
+    }
+    /**
+    * Build a single-grade mixed-flow analysis from a configuration object matching the serde
+    * schema of the library's `MixedFlowSegment` — the shape of the library's own fixtures, so
+    * the `tests/ExampleCases/hcm/Chapter26/ep5_mixed_flow.json` of Example Problem 5 passes
+    * verbatim:
+    *
+    * ```json
+    * {
+    *   "ffs": 65.0, "length": 2.0, "grade": 5.0,
+    *   "v_mix": 1500.0, "p_sut": 0.05, "p_tt": 0.10, "caf_ao": 1.0
+    * }
+    * ```
+    *
+    * Units are the manual's and are not interchangeable with the ones the rest of this crate
+    * uses. `length` is in MILES, not the feet a Chapter 15 subsegment takes. `grade` is in
+    * PERCENT, so a 5% upgrade is 5.0. `p_sut` and `p_tt` are DECIMALS, so 5% single-unit
+    * trucks is 0.05, which is the opposite convention from `grade` in the same object. A
+    * percent handed to `p_sut` is caught, since the proportions must sum below one, and a
+    * decimal handed to `grade` is caught, since the curves are digitised per tabulated grade
+    * and 0.05 is not one of them. A length in feet is the one that is not caught, because
+    * there is no upper bound on a grade's length to check it against.
+    *
+    * Only `caf_ao` is optional, defaulting to 1.0, which is the no-adjustment case. Every
+    * other field is required, so a misspelled key is rejected here rather than silently
+    * defaulted.
+    *
+    * The analysis itself is deferred to [`Self::results_to_js_value`], because the inputs can
+    * be well-formed and still lie outside the digitised truck curves, which is a refusal about
+    * coverage rather than about the configuration.
+    * @param {any} config
+    */
+    constructor(config) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmmixedflow_new(retptr, addHeapObject(config));
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Full Chapter 26 chain as a JS object in the serde schema of `MixedFlowResult`: the
+    * Equation 26-1 through 26-5 capacity side (`caf_t_mix`, `rho_g_mix`, `caf_g_mix`,
+    * `caf_mix`, `capacity_ao`, `capacity_mix`), the Equation 26-11/26-12 kinematic truck rates
+    * and the Equation 26-13/26-14 free-flow side (`tau_sut_kin`, `tau_tt_kin`, `tau_a_ffs`,
+    * `tau_mix_ffs`, `ffs_mix`, `saf_mix`), the Equation 26-16 breakpoint with the auto-only one
+    * it is built from (`bp_ao`, `bp_mix`), the Equation 26-19 calibration speeds and the
+    * Equation 26-20 exponent (`s_calib_cap`, `s_calib_90cap`, `phi_mix`), and the Equation
+    * 26-21/26-22 answer (`s_mix`, `d_mix`, `oversaturated`).
+    *
+    * `s_mix` and `d_mix` are `null` when demand exceeds mixed-flow capacity, which Chapter 26
+    * Step 2 calls LOS F and stops on rather than reporting a speed.
+    *
+    * Throws when the grade, length or free-flow speed lands outside the digitised truck
+    * curves. The message names the exhibit that would have to be digitised, because these
+    * curves are published as figures with no closed form anywhere in either chapter and each
+    * grade settles at its own crawl speed, so extrapolating between them would be quietly
+    * wrong rather than approximately right.
+    * @returns {any}
+    */
+    results_to_js_value() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmmixedflow_results_to_js_value(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Equation 26-5 mixed-flow capacity C_mix, veh/h/ln. 1,725 in Example Problem 5, against
+    * the 2,350 pc/h/ln the same segment carries under auto-only conditions.
+    * @returns {number}
+    */
+    get_capacity_mix() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.wasmmixedflow_get_capacity_mix(retptr, this.__wbg_ptr);
+            var r0 = getFloat64Memory0()[retptr / 8 + 0];
+            var r2 = getInt32Memory0()[retptr / 4 + 2];
+            var r3 = getInt32Memory0()[retptr / 4 + 3];
+            if (r3) {
+                throw takeObject(r2);
+            }
+            return r0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+    * Equation 26-22 mixed-flow density D_mix, veh/mi/ln, or undefined when demand exceeds
+    * mixed-flow capacity.
+    * @returns {number | undefined}
+    */
+    get_density() {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-32);
+            wasm.wasmmixedflow_get_density(retptr, this.__wbg_ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r2 = getFloat64Memory0()[retptr / 8 + 1];
+            var r4 = getInt32Memory0()[retptr / 4 + 4];
+            var r5 = getInt32Memory0()[retptr / 4 + 5];
+            if (r5) {
+                throw takeObject(r4);
+            }
+            return r0 === 0 ? undefined : r2;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(32);
+        }
     }
 }
 
@@ -7389,22 +7703,22 @@ function __wbg_get_imports() {
         const ret = getObject(arg0) in getObject(arg1);
         return ret;
     };
-    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
-        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
-    imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
-        const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
-        return ret;
-    }, arguments) };
     imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
         const ret = WasmSubSegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
+    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
+        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
         return ret;
     };
     imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
         const ret = WasmSegment.__unwrap(takeObject(arg0));
         return ret;
     };
+    imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
+        const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
+        return ret;
+    }, arguments) };
     imports.wbg.__wbindgen_is_bigint = function(arg0) {
         const ret = typeof(getObject(arg0)) === 'bigint';
         return ret;
