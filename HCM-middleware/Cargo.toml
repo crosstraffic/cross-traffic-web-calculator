@@ -12,6 +12,6 @@ vercel_runtime = { version = "1.1.0" }
 
 [dependencies]
 # Path resolves to the sibling checkout for local development; CI and clean clones resolve the version from crates.io, so bump this only after that version is published.
-# 0.3.9 (the Chapter 20 pedestrian crossing, the Chapter 23 SPUI surface, and the Chapter 11 incident inputs) was published to crates.io on 2026-08-13, tracking transportations_library 0.3.4 (crates.io + PyPI same day), so clean clones resolve. The committed pkg/ is rebuilt from the published-equivalent sibling checkouts and is what ships.
+# 0.3.10 (the Chapter 25/26 mixed-flow model) is NOT on crates.io yet, and neither is the transportations_library 0.3.5 it tracks. Local builds resolve through the path entry, so the committed pkg/ below is real, but a clean clone will not resolve this version until both are published: library first, then middleware. The previous line, 0.3.9 tracking library 0.3.4, was published on 2026-08-13 and did resolve.
 
-crosstraffic_middleware = { version = "0.3.9", path = "../../cross-traffic-middleware" }
+crosstraffic_middleware = { version = "0.3.10", path = "../../cross-traffic-middleware" }

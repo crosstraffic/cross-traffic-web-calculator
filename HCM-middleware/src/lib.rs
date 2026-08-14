@@ -1,5 +1,6 @@
 use crosstraffic_middleware::wasm_twolanehighways::{ WasmSegment, WasmSubSegment, WasmTwoLaneHighways };
 use crosstraffic_middleware::wasm_basicfreeways::WasmBasicFreeways;
+use crosstraffic_middleware::wasm_mixed_flow::{ WasmMixedFlow, WasmCompositeGrade };
 use crosstraffic_middleware::wasm_managed_lanes::WasmManagedLanes;
 use crosstraffic_middleware::wasm_weaving::WasmWeavingSegment;
 use crosstraffic_middleware::wasm_merge_diverge::WasmRampSegment;
