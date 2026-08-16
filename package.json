@@ -42,7 +42,7 @@
     "typescript": "^5.8.3",
     "vite": "^6.0.0",
     "vite-plugin-wasm-pack": "^0.1.12",
-    "wasm-pack": "^0.13.1"
+    "wasm-pack": "^0.15.0"
   },
   "type": "module"
 }
