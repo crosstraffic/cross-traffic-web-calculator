@@ -44,8 +44,5 @@
     "vite-plugin-wasm-pack": "^0.1.12",
     "wasm-pack": "^0.13.1"
   },
-  "type": "module",
-  "dependencies": {
-    "@wasm-tool/rollup-plugin-rust": "^3.0.5"
-  }
+  "type": "module"
 }
