@@ -14,6 +14,78 @@ type ProxyMessage = {
   pipe: (destination: unknown) => void;
 };
 
+type OfflineProxy = {
+  /** Point the browser here, not at baseURL. */
+  origin: string;
+  /** Destroy every socket from now on: real network death for page and worker. */
+  cut: () => void;
+  /** Destroy only requests for the wasm binary. */
+  blockWasm: () => void;
+  /** Paths the proxy has received since the last forget(). */
+  seen: () => string[];
+  forget: () => void;
+  close: () => Promise<void>;
+};
+
+// Measured 2026-08-14: context.setOffline(true) does not cut a service worker's
+// own network, so requests the worker forwards still reach the server and an
+// "offline" test built on it proves nothing. Front the preview server with a
+// throwaway proxy instead, which this process can kill under both page and
+// worker. It also logs what it forwards, which is how the online control proves
+// a navigation actually reached the server rather than the cache.
+async function startOfflineProxy(baseURL: string): Promise<OfflineProxy> {
+  let cut = false;
+  let blockWasm = false;
+  let seen: string[] = [];
+  const proxy = createServer((req: ProxyMessage, res: ProxyMessage & { writeHead: (status: number, headers: Record<string, unknown>) => void }) => {
+    seen.push(req.url ?? '/');
+    if (cut || (blockWasm && req.url?.endsWith('.wasm'))) return req.socket?.destroy();
+    const upstream = request(
+      baseURL + (req.url ?? '/'),
+      { method: req.method, headers: req.headers },
+      (response: ProxyMessage) => {
+        res.writeHead(response.statusCode ?? 502, response.headers);
+        response.pipe(res);
+      }
+    );
+    upstream.on('error', () => res.socket?.destroy());
+    req.pipe(upstream);
+  });
+  await new Promise<void>((resolve) => proxy.listen(0, resolve));
+  return {
+    origin: `http://localhost:${(proxy.address() as { port: number }).port}`,
+    cut: () => {
+      cut = true;
+    },
+    blockWasm: () => {
+      blockWasm = true;
+    },
+    seen: () => seen,
+    forget: () => {
+      seen = [];
+    },
+    close: () => new Promise<void>((resolve) => proxy.close(() => resolve()))
+  };
+}
+
+// The worker precaches every route by explicit fetch on install, so this is how
+// a test waits for that to finish rather than guessing with a timeout.
+async function waitForPrecachedRoute(page: Page, pathname: string) {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async (path) => {
+          for (const key of await caches.keys()) {
+            const cache = await caches.open(key);
+            for (const req of await cache.keys()) if (new URL(req.url).pathname === path) return true;
+          }
+          return false;
+        }, pathname),
+      { timeout: 30_000 }
+    )
+    .toBe(true);
+}
+
 // Defense in depth for the phantom-user incident: even if the app-level
 // hostname gate ever regresses, no test traffic may reach third-party
 // analytics. Blocked at the network layer for every test.
@@ -111,27 +183,9 @@ test.describe('navigation and route gating', () => {
     test.skip(browserName !== 'chromium', 'service worker test runs on chromium');
     test.slow(); // three navigations plus a worker install
 
-    // Since setOffline leaves the worker online, front the preview server with
-    // a proxy this test can cut, which is real network death for page and
-    // worker alike.
     if (!baseURL) throw new Error('the offline proxy needs a baseURL to forward to');
-    let blockWasm = false;
-    let cut = false;
-    const proxy = createServer((req: ProxyMessage, res: ProxyMessage & { writeHead: (status: number, headers: Record<string, unknown>) => void }) => {
-      if (cut || (blockWasm && req.url?.endsWith('.wasm'))) return req.socket?.destroy();
-      const upstream = request(
-        baseURL + (req.url ?? '/'),
-        { method: req.method, headers: req.headers },
-        (response: ProxyMessage) => {
-          res.writeHead(response.statusCode ?? 502, response.headers);
-          response.pipe(res);
-        }
-      );
-      upstream.on('error', () => res.socket?.destroy());
-      req.pipe(upstream);
-    });
-    await new Promise<void>((resolve) => proxy.listen(0, resolve));
-    const origin = `http://localhost:${(proxy.address() as { port: number }).port}`;
+    const proxy = await startOfflineProxy(baseURL);
+    const origin = proxy.origin;
 
     // A fresh origin, so nothing is cached from earlier tests. The analytics
     // block from beforeEach applies to the default context only, so repeat it.
@@ -162,11 +216,11 @@ test.describe('navigation and route gating', () => {
 
       // From here the binary is unreachable, so a chapter page can only get an
       // engine from the cache.
-      blockWasm = true;
+      proxy.blockWasm();
       await page.goto(`${origin}/hcm14`);
       await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
 
-      cut = true;
+      proxy.cut();
       // Control: the cut is real. A POST returns early from the worker's fetch
       // handler, so this is the page talking to the network directly.
       const reachable = await page.evaluate(async (base) => {
@@ -186,7 +240,107 @@ test.describe('navigation and route gating', () => {
       await expect(page.getByText(/Segment LOS: [A-F]/)).toBeVisible({ timeout: 20_000 });
     } finally {
       await context.close();
-      await new Promise((resolve) => proxy.close(resolve));
+      await proxy.close();
+    }
+  });
+
+  test('a never-visited chapter page opens with the network gone', async ({ browser, browserName, baseURL }) => {
+    test.skip(browserName !== 'chromium', 'service worker test runs on chromium');
+    test.slow(); // an install that fetches every route, then a navigation
+
+    // Nothing here is prerendered, so page HTML exists only if the worker
+    // fetched it on install. This visitor sees the home page and nothing else
+    // before the network dies, which before the app-shell precache produced a
+    // failed navigation rather than a page.
+    if (!baseURL) throw new Error('the offline proxy needs a baseURL to forward to');
+    const proxy = await startOfflineProxy(baseURL);
+    const context = await browser.newContext();
+    await context.route(/googletagmanager|google-analytics|analytics\.google/, (route) => route.abort());
+    try {
+      const page = await context.newPage();
+      await page.goto(`${proxy.origin}/`);
+      await page.evaluate(() => navigator.serviceWorker.ready);
+      await waitForPrecachedRoute(page, '/hcm14');
+
+      proxy.cut();
+      // Control: the cut is real. A POST returns early from the worker's fetch
+      // handler, so this is the page talking to the network directly.
+      const reachable = await page.evaluate(async (base) => {
+        try {
+          const res = await fetch(`${base}/__offline_probe`, { method: 'POST' });
+          return `status ${res.status}`;
+        } catch (err) {
+          return `blocked ${(err as Error).name}`;
+        }
+      }, proxy.origin);
+      expect(reachable).toMatch(/^blocked/);
+
+      await page.goto(`${proxy.origin}/hcm14`);
+      await expect(page).toHaveURL(/\/hcm14$/); // the shell fallback would land on /
+      const calculate = page.getByRole('button', { name: 'Calculate' });
+      await expect(calculate).toBeEnabled({ timeout: 30_000 });
+      await calculate.click();
+      await expect(page.getByText(/Segment LOS: [A-F]/)).toBeVisible({ timeout: 20_000 });
+    } finally {
+      await context.close();
+      await proxy.close();
+    }
+  });
+
+  test('a visited chapter page survives a reload with the network gone', async ({ browser, browserName, baseURL }) => {
+    test.skip(browserName !== 'chromium', 'service worker test runs on chromium');
+    test.slow();
+
+    if (!baseURL) throw new Error('the offline proxy needs a baseURL to forward to');
+    const proxy = await startOfflineProxy(baseURL);
+    const context = await browser.newContext();
+    await context.route(/googletagmanager|google-analytics|analytics\.google/, (route) => route.abort());
+    try {
+      const page = await context.newPage();
+      await page.goto(`${proxy.origin}/hcm13`);
+      await page.evaluate(() => navigator.serviceWorker.ready);
+      await waitForPrecachedRoute(page, '/hcm13');
+
+      proxy.cut();
+      await page.reload();
+      await expect(page).toHaveURL(/\/hcm13$/);
+      const calculate = page.getByRole('button', { name: 'Calculate' });
+      await expect(calculate).toBeEnabled({ timeout: 30_000 });
+      await calculate.click();
+      await expect(page.getByText(/Segment LOS: [A-F]/)).toBeVisible({ timeout: 20_000 });
+    } finally {
+      await context.close();
+      await proxy.close();
+    }
+  });
+
+  test('an online navigation is still served by the network, not the precache', async ({ browser, browserName, baseURL }) => {
+    test.skip(browserName !== 'chromium', 'service worker test runs on chromium');
+    test.slow();
+
+    // The point of the precache is offline reach, not speed. Serving a page
+    // from it while the network is up would pin every visitor to the HTML
+    // rendered at install time, so the fetch handler must stay network-first
+    // and this asserts it at the transport: the proxy has to see the request.
+    if (!baseURL) throw new Error('the offline proxy needs a baseURL to forward to');
+    const proxy = await startOfflineProxy(baseURL);
+    const context = await browser.newContext();
+    await context.route(/googletagmanager|google-analytics|analytics\.google/, (route) => route.abort());
+    try {
+      const page = await context.newPage();
+      await page.goto(`${proxy.origin}/`);
+      await page.evaluate(() => navigator.serviceWorker.ready);
+      await waitForPrecachedRoute(page, '/hcm15');
+
+      // Forget the install's own fetches, so what follows can only be the
+      // navigation.
+      proxy.forget();
+      await page.goto(`${proxy.origin}/hcm15`);
+      await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+      expect(proxy.seen()).toContain('/hcm15');
+    } finally {
+      await context.close();
+      await proxy.close();
     }
   });
 
