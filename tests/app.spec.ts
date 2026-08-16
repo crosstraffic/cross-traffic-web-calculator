@@ -86,34 +86,21 @@ test.describe('navigation and route gating', () => {
     expect(pavement).toBe('#e2e8f0');
   });
 
-  test('a chapter page reached under context.setOffline still computes', async ({ page, context, browserName }) => {
-    // Service worker behaviour is only dependable in chromium.
-    test.skip(browserName !== 'chromium', 'service worker test runs on chromium');
-
-    // Measured 2026-08-14: context.setOffline(true) does not cut the service
-    // worker's own network, so requests the worker forwards still reach the
-    // server. This covers the client-side offline path only. The test below it
-    // is the one that proves genuine offline operation.
-    await page.goto('/');
-    await page.evaluate(() => navigator.serviceWorker.ready);
-    await page.waitForTimeout(1500); // precache settles
-
-    await context.setOffline(true);
-    await page.goto('/hcm14');
-    const calculate = page.getByRole('button', { name: 'Calculate' });
-    await expect(calculate).toBeEnabled({ timeout: 30_000 });
-    await calculate.click();
-    await expect(page.getByText(/Segment LOS: [A-F]/)).toBeVisible();
-    await context.setOffline(false);
-  });
-
   test('the wasm engine is precached and computes with the network gone', async ({ browser, browserName, baseURL }) => {
     test.skip(browserName !== 'chromium', 'service worker test runs on chromium');
     test.slow(); // three navigations plus a worker install
 
-    // Since setOffline leaves the worker online, front the preview server with
-    // a proxy this test can cut, which is real network death for page and
-    // worker alike.
+    // The preview server is fronted by a proxy this test can cut, because
+    // context.setOffline is not a dependable cut and how it fails changed under
+    // us. On Playwright 1.54 the worker's own network stayed up under
+    // setOffline(true), so a page fetch of /hcm14 came back 200 with 17,758
+    // bytes of live HTML; on 1.62 it is genuinely blocked. Cutting the proxy
+    // means the same real network death on either version, for page and worker
+    // alike.
+    // Note that only build assets, the static directory and the wasm binary are
+    // precached, never page HTML, so a page enters the cache only once it has
+    // been fetched with the worker in control. That is why /hcm14 is visited
+    // here before the cut rather than after.
     if (!baseURL) throw new Error('the offline proxy needs a baseURL to forward to');
     let blockWasm = false;
     let cut = false;
