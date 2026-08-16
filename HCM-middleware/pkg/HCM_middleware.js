@@ -207,18 +207,6 @@ function handleError(f, args) {
     }
 }
 
-function passArrayF64ToWasm0(arg, malloc) {
-    const ptr = malloc(arg.length * 8, 8) >>> 0;
-    getFloat64Memory0().set(arg, ptr / 8);
-    WASM_VECTOR_LEN = arg.length;
-    return ptr;
-}
-
-function getArrayF64FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
-}
-
 let cachedUint32Memory0 = null;
 
 function getUint32Memory0() {
@@ -238,6 +226,18 @@ function passArrayJsValueToWasm0(array, malloc) {
     return ptr;
 }
 
+function getArrayF64FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat64Memory0().subarray(ptr / 8, ptr / 8 + len);
+}
+
+function passArrayF64ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 8, 8) >>> 0;
+    getFloat64Memory0().set(arg, ptr / 8);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
 function _assertClass(instance, klass) {
     if (!(instance instanceof klass)) {
         throw new Error(`expected instance of ${klass.name}`);
@@ -251,22 +251,92 @@ function passArray32ToWasm0(arg, malloc) {
     WASM_VECTOR_LEN = arg.length;
     return ptr;
 }
-
-function getArrayU32FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getUint32Memory0().subarray(ptr / 4, ptr / 4 + len);
-}
-
-function getArrayJsValueFromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    const mem = getUint32Memory0();
-    const slice = mem.subarray(ptr / 4, ptr / 4 + len);
-    const result = [];
-    for (let i = 0; i < slice.length; i++) {
-        result.push(takeObject(slice[i]));
+/**
+* Service flow rate under ideal conditions SFI (pc/h) at a target ramp-influence
+* density - HCM Chapter 28, Example Problem 5.
+*
+* Holds `template`'s geometry fixed and searches, under equivalent ideal
+* conditions (PHF = 1, no heavy vehicles, CAF = SAF = 1), for the demand that
+* drives the Equation 14-22 ramp-influence density to `target_density`. Use the
+* Exhibit 14-3 LOS thresholds 10, 20, 28, and 35 pc/mi/ln for LOS A through D.
+* The template's own demands, PHF, and heavy-vehicle percentages are ignored,
+* since the search supplies them; everything else about the segment matters.
+*
+* `basis` is the serde form of the core's `ServiceDemandBasis`, an object
+* carrying the variant name as its single key:
+*
+* ```json
+* { "ApproachingFreeway": { "ramp_fraction": 0.10 } }
+* { "FixedFreeway": { "v_f": 4896.0 } }
+* ```
+*
+* The two are different questions and the returned quantity differs with them.
+* `ApproachingFreeway` varies the approaching freeway demand with the ramp
+* tracking it at `ramp_fraction * v_F` and returns v_F (Exhibit 28-4, Case 1);
+* `FixedFreeway` holds the approaching freeway at `v_f` pc/h ideal and varies
+* the ramp, returning v_R (Exhibit 28-5, Case 2). An unknown variant name, a
+* misspelled inner field (neither field has a serde default, so it arrives as a
+* missing field), and an object carrying both variant keys at once are all
+* rejected rather than resolved. What nothing can catch is a caller that sends
+* one basis meaning the other, since both return a plausible flow and only the
+* label on it changes.
+*
+* Returns `undefined` when the target density is already exceeded at zero
+* varied demand, which is how the book reports an unachievable LOS (Exhibit
+* 28-5 prints NA for LOS A and B). That is a real answer about the location and
+* not a failure, so it is an absent value rather than a throw. Note that
+* `serde_wasm_bindgen` crosses `None` as `undefined` rather than `null`, so a
+* caller guarding on `=== null` never fires.
+*
+* LOS E is not reachable through this function. It is a capacity limit rather
+* than a density, so it comes from `get_capacity_freeway()` and
+* `get_capacity_ramp()` on a segment run under the same ideal conditions.
+* @param {WasmRampSegment} template
+* @param {any} basis
+* @param {number} target_density
+* @returns {number | undefined}
+*/
+export function ramp_service_flow_rate_ideal(template, basis, target_density) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-32);
+        _assertClass(template, WasmRampSegment);
+        wasm.ramp_service_flow_rate_ideal(retptr, template.__wbg_ptr, addHeapObject(basis), target_density);
+        var r0 = getInt32Memory0()[retptr / 4 + 0];
+        var r2 = getFloat64Memory0()[retptr / 8 + 1];
+        var r4 = getInt32Memory0()[retptr / 4 + 4];
+        var r5 = getInt32Memory0()[retptr / 4 + 5];
+        if (r5) {
+            throw takeObject(r4);
+        }
+        return r0 === 0 ? undefined : r2;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(32);
     }
-    return result;
 }
+
+/**
+* Convert an ideal-conditions service flow rate to the prevailing-condition
+* service flow rate and service volume - HCM Chapter 28, Example Problem 5.
+*
+* SF = SFI x f_HV x f_p and SV = SF x PHF, so the returned `{ sf, sv }` are
+* both in veh/h while `sfi` is in pc/h. The two come back named rather than as
+* a pair because they are the same magnitude to within the PHF and a
+* transposed pair would read as a finished answer.
+*
+* * `f_hv` - heavy-vehicle adjustment factor.
+* * `f_p` - driver-population factor, 1.0 for regular commuters.
+* * `phf` - peak hour factor.
+* @param {number} sfi
+* @param {number} f_hv
+* @param {number} f_p
+* @param {number} phf
+* @returns {any}
+*/
+export function ramp_service_volumes(sfi, f_hv, f_p, phf) {
+    const ret = wasm.ramp_service_volumes(sfi, f_hv, f_p, phf);
+    return takeObject(ret);
+}
+
 /**
 * HCM Equation 23-58: extra distance travel time for a rerouted movement
 * at an RCUT with merges, s/veh.
@@ -358,6 +428,22 @@ export function stop_junction_delay(flow_veh_h, conflicting_flow_veh_h, critical
 export function dlt_offset(td_dlt_ft, sf_dlt_mph, lag_dlt_s, lag_th_s, offset_supp_s, offset_main_s, cycle_s) {
     const ret = wasm.dlt_offset(td_dlt_ft, sf_dlt_mph, lag_dlt_s, lag_th_s, offset_supp_s, offset_main_s, cycle_s);
     return takeObject(ret);
+}
+
+function getArrayU32FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getUint32Memory0().subarray(ptr / 4, ptr / 4 + len);
+}
+
+function getArrayJsValueFromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    const mem = getUint32Memory0();
+    const slice = mem.subarray(ptr / 4, ptr / 4 + len);
+    const result = [];
+    for (let i = 0; i < slice.length; i++) {
+        result.push(takeObject(slice[i]));
+    }
+    return result;
 }
 
 const WasmAlternativeIntersectionFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -7718,18 +7804,18 @@ function __wbg_get_imports() {
         const ret = WasmSubSegment.__unwrap(takeObject(arg0));
         return ret;
     };
-    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
-        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
-    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
-        const ret = WasmSegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
     imports.wbg.__wbg_set_1f9b04f170055d33 = function() { return handleError(function (arg0, arg1, arg2) {
         const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
         return ret;
     }, arguments) };
+    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
+        const ret = WasmSegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
+    imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
+        const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
     imports.wbg.__wbindgen_is_bigint = function(arg0) {
         const ret = typeof(getObject(arg0)) === 'bigint';
         return ret;

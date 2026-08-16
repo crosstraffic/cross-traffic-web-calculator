@@ -3,7 +3,7 @@ use crosstraffic_middleware::wasm_basicfreeways::WasmBasicFreeways;
 use crosstraffic_middleware::wasm_mixed_flow::{ WasmMixedFlow, WasmCompositeGrade };
 use crosstraffic_middleware::wasm_managed_lanes::WasmManagedLanes;
 use crosstraffic_middleware::wasm_weaving::WasmWeavingSegment;
-use crosstraffic_middleware::wasm_merge_diverge::WasmRampSegment;
+use crosstraffic_middleware::wasm_merge_diverge::{ WasmRampSegment, ramp_service_flow_rate_ideal, ramp_service_volumes };
 use crosstraffic_middleware::wasm_freeway_facilities::{ WasmFacilitySegment, WasmFreewayFacility, WasmManagedLaneFacility, WasmPlanningFacility };
 use crosstraffic_middleware::wasm_freeway_reliability::WasmFreewayReliability;
 use crosstraffic_middleware::wasm_urban_facilities::WasmUrbanFacility;
