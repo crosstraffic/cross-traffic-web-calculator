@@ -1,4 +1,18 @@
+// The offline test below runs a throwaway HTTP proxy. @types/node is not a
+// dependency of this app, so the import has no declarations and the shapes the
+// proxy touches are described here instead.
+// @ts-expect-error missing @types/node
+import { createServer, request } from 'node:http';
 import { expect, test, type Page } from '@playwright/test';
+
+type ProxyMessage = {
+  url?: string;
+  method?: string;
+  statusCode?: number;
+  headers: Record<string, unknown>;
+  socket?: { destroy: () => void } | null;
+  pipe: (destination: unknown) => void;
+};
 
 // Defense in depth for the phantom-user incident: even if the app-level
 // hostname gate ever regresses, no test traffic may reach third-party
@@ -72,23 +86,108 @@ test.describe('navigation and route gating', () => {
     expect(pavement).toBe('#e2e8f0');
   });
 
-  test('the site works fully offline once visited', async ({ page, context, browserName }) => {
-    // Service-worker + offline emulation is only dependable in chromium.
+  test('a chapter page reached under context.setOffline still computes', async ({ page, context, browserName }) => {
+    // Service worker behaviour is only dependable in chromium.
     test.skip(browserName !== 'chromium', 'service worker test runs on chromium');
 
+    // Measured 2026-08-14: context.setOffline(true) does not cut the service
+    // worker's own network, so requests the worker forwards still reach the
+    // server. This covers the client-side offline path only. The test below it
+    // is the one that proves genuine offline operation.
     await page.goto('/');
     await page.evaluate(() => navigator.serviceWorker.ready);
     await page.waitForTimeout(1500); // precache settles
 
     await context.setOffline(true);
-    // A chapter page never visited in this session: shell, page, and the wasm
-    // engine must all come from the cache, and the engine must compute.
     await page.goto('/hcm14');
     const calculate = page.getByRole('button', { name: 'Calculate' });
     await expect(calculate).toBeEnabled({ timeout: 30_000 });
     await calculate.click();
     await expect(page.getByText(/Segment LOS: [A-F]/)).toBeVisible();
     await context.setOffline(false);
+  });
+
+  test('the wasm engine is precached and computes with the network gone', async ({ browser, browserName, baseURL }) => {
+    test.skip(browserName !== 'chromium', 'service worker test runs on chromium');
+    test.slow(); // three navigations plus a worker install
+
+    // Since setOffline leaves the worker online, front the preview server with
+    // a proxy this test can cut, which is real network death for page and
+    // worker alike.
+    if (!baseURL) throw new Error('the offline proxy needs a baseURL to forward to');
+    let blockWasm = false;
+    let cut = false;
+    const proxy = createServer((req: ProxyMessage, res: ProxyMessage & { writeHead: (status: number, headers: Record<string, unknown>) => void }) => {
+      if (cut || (blockWasm && req.url?.endsWith('.wasm'))) return req.socket?.destroy();
+      const upstream = request(
+        baseURL + (req.url ?? '/'),
+        { method: req.method, headers: req.headers },
+        (response: ProxyMessage) => {
+          res.writeHead(response.statusCode ?? 502, response.headers);
+          response.pipe(res);
+        }
+      );
+      upstream.on('error', () => res.socket?.destroy());
+      req.pipe(upstream);
+    });
+    await new Promise<void>((resolve) => proxy.listen(0, resolve));
+    const origin = `http://localhost:${(proxy.address() as { port: number }).port}`;
+
+    // A fresh origin, so nothing is cached from earlier tests. The analytics
+    // block from beforeEach applies to the default context only, so repeat it.
+    const context = await browser.newContext();
+    await context.route(/googletagmanager|google-analytics|analytics\.google/, (route) => route.abort());
+    try {
+      const page = await context.newPage();
+      // /terms never loads the engine, so the wasm binary can only be in the
+      // cache if the worker precached it on install.
+      await page.goto(`${origin}/terms`);
+      await page.evaluate(() => navigator.serviceWorker.ready);
+      await expect
+        .poll(
+          () =>
+            page.evaluate(async () => {
+              const found: string[] = [];
+              for (const key of await caches.keys()) {
+                const cache = await caches.open(key);
+                for (const req of await cache.keys()) {
+                  if (req.url.endsWith('.wasm')) found.push(new URL(req.url).pathname);
+                }
+              }
+              return found;
+            }),
+          { timeout: 20_000 }
+        )
+        .toEqual([expect.stringMatching(/\.wasm$/)]);
+
+      // From here the binary is unreachable, so a chapter page can only get an
+      // engine from the cache.
+      blockWasm = true;
+      await page.goto(`${origin}/hcm14`);
+      await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+
+      cut = true;
+      // Control: the cut is real. A POST returns early from the worker's fetch
+      // handler, so this is the page talking to the network directly.
+      const reachable = await page.evaluate(async (base) => {
+        try {
+          const res = await fetch(`${base}/__offline_probe`, { method: 'POST' });
+          return `status ${res.status}`;
+        } catch (err) {
+          return `blocked ${(err as Error).name}`;
+        }
+      }, origin);
+      expect(reachable).toMatch(/^blocked/);
+
+      await page.reload();
+      const calculate = page.getByRole('button', { name: 'Calculate' });
+      await expect(calculate).toBeEnabled({ timeout: 30_000 });
+      await calculate.click();
+      await expect(page.getByText(/Segment LOS: [A-F]/)).toBeVisible({ timeout: 20_000 });
+    } finally {
+      await context.close();
+      await new Promise((resolve) => proxy.close(resolve));
+    }
   });
 
   test('nav lists every released chapter', async ({ page }) => {
