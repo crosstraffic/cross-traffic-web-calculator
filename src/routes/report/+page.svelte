@@ -126,6 +126,9 @@
             </tbody>
           </table>
         </div>
+        <!-- Rows are { label, value }. A bare string renders as two empty cells rather than as
+             an error, which is how the composite mixed-flow rows went missing from the printed
+             report unnoticed. -->
         {#if current.summary && current.summary.length}
           <table class="report-table kv report-summary">
             <tbody>

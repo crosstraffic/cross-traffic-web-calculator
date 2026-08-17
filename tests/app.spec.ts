@@ -3181,3 +3181,26 @@ test.describe('results discussion', () => {
     await expect(section).toBeVisible();
   });
 });
+
+test('the composite mixed-flow report prints its summary rows', async ({ page }) => {
+  // The composite-grade setReport passed its two summary rows as bare strings while /report reads
+  // row.label and row.value, so both printed as empty cells with no error anywhere. The pin is on
+  // the rendered cells rather than on the payload, because the payload was never the visible half.
+  await page.goto('/hcm12');
+  await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+  await page.selectOption('#METHOD_input', 'mixed');
+  await page.getByRole('button', { name: 'Load Ch.25 EP11' }).click();
+  await page.locator('#hcm12mf').getByRole('button', { name: 'Calculate' }).click();
+
+  await page.getByRole('link', { name: 'Open printable report' }).click();
+  const rows = page.locator('.report-summary tbody tr');
+  await expect(rows).toHaveCount(2);
+  for (let i = 0; i < 2; i++) {
+    await expect(rows.nth(i).locator('th')).not.toBeEmpty();
+    await expect(rows.nth(i).locator('td')).not.toBeEmpty();
+  }
+  await expect(rows.nth(0)).toContainText('Governing capacity');
+  await expect(rows.nth(0)).toContainText('1747 veh/h/ln');
+  await expect(rows.nth(1)).toContainText('Overall mixed-flow speed');
+  await expect(rows.nth(1)).toContainText('55.7 mi/h over 4.50 mi');
+});

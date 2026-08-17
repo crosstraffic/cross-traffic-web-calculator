@@ -227,8 +227,14 @@
         ])
       },
       summary: [
-        `Governing capacity ${fmt(results.capacity_mix, 0)} veh/h/ln, set by segment ${results.governing_segment + 1}.`,
-        `Overall mixed-flow speed ${fmt(results.s_mix_overall)} mi/h over ${fmt(results.total_length, 2)} mi in ${fmt(results.total_travel_time)} s (Equation 25-70).`
+        {
+          label: `Governing capacity, C_mix (set by segment ${results.governing_segment + 1})`,
+          value: `${fmt(results.capacity_mix, 0)} veh/h/ln`
+        },
+        {
+          label: 'Overall mixed-flow speed, S_mix,oa (Equation 25-70)',
+          value: `${fmt(results.s_mix_overall)} mi/h over ${fmt(results.total_length, 2)} mi in ${fmt(results.total_travel_time)} s`
+        }
       ],
       methodology: [
         'Per-segment capacity: Equations 25-53 through 25-57, the facility capacity being the tightest of them.',
