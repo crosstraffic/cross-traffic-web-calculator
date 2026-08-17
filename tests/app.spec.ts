@@ -3,6 +3,10 @@
 // proxy touches are described here instead.
 // @ts-expect-error missing @types/node
 import { createServer, request } from 'node:http';
+// @ts-expect-error missing @types/node
+import { readFileSync } from 'node:fs';
+// @ts-expect-error missing @types/node
+import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 type ProxyMessage = {
@@ -3085,128 +3089,299 @@ async function expectTwoLaneOutputs(
   await expect(page.locator('#fdF')).toHaveText(want.fdF);
 }
 
-test.describe('results discussion', () => {
-  // Every chapter page closes its results with a short generated Discussion, modelled on the ones
-  // that close the HCM's Example Problems. The pins below are one page per family plus the
-  // mixed-flow mode, and they assert the sentence that names what governs the result rather than
-  // just that the section exists, because an empty or generic paragraph would still render.
-  const discussion = (page: Page) => page.getByTestId('discussion');
+// ── Facility builder (phase 1a: the editor, no analysis) ─────────────────
+//
+// What is worth pinning here is not that the page renders. It is that the
+// derived table follows the features live, that an override outlives a
+// re-derivation, and that the two persistence layers do what they claim: the
+// builder document round-trips the intent, and a fixture imports as segments
+// with the missing feature layer stated rather than guessed at.
+//
+// The numbers come from the library's own Example Problem 1 fixture, which is
+// read off disk rather than transcribed.
+test.describe('facility builder', () => {
+  // The library checkout sits beside this repo, the same place the boundary
+  // suite looks for it.
+  // @ts-expect-error missing @types/node
+  const env = process as { env: Record<string, string | undefined>; cwd: () => string };
+  const LIB_CASES: string =
+    env.env.HCM_LIB_CASES || join(env.cwd(), '..', 'transportations-library', 'tests', 'ExampleCases', 'hcm');
+  const CASE1 = join(LIB_CASES, 'FreewayFacilities', 'case1.json');
 
-  async function run(page: Page, path: string) {
-    await page.goto(path);
-    const calculate = page.getByRole('button', { name: 'Calculate' }).first();
-    await expect(calculate).toBeEnabled({ timeout: 30_000 });
-    await calculate.click();
-    await expect(discussion(page)).toBeVisible();
+  /** The whole editor sits behind `inert={!ready}`, so every test waits for the
+   * wasm module the same way the chapter pages wait for Calculate. */
+  async function openBuilder(page: Page) {
+    // A previous test's autosave would otherwise be restored into this one.
+    await page.addInitScript(() => window.localStorage.removeItem('hcm-builder:default'));
+    await page.goto('/builder');
+    // `inert` is not what Playwright's toBeEnabled() looks at, and the buttons
+    // are in the SSR HTML, so gating on a button would let a test click before
+    // the wasm module has initialized and the derivation would return nothing.
+    // The editor publishes its own ready flag instead.
+    await expect(page.getByTestId('builder-body')).toHaveAttribute('data-ready', 'true');
   }
 
-  test('a freeway segment discussion names the breakpoint that is holding the speed down', async ({ page }) => {
-    await page.goto('/hcm12');
-    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
-    await page.getByRole('button', { name: 'Load example' }).click();
-    // The bundled example arrives by fetch, so the demand field settling is what says it landed.
-    // Filling before that races the fetch and the analysis silently runs the example's own demand.
-    await expect(page.locator('#DEMAND_input')).toHaveValue('4500');
-    await page.getByRole('button', { name: 'Calculate' }).click();
-
-    const d = discussion(page);
-    await expect(d).toContainText('Density of 26.9 pc/mi/ln earns LOS D');
-    await expect(d).toContainText(
-      'Flow of 1737 pc/h/ln is past the Equation 12-1 breakpoint of 1329 pc/h/ln'
+  const typesOf = (page: Page) =>
+    page.getByTestId('segment-row').evaluateAll((rows) =>
+      rows.map((r) => (r as HTMLElement).dataset.segType)
     );
-    await expect(d).toContainText('Demand flow rate of 1737 pc/h/ln is 73% of the capacity of 2368 pc/h/ln');
-  });
 
-  test('a value near a band edge says how close it is', async ({ page }) => {
-    // Engineered rather than seeded: the bundled example sits at 26.9 pc/mi/ln, and dropping the
-    // demand to 4,350 veh/h puts the density at 25.8, a fifth of a unit inside LOS C. The letter
-    // alone cannot show that, which is the whole reason the proximity clause exists.
-    await page.goto('/hcm12');
-    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
-    await page.getByRole('button', { name: 'Load example' }).click();
-    await expect(page.locator('#DEMAND_input')).toHaveValue('4500');
-    await page.locator('#DEMAND_input').fill('4350');
-    await page.getByRole('button', { name: 'Calculate' }).click();
-
-    await expect(discussion(page)).toContainText(
-      'Density of 25.8 pc/mi/ln earns LOS C and sits 0.2 pc/mi/ln below the C/D boundary of 26, within 1% of the band edge.'
-    );
-  });
-
-  test('an urban street segment discussion splits travel time between the link and the signal', async ({ page }) => {
-    await run(page, '/hcm18');
-    const d = discussion(page);
-    await expect(d).toContainText('Exhibit 18-1 reads LOS C from that travel speed');
-    await expect(d).toContainText(
-      'Of 51.9 s spent on the segment, 18.3 s is control delay at the boundary intersection and 33.5 s is running time, so the link rather than the signal governs at 35% of the total.'
-    );
-  });
-
-  test('an unsignalized discussion names the governing lane and refuses an intersection letter', async ({ page }) => {
-    await run(page, '/hcm20');
-    const d = discussion(page);
-    await expect(d).toContainText(
-      'Control delay on the NB minor lane 1 of 15.0 s/veh earns LOS B and sits right on the B/C boundary of 15.'
-    );
-    await expect(d).toContainText(
-      'the HCM defines no level of service for a TWSC intersection as a whole'
-    );
-  });
-
-  test('the mixed-flow discussion states the capacity margin and why there is no letter', async ({ page }) => {
-    await page.goto('/hcm12');
-    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
-    await page.selectOption('#METHOD_input', 'mixed');
-    await page.getByRole('button', { name: 'Load Ch.26 EP5' }).click();
-    await page.locator('#hcm12mf').getByRole('button', { name: 'Calculate' }).click();
-
-    const d = discussion(page);
-    await expect(d).toContainText('A mixed-flow speed of 47.4 mi/h at 1500 veh/h/ln gives a density of 31.6 veh/mi/ln');
-    await expect(d).toContainText('Demand is 87% of the mixed-flow capacity of 1726 veh/h/ln, leaving 226 veh/h/ln of headroom.');
-    // The no-LOS rule of Chapter 26. A letter here would be the defect this sentence exists to
-    // prevent, so the pin is on the refusal and its reason, not only on the absence of a badge.
-    await expect(d).toContainText('No level of service letter is assigned below capacity.');
-    await expect(d).toContainText('D_mix is a mixed-flow density in veh/mi/ln');
-  });
-
-  test('the printable report includes the discussion and the toggle removes it', async ({ page }) => {
-    await run(page, '/hcm19');
-    await page.getByRole('link', { name: 'Open printable report' }).click();
-    await expect(page).toHaveURL(/\/report$/);
-
-    const section = page.getByTestId('report-discussion');
-    const toggle = page.getByTestId('include-discussion');
-    await expect(toggle).toBeChecked();
-    await expect(section).toBeVisible();
-    await expect(section).toContainText('Intersection control delay of 17.7 s/veh earns LOS B');
-
-    await toggle.uncheck();
-    await expect(section).toHaveCount(0);
-
-    await toggle.check();
-    await expect(section).toBeVisible();
-  });
-});
-
-test('the composite mixed-flow report prints its summary rows', async ({ page }) => {
-  // The composite-grade setReport passed its two summary rows as bare strings while /report reads
-  // row.label and row.value, so both printed as empty cells with no error anywhere. The pin is on
-  // the rendered cells rather than on the payload, because the payload was never the visible half.
-  await page.goto('/hcm12');
-  await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
-  await page.selectOption('#METHOD_input', 'mixed');
-  await page.getByRole('button', { name: 'Load Ch.25 EP11' }).click();
-  await page.locator('#hcm12mf').getByRole('button', { name: 'Calculate' }).click();
-
-  await page.getByRole('link', { name: 'Open printable report' }).click();
-  const rows = page.locator('.report-summary tbody tr');
-  await expect(rows).toHaveCount(2);
-  for (let i = 0; i < 2; i++) {
-    await expect(rows.nth(i).locator('th')).not.toBeEmpty();
-    await expect(rows.nth(i).locator('td')).not.toBeEmpty();
+  async function setStation(page: Page, id: string, mi: number) {
+    const field = page.getByTestId(`station-${id}`);
+    await field.fill(String(mi));
+    await field.blur();
   }
-  await expect(rows.nth(0)).toContainText('Governing capacity');
-  await expect(rows.nth(0)).toContainText('1747 veh/h/ln');
-  await expect(rows.nth(1)).toContainText('Overall mixed-flow speed');
-  await expect(rows.nth(1)).toContainText('55.7 mi/h over 4.50 mi');
+
+  test('an empty facility is one basic segment, and a ramp pair segments itself', async ({ page }) => {
+    await openBuilder(page);
+    expect(await typesOf(page)).toEqual(['Basic']);
+
+    await page.getByTestId('template-diamond').click();
+    // 4,000 ft apart with no auxiliary lane: merge + basic + diverge, wrapped
+    // in the basic termini Chapter 10 asks for (Exhibit 10-11).
+    expect(await typesOf(page)).toEqual(['Basic', 'Merge', 'Basic', 'Diverge', 'Basic']);
+    await expect(page.getByTestId('strip-seg')).toHaveCount(5);
+  });
+
+  test('dragging a ramp across the 3,000-ft threshold turns the basic segment into an overlap', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('facility-length').fill('4');
+    await page.getByTestId('facility-length').blur();
+    await page.getByTestId('template-diamond').click();
+    expect(await typesOf(page)).toEqual(['Basic', 'Merge', 'Basic', 'Diverge', 'Basic']);
+
+    // Drag the off-ramp marker upstream. The strip is linear in station, so the
+    // pointer position is the station, and the derivation runs on every move.
+    const strip = page.getByTestId('builder-strip').locator('svg');
+    const off = page.locator('[data-testid="feature-marker"]').last();
+    const from = await off.locator('circle').boundingBox();
+    const box = await strip.boundingBox();
+    expect(from && box).toBeTruthy();
+    // 4 mi of facility across the plot: move left by roughly 2,000 ft.
+    const perFt = (box!.width * (900 - 28) / 900) / (4 * 5280);
+    await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from!.x + from!.width / 2 - 2000 * perFt, from!.y + from!.height / 2, { steps: 8 });
+    await page.mouse.up();
+
+    // Gore-to-gore is now under 3,000 ft, so the influence areas overlap.
+    expect(await typesOf(page)).toEqual(['Basic', 'Merge', 'OverlappingRamp', 'Diverge', 'Basic']);
+    // And the rule that produced it says so in words.
+    await page.getByTestId('segment-row').nth(2).locator('button').click();
+    await expect(page.getByTestId('why-row')).toContainText('between 1,500 and 3,000 ft');
+    await expect(page.getByTestId('why-row')).toContainText('Exhibit 10-11');
+
+    // A drag is one undo step, not one per pointermove: one undo restores the
+    // pre-drag segmentation, and the step behind it is the template drop rather
+    // than an intermediate pointer position.
+    await page.getByTestId('undo').click();
+    expect(await typesOf(page)).toEqual(['Basic', 'Merge', 'Basic', 'Diverge', 'Basic']);
+    await page.getByTestId('undo').click();
+    expect(await typesOf(page)).toEqual(['Basic']);
+  });
+
+  test('undo restores the segmentation a station change produced', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('template-diamond').click();
+    const before = await typesOf(page);
+    const offId = await page.getByTestId('feature-row').last().getAttribute('data-feature-id');
+    await setStation(page, offId!, 1.3);
+    expect(await typesOf(page)).not.toEqual(before);
+    await page.getByTestId('undo').click();
+    expect(await typesOf(page)).toEqual(before);
+    await page.getByTestId('redo').click();
+    expect(await typesOf(page)).not.toEqual(before);
+  });
+
+  test('an override survives re-derivation, is marked stale when its row changes type, and clears', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('facility-length').fill('4');
+    await page.getByTestId('facility-length').blur();
+    await page.getByTestId('template-diamond').click();
+
+    // Pin the middle row to 4 lanes.
+    const middle = page.getByTestId('segment-row').nth(2);
+    await middle.locator('input[type="number"]').last().fill('4');
+    await middle.locator('input[type="number"]').last().blur();
+    await expect(middle.getByTestId('override-pin')).toBeVisible();
+
+    // Move the pair inside 3,000 ft: the row is now an overlapping ramp, the
+    // override is still on it, and it says it was made against something else.
+    const offId = await page.getByTestId('feature-row').last().getAttribute('data-feature-id');
+    const onStation = await page.getByTestId('feature-row').first().getAttribute('data-feature-id');
+    expect(onStation).toBeTruthy();
+    await setStation(page, offId!, 1.4);
+    const moved = page.getByTestId('segment-row').nth(2);
+    await expect(moved).toHaveAttribute('data-seg-type', 'OverlappingRamp');
+    await expect(moved.locator('input[type="number"]').last()).toHaveValue('4');
+    await expect(moved.getByTestId('override-stale')).toBeVisible();
+
+    await moved.getByTestId('clear-override').click();
+    await expect(page.getByTestId('segment-row').nth(2).getByTestId('override-pin')).toHaveCount(0);
+    await expect(page.getByTestId('segment-row').nth(2).locator('input[type="number"]').last()).toHaveValue('3');
+  });
+
+  test('a builder document downloads and uploads back to the same facility', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('template-aux-weave').click();
+    await page.getByTestId('facility-name').fill('Round trip');
+    await page.getByTestId('facility-name').blur();
+    const before = await typesOf(page);
+    expect(before).toContain('Weaving');
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('download-document').click()
+    ]);
+    const savedPath = await download.path();
+
+    // Start clean, then load the file back.
+    await page.getByTestId('new-facility').click();
+    expect(await typesOf(page)).toEqual(['Basic']);
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'round-trip.builder.json',
+      mimeType: 'application/json',
+      buffer: readFileSync(savedPath)
+    });
+    await expect(page.getByTestId('facility-name')).toHaveValue('Round trip');
+    expect(await typesOf(page)).toEqual(before);
+  });
+
+  test('Example Problem 1 loads as placed ramps and rebuilds the published eleven segments', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('example-ep1').click();
+    const case1 = JSON.parse(readFileSync(CASE1, 'utf8'));
+    expect(await typesOf(page)).toEqual(case1.segments.map((s: { seg_type: string }) => s.seg_type));
+    await expect(page.getByTestId('feature-row')).toHaveCount(6);
+    // The weave carries the auxiliary lane, so it is one lane wider than the
+    // mainline, exactly as the fixture codes it.
+    const weave = page.locator('[data-testid="segment-row"][data-seg-type="Weaving"]');
+    await expect(weave.locator('input[type="number"]').last()).toHaveValue(String(case1.segments[5].lanes));
+  });
+
+  test('a fixture imports as segments with no feature layer, and says so', async ({ page }) => {
+    await openBuilder(page);
+    const case1 = JSON.parse(readFileSync(CASE1, 'utf8'));
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'case1.json',
+      mimeType: 'application/json',
+      buffer: readFileSync(CASE1)
+    });
+    expect(await typesOf(page)).toEqual(case1.segments.map((s: { seg_type: string }) => s.seg_type));
+    await expect(page.getByTestId('segment-row')).toHaveCount(11);
+    // No features arrived with it, and the page does not pretend otherwise.
+    await expect(page.getByTestId('feature-table')).toHaveCount(0);
+    await expect(page.getByTestId('imported-note')).toBeVisible();
+    await expect(
+      page.locator('[data-testid="validation-flag"][data-flag-id="imported-no-features"]')
+    ).toBeVisible();
+  });
+
+  test('the checks panel flags an over-long facility as a warning and cites the section', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('facility-length').fill('20');
+    await page.getByTestId('facility-length').blur();
+    const flag = page.locator('[data-testid="validation-flag"][data-flag-id="facility-too-long"]');
+    await expect(flag).toBeVisible();
+    await expect(flag).toHaveAttribute('data-level', 'warn');
+    await expect(flag).toContainText('Section 3');
+    // Twenty periods is not a flag of any kind above a note, because Chapter 10
+    // sets no limit on the analysis period count.
+    await page.getByTestId('period-count').fill('20');
+    await page.getByTestId('period-count').blur();
+    await expect(page.locator('[data-testid="validation-flag"][data-level="error"]')).toHaveCount(0);
+  });
+
+  const lanesOf = (page: Page) =>
+    page.getByTestId('strip-seg').evaluateAll((els) =>
+      els.map((e) => Number((e as HTMLElement).dataset.segLanes))
+    );
+
+  test('Example Problem 3 shows the added lane as a step in the cross section', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('example-ep3').click();
+    const case3 = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', 'case3.json'), 'utf8'));
+    expect(await typesOf(page)).toEqual(case3.segments.map((s: { seg_type: string }) => s.seg_type));
+    // The strip is the thing that has to show the step, not just the table.
+    expect(await lanesOf(page)).toEqual(case3.segments.map((s: { lanes: number }) => s.lanes));
+    await expect(page.getByTestId('lane-change-marker')).toHaveCount(1);
+    await expect(page.getByTestId('lane-change-marker')).toHaveAttribute('data-lanes', '4');
+    // Removing it puts the downstream half back to three lanes.
+    const id = await page.getByTestId('lane-change-marker').getAttribute('data-feature-id');
+    await page.getByTestId(`remove-${id}`).click();
+    expect((await lanesOf(page)).slice(6)).toEqual([3, 3, 3, 3, 3]);
+  });
+
+  test('Example Problem 4 codes the closure segment with the lanes that stay open', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('example-ep4').click();
+    const case4 = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', 'case4.json'), 'utf8'));
+    expect(await typesOf(page)).toEqual(case4.segments.map((s: { seg_type: string }) => s.seg_type));
+    expect(await lanesOf(page)).toEqual(case4.segments.map((s: { lanes: number }) => s.lanes));
+    const closure = page.locator('[data-testid="strip-seg"][data-seg-wz="yes"]');
+    await expect(closure).toHaveCount(1);
+    await expect(closure).toHaveAttribute('data-seg-lanes', '2');
+    await expect(page.getByTestId('work-zone-marker')).toHaveCount(1);
+    // Opening a third lane puts the segment back to three, live.
+    const id = await page.getByTestId('work-zone-marker').getAttribute('data-feature-id');
+    await page.getByTestId(`open-lanes-${id}`).fill('3');
+    await page.getByTestId(`open-lanes-${id}`).blur();
+    await expect(page.locator('[data-testid="strip-seg"][data-seg-wz="yes"]')).toHaveAttribute('data-seg-lanes', '3');
+  });
+
+  test('a lane change added from the toolbar cuts the segment it lands in', async ({ page }) => {
+    await openBuilder(page);
+    expect(await typesOf(page)).toEqual(['Basic']);
+    await page.getByTestId('add-lane-change').click();
+    // One basic stretch becomes two, and only the downstream half is wider.
+    expect(await typesOf(page)).toEqual(['Basic', 'Basic']);
+    expect(await lanesOf(page)).toEqual([3, 4]);
+    await page.getByTestId('undo').click();
+    expect(await typesOf(page)).toEqual(['Basic']);
+  });
+
+  test('EP2 is EP1 at higher demands, and the segmentation does not move', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('example-ep1').click();
+    const ep1Types = await typesOf(page);
+    const ep1Lanes = await lanesOf(page);
+    await page.getByTestId('example-ep2').click();
+    expect(await typesOf(page)).toEqual(ep1Types);
+    expect(await lanesOf(page)).toEqual(ep1Lanes);
+    const case2 = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', 'case2.json'), 'utf8'));
+    await expect(page.locator('[data-testid="demand-row"][data-source="mainline"] input').first())
+      .toHaveValue(String(case2.mainline_demand[0]));
+  });
+
+  // Every feature kind shares one `features` array, and the ramp kinds are the
+  // only ones carrying a demand vector. A consumer that iterates the array
+  // without saying which kinds it means throws during render, and a thrown
+  // render does not blank the page: it leaves the last good DOM standing while
+  // every later update is silently dropped, which reads as "the button is
+  // disabled" rather than as an error. So the assertion is on pageerror.
+  test('placing one of every feature kind raises no page errors', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await openBuilder(page);
+    for (const kind of ['add-on-ramp', 'add-off-ramp', 'add-lane-change', 'add-work-zone']) {
+      await page.getByTestId(kind).click();
+    }
+    await expect(page.getByTestId('feature-table')).toBeVisible();
+    await expect(page.getByTestId('mainline-feature-table')).toBeVisible();
+    await expect(page.getByTestId('demand-grid')).toBeVisible();
+    // The demand grid holds the mainline row plus one per ramp, and nothing for
+    // the two kinds that have no demand. The ramp-to-ramp row is not among them
+    // because it belongs to a weave, and no auxiliary lane is set here.
+    await expect(page.getByTestId('demand-row')).toHaveCount(3);
+    await expect(page.locator('[data-testid="demand-row"][data-source="mainline"]')).toHaveCount(1);
+    // Still live after all four: undo unwinds them one at a time.
+    for (let i = 0; i < 4; i++) await page.getByTestId('undo').click();
+    expect(await typesOf(page)).toEqual(['Basic']);
+    expect(errors).toEqual([]);
+  });
+
+  test('the builder link is in both navigation menus', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.navbar a[href="/builder"]')).toHaveCount(2);
+  });
 });
