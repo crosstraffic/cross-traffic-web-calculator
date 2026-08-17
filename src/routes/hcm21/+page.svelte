@@ -10,6 +10,8 @@
   import AwscDiagram3D from '$lib/AwscDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
+  import { discussion } from './discussion.js';
+  import Discussion from '$lib/Discussion.svelte';
   import { onMount } from "svelte";
 
   let diagramMode = $state('2d');
@@ -106,6 +108,9 @@
         intersectionLos: res.intersection_los,
         iterations: res.iterations
       };
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      results.discussion = discussion(results);
 
       setReport({
         chapter: 'All-Way STOP-Controlled Intersections',
@@ -113,6 +118,7 @@
         href: '/hcm21',
         generatedAt: new Date().toLocaleString(),
         headline: { label: 'Intersection LOS', value: results.intersectionLos },
+        discussion: results.discussion,
         inputs: [
           ...dirs.filter((d) => approaches[d.key].laneCount > 0).map((d) => ({
             label: `${d.label}`,
@@ -347,5 +353,9 @@
         <p>Intersection LOS: {results ? (results.intersectionLos ?? '') : ''}</p>
       </div>
     </div>
+
+    {#if results}
+      <Discussion sentences={results.discussion} />
+    {/if}
   </section>
 </div>

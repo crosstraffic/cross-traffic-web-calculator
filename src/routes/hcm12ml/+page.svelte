@@ -11,6 +11,8 @@
   import LosScale from '$lib/LosScale.svelte';
   import ManagedLaneDiagram from '$lib/ManagedLaneDiagram.svelte';
   import { setReport } from '$lib/report';
+  import { discussion } from './discussion.js';
+  import Discussion from '$lib/Discussion.svelte';
 
   let ready = $state(false);
 
@@ -114,6 +116,9 @@
         has_friction_effect: ml.has_friction_effect(),
         friction_active: ml.is_friction_active()
       };
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      results.discussion = discussion(results, { laneTypeLabel: LANE_TYPE_LABEL[lane_type].toLowerCase() });
       publishReport();
     } catch (err) {
       console.error('Chapter 12 managed lane analysis failed:', err);
@@ -130,6 +135,7 @@
       href: '/hcm12ml',
       generatedAt: new Date().toLocaleString(),
       headline: { label: 'Managed lane LOS', value: results.los },
+      discussion: results.discussion,
       inputs: [
         { label: 'Separation type', value: LANE_TYPE_LABEL[lane_type] },
         { label: 'Managed lane free-flow speed', value: `${ffs} mi/h` },
@@ -503,6 +509,10 @@
         <p>Segment LOS: {results ? results.los : ''}</p>
       </div>
     </div>
+
+    {#if results}
+      <Discussion sentences={results.discussion} />
+    {/if}
   </section>
 </div>
 

@@ -4,7 +4,9 @@
   import RcutSignalDiagram from '$lib/RcutSignalDiagram.svelte';
   import MutDiagram from '$lib/MutDiagram.svelte';
   import DltDiagram from '$lib/DltDiagram.svelte';
+  import Discussion from '$lib/Discussion.svelte';
   import { setReport } from '$lib/report';
+  import { discussion, discussionDlt } from '$lib/PartCAlternative.discussion.js';
 
   let { ready = false } = $props();
 
@@ -290,6 +292,9 @@
     Dlt: 'Displaced left-turn (DLT)',
   };
 
+  // The short names, for prose that has to name the form inside a sentence rather than label it.
+  const FORM_SHORT = { Rcut: 'RCUT', RcutSignal: 'signalized RCUT', Mut: 'MUT', Dlt: 'DLT' };
+
   const RUNNERS = { Rcut: runRcut, RcutSignal: runRcutSignal, Mut: runMut, Dlt: runDlt };
 
   // The three crossover-based forms share the same three site parameters, so
@@ -302,6 +307,11 @@
     try {
       const out = RUNNERS[form]();
       results = { form, ...out };
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      results.discussion = form === 'Dlt'
+        ? discussionDlt(results, { full: dlt.full, tdFt: dlt.td, sfMph: dlt.sf, cycle: dlt.cycle })
+        : discussion(results, { formLabel: FORM_SHORT[form] });
       const common = {
         chapter: 'Ramp Terminals and Alternative Intersections',
         chapterRef: 'HCM Chapter 23',
@@ -312,6 +322,7 @@
         setReport({
           ...common,
           headline: { label: 'DLT intersection LOS', value: results.los },
+          discussion: results.discussion,
           inputs: [
             { label: 'Intersection form', value: dlt.full ? 'Full displaced left-turn' : 'Partial displaced left-turn' },
             { label: 'DLT roadway distance', value: `${dlt.td} ft` },
@@ -334,6 +345,7 @@
         setReport({
           ...common,
           headline: { label: 'Intersection LOS', value: results.los },
+          discussion: results.discussion,
           inputs: [
             { label: 'Intersection form', value: FORM_NAMES[form] },
             { label: 'Distance to U-turn crossover', value: `${site().dist} ft` },
@@ -845,6 +857,10 @@
         </tbody>
       </table>
     </div>
+  {/if}
+
+  {#if results}
+    <Discussion sentences={results.discussion} />
   {/if}
 </section>
 

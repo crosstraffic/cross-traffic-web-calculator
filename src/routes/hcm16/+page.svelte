@@ -10,6 +10,8 @@
   import UrbanFacilityDiagram3D from '$lib/UrbanFacilityDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
+  import { discussion } from './discussion.js';
+  import Discussion from '$lib/Discussion.svelte';
   import { onMount } from "svelte";
 
   let diagramMode = $state('2d');
@@ -220,6 +222,9 @@
       }
 
       resultMode = mode;
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      results.discussion = discussion(results, { mode });
       publishReport();
     } catch (err) {
       console.error('Chapter 16 analysis failed:', err);
@@ -261,6 +266,7 @@
       href: '/hcm16',
       generatedAt: new Date().toLocaleString(),
       headline: { label: 'Facility LOS', value: results.los },
+      discussion: results.discussion,
       inputs: inputRows,
       resultTable: {
         columns: ['Segment', 'Length (ft)', 'Base FFS (mi/h)', 'Travel speed (mi/h)', 'Stop rate (stops/mi)', 'v/c', 'LOS'],
@@ -791,6 +797,10 @@
         <p class="param-hint fixture-note">
           The Chapter 29 Example Problem 1 defaults reproduce the published facility base free-flow speed of 40.1 mi/h, facility LOS C, and poorest segment LOS D exactly. The facility travel speed lands on 22.13 mi/h against a published 22.6 mi/h, and the stop rate on 1.95 against a published 1.83, because Chapter 29 publishes per-segment measures only for Segments 1 and 5 and the library fixture copies those into the unpublished Segments 2 through 4. Those two gaps are a property of the fixture, not of the aggregation.
         </p>
+      {/if}
+
+      {#if results}
+        <Discussion sentences={results.discussion} />
       {/if}
     </div>
   </section>

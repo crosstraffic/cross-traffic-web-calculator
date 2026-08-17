@@ -10,6 +10,8 @@
   import init, { WasmExclusivePedestrianFacility, WasmSharedUsePathPedestrian, WasmOffStreetBicycleFacility } from "HCM-middleware";
   import PathDiagram from '$lib/PathDiagram.svelte';
   import { setReport } from '$lib/report';
+  import { discussion } from './discussion.js';
+  import Discussion from '$lib/Discussion.svelte';
   import { onMount } from "svelte";
 
   let ready = $state(false);
@@ -108,6 +110,17 @@
       }
 
       const kindLabel = { pedestrian: 'Exclusive pedestrian facility', shared_path: 'Shared-use path (pedestrian LOS)', bicycle: 'Off-street bicycle facility (BLOS)' }[results.kind];
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      results.discussion = discussion(results, {
+        totalWidth: ped_total_width,
+        objectWidth: ped_object_width,
+        flowType: ped_flow_type,
+        oneWay: sup_one_way === 'yes',
+        pathWidth: bike_path_width,
+        centerline: bike_centerline === 'yes',
+        segmentLength: bike_segment_length
+      });
       const inputs = results.kind === 'pedestrian' ? [
         { label: 'Facility', value: kindLabel },
         { label: 'Total width', value: `${ped_total_width} ft` },
@@ -157,6 +170,7 @@
         href: '/hcm24',
         generatedAt: new Date().toLocaleString(),
         headline: { label: `${kindLabel} LOS`, value: results.los },
+        discussion: results.discussion,
         inputs,
         resultTable: { columns: ['Quantity', 'Value'], rows },
         summary: [],
@@ -578,6 +592,10 @@
             {/if}
           </div>
         </div>
+      {/if}
+
+      {#if results}
+        <Discussion sentences={results.discussion} />
       {/if}
     </div>
   </section>

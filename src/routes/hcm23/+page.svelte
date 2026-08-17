@@ -19,6 +19,8 @@
   // or Part C alternative intersections (RCUT, MUT, DLT).
   let part = $state('B');
   import { setReport } from '$lib/report';
+  import { discussion } from './discussion.js';
+  import Discussion from '$lib/Discussion.svelte';
   import { onMount } from "svelte";
 
   let ready = $state(false);
@@ -33,6 +35,14 @@
   // through 34-65) and to the Parclo A-2Q loads Example Problem 2 (Exhibits
   // 34-17 through 34-29).
   let form = $state('Diamond');
+
+  // One home for the Part B form names, read by the report inputs and by the discussion.
+  const FORM_LABEL = {
+    Diamond: 'conventional diamond',
+    Ddi: 'diverging diamond (DDI)',
+    ParcloA2Q: 'partial cloverleaf A-2Q',
+    Spui: 'single-point urban interchange (SPUI)'
+  };
   let ddi_eb_config = $state('ThreeLaneExclusive');
   let ddi_wb_config = $state('TwoLaneShared');
 
@@ -376,6 +386,9 @@
         los: ix.get_interchange_los(),
         od_results: ix.od_results_to_js_value()
       };
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      results.discussion = discussion(results, { formLabel: FORM_LABEL[form] });
 
       setReport({
         chapter: 'Ramp Terminals and Alternative Intersections',
@@ -383,8 +396,9 @@
         href: '/hcm23',
         generatedAt: new Date().toLocaleString(),
         headline: { label: 'Interchange LOS', value: results.los },
+        discussion: results.discussion,
         inputs: [
-          { label: 'Interchange form', value: form === 'Ddi' ? 'Diverging diamond (DDI), pretimed signals' : form === 'ParcloA2Q' ? 'Partial cloverleaf A-2Q, pretimed signals' : form === 'Spui' ? 'Single-point urban interchange (SPUI), pretimed signals' : 'Conventional diamond, pretimed signals' },
+          { label: 'Interchange form', value: `${FORM_LABEL[form][0].toUpperCase()}${FORM_LABEL[form].slice(1)}, pretimed signals` },
           { label: 'Cycle length', value: `${cycle_length} s` },
           { label: 'Distance between terminals', value: form === 'Spui' ? 'one signalized point' : `${distance} ft` },
           { label: 'Peak hour factor', value: phf },
@@ -842,6 +856,10 @@
         <p>Interchange LOS: {results ? results.los : ''}</p>
       </div>
     </div>
+
+    {#if results}
+      <Discussion sentences={results.discussion} />
+    {/if}
   </section>
 
   {/if}

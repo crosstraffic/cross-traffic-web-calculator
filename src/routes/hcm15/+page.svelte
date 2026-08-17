@@ -11,6 +11,8 @@
   import TwoLaneFacility3D from '$lib/TwoLaneFacility3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
+  import { discussion } from './discussion.js';
+  import Discussion from '$lib/Discussion.svelte';
   import { onMount } from "svelte";
 
   let ready = $state(false);
@@ -320,6 +322,9 @@
       const facilityLos = facility.determine_facility_los(fd_f, weighted_spl);
 
       results = { segs, facilityLos, facilityFd: r3(fd_f) };
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      results.discussion = discussion(results, { rows: localRows, weightedSpl: weighted_spl });
 
       setReport({
         chapter: 'Two-Lane Highways',
@@ -327,6 +332,7 @@
         href: '/hcm15',
         generatedAt: new Date().toLocaleString(),
         headline: { label: 'Facility LOS', value: facilityLos },
+        discussion: results.discussion,
         inputs: [
           { label: 'Lane width', value: `${lane_width} ft` },
           { label: 'Shoulder width', value: `${shoulder_width} ft` },
@@ -928,5 +934,9 @@
         <p id="fdF">Facility Follower Density: {results ? results.facilityFd : ''}</p>
       </div>
     </div>
+
+    {#if results}
+      <Discussion sentences={results.discussion} />
+    {/if}
   </section>
 </div>
