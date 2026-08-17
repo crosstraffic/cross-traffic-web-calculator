@@ -12,6 +12,6 @@ vercel_runtime = { version = "1.1.0" }
 
 [dependencies]
 # Path resolves to the sibling checkout for local development; CI and clean clones resolve the version from crates.io, so bump this only after that version is published.
-# 0.3.12 (the Chapter 10 Step A-2 ramp-section segmentation binding) is NOT on crates.io yet; it still tracks transportations_library 0.3.5 (published 2026-08-14). Until it is published, only the path entry resolves, so a clean clone will not build. Publish crosstraffic_middleware 0.3.12 before merging.
+# 0.3.12 (the Chapter 10 Step A-2 ramp-section segmentation binding) was published to crates.io on 2026-08-18, tracking transportations_library 0.3.5 (published 2026-08-14). A clean clone resolves from the registry.
 
 crosstraffic_middleware = { version = "0.3.12", path = "../../cross-traffic-middleware" }
