@@ -987,8 +987,11 @@ test.describe('chapter 13 weaving calculator', () => {
     await calculate.click();
 
     await expect(page.getByText(/Segment LOS: C/)).toBeVisible();
-    await expect(page.getByText(/26\.[0-9]/)).toBeVisible(); // D ≈ 26.3
-    await expect(page.getByText(/53\.[0-9]/).first()).toBeVisible(); // S ≈ 53.1
+    // Scoped to the step table: the generated discussion below it quotes the same figures, so a
+    // page-wide text match on a bare number is ambiguous rather than wrong.
+    const table = page.locator('.results-panel table');
+    await expect(table.getByText(/26\.[0-9]/)).toBeVisible(); // D ≈ 26.3
+    await expect(table.getByText(/53\.[0-9]/).first()).toBeVisible(); // S ≈ 53.1
   });
 
   test('reproduces the published example under Edition 7.1 via the picker', async ({ page }) => {
@@ -1004,8 +1007,9 @@ test.describe('chapter 13 weaving calculator', () => {
     await calculate.click();
 
     await expect(page.getByText(/Edition 7.1 bands.*: C/)).toBeVisible();
-    await expect(page.getByText(/23\.[0-9]/)).toBeVisible(); // D ≈ 23.6
-    await expect(page.getByText(/59\.[0-9]/).first()).toBeVisible(); // S_o ≈ 59.32
+    const table = page.locator('.results-panel table');
+    await expect(table.getByText(/23\.[0-9]/)).toBeVisible(); // D ≈ 23.6
+    await expect(table.getByText(/59\.[0-9]/).first()).toBeVisible(); // S_o ≈ 59.32
     await expect(page.getByText('Configuration Class:')).toBeVisible();
   });
 
@@ -1064,8 +1068,9 @@ test.describe('chapter 14 merge and diverge calculator', () => {
     await calculate.click();
 
     await expect(page.getByText(/Segment LOS: D/)).toBeVisible();
-    await expect(page.getByText(/28\.[0-9]/)).toBeVisible(); // D_R ≈ 28.2
-    await expect(page.getByText(/5[23]\.[0-9]/).first()).toBeVisible(); // S_R ≈ 53.0
+    const table = page.locator('.results-panel table');
+    await expect(table.getByText(/28\.[0-9]/)).toBeVisible(); // D_R ≈ 28.2
+    await expect(table.getByText(/5[23]\.[0-9]/).first()).toBeVisible(); // S_R ≈ 53.0
   });
 
   test('the same on-ramp under Edition 7.1 via the picker', async ({ page }) => {
@@ -1091,8 +1096,9 @@ test.describe('chapter 14 merge and diverge calculator', () => {
     await calculate.click();
 
     await expect(page.getByText(/Edition 7.1 bands.*: E/)).toBeVisible();
-    await expect(page.getByText(/32\.[0-9]/)).toBeVisible(); // density ≈ 32.1
-    await expect(page.getByText(/55\.[0-9]/).first()).toBeVisible(); // S ≈ 55.1
+    const table = page.locator('.results-panel table');
+    await expect(table.getByText(/32\.[0-9]/)).toBeVisible(); // density ≈ 32.1
+    await expect(table.getByText(/55\.[0-9]/).first()).toBeVisible(); // S ≈ 55.1
     await expect(page.getByText('Demand-to-Capacity Ratio:')).toBeVisible();
   });
 

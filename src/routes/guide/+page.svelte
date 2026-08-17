@@ -58,6 +58,11 @@
         under the 7th Edition or Edition 7.1, which replaced those methodologies in 2025. The
         editions report different speeds, capacities, and LOS bands, so results are only
         comparable within one edition.</li>
+      <li><strong>Discussion.</strong> Each results panel closes with a few sentences reading the
+        answer back, in the manner of the Discussion that closes each of the HCM's own Example
+        Problems: what governs the result, how much headroom is left before capacity, how close
+        the service measure sits to a band edge, and, where a chapter assigns no level of service
+        letter, why it does not.</li>
       <li><strong>Printable reports.</strong> Every successful run publishes to the
         <a href="/report">Report</a> page: the full input echo, results, methodology notes, and
         the facility diagram, ready for <strong>Print / Save as PDF</strong>. Reports from
@@ -519,6 +524,11 @@
       session (they survive a refresh, and clear when the tab closes). Use
       <strong>Print / Save as PDF</strong> for a submittal-style sheet; printing always uses
       the light palette regardless of your theme.
+    </p>
+    <p>
+      The report also carries the run's <strong>Discussion</strong>. It is included by default and
+      the <strong>Include discussion</strong> checkbox above the sheet leaves it out, for a
+      deliverable that should carry only the numbers.
     </p>
   </section>
 
