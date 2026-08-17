@@ -3380,6 +3380,252 @@ test.describe('facility builder', () => {
     expect(errors).toEqual([]);
   });
 
+  // ── Analysis (phase 1b) ────────────────────────────────────────────────
+  //
+  // The claim these pin is the whole point of the builder: a facility described
+  // as ramps at stations, analyzed through the page, reproduces the values the
+  // manual prints. The expected numbers are the ones
+  // tests/boundary/ch10_freeway_facilities.mjs asserts against the exhibits,
+  // read here off the rendered page rather than off the engine, so a correct
+  // engine wired to the wrong cell of the grid still fails.
+  //
+  // tests/builder/analysis.mjs pins the matrices cell by cell under node. What
+  // is worth a browser is what the page actually shows.
+
+  async function analyze(page: Page, example: string) {
+    await openBuilder(page);
+    await page.getByTestId(`example-${example}`).click();
+    await page.getByTestId('analyze').click();
+    await expect(page.getByTestId('heatmap')).toBeVisible();
+  }
+
+  /** The facility LOS row of the summary table, which is the letter sequence
+   * Exhibit 25-52 and its siblings print along the bottom. */
+  const facilityLos = (page: Page) =>
+    page.getByTestId('facility-los-row').locator('td').allInnerTexts();
+
+  /** One row of the heatmap, in segment order, as the page renders it. */
+  const heatRow = (page: Page, period: number) =>
+    page.locator(`[data-testid="heatmap-cell"][data-period="${period}"]`).evaluateAll((els) =>
+      els.map((e) => (e as HTMLElement).dataset.value)
+    );
+
+  test('Example Problem 1 analyzes to the published Exhibit 25-52 facility values', async ({ page }) => {
+    await analyze(page, 'ep1');
+
+    // Exhibit 25-52 totals: 56.9 mi/h over 6.00 mi.
+    await expect(page.getByTestId('overall-speed')).toHaveText('56.9');
+    // Exhibit 25-52 prints 28.4 veh/mi/ln; the engine computes 28.5, inside the
+    // +-0.5 the boundary file allows, so the page is pinned at what it shows.
+    await expect(page.getByTestId('overall-density')).toHaveText('28.5');
+    expect(await facilityLos(page)).toEqual(['D', 'D', 'E', 'D', 'C']);
+    await expect(page.getByTestId('oversaturated-flag')).toContainText('Undersaturated');
+
+    // The grid is the Exhibit 10-10 domain: 11 segments across, 5 periods down.
+    await expect(page.getByTestId('heatmap-col')).toHaveCount(11);
+    await expect(page.getByTestId('heatmap-row')).toHaveCount(5);
+    await expect(page.getByTestId('heatmap-cell')).toHaveCount(55);
+    // Period 3 of the segment LOS matrix (Exhibit 25-51), read off the cells.
+    expect(await heatRow(page, 3)).toEqual(['D', 'D', 'D', 'D', 'D', 'D', 'E', 'E', 'E', 'D', 'E']);
+  });
+
+  test('Example Problem 2 goes oversaturated in period 3 and holds its period-4 letters', async ({ page }) => {
+    await analyze(page, 'ep2');
+
+    const flag = page.getByTestId('oversaturated-flag');
+    await expect(flag).toContainText('Oversaturated');
+    // Exhibit 25-55 puts the first demand-to-capacity ratios above 1.0 in
+    // Analysis Period 3. The core's own first_oversat_period has no binding
+    // getter, so the page derives it and says what it means.
+    await expect(page.getByTestId('first-oversat-period')).toHaveText('period 3');
+    expect(await facilityLos(page)).toEqual(['D', 'E', 'F', 'E', 'D']);
+
+    // Exhibit 25-59 period 4, segment 4: LOS E. This cell moved onto its
+    // published value when the Equation 25-12 front-clearing test was scoped to
+    // a restored bottleneck, so it is the one worth watching.
+    await expect(
+      page.locator('[data-testid="heatmap-cell"][data-seg="4"][data-period="4"]')
+    ).toHaveAttribute('data-value', 'E');
+    // VERIFY-HCM: the residual queue-distribution gap keeps the totals off the
+    // published 50.5 mi/h and 35.6 veh/mi/ln, so the page is pinned at what the
+    // engine measures, exactly as the boundary file pins it.
+    await expect(page.getByTestId('overall-speed')).toHaveText('49.3');
+    await expect(page.getByTestId('overall-density')).toHaveText('36.5');
+  });
+
+  test('Example Problem 3 loses every bottleneck once the lane is carried on', async ({ page }) => {
+    await analyze(page, 'ep3');
+    await expect(page.getByTestId('oversaturated-flag')).toContainText('Undersaturated');
+    // Exhibit 25-68 totals: 57.5 mi/h and 27.7 veh/mi/ln. The overall space mean
+    // speed is demand-weighted across periods and computes 57.3, inside the 0.2
+    // band the boundary file allows it.
+    await expect(page.getByTestId('overall-speed')).toHaveText('57.3');
+    await expect(page.getByTestId('overall-density')).toHaveText('27.7');
+    expect(await facilityLos(page)).toEqual(['D', 'D', 'D', 'D', 'C']);
+    // The added lane is what did it, and the heatmap says which segments moved:
+    // Exhibit 25-67 period 5 puts Segments 7, 8, 10 and 11 at LOS B.
+    expect(await heatRow(page, 5)).toEqual(['C', 'C', 'C', 'C', 'C', 'C', 'B', 'B', 'C', 'B', 'B']);
+  });
+
+  test('Example Problem 4 reproduces the work zone capacity and its 1.26 ratio', async ({ page }) => {
+    await analyze(page, 'ep4');
+    await expect(page.getByTestId('oversaturated-flag')).toContainText('Oversaturated');
+    await expect(page.getByTestId('first-oversat-period')).toHaveText('period 1');
+
+    // Segment 11 in period 1 is the cell the work-zone methodology governs.
+    // Exhibit 25-71 prints 4,499 veh/h, which carries only the lane closure;
+    // the ratios of Exhibit 25-72 are taken against the post-CAF_wz 4,013, and
+    // 1.26 is the published ratio.
+    await page.locator('[data-testid="heatmap-cell"][data-seg="11"][data-period="1"]').click();
+    const detail = page.getByTestId('cell-detail');
+    await expect(detail).toContainText('Segment 11');
+    await expect(page.getByTestId('detail-capacity')).toHaveText('4014 veh/h');
+    await expect(page.getByTestId('detail-dc')).toHaveText('1.26');
+    // Exhibit 25-76: the work zone itself holds LOS E in every period, because
+    // it discharges at its own reduced capacity rather than queueing.
+    await expect(page.getByTestId('detail-los')).toHaveText('E');
+    await expect(page.getByTestId('detail-work-zone')).toBeVisible();
+    // And every queued segment upstream of it reaches F by period 3.
+    expect(await heatRow(page, 3)).toEqual(['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'E']);
+  });
+
+  test('the measure selector re-encodes the same grid without moving a cell', async ({ page }) => {
+    await analyze(page, 'ep1');
+    const cell = page.locator('[data-testid="heatmap-cell"][data-seg="8"][data-period="3"]');
+    await expect(cell).toHaveAttribute('data-value', 'E');
+
+    // Switching measure repaints and relabels every cell; it does not change
+    // which cell is which, so the LOS attribute rides along unchanged.
+    await page.getByTestId('measure-select').selectOption('density');
+    // Exhibit 25-50, Segment 8 period 3: 43.9 veh/mi/ln.
+    await expect(cell).toHaveAttribute('data-value', '43.9');
+    await expect(cell).toHaveAttribute('data-los', 'E');
+    await expect(page.getByTestId('heatmap-legend')).toContainText('veh/mi/ln');
+
+    // Speed is the measure the HCM reads the other way round, and the legend
+    // says so by running from the fast end to the slow one.
+    await page.getByTestId('measure-select').selectOption('speed');
+    await expect(cell).toHaveAttribute('data-value', '50.6');
+    const low = Number(await page.getByTestId('legend-low').innerText());
+    const high = Number(await page.getByTestId('legend-high').innerText());
+    expect(low).toBeGreaterThan(high);
+
+    await page.getByTestId('measure-select').selectOption('dc');
+    await expect(page.getByTestId('heatmap-legend')).toContainText('Demand-to-capacity');
+    await expect(page.getByTestId('heatmap-cell')).toHaveCount(55);
+  });
+
+  test('a heatmap cell opens the full segment-period detail and the grid is keyboard navigable', async ({ page }) => {
+    await analyze(page, 'ep1');
+    await expect(page.getByTestId('cell-detail')).toHaveCount(0);
+
+    await page.locator('[data-testid="heatmap-cell"][data-seg="6"][data-period="3"]').click();
+    // Exhibit 25-49/25-50, Segment 6 (the weave) in period 3: 46.2 mi/h and
+    // 34.6 veh/mi/ln at LOS D.
+    await expect(page.getByTestId('detail-speed')).toHaveText('46.2 mi/h');
+    await expect(page.getByTestId('detail-density')).toHaveText('34.6 veh/mi/ln');
+    await expect(page.getByTestId('detail-los')).toHaveText('D');
+    await expect(page.getByTestId('cell-detail')).toContainText('Weaving');
+
+    // The grid takes one tab stop and moves on the arrow keys, because 55 tab
+    // stops is not navigation. The cell is focused explicitly rather than left
+    // focused by the click above: WebKit does not focus a button on a mouse
+    // click, so relying on that would make this a chromium-only assertion.
+    await page.locator('[data-testid="heatmap-cell"][data-seg="6"][data-period="3"]').focus();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('cell-detail')).toContainText('Segment 7');
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('cell-detail')).toContainText('Period 2');
+
+    await page.getByTestId('close-detail').click();
+    await expect(page.getByTestId('cell-detail')).toHaveCount(0);
+  });
+
+  test('the reliability panel runs the same facility through Chapter 11', async ({ page }) => {
+    await analyze(page, 'ep1');
+    // The honesty note is on the panel before the run, not after it.
+    await expect(page.getByTestId('reliability-notes')).toContainText('weather matrix');
+    await expect(page.getByTestId('reliability-summary')).toHaveCount(0);
+
+    await page.getByTestId('run-reliability').click();
+    const summary = page.getByTestId('reliability-summary');
+    await expect(summary).toBeVisible();
+    // Fixed rng seed and fixed inputs, so these are deterministic. They are the
+    // values tests/builder/analysis.mjs measures for the same facility.
+    await expect(page.getByTestId('rel-tti-mean')).toHaveText('1.719');
+    await expect(page.getByTestId('rel-tti-50')).toHaveText('1.601');
+    await expect(page.getByTestId('rel-pti')).toHaveText('2.313');
+    await expect(page.getByTestId('rel-rating')).toHaveText('26.4');
+    // Chapter 11 assigns no letter, and the discussion says so rather than
+    // leaving the reader to notice.
+    await expect(page.getByTestId('reliability-panel')).toContainText('no level of service letter is assigned');
+  });
+
+  test('a work zone facility says on the reliability panel that the closure crosses', async ({ page }) => {
+    await analyze(page, 'ep4');
+    const notes = page.getByTestId('reliability-notes');
+    await expect(notes.locator('[data-note-id="work-zone-carried"]')).toContainText('crosses into the reliability run');
+    await expect(notes.locator('[data-note-id="work-zone-carried"]')).toContainText('every scenario');
+  });
+
+  test('a blocking check stops the analysis and a warning does not', async ({ page }) => {
+    await openBuilder(page);
+    // A lane change to one lane is an error: Chapter 10 needs at least two.
+    await page.getByTestId('add-lane-change').click();
+    const id = await page.getByTestId('lane-change-marker').getAttribute('data-feature-id');
+    await page.getByTestId(`lanes-${id}`).fill('1');
+    await page.getByTestId(`lanes-${id}`).blur();
+    await expect(page.locator('[data-testid="validation-flag"][data-level="error"]')).not.toHaveCount(0);
+    await expect(page.getByTestId('analyze')).toBeDisabled();
+
+    // Put it back and make the facility over-long instead, which is a warning.
+    await page.getByTestId(`lanes-${id}`).fill('4');
+    await page.getByTestId(`lanes-${id}`).blur();
+    await page.getByTestId('facility-length').fill('20');
+    await page.getByTestId('facility-length').blur();
+    await expect(page.locator('[data-testid="validation-flag"][data-flag-id="facility-too-long"]')).toBeVisible();
+    await expect(page.getByTestId('analyze')).toBeEnabled();
+    await page.getByTestId('analyze').click();
+    await expect(page.getByTestId('heatmap')).toBeVisible();
+  });
+
+  test('the results belong to the run, and an edit marks them stale rather than moving them', async ({ page }) => {
+    await analyze(page, 'ep1');
+    await expect(page.getByTestId('overall-speed')).toHaveText('56.9');
+    await expect(page.getByTestId('results-stale')).toHaveCount(0);
+
+    // Editing the document leaves the finished run standing, which is what
+    // keeps the printed report from quoting numbers the form no longer holds.
+    await page.getByTestId('facility-lanes').fill('4');
+    await page.getByTestId('facility-lanes').blur();
+    await expect(page.getByTestId('results-stale')).toBeVisible();
+    await expect(page.getByTestId('overall-speed')).toHaveText('56.9');
+
+    await page.getByTestId('analyze').click();
+    await expect(page.getByTestId('results-stale')).toHaveCount(0);
+    await expect(page.getByTestId('overall-speed')).not.toHaveText('56.9');
+  });
+
+  test('the run joins the printable report with the heatmap as a table of letters', async ({ page }) => {
+    await analyze(page, 'ep1');
+    await page.getByTestId('open-report').click();
+    await expect(page).toHaveURL(/\/report$/);
+
+    await expect(page.locator('.report-page')).toContainText('Example Problem 1');
+    // The per-period table, then the time-space domain as letters rather than
+    // colours, because a fill does not survive a print.
+    const matrix = page.getByTestId('report-matrix');
+    await expect(matrix).toBeVisible();
+    await expect(matrix.locator('thead th')).toHaveCount(12);
+    await expect(matrix.locator('tbody tr')).toHaveCount(5);
+    expect(await matrix.locator('tbody tr').nth(2).locator('td').allInnerTexts())
+      .toEqual(['3', 'D', 'D', 'D', 'D', 'D', 'D', 'E', 'E', 'E', 'D', 'E']);
+    // The discussion rides under the same opt-out toggle every chapter uses.
+    await expect(page.getByTestId('report-discussion')).toContainText('governing cell');
+  });
+
   test('the builder link is in both navigation menus', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.navbar a[href="/builder"]')).toHaveCount(2);

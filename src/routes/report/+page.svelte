@@ -138,6 +138,30 @@
             </tbody>
           </table>
         {/if}
+
+        <!-- An optional second table, for a result that is a matrix rather than a list of
+             periods: the facility builder's time-space domain. It prints the values
+             themselves rather than a colour encoding, because a fill is unreliable on paper
+             and a greyscale ramp is unreadable at cell size. Reports that publish no
+             matrixTable are unaffected. -->
+        {#if current.matrixTable}
+          <h3 class="report-subhead">{current.matrixTable.title}</h3>
+          <div class="report-table-scroll">
+            <table class="report-table report-matrix" data-testid="report-matrix">
+              <thead>
+                <tr>{#each current.matrixTable.columns as c}<th>{c}</th>{/each}</tr>
+              </thead>
+              <tbody>
+                {#each current.matrixTable.rows as r}
+                  <tr>{#each r as cell, ci}<td class:label={ci === 0}>{cell}</td>{/each}</tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+          {#if current.matrixTable.caption}
+            <p class="report-caption">{current.matrixTable.caption}</p>
+          {/if}
+        {/if}
       </section>
 
       {#if current.diagram}
@@ -307,6 +331,9 @@
   .report-table td:not(.label) { text-align: right; font-variant-numeric: tabular-nums; }
   .report-summary { margin-top: 0.6rem; }
   .report-summary th { font-weight: 700; }
+  .report-subhead { font-size: 0.9rem; font-weight: 700; margin: 1rem 0 0.35rem; }
+  .report-matrix td:not(.label) { text-align: center; font-weight: 600; }
+  .report-caption { font-size: 0.75rem; color: #64748b; margin: 0.35rem 0 0; line-height: 1.45; max-width: 78ch; }
   .report-diagram { max-width: 560px; margin: 0 auto; }
   .report-options { display: inline-flex; align-items: center; gap: 0.9rem; }
   .report-toggle {
