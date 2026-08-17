@@ -3,6 +3,10 @@
 // proxy touches are described here instead.
 // @ts-expect-error missing @types/node
 import { createServer, request } from 'node:http';
+// @ts-expect-error missing @types/node
+import { readFileSync } from 'node:fs';
+// @ts-expect-error missing @types/node
+import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 type ProxyMessage = {
@@ -3078,3 +3082,212 @@ async function expectTwoLaneOutputs(
   await expect(page.locator('#los')).toHaveText(want.los);
   await expect(page.locator('#fdF')).toHaveText(want.fdF);
 }
+
+// ── Facility builder (phase 1a: the editor, no analysis) ─────────────────
+//
+// What is worth pinning here is not that the page renders. It is that the
+// derived table follows the features live, that an override outlives a
+// re-derivation, and that the two persistence layers do what they claim: the
+// builder document round-trips the intent, and a fixture imports as segments
+// with the missing feature layer stated rather than guessed at.
+//
+// The numbers come from the library's own Example Problem 1 fixture, which is
+// read off disk rather than transcribed.
+test.describe('facility builder', () => {
+  // The library checkout sits beside this repo, the same place the boundary
+  // suite looks for it.
+  // @ts-expect-error missing @types/node
+  const env = process as { env: Record<string, string | undefined>; cwd: () => string };
+  const LIB_CASES: string =
+    env.env.HCM_LIB_CASES || join(env.cwd(), '..', 'transportations-library', 'tests', 'ExampleCases', 'hcm');
+  const CASE1 = join(LIB_CASES, 'FreewayFacilities', 'case1.json');
+
+  /** The whole editor sits behind `inert={!ready}`, so every test waits for the
+   * wasm module the same way the chapter pages wait for Calculate. */
+  async function openBuilder(page: Page) {
+    // A previous test's autosave would otherwise be restored into this one.
+    await page.addInitScript(() => window.localStorage.removeItem('hcm-builder:default'));
+    await page.goto('/builder');
+    // `inert` is not what Playwright's toBeEnabled() looks at, and the buttons
+    // are in the SSR HTML, so gating on a button would let a test click before
+    // the wasm module has initialized and the derivation would return nothing.
+    // The editor publishes its own ready flag instead.
+    await expect(page.getByTestId('builder-body')).toHaveAttribute('data-ready', 'true');
+  }
+
+  const typesOf = (page: Page) =>
+    page.getByTestId('segment-row').evaluateAll((rows) =>
+      rows.map((r) => (r as HTMLElement).dataset.segType)
+    );
+
+  async function setStation(page: Page, id: string, mi: number) {
+    const field = page.getByTestId(`station-${id}`);
+    await field.fill(String(mi));
+    await field.blur();
+  }
+
+  test('an empty facility is one basic segment, and a ramp pair segments itself', async ({ page }) => {
+    await openBuilder(page);
+    expect(await typesOf(page)).toEqual(['Basic']);
+
+    await page.getByTestId('template-diamond').click();
+    // 4,000 ft apart with no auxiliary lane: merge + basic + diverge, wrapped
+    // in the basic termini Chapter 10 asks for (Exhibit 10-11).
+    expect(await typesOf(page)).toEqual(['Basic', 'Merge', 'Basic', 'Diverge', 'Basic']);
+    await expect(page.getByTestId('strip-seg')).toHaveCount(5);
+  });
+
+  test('dragging a ramp across the 3,000-ft threshold turns the basic segment into an overlap', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('facility-length').fill('4');
+    await page.getByTestId('facility-length').blur();
+    await page.getByTestId('template-diamond').click();
+    expect(await typesOf(page)).toEqual(['Basic', 'Merge', 'Basic', 'Diverge', 'Basic']);
+
+    // Drag the off-ramp marker upstream. The strip is linear in station, so the
+    // pointer position is the station, and the derivation runs on every move.
+    const strip = page.getByTestId('builder-strip').locator('svg');
+    const off = page.locator('[data-testid="feature-marker"]').last();
+    const from = await off.locator('circle').boundingBox();
+    const box = await strip.boundingBox();
+    expect(from && box).toBeTruthy();
+    // 4 mi of facility across the plot: move left by roughly 2,000 ft.
+    const perFt = (box!.width * (900 - 28) / 900) / (4 * 5280);
+    await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from!.x + from!.width / 2 - 2000 * perFt, from!.y + from!.height / 2, { steps: 8 });
+    await page.mouse.up();
+
+    // Gore-to-gore is now under 3,000 ft, so the influence areas overlap.
+    expect(await typesOf(page)).toEqual(['Basic', 'Merge', 'OverlappingRamp', 'Diverge', 'Basic']);
+    // And the rule that produced it says so in words.
+    await page.getByTestId('segment-row').nth(2).locator('button').click();
+    await expect(page.getByTestId('why-row')).toContainText('between 1,500 and 3,000 ft');
+    await expect(page.getByTestId('why-row')).toContainText('Exhibit 10-11');
+
+    // A drag is one undo step, not one per pointermove: one undo restores the
+    // pre-drag segmentation, and the step behind it is the template drop rather
+    // than an intermediate pointer position.
+    await page.getByTestId('undo').click();
+    expect(await typesOf(page)).toEqual(['Basic', 'Merge', 'Basic', 'Diverge', 'Basic']);
+    await page.getByTestId('undo').click();
+    expect(await typesOf(page)).toEqual(['Basic']);
+  });
+
+  test('undo restores the segmentation a station change produced', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('template-diamond').click();
+    const before = await typesOf(page);
+    const offId = await page.getByTestId('feature-row').last().getAttribute('data-feature-id');
+    await setStation(page, offId!, 1.3);
+    expect(await typesOf(page)).not.toEqual(before);
+    await page.getByTestId('undo').click();
+    expect(await typesOf(page)).toEqual(before);
+    await page.getByTestId('redo').click();
+    expect(await typesOf(page)).not.toEqual(before);
+  });
+
+  test('an override survives re-derivation, is marked stale when its row changes type, and clears', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('facility-length').fill('4');
+    await page.getByTestId('facility-length').blur();
+    await page.getByTestId('template-diamond').click();
+
+    // Pin the middle row to 4 lanes.
+    const middle = page.getByTestId('segment-row').nth(2);
+    await middle.locator('input[type="number"]').last().fill('4');
+    await middle.locator('input[type="number"]').last().blur();
+    await expect(middle.getByTestId('override-pin')).toBeVisible();
+
+    // Move the pair inside 3,000 ft: the row is now an overlapping ramp, the
+    // override is still on it, and it says it was made against something else.
+    const offId = await page.getByTestId('feature-row').last().getAttribute('data-feature-id');
+    const onStation = await page.getByTestId('feature-row').first().getAttribute('data-feature-id');
+    expect(onStation).toBeTruthy();
+    await setStation(page, offId!, 1.4);
+    const moved = page.getByTestId('segment-row').nth(2);
+    await expect(moved).toHaveAttribute('data-seg-type', 'OverlappingRamp');
+    await expect(moved.locator('input[type="number"]').last()).toHaveValue('4');
+    await expect(moved.getByTestId('override-stale')).toBeVisible();
+
+    await moved.getByTestId('clear-override').click();
+    await expect(page.getByTestId('segment-row').nth(2).getByTestId('override-pin')).toHaveCount(0);
+    await expect(page.getByTestId('segment-row').nth(2).locator('input[type="number"]').last()).toHaveValue('3');
+  });
+
+  test('a builder document downloads and uploads back to the same facility', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('template-aux-weave').click();
+    await page.getByTestId('facility-name').fill('Round trip');
+    await page.getByTestId('facility-name').blur();
+    const before = await typesOf(page);
+    expect(before).toContain('Weaving');
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('download-document').click()
+    ]);
+    const savedPath = await download.path();
+
+    // Start clean, then load the file back.
+    await page.getByTestId('new-facility').click();
+    expect(await typesOf(page)).toEqual(['Basic']);
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'round-trip.builder.json',
+      mimeType: 'application/json',
+      buffer: readFileSync(savedPath)
+    });
+    await expect(page.getByTestId('facility-name')).toHaveValue('Round trip');
+    expect(await typesOf(page)).toEqual(before);
+  });
+
+  test('Example Problem 1 loads as placed ramps and rebuilds the published eleven segments', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('example-ep1').click();
+    const case1 = JSON.parse(readFileSync(CASE1, 'utf8'));
+    expect(await typesOf(page)).toEqual(case1.segments.map((s: { seg_type: string }) => s.seg_type));
+    await expect(page.getByTestId('feature-row')).toHaveCount(6);
+    // The weave carries the auxiliary lane, so it is one lane wider than the
+    // mainline, exactly as the fixture codes it.
+    const weave = page.locator('[data-testid="segment-row"][data-seg-type="Weaving"]');
+    await expect(weave.locator('input[type="number"]').last()).toHaveValue(String(case1.segments[5].lanes));
+  });
+
+  test('a fixture imports as segments with no feature layer, and says so', async ({ page }) => {
+    await openBuilder(page);
+    const case1 = JSON.parse(readFileSync(CASE1, 'utf8'));
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'case1.json',
+      mimeType: 'application/json',
+      buffer: readFileSync(CASE1)
+    });
+    expect(await typesOf(page)).toEqual(case1.segments.map((s: { seg_type: string }) => s.seg_type));
+    await expect(page.getByTestId('segment-row')).toHaveCount(11);
+    // No features arrived with it, and the page does not pretend otherwise.
+    await expect(page.getByTestId('feature-table')).toHaveCount(0);
+    await expect(page.getByTestId('imported-note')).toBeVisible();
+    await expect(
+      page.locator('[data-testid="validation-flag"][data-flag-id="imported-no-features"]')
+    ).toBeVisible();
+  });
+
+  test('the checks panel flags an over-long facility as a warning and cites the section', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('facility-length').fill('20');
+    await page.getByTestId('facility-length').blur();
+    const flag = page.locator('[data-testid="validation-flag"][data-flag-id="facility-too-long"]');
+    await expect(flag).toBeVisible();
+    await expect(flag).toHaveAttribute('data-level', 'warn');
+    await expect(flag).toContainText('Section 3');
+    // Twenty periods is not a flag of any kind above a note, because Chapter 10
+    // sets no limit on the analysis period count.
+    await page.getByTestId('period-count').fill('20');
+    await page.getByTestId('period-count').blur();
+    await expect(page.locator('[data-testid="validation-flag"][data-level="error"]')).toHaveCount(0);
+  });
+
+  test('the builder link is in both navigation menus', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.navbar a[href="/builder"]')).toHaveCount(2);
+  });
+});

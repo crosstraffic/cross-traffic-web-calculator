@@ -252,6 +252,67 @@ function passArray32ToWasm0(arg, malloc) {
     return ptr;
 }
 /**
+* HCM Chapter 10 Step A-2: divide the section between an on-ramp gore and
+* the next off-ramp gore into analysis segments, per the segmentation rules
+* of Section 2 and Exhibits 10-11 and 10-12.
+*
+* Returns `[{ seg_type, length_ft }]` in upstream-to-downstream order, with
+* zero-length pieces omitted:
+*
+* - auxiliary lane between the gores: one `Weaving` piece;
+* - gore-to-gore above 3,000 ft: `Merge` 1,500 + `Basic` (spacing − 3,000)
+*   + `Diverge` 1,500;
+* - 1,500 ft to 3,000 ft: `Merge` (spacing − 1,500) + `OverlappingRamp`
+*   (3,000 − spacing) + `Diverge` (spacing − 1,500);
+* - 1,500 ft or less with no auxiliary lane: a single `OverlappingRamp`
+*   over the whole distance, the truncation the manual calls highly
+*   unusual.
+*
+* The one thing to read twice is what `gore_to_gore_ft` means in the
+* auxiliary-lane case, because the answer comes back as the caller sent it
+* and so a wrong value is invisible. The weaving *segment* is not the
+* gore-to-gore distance: Chapter 10's segmentation rules put its boundaries
+* 500 ft upstream and 500 ft downstream of the two gores (Exhibit 10-2), so
+* a caller placing ramps by gore station must pass gore-to-gore + 1,000 ft
+* here and carry the gore-to-gore distance itself as the segment's
+* `short_length_ft`. Example Problem 1 is the check: its weaving segment is
+* 2,640 ft long with a 1,640 ft short length.
+* @param {number} gore_to_gore_ft
+* @param {boolean} has_auxiliary_lane
+* @returns {any}
+*/
+export function segment_ramp_section(gore_to_gore_ft, has_auxiliary_lane) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        wasm.segment_ramp_section(retptr, gore_to_gore_ft, has_auxiliary_lane);
+        var r0 = getInt32Memory0()[retptr / 4 + 0];
+        var r1 = getInt32Memory0()[retptr / 4 + 1];
+        var r2 = getInt32Memory0()[retptr / 4 + 2];
+        if (r2) {
+            throw takeObject(r1);
+        }
+        return takeObject(r0);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
+* Ramp influence area length, ft: 1,500 ft downstream of an on-ramp gore
+* and upstream of an off-ramp gore (Chapter 10 Section 2; Exhibit 10-1).
+*
+* Bound so that a caller placing an isolated ramp — one with no paired ramp
+* downstream of it, which `segment_ramp_section` does not describe — reads
+* the length of its merge or diverge segment from the library rather than
+* writing 1,500 down a second time.
+* @returns {number}
+*/
+export function ramp_influence_area_ft() {
+    const ret = wasm.ramp_influence_area_ft();
+    return ret;
+}
+
+/**
 * Service flow rate under ideal conditions SFI (pc/h) at a target ramp-influence
 * density - HCM Chapter 28, Example Problem 5.
 *
@@ -7800,6 +7861,10 @@ function __wbg_get_imports() {
         const ret = getObject(arg0) in getObject(arg1);
         return ret;
     };
+    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
+        const ret = WasmSegment.__unwrap(takeObject(arg0));
+        return ret;
+    };
     imports.wbg.__wbg_wasmsubsegment_unwrap = function(arg0) {
         const ret = WasmSubSegment.__unwrap(takeObject(arg0));
         return ret;
@@ -7808,10 +7873,6 @@ function __wbg_get_imports() {
         const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
         return ret;
     }, arguments) };
-    imports.wbg.__wbg_wasmsegment_unwrap = function(arg0) {
-        const ret = WasmSegment.__unwrap(takeObject(arg0));
-        return ret;
-    };
     imports.wbg.__wbg_wasmfacilitysegment_unwrap = function(arg0) {
         const ret = WasmFacilitySegment.__unwrap(takeObject(arg0));
         return ret;

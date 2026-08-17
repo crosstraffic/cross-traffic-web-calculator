@@ -110,6 +110,7 @@
               </ul>
             </details>
           </li>
+          <li><a href="/builder">Builder</a></li>
           <li><a href="/guide">Guide</a></li>
           <li><a href="/report">Report</a></li>
         </ul>
@@ -147,6 +148,7 @@
             </ul>
           </details>
         </li>
+        <li><a class="home_button" href="/builder">Builder</a></li>
         <li><a class="home_button" href="/guide">Guide</a></li>
         <li><a class="home_button" href="/report">Report</a></li>
       </ul>
