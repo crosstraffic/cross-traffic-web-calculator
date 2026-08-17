@@ -17,7 +17,7 @@
   // run here and the boundary suite cannot disagree about what the published
   // Example Problems produce.
 
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import init, {
     segment_ramp_section,
     ramp_influence_area_ft,
@@ -27,6 +27,7 @@
   } from 'HCM-middleware';
 
   import BuilderStrip from '$lib/builder/BuilderStrip.svelte';
+  import FeatureEditor from '$lib/builder/FeatureEditor.svelte';
   import SegmentTable from '$lib/builder/SegmentTable.svelte';
   import DemandGrid from '$lib/builder/DemandGrid.svelte';
   import Heatmap from '$lib/builder/Heatmap.svelte';
@@ -50,7 +51,15 @@
   let ready = $state(false);
   let doc = $state(emptyDocument());
   let selectedKey = $state(null);
+  // One id, doing two jobs that were never really separate: it is the feature
+  // whose markers are lit on the strip, and it is the feature whose editor is
+  // open in the list. Holding them apart would allow the two halves of the same
+  // selection to disagree, which is the state the sync exists to prevent.
   let selectedFeature = $state(null);
+  // The editor area (strip, features, derived table) blown up to fill the
+  // viewport. It is page state rather than editor state so that a run, which
+  // leaves the results below the editor, does not disturb it.
+  let maximized = $state(false);
   let message = $state('');
   let error = $state('');
   let fileInput = $state(null);
@@ -189,6 +198,14 @@
   }
 
   function onKey(e) {
+    // Escape leaves the maximized editor, which is the only way out other than
+    // the toggle and the one a reader of a full-screen overlay reaches for
+    // first. It is checked before the modifier gate because it carries none.
+    if (e.key === 'Escape' && maximized) {
+      e.preventDefault();
+      setMaximized(false);
+      return;
+    }
     const mod = e.metaKey || e.ctrlKey;
     if (!mod) return;
     const k = e.key.toLowerCase();
@@ -202,6 +219,35 @@
   }
 
   // ── Features ─────────────────────────────────────────────────────────
+
+  /** Open one feature's editor, or close it. Only one is open at a time, so
+   * "which feature am I editing" has one answer and the strip can light it. */
+  function toggleFeature(id) {
+    selectedFeature = selectedFeature === id ? null : id;
+    selectedKey = null;
+  }
+
+  /** A marker click opens the row and brings it into view. The strip only calls
+   * this when the pointer went down and up without moving the feature, because
+   * scrolling the page under a drag would move the strip out from under the
+   * pointer mid-gesture. */
+  async function revealFeature(id) {
+    selectedFeature = id;
+    selectedKey = null;
+    await tick();
+    document
+      .querySelector(`tr[data-feature-id="${CSS.escape(id)}"]`)
+      ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  function setMaximized(next) {
+    maximized = next;
+    // Focus follows the control the user pressed, so Escape and the button
+    // leave the keyboard in the same place rather than at the top of the page.
+    tick().then(() => maximizeBtn?.focus());
+  }
+
+  let maximizeBtn = $state(null);
 
   function addFeature(kind) {
     commit((d) => {
@@ -490,6 +536,19 @@
   const slug = (s) => (s || 'facility').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const LEVEL_LABEL = { error: 'Blocks analysis', warn: 'Check this', note: 'Note' };
   const n1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : '–');
+
+  // A collapsed row says what the feature is and what the editor would open on,
+  // so the list still reads as a list once every field moved into the panel.
+  const mi2 = (ft) => (ft / FT_PER_MI).toFixed(2);
+  const peak = (v) => (Array.isArray(v) && v.length ? Math.max(...v) : 0);
+  const rampSummary = (f) =>
+    f.kind === 'on_ramp'
+      ? `FFS ${f.rampFfs} mi/h · accel ${f.accelLaneFt} ft${f.auxLaneToNext ? ' · aux lane to next' : ''}`
+      : `FFS ${f.rampFfs} mi/h · decel ${f.decelLaneFt} ft`;
+  const changeSummary = (f) =>
+    f.kind === 'lane_change'
+      ? `to ${f.lanes} lanes`
+      : `${f.config.total_lanes} lanes to ${f.config.open_lanes}, ${f.config.soft_barrier ? 'cones/drums' : 'hard barrier'}, ${f.config.speed_limit_mi_h} mi/h`;
 </script>
 
 <svelte:head>
@@ -579,56 +638,67 @@
       </div>
     </section>
 
+    <!-- Strip, features and derived table are one editor, so they maximize
+         together: the reason to want the room is to see a marker, its editor and
+         the segments it produced at once. The results stay outside it and below,
+         which is what lets a run survive the toggle in either direction. -->
+    <div class="bd-editor" class:maximized data-testid="builder-editor" data-maximized={maximized}>
+      <div class="bd-editor-bar">
+        <span class="bd-editor-title">Editor</span>
+        <button type="button" class="btn btn-sm" bind:this={maximizeBtn}
+                onclick={() => setMaximized(!maximized)}
+                aria-pressed={maximized} data-testid="maximize-editor">
+          {maximized ? 'Restore editor (Esc)' : 'Maximize editor'}
+        </button>
+      </div>
+
     <section class="bd-strip-wrap" aria-label="Facility strip">
       <BuilderStrip {doc} {rows} {selectedKey} {highlightIds} interactive={ready}
                     onselectrow={(k) => { selectedKey = selectedKey === k ? null : k; selectedFeature = null; }}
                     onselectfeature={(id) => { selectedFeature = id; selectedKey = null; }}
+                    onrevealfeature={revealFeature}
                     onmovefeature={moveFeature} />
     </section>
 
     {#if doc.features.some(isRamp)}
       <section class="bd-features" aria-label="Ramps">
         <h2>Ramps</h2>
+        <p class="bd-sub">
+          A row opens the whole feature, including the fields no table column fits: the weaving geometry an auxiliary lane brings into play and the ramp's own demand by period. Clicking a marker on the strip opens the same editor.
+        </p>
         <div class="bd-scroll">
           <table class="bd-table" data-testid="feature-table">
             <thead>
               <tr>
-                <th scope="col">Ramp</th><th scope="col">Station (mi)</th><th scope="col">Ramp FFS</th>
-                <th scope="col">Accel / decel (ft)</th><th scope="col">Aux lane to next</th><th scope="col"></th>
+                <th scope="col">Ramp</th><th scope="col">Station (mi)</th><th scope="col">Geometry</th>
+                <th scope="col">Peak demand</th><th scope="col"></th>
               </tr>
             </thead>
             <tbody>
               {#each [...doc.features].filter(isRamp).sort((a, b) => a.stationFt - b.stationFt) as f (f.id)}
-                <tr class:selected={selectedFeature === f.id} data-testid="feature-row" data-feature-id={f.id}>
+                {@const open = selectedFeature === f.id}
+                <tr class:selected={open} data-testid="feature-row" data-feature-id={f.id} data-expanded={open}>
                   <th scope="row">
-                    <span class="bd-kind" class:on={f.kind === 'on_ramp'}>{f.kind === 'on_ramp' ? 'On' : 'Off'}</span>
-                    <input type="text" class="bd-label-input" value={f.label} placeholder={f.id}
-                           onchange={(e) => setFeature(f.id, 'label', e.currentTarget.value)}
-                           aria-label="label for {f.id}" />
+                    <button type="button" class="bd-disclose" onclick={() => toggleFeature(f.id)}
+                            aria-expanded={open} aria-controls="fe-{f.id}" data-testid="expand-{f.id}">
+                      <span class="bd-caret" class:open aria-hidden="true">▸</span>
+                      <span class="bd-kind" class:on={f.kind === 'on_ramp'}>{f.kind === 'on_ramp' ? 'On' : 'Off'}</span>
+                      <span class="bd-feat-name">{f.label || f.id}</span>
+                    </button>
                   </th>
-                  <td>
-                    <input type="number" min="0" step="0.01" value={(f.stationFt / FT_PER_MI).toFixed(2)}
-                           data-testid="station-{f.id}"
-                           onchange={(e) => setFeature(f.id, 'stationFt', Math.round(Number(e.currentTarget.value) * FT_PER_MI))}
-                           aria-label="station of {f.id} in miles" />
-                  </td>
-                  <td><input type="number" min="15" max="70" step="1" value={f.rampFfs} onchange={(e) => setFeature(f.id, 'rampFfs', Number(e.currentTarget.value))} aria-label="ramp free-flow speed for {f.id}" /></td>
-                  <td>
-                    {#if f.kind === 'on_ramp'}
-                      <input type="number" min="0" step="10" value={f.accelLaneFt} onchange={(e) => setFeature(f.id, 'accelLaneFt', Number(e.currentTarget.value))} aria-label="acceleration lane length for {f.id}" />
-                    {:else}
-                      <input type="number" min="0" step="10" value={f.decelLaneFt} onchange={(e) => setFeature(f.id, 'decelLaneFt', Number(e.currentTarget.value))} aria-label="deceleration lane length for {f.id}" />
-                    {/if}
-                  </td>
-                  <td>
-                    {#if f.kind === 'on_ramp'}
-                      <input type="checkbox" checked={f.auxLaneToNext} data-testid="aux-{f.id}"
-                             onchange={(e) => setFeature(f.id, 'auxLaneToNext', e.currentTarget.checked)}
-                             aria-label="auxiliary lane from {f.id} to the next off-ramp" />
-                    {:else}<span class="bd-dash">—</span>{/if}
-                  </td>
+                  <td class="bd-num">{mi2(f.stationFt)}</td>
+                  <td class="bd-summary">{rampSummary(f)}</td>
+                  <td class="bd-num">{peak(f.demand)}</td>
                   <td><button type="button" class="bd-remove" onclick={() => removeFeature(f.id)} data-testid="remove-{f.id}">remove</button></td>
                 </tr>
+                {#if open}
+                  <tr class="bd-detail" data-testid="feature-detail" data-feature-id={f.id}>
+                    <td colspan="5" id="fe-{f.id}">
+                      <FeatureEditor feature={f} {doc} interactive={ready}
+                                     onfield={setFeature} onworkzone={setWorkZone} ondemand={editDemand} />
+                    </td>
+                  </tr>
+                {/if}
               {/each}
             </tbody>
           </table>
@@ -644,102 +714,36 @@
         </p>
         <div class="bd-scroll">
           <table class="bd-table" data-testid="mainline-feature-table">
+            <thead>
+              <tr>
+                <th scope="col">Feature</th><th scope="col">Extent (mi)</th><th scope="col">Configuration</th><th scope="col"></th>
+              </tr>
+            </thead>
             <tbody>
               {#each [...doc.features].filter((f) => !isRamp(f)).sort((a, b) => a.stationFt - b.stationFt) as f (f.id)}
-                <tr data-testid="mainline-feature-row" data-feature-id={f.id} data-kind={f.kind}>
+                {@const open = selectedFeature === f.id}
+                <tr class:selected={open} data-testid="mainline-feature-row" data-feature-id={f.id}
+                    data-kind={f.kind} data-expanded={open}>
                   <th scope="row">
-                    <span class="bd-kind">{f.kind === 'lane_change' ? 'Lanes' : 'WZ'}</span>
-                    <input type="text" class="bd-label-input" value={f.label} placeholder={f.id}
-                           onchange={(e) => setFeature(f.id, 'label', e.currentTarget.value)}
-                           aria-label="label for {f.id}" />
+                    <button type="button" class="bd-disclose" onclick={() => toggleFeature(f.id)}
+                            aria-expanded={open} aria-controls="fe-{f.id}" data-testid="expand-{f.id}">
+                      <span class="bd-caret" class:open aria-hidden="true">▸</span>
+                      <span class="bd-kind">{f.kind === 'lane_change' ? 'Lanes' : 'WZ'}</span>
+                      <span class="bd-feat-name">{f.label || f.id}</span>
+                    </button>
                   </th>
-                  <td>
-                    <label class="bd-inline">from (mi)
-                      <input type="number" min="0" step="0.01" value={(f.stationFt / FT_PER_MI).toFixed(2)}
-                             data-testid="station-{f.id}"
-                             onchange={(e) => setFeature(f.id, 'stationFt', Math.round(Number(e.currentTarget.value) * FT_PER_MI))}
-                             aria-label="station of {f.id} in miles" />
-                    </label>
-                  </td>
-                  {#if f.kind === 'lane_change'}
-                    <td>
-                      <label class="bd-inline">to lanes
-                        <input type="number" min="2" max="8" step="1" value={f.lanes}
-                               data-testid="lanes-{f.id}"
-                               onchange={(e) => setFeature(f.id, 'lanes', Number(e.currentTarget.value))}
-                               aria-label="lane count downstream of {f.id}" />
-                      </label>
-                    </td>
-                    <td colspan="4"></td>
-                  {:else}
-                    <td>
-                      <label class="bd-inline">to (mi)
-                        <input type="number" min="0" step="0.01" value={(f.endFt / FT_PER_MI).toFixed(2)}
-                               data-testid="end-{f.id}"
-                               onchange={(e) => setFeature(f.id, 'endFt', Math.round(Number(e.currentTarget.value) * FT_PER_MI))}
-                               aria-label="downstream end of {f.id} in miles" />
-                      </label>
-                    </td>
-                    <td>
-                      <label class="bd-inline">lanes
-                        <input type="number" min="1" max="8" step="1" value={f.config.total_lanes}
-                               onchange={(e) => setWorkZone(f.id, 'total_lanes', Number(e.currentTarget.value))}
-                               aria-label="total lanes at {f.id}" />
-                      </label>
-                      <label class="bd-inline">open
-                        <input type="number" min="1" max="8" step="1" value={f.config.open_lanes}
-                               data-testid="open-lanes-{f.id}"
-                               onchange={(e) => setWorkZone(f.id, 'open_lanes', Number(e.currentTarget.value))}
-                               aria-label="open lanes at {f.id}" />
-                      </label>
-                    </td>
-                    <td>
-                      <label class="bd-inline">barrier
-                        <select value={f.config.soft_barrier ? 'soft' : 'hard'}
-                                onchange={(e) => setWorkZone(f.id, 'soft_barrier', e.currentTarget.value === 'soft')}
-                                aria-label="barrier type at {f.id}">
-                          <option value="soft">cones/drums</option>
-                          <option value="hard">hard barrier</option>
-                        </select>
-                      </label>
-                      <label class="bd-inline">limit (mi/h)
-                        <input type="number" min="25" max="75" step="5" value={f.config.speed_limit_mi_h}
-                               onchange={(e) => setWorkZone(f.id, 'speed_limit_mi_h', Number(e.currentTarget.value))}
-                               aria-label="work zone speed limit at {f.id}" />
-                      </label>
-                    </td>
-                    <td>
-                      <label class="bd-inline">speed ratio
-                        <input type="number" min="0.5" max="2" step="0.0001" value={f.config.speed_ratio}
-                               onchange={(e) => setWorkZone(f.id, 'speed_ratio', Number(e.currentTarget.value))}
-                               aria-label="speed ratio at {f.id}" />
-                      </label>
-                      <label class="bd-inline">queue drop
-                        <input type="number" min="0" max="0.5" step="0.001" value={f.config.queue_discharge_drop}
-                               onchange={(e) => setWorkZone(f.id, 'queue_discharge_drop', Number(e.currentTarget.value))}
-                               aria-label="queue discharge drop at {f.id}" />
-                      </label>
-                    </td>
-                    <td>
-                      <label class="bd-inline">lateral (ft)
-                        <input type="number" min="0" step="1" value={f.config.lateral_distance_ft}
-                               onchange={(e) => setWorkZone(f.id, 'lateral_distance_ft', Number(e.currentTarget.value))}
-                               aria-label="lateral distance at {f.id}" />
-                      </label>
-                      <label class="bd-inline bd-check">night
-                        <input type="checkbox" checked={f.config.night}
-                               onchange={(e) => setWorkZone(f.id, 'night', e.currentTarget.checked)}
-                               aria-label="night work at {f.id}" />
-                      </label>
-                      <label class="bd-inline bd-check">rural
-                        <input type="checkbox" checked={f.config.rural}
-                               onchange={(e) => setWorkZone(f.id, 'rural', e.currentTarget.checked)}
-                               aria-label="rural work zone at {f.id}" />
-                      </label>
-                    </td>
-                  {/if}
+                  <td class="bd-num">{mi2(f.stationFt)}{f.endFt != null ? ` – ${mi2(f.endFt)}` : ''}</td>
+                  <td class="bd-summary">{changeSummary(f)}</td>
                   <td><button type="button" class="bd-remove" onclick={() => removeFeature(f.id)} data-testid="remove-{f.id}">remove</button></td>
                 </tr>
+                {#if open}
+                  <tr class="bd-detail" data-testid="feature-detail" data-feature-id={f.id}>
+                    <td colspan="4" id="fe-{f.id}">
+                      <FeatureEditor feature={f} {doc} interactive={ready}
+                                     onfield={setFeature} onworkzone={setWorkZone} ondemand={editDemand} />
+                    </td>
+                  </tr>
+                {/if}
               {/each}
             </tbody>
           </table>
@@ -751,6 +755,7 @@
                   onselect={(k) => { selectedKey = selectedKey === k ? null : k; selectedFeature = null; }}
                   onoverride={setOverride}
                   onclearoverride={clearOverride} />
+    </div>
 
     <DemandGrid {doc} interactive={ready} onedit={editDemand} onperiods={setPeriodCount} />
 
@@ -993,11 +998,44 @@
 
   .bd-strip-wrap { margin-top: 0.75rem; overflow-x: auto; }
 
+  .bd-editor-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-top: 1rem; }
+  .bd-editor-title { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  /* Maximized is an overlay rather than a layout change, so the page underneath
+     keeps its scroll position and the results are where they were when the
+     editor is restored. It paints its own background because the page's is on
+     an ancestor it now covers. */
+  .bd-editor.maximized {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    overflow: auto;
+    padding: 0.75rem 1.25rem 2rem;
+    background: var(--surface-page);
+  }
+  .bd-editor.maximized .bd-editor-bar { margin-top: 0; position: sticky; top: 0; background: inherit; padding: 0.4rem 0; z-index: 1; }
+
+  .bd-disclose {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    background: none; border: none; padding: 0.1rem 0; margin: 0;
+    color: var(--text); font: inherit; font-size: 0.8rem; cursor: pointer; text-align: left;
+  }
+  .bd-caret { display: inline-block; font-size: 0.7rem; color: var(--text-muted); transition: transform 120ms ease; }
+  .bd-caret.open { transform: rotate(90deg); }
+  .bd-feat-name { font-weight: 600; }
+  .bd-summary { color: var(--text-secondary); white-space: normal; }
+  .bd-num { font-variant-numeric: tabular-nums; }
+  /* The detail row carries its own left rule from the editor component, so the
+     cell adds only room; a border here would double it. */
+
   .bd-scroll { overflow-x: auto; }
   .bd-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
   .bd-table th, .bd-table td { padding: 0.2rem 0.4rem; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
   .bd-table thead th { color: var(--text-muted); font-weight: 600; font-size: 0.72rem; }
   .bd-table tr.selected > * { background: var(--accent-soft); }
+  /* Table cells are nowrap so a row stays one line. The panel is prose and
+     fields, so it wraps: without this its explanatory line sets the table's
+     width and the sentence runs off the right edge of the scroll box. */
+  .bd-detail > td { padding: 0 0 0 0.2rem; border-bottom: 1px solid var(--border); white-space: normal; }
   .bd-kind { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); border: 1px solid var(--border-strong); border-radius: 3px; padding: 0 0.25rem; margin-right: 0.3rem; }
   .bd-kind.on { color: var(--accent); border-color: var(--accent); }
   .bd-label-input { width: 10ch; }

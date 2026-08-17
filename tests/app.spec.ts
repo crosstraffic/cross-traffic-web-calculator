@@ -3126,7 +3126,16 @@ test.describe('facility builder', () => {
       rows.map((r) => (r as HTMLElement).dataset.segType)
     );
 
+  /** Every field a feature carries lives in the editor its row opens, so a test
+   * that edits one opens the row first, the same way a user does. */
+  async function expandFeature(page: Page, id: string) {
+    const toggle = page.getByTestId(`expand-${id}`);
+    if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+    await expect(page.locator(`[data-testid="feature-editor"][data-feature-id="${id}"]`)).toBeVisible();
+  }
+
   async function setStation(page: Page, id: string, mi: number) {
+    await expandFeature(page, id);
     const field = page.getByTestId(`station-${id}`);
     await field.fill(String(mi));
     await field.blur();
@@ -3324,6 +3333,7 @@ test.describe('facility builder', () => {
     await expect(page.getByTestId('work-zone-marker')).toHaveCount(1);
     // Opening a third lane puts the segment back to three, live.
     const id = await page.getByTestId('work-zone-marker').getAttribute('data-feature-id');
+    await expandFeature(page, id!);
     await page.getByTestId(`open-lanes-${id}`).fill('3');
     await page.getByTestId(`open-lanes-${id}`).blur();
     await expect(page.locator('[data-testid="strip-seg"][data-seg-wz="yes"]')).toHaveAttribute('data-seg-lanes', '3');
@@ -3378,6 +3388,134 @@ test.describe('facility builder', () => {
     for (let i = 0; i < 4; i++) await page.getByTestId('undo').click();
     expect(await typesOf(page)).toEqual(['Basic']);
     expect(errors).toEqual([]);
+  });
+
+  // ── Point editors (phase 1c) ───────────────────────────────────────────
+  //
+  // The claim is that the editor a row opens is the same editor the strip
+  // opens, that a field committed in it re-derives the table exactly as a drag
+  // does, and that it costs one undo step rather than one per keystroke.
+
+  test('a ramp row opens an editor whose station change re-derives, and one undo restores it', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('facility-length').fill('4');
+    await page.getByTestId('facility-length').blur();
+    await page.getByTestId('template-diamond').click();
+    const before = await typesOf(page);
+    expect(before).toEqual(['Basic', 'Merge', 'Basic', 'Diverge', 'Basic']);
+
+    const offId = (await page.getByTestId('feature-row').last().getAttribute('data-feature-id'))!;
+    // Collapsed, the row holds no editable station at all: the fields are in
+    // the panel, which is the thing that has to open.
+    await expect(page.getByTestId(`station-${offId}`)).toHaveCount(0);
+    await page.getByTestId(`expand-${offId}`).click();
+    const editor = page.locator(`[data-testid="feature-editor"][data-feature-id="${offId}"]`);
+    await expect(editor).toBeVisible();
+    await expect(page.getByTestId(`expand-${offId}`)).toHaveAttribute('aria-expanded', 'true');
+
+    // Pulling the off-ramp back inside 3,000 ft of the on-ramp turns the basic
+    // segment between them into an overlapping ramp, live.
+    const field = page.getByTestId(`station-${offId}`);
+    await field.fill('1.4');
+    await field.blur();
+    expect(await typesOf(page)).toEqual(['Basic', 'Merge', 'OverlappingRamp', 'Diverge', 'Basic']);
+
+    // One field edit committed on blur is one undo step, not one per keystroke.
+    await page.getByTestId('undo').click();
+    expect(await typesOf(page)).toEqual(before);
+  });
+
+  test('the editor carries the fields no row column fits, and they reach the derivation', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('example-ep1').click();
+    // EP1's weave is the on-ramp that carries an auxiliary lane to the next
+    // off-ramp, so its weaving geometry is live rather than dimmed.
+    const weaveOn = page.locator('[data-testid="feature-row"]').filter({ hasText: 'aux lane to next' }).first();
+    const onId = (await weaveOn.getAttribute('data-feature-id'))!;
+    await expandFeature(page, onId);
+    for (const field of ['weaving-lanes', 'lc-rf', 'lc-fr', 'ramp-ffs', 'accel']) {
+      await expect(page.getByTestId(`${field}-${onId}`)).toBeVisible();
+    }
+    // The per-ramp demand vector is in the panel as well as in the grid below,
+    // and both write to the same document.
+    await page.getByTestId(`demand-${onId}-0`).fill('999');
+    await page.getByTestId(`demand-${onId}-0`).blur();
+    await expect(page.locator(`[data-testid="demand-row"][data-source="${onId}"] input`).first()).toHaveValue('999');
+  });
+
+  test('a work zone field committed in the editor moves the segment it produced', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('example-ep4').click();
+    const id = (await page.getByTestId('work-zone-marker').getAttribute('data-feature-id'))!;
+    await expandFeature(page, id);
+    // All ten of the library's WorkZone fields are here, including the ramp
+    // density that had no editor anywhere before.
+    await expect(page.getByTestId(`wz-ramp-density-${id}`)).toBeVisible();
+    await page.getByTestId(`open-lanes-${id}`).fill('3');
+    await page.getByTestId(`open-lanes-${id}`).blur();
+    // The derived row is the assertion, not the strip: the closure segment is
+    // what the engine analyzes.
+    await expect(page.locator('[data-testid="strip-seg"][data-seg-wz="yes"]')).toHaveAttribute('data-seg-lanes', '3');
+    await expect(page.getByTestId('segment-row').filter({ hasText: 'WZ' }).first()).toBeVisible();
+    await page.getByTestId('undo').click();
+    await expect(page.locator('[data-testid="strip-seg"][data-seg-wz="yes"]')).toHaveAttribute('data-seg-lanes', '2');
+  });
+
+  test('marker and row select each other', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('template-diamond').click();
+    const offId = (await page.getByTestId('feature-row').last().getAttribute('data-feature-id'))!;
+
+    // Row to marker: expanding lights the marker on the strip.
+    await page.getByTestId(`expand-${offId}`).click();
+    await expect(page.locator(`[data-testid="feature-marker"][data-feature-id="${offId}"]`)).toHaveClass(/lit/);
+
+    // Marker to row: a click that moves nothing opens that feature's row and
+    // closes the one that was open.
+    const onId = (await page.getByTestId('feature-row').first().getAttribute('data-feature-id'))!;
+    await page.locator(`[data-testid="feature-marker"][data-feature-id="${onId}"] circle`).click();
+    await expect(page.locator(`[data-testid="feature-editor"][data-feature-id="${onId}"]`)).toBeVisible();
+    await expect(page.locator(`[data-testid="feature-editor"][data-feature-id="${offId}"]`)).toHaveCount(0);
+    await expect(page.locator(`[data-testid="feature-row"][data-feature-id="${onId}"]`)).toHaveAttribute('data-expanded', 'true');
+  });
+
+  test('the editor maximizes to the viewport and Escape restores it', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('template-diamond').click();
+    const editor = page.getByTestId('builder-editor');
+    await expect(editor).toHaveAttribute('data-maximized', 'false');
+
+    await page.getByTestId('maximize-editor').click();
+    await expect(editor).toHaveAttribute('data-maximized', 'true');
+    await expect(page.getByTestId('maximize-editor')).toHaveAttribute('aria-pressed', 'true');
+    // Actually filling the viewport, not just wearing the class.
+    const box = await editor.boundingBox();
+    const view = page.viewportSize()!;
+    expect(box!.width).toBeGreaterThan(view.width * 0.95);
+
+    // The editor keeps working inside the overlay.
+    const offId = (await page.getByTestId('feature-row').last().getAttribute('data-feature-id'))!;
+    await expandFeature(page, offId);
+    await expect(page.getByTestId(`station-${offId}`)).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(editor).toHaveAttribute('data-maximized', 'false');
+    // And the open row survived the trip, because maximizing is a layout state
+    // and not a reset.
+    await expect(page.locator(`[data-testid="feature-editor"][data-feature-id="${offId}"]`)).toBeVisible();
+  });
+
+  test('a run leaves the maximized editor alone and the results wait below it', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('example-ep1').click();
+    await page.getByTestId('analyze').click();
+    await expect(page.getByTestId('heatmap')).toBeVisible();
+
+    await page.getByTestId('maximize-editor').click();
+    await expect(page.getByTestId('builder-editor')).toHaveAttribute('data-maximized', 'true');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('overall-speed')).toHaveText('56.9');
+    await expect(page.getByTestId('results-stale')).toHaveCount(0);
   });
 
   // ── Analysis (phase 1b) ────────────────────────────────────────────────
@@ -3575,6 +3713,7 @@ test.describe('facility builder', () => {
     // A lane change to one lane is an error: Chapter 10 needs at least two.
     await page.getByTestId('add-lane-change').click();
     const id = await page.getByTestId('lane-change-marker').getAttribute('data-feature-id');
+    await expandFeature(page, id!);
     await page.getByTestId(`lanes-${id}`).fill('1');
     await page.getByTestId(`lanes-${id}`).blur();
     await expect(page.locator('[data-testid="validation-flag"][data-level="error"]')).not.toHaveCount(0);

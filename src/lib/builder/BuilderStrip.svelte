@@ -17,6 +17,7 @@
     highlightIds = [],
     onselectrow = null,
     onselectfeature = null,
+    onrevealfeature = null, // (id) on a click that moved nothing, so the list can scroll to it
     onmovefeature = null,   // (id, stationFt, phase) where phase is 'drag' | 'end'
     interactive = true
   } = $props();
@@ -30,6 +31,11 @@
 
   let svgEl = $state(null);
   let dragging = $state(null);
+  // Whether the pointer actually moved the feature between down and up. A press
+  // that moved nothing is a click, and a click opens the feature's editor and
+  // scrolls to it; a drag must not, because scrolling the page mid-gesture
+  // moves the strip out from under the pointer.
+  let dragMoved = false;
 
   const clampLanes = (n) => Math.max(1, Math.min(8, Math.round(Number(n) || 3)));
 
@@ -131,19 +137,30 @@
     e.preventDefault();
     e.currentTarget.setPointerCapture?.(e.pointerId);
     dragging = f.id;
+    dragMoved = false;
     onselectfeature?.(f.id);
   }
 
   function moveDrag(e, f) {
     if (dragging !== f.id) return;
-    onmovefeature?.(f.id, stationFromEvent(e), 'drag');
+    const to = stationFromEvent(e);
+    // Compared against the feature's own station rather than counted as a
+    // pointermove, because the strip snaps to 0.1 mi: a press that jitters a
+    // few pixels fires moves that change nothing and is still a click.
+    if (to !== f.stationFt) dragMoved = true;
+    onmovefeature?.(f.id, to, 'drag');
   }
 
   function endDrag(e, f) {
     if (dragging !== f.id) return;
     dragging = null;
     e.currentTarget.releasePointerCapture?.(e.pointerId);
-    onmovefeature?.(f.id, stationFromEvent(e), 'end');
+    // A press that moved nothing commits nothing. Committing the pointer's
+    // station anyway would snap a feature whose station is not on the 0.1-mi
+    // grid — every station an example problem loads — so clicking a marker to
+    // read it would silently move it.
+    if (dragMoved) onmovefeature?.(f.id, stationFromEvent(e), 'end');
+    else onrevealfeature?.(f.id);
   }
 
   // Keyboard is not an accessibility afterthought here: the strip snaps to
@@ -290,7 +307,7 @@
     <polygon points="{W - PAD - 10},{5} {W - PAD},{9} {W - PAD - 10},{13}" class="bs-arrow" />
   </svg>
   <p class="bs-note">
-    Segments are derived from the features by the Chapter 10 rules and cannot be dragged. Drag a ramp marker, or focus it and use the arrow keys, to move its gore; stations snap to 0.1 mi and the station field is the fine adjustment.
+    Segments are derived from the features by the Chapter 10 rules and cannot be dragged. Drag a ramp marker, or focus it and use the arrow keys, to move its gore; stations snap to 0.1 mi and the station field is the fine adjustment. Clicking a marker without moving it opens that feature's editor in the list below.
   </p>
 </div>
 
