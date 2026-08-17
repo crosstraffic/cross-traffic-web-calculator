@@ -21,6 +21,7 @@
   import UrbanFacilityDiagram from '$lib/UrbanFacilityDiagram.svelte';
   import FacilityDiagram from '$lib/FacilityDiagram.svelte';
   import ManagedLaneDiagram from '$lib/ManagedLaneDiagram.svelte';
+  import GradeProfileStrip from '$lib/GradeProfileStrip.svelte';
 
   onMount(() => { if (!Object.keys($reports).length) loadReports(); });
 
@@ -179,6 +180,10 @@
               <UrbanFacilityDiagram
                 segments={current.diagram.props.segments}
                 note={current.diagram.props.note ?? 'Segment chain, upstream to downstream, coloured by segment level of service.'} />
+            {:else if current.diagram.kind === 'grade-profile'}
+              <GradeProfileStrip
+                segments={current.diagram.props.segments}
+                governing={current.diagram.props.governing ?? -1} />
             {/if}
           </div>
         </section>

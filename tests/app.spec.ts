@@ -1174,6 +1174,179 @@ test.describe('chapter 12 basic freeway calculator', () => {
   });
 });
 
+test.describe('chapter 12 mixed-flow mode', () => {
+  // The Chapter 25/26 mixed-flow model as a second method on the Chapter 12 page. Same
+  // fixtures the boundary suite runs (tests/boundary/ch25_26_mixed_flow.mjs); driven here
+  // through the form so the percent-to-decimal conversion on the truck shares and the
+  // rendering of the absent-speed case are covered too.
+  async function openMixedFlow(page: Page) {
+    await page.goto('/hcm12');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await page.selectOption('#METHOD_input', 'mixed');
+  }
+
+  test('Load Ch.26 EP5 reproduces the published single-grade result', async ({ page }) => {
+    await openMixedFlow(page);
+    await page.getByRole('button', { name: 'Load Ch.26 EP5' }).click();
+
+    // Example Problem 5's facts, seeded by the loader rather than typed.
+    await expect(page.locator('#MFSUB_input')).toHaveValue('single');
+    await expect(page.locator('#MFGRADE_input')).toHaveValue('5');
+    await expect(page.locator('#MFLEN_input')).toHaveValue('2');
+    await expect(page.locator('#MFFFS_input')).toHaveValue('65');
+    await expect(page.locator('#MFV_input')).toHaveValue('1500');
+    await expect(page.locator('#MFSUT_input')).toHaveValue('5');
+    await expect(page.locator('#MFTT_input')).toHaveValue('10');
+
+    await page.getByRole('button', { name: 'Calculate' }).click();
+
+    // Published: CAF_mix 0.734, C_mix 1,725 veh/h/ln, FFS_mix 60.1, S_mix 47.4, D_mix 31.6.
+    // The capacity prints 1726 rather than the book's 1,725 because the example carries
+    // CAF_mix rounded to three decimals into Equation 26-5 and the engine does not.
+    await expect(page.getByTestId('mf-caf-mix')).toHaveText('0.735');
+    await expect(page.getByTestId('mf-capacity')).toHaveText('1726 veh/h/ln');
+    await expect(page.getByTestId('mf-ffs-mix')).toHaveText('60.1 mi/h');
+    await expect(page.getByTestId('mf-speed')).toHaveText('47.4 mi/h');
+    await expect(page.getByTestId('mf-density')).toHaveText('31.6 veh/mi/ln');
+
+    // Chapter 26 assigns LOS F above capacity and no letter below it. Reading D_mix against
+    // the Exhibit 12-15 bands would be reading a mixed-flow density against auto-only
+    // thresholds, which the Example Problem 5 discussion rules out in as many words.
+    await expect(page.getByTestId('mf-los')).toHaveText('not assigned');
+    await expect(page.getByTestId('mf-los-basis')).toContainText('assigns no letter');
+    await expect(page.getByTestId('mf-oversaturated')).toHaveCount(0);
+  });
+
+  test('Load Ch.25 EP11 reproduces the published composite-grade result', async ({ page }) => {
+    await openMixedFlow(page);
+    await page.getByRole('button', { name: 'Load Ch.25 EP11' }).click();
+
+    await expect(page.locator('#MFSUB_input')).toHaveValue('composite');
+    await expect(page.locator('#MFSEGG0_input')).toHaveValue('3');
+    await expect(page.locator('#MFSEGL0_input')).toHaveValue('1.5');
+    await expect(page.locator('#MFSEGG2_input')).toHaveValue('5');
+
+    await page.getByRole('button', { name: 'Calculate' }).click();
+
+    // Published per-segment capacities 1,875 / 1,934 / 1,746 veh/h/ln and speeds
+    // 57.7 / 58.7 / 47.9 mi/h; the 1 mi 5% grade governs at 1,746 and the facility runs at
+    // 55.6 mi/h over 4.5 mi. The engine's unrounded chain lands a unit or two off each.
+    await expect(page.getByTestId('mf-comp-seg-1')).toContainText('1874');
+    await expect(page.getByTestId('mf-comp-seg-1')).toContainText('57.7');
+    await expect(page.getByTestId('mf-comp-seg-3')).toContainText('1747');
+    await expect(page.getByTestId('mf-comp-capacity')).toHaveText('1747 veh/h/ln');
+    await expect(page.getByTestId('mf-comp-governing')).toHaveText('Grade 3');
+    await expect(page.getByTestId('mf-comp-overall')).toHaveText('55.7 mi/h');
+    await expect(page.getByTestId('mf-comp-los')).toHaveText('not assigned');
+
+    // The profile strip draws the three grades to scale and calls out the governing one.
+    const profile = page.locator('.grade-profile');
+    await expect(profile).toHaveAttribute('aria-label', /1.5 mi at 3%, 2 mi at 2%, 1 mi at 5%/);
+    await expect(profile.locator('.gp-governing')).toHaveCount(1);
+  });
+
+  test('above capacity the single-grade result reports no speed rather than a zero', async ({ page }) => {
+    await openMixedFlow(page);
+    await page.getByRole('button', { name: 'Load Ch.26 EP5' }).click();
+
+    // C_mix is 1,726 veh/h/ln for this grade, so 2,000 is oversaturated. s_mix and d_mix
+    // cross the wasm boundary as `undefined` rather than `null` (serde crosses Rust's None
+    // that way), which is why the page guards on `== null`: a `=== null` guard never fires
+    // and the absent speed prints as a number.
+    await page.locator('#MFV_input').fill('2000');
+    await page.getByRole('button', { name: 'Calculate' }).click();
+
+    await expect(page.getByTestId('mf-oversaturated')).toContainText(
+      'LOS F — demand exceeds mixed-flow capacity; the method reports no speed'
+    );
+    await expect(page.getByTestId('mf-speed')).toHaveText('no speed reported');
+    await expect(page.getByTestId('mf-density')).toHaveText('no density reported');
+    await expect(page.getByTestId('mf-los')).toHaveText('F');
+    // The capacity side still computes, which is what makes the LOS F call.
+    await expect(page.getByTestId('mf-capacity')).toHaveText('1726 veh/h/ln');
+  });
+
+  test('switching modes preserves the standard-mode result', async ({ page }) => {
+    await page.goto('/hcm12');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.getByRole('button', { name: 'Load example' }).click();
+    await calculate.click();
+    const density = await page.locator('.step-table tr', { hasText: 'Density, D' }).locator('td.num').textContent();
+    expect(density).toMatch(/pc\/mi\/ln/);
+
+    await page.selectOption('#METHOD_input', 'mixed');
+    await expect(page.locator('#MFSUB_input')).toBeVisible();
+    await expect(page.locator('.step-table tr', { hasText: 'Density, D' })).toHaveCount(0);
+
+    await page.selectOption('#METHOD_input', 'standard');
+    await expect(page.locator('.step-table tr', { hasText: 'Density, D' }).locator('td.num')).toHaveText(density!);
+    await expect(page.locator('.los-badge').first()).toBeVisible();
+  });
+
+  test('a grade the PCE exhibits do not cover offers the mixed-flow mode', async ({ page }) => {
+    await page.goto('/hcm12');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    // Exhibits 12-26/27/28 stop at 6%. Selecting a specific-upgrade mix makes grade live, and
+    // a 7% grade is then a refusal the mixed-flow mode is the answer to.
+    await page.selectOption('#SUT_input', '30');
+    await page.locator('#GRADE_input').fill('7');
+    await page.locator('#LEN_input').fill('2');
+    await calculate.click();
+
+    await expect(page.getByTestId('hcm12-error')).toContainText('Exhibit 12-26/27/28');
+    const escalate = page.getByTestId('hcm12-escalate');
+    await expect(escalate).toBeVisible();
+    await escalate.getByRole('button', { name: 'Switch to mixed-flow mode' }).click();
+    await expect(page.locator('#MFSUB_input')).toBeVisible();
+    await expect(page.locator('#METHOD_input')).toHaveValue('mixed');
+  });
+
+  test('mountainous terrain advertises the mixed-flow mode without blocking', async ({ page }) => {
+    await page.goto('/hcm12');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+
+    await expect(page.getByTestId('hcm12-mountainous-hint')).toHaveCount(0);
+    await page.selectOption('#TERRAIN_input', 'mountainous');
+
+    // Mountainous does not refuse — Exhibit 12-25 has a column for it — so this is a hint,
+    // not an error, and the standard analysis still runs.
+    const hint = page.getByTestId('hcm12-mountainous-hint');
+    await expect(hint).toBeVisible();
+    await expect(page.getByTestId('hcm12-error')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Calculate' }).click();
+    await expect(page.locator('.los-badge').first()).toBeVisible();
+
+    await hint.getByRole('button', { name: 'Switch to mixed-flow mode' }).click();
+    await expect(page.locator('#MFSUB_input')).toBeVisible();
+  });
+
+  test('the mixed-flow form is inert until the wasm module is ready', async ({ page }) => {
+    // A warm preview server hydrates faster than a fill lands, so the race has to be created
+    // rather than raced for. Without the guard webkit APPENDS to the server-rendered value.
+    await page.route('**/*.js', async (route) => {
+      await new Promise((r) => setTimeout(r, 2500));
+      await route.continue();
+    });
+    await page.goto('/hcm12');
+    await page.unroute('**/*.js');
+
+    // Pre-hydration the method selector is inside no form and the mixed-flow inputs do not
+    // exist yet, so the guard is checked on the standard form, which is the one painted.
+    const demand = page.locator('#DEMAND_input');
+    await demand.fill('3800').catch(() => {});
+    await expect(demand).toHaveValue('1000');
+
+    // And it lifts.
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await demand.fill('3800');
+    await expect(demand).toHaveValue('3800');
+  });
+});
+
 test.describe('chapter 12 managed lane calculator', () => {
   // HCM Chapter 26, Example Problem 7. The page defaults are Case 1; the only edit
   // between the two cases is the adjacent general purpose demand. Same fixture as

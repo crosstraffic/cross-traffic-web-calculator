@@ -12,9 +12,11 @@
   import { onMount } from "svelte";
   import FreewaySegment3D from '../FreewaySegment3D/+page.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
+  import MixedFlowMode from '$lib/MixedFlowMode.svelte';
   import { setReport } from '$lib/report';
 
   let ready = $state(false);
+  let method = $state('standard');   // 'standard' = Chapter 12 PCE | 'mixed' = Chapter 25/26 mixed flow
 
   onMount(async() => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
@@ -40,6 +42,7 @@
   let results = $state(null);
   let hasError = $state(false);
   let errMessage = $state('');
+  let escalate = $state(false);     // the refusal is one the mixed-flow mode can answer
   let diagramMode = $state('2d');   // '2d' plan view | '3d' perspective view
 
   // The specific-upgrade exhibits (12-26/27/28) are keyed on grade + length; the
@@ -47,8 +50,19 @@
   // that in the UI so the grade/length inputs don't look silently inert.
   let usesGrade = $derived(Number(sut_percentage) !== 0);
 
+  // The Chapter 12 specific-upgrade exhibits stop at a 6% grade, and the engine's refusal says
+  // so and names the Chapter 25/26 mixed-flow model as the way on. That is exactly the mode
+  // this page now carries, so the refusal offers the switch instead of only reporting itself.
+  const escalatable = (msg) => /mixed-flow|Exhibit 12-2[678]/.test(msg);
+
+  // Mountainous terrain does not refuse — Exhibit 12-25 has a column for it and the analysis
+  // completes. It is flagged rather than blocked because sustained mountainous grades are the
+  // condition the PCE tables are weakest on, which is the case Chapter 26 exists to answer.
+  let mountainousHint = $derived(!usesGrade && terrain_type === 'mountainous');
+
   function runAnalysis() {
     hasError = false;
+    escalate = false;
     results = null;
 
     try {
@@ -97,8 +111,12 @@
       publishReport();
     } catch (err) {
       console.error('Chapter 12 analysis failed:', err);
+      const raw = String(err && err.message ? err.message : err);
       hasError = true;
-      errMessage = 'The analysis could not be completed with the given inputs. Check the values and try again.';
+      escalate = escalatable(raw);
+      errMessage = escalate
+        ? raw
+        : 'The analysis could not be completed with the given inputs. Check the values and try again.';
     }
   }
 
@@ -177,6 +195,7 @@
     city_type = 'urban';
     results = null;
     hasError = false;
+    escalate = false;
   }
 
   // ─── JSON import / export ──────────────────────────────────────────────────
@@ -257,9 +276,58 @@
     </p>
   </header>
 
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2 class="panel-title">Analysis Method</h2>
+        <p class="panel-sub">
+          The Chapter 12 method converts heavy vehicles to passenger cars and reads speed and
+          density in passenger-car units. Where the grade is steep enough or the truck share
+          high enough that the passenger-car equivalents no longer hold, the Chapter 25 and 26
+          mixed-flow model works the truck stream directly and reports speed and density in
+          vehicle units instead.
+        </p>
+      </div>
+    </div>
+    <div class="param-grid">
+      <div class="param-field">
+        <label for="METHOD_input">Chapter 12 Method</label>
+        <select id="METHOD_input" class="select select-bordered select-sm" bind:value={method}>
+          <option value="standard">Standard (PCE) · Chapter 12</option>
+          <option value="mixed">Mixed-flow (steep grade / high trucks) · Chapters 25 and 26</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  {#if method === 'mixed'}
+    <MixedFlowMode {ready} />
+  {:else}
+
   {#if hasError}
-    <div class="alert alert-error shadow-sm mb-6">
+    <div class="alert alert-error shadow-sm mb-6" data-testid="hcm12-error">
       <span>{errMessage}</span>
+    </div>
+  {/if}
+
+  {#if escalate}
+    <div class="alert alert-warning shadow-sm mb-6" data-testid="hcm12-escalate">
+      <span>
+        This segment is outside the passenger-car-equivalent tables. The mixed-flow mode works
+        it with the Chapter 25 and 26 truck performance curves instead.
+      </span>
+      <button class="btn btn-sm" type="button" onclick={() => (method = 'mixed')}>Switch to mixed-flow mode</button>
+    </div>
+  {/if}
+
+  {#if mountainousHint}
+    <div class="alert alert-info shadow-sm mb-6" data-testid="hcm12-mountainous-hint">
+      <span>
+        Mountainous terrain analyses with a single general-terrain passenger-car equivalent that
+        does not know the grade or its length. On a sustained steep grade the mixed-flow mode is
+        the better answer.
+      </span>
+      <button class="btn btn-sm" type="button" onclick={() => (method = 'mixed')}>Switch to mixed-flow mode</button>
     </div>
   {/if}
 
@@ -560,6 +628,7 @@
       </div>
     </div>
   </section>
+  {/if}
 </div>
 
 <style>
