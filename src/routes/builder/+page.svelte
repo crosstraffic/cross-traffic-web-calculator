@@ -1057,7 +1057,7 @@
   .bd-flag.error .bd-flag-level, .bd-flag.warn .bd-flag-level { color: var(--warn-text); }
   .bd-flag-msg { color: var(--text); }
   .bd-flag-cite { display: block; color: var(--text-faint); font-size: 0.7rem; margin-top: 0.1rem; }
-  .bd-uncarried { font-size: 0.74rem; color: var(--text-muted); margin: 0.75rem 0 0; line-height: 1.5; max-width: 78ch; }
+  .bd-uncarried { font-size: 0.74rem; color: var(--text-muted); margin: 0.75rem 0 0; line-height: 1.5; }
 
   .bd-run { margin-top: 1.25rem; padding-top: 0.9rem; border-top: 1px solid var(--border); }
   .bd-run-bar { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
