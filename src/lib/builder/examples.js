@@ -14,10 +14,31 @@ import { emptyDocument, setPeriods } from './document.js';
 export const EXAMPLES = [
 	{
 		id: 'ep1',
-		name: 'Chapter 25 Example Problem 1',
+		name: 'Example Problem 1',
 		summary:
 			'6-mi urban freeway, three ramp pairs, five 15-min periods. The undersaturated facility of Exhibits 25-43 through 25-52.',
 		build: ep1
+	},
+	{
+		id: 'ep2',
+		name: 'Example Problem 2',
+		summary:
+			'Example Problem 1 geometry at demands roughly 11% higher, which pushes it oversaturated (Exhibits 25-53 through 25-60).',
+		build: ep2
+	},
+	{
+		id: 'ep3',
+		name: 'Example Problem 3',
+		summary:
+			'Example Problem 2 with a lane added downstream of the weave, the capacity improvement of Exhibits 25-61 through 25-68.',
+		build: ep3
+	},
+	{
+		id: 'ep4',
+		name: 'Example Problem 4',
+		summary:
+			'Example Problem 1 with a three-to-two lane closure on the last segment (Exhibits 25-69 through 25-77).',
+		build: ep4
 	}
 ];
 
@@ -25,6 +46,78 @@ export function loadExample(id) {
 	const e = EXAMPLES.find((x) => x.id === id);
 	if (!e) throw new Error(`unknown example "${id}"`);
 	return e.build();
+}
+
+/** Example Problems 2, 3 and 4 are all Example Problem 1's ramps at different
+ * demands, so each is built by taking EP1 and saying only what changed. That is
+ * how the manual presents them, and it keeps the one place the stations are
+ * written down to one place. */
+function ep2() {
+	const doc = ep1();
+	doc.meta = { name: 'Example Problem 2 (Exhibit 25-53)', source: 'example:ep2', modified: null };
+	doc.mainline.demand = [5001, 5500, 5800, 5200, 4201];
+	const set = (id, demand, r2r) => {
+		const f = doc.features.find((x) => x.id === id);
+		f.demand = demand;
+		if (r2r) f.rampToRampDemand = r2r;
+	};
+	set('on1', [500, 599, 699, 400, 200]);
+	set('off1', [300, 400, 300, 300, 300]);
+	set('on2', [599, 799, 899, 400, 300], [56, 111, 167, 89, 56]);
+	set('off2', [400, 400, 400, 400, 200]);
+	set('on3', [500, 599, 699, 500, 300]);
+	set('off3', [300, 300, 500, 300, 200]);
+	return doc;
+}
+
+function ep3() {
+	const doc = ep2();
+	doc.meta = { name: 'Example Problem 3 (Exhibit 25-61)', source: 'example:ep3', modified: null };
+	// The capacity improvement: the auxiliary lane through the weave is carried
+	// on as a full lane instead of being dropped, so the mainline steps from
+	// three lanes to four at the weaving segment's downstream boundary, which is
+	// 500 ft past the off-ramp gore (Exhibit 10-2).
+	doc.features.push({
+		id: 'lc1',
+		kind: 'lane_change',
+		stationFt: 18480,
+		label: 'Lane added',
+		lanes: 4
+	});
+	// With the lane carried on, ramp traffic no longer has to change lanes to
+	// reach the freeway, so the weave's required ramp-to-freeway lane changes
+	// drop to zero (Exhibit 25-61; Chapter 13 lane-addition configuration).
+	doc.features.find((f) => f.id === 'on2').lcRf = 0;
+	return doc;
+}
+
+function ep4() {
+	const doc = ep1();
+	doc.meta = { name: 'Example Problem 4 (Exhibit 25-69)', source: 'example:ep4', modified: null };
+	// A three-to-two closure over the whole last segment, 5.00 to 6.00 mi. The
+	// values are the fixture's, and the two that are not obvious are the
+	// published ones: a speed ratio of 60/55 and a queue discharge drop of 13.1%
+	// rather than the 7% the rest of the facility uses.
+	doc.features.push({
+		id: 'wz1',
+		kind: 'work_zone',
+		stationFt: 26400,
+		endFt: 31680,
+		label: 'Lane closure',
+		config: {
+			total_lanes: 3,
+			open_lanes: 2,
+			soft_barrier: true,
+			rural: false,
+			lateral_distance_ft: 0,
+			night: false,
+			speed_ratio: 60 / 55,
+			speed_limit_mi_h: 55,
+			total_ramp_density: 1,
+			queue_discharge_drop: 0.131
+		}
+	});
+	return doc;
 }
 
 function ep1() {

@@ -9,9 +9,17 @@
   // zero, which is a demand the analyst did not enter and a result they would
   // not question.
 
+  import { isRamp } from '$lib/builder/document.js';
+
   let { doc, onedit = null, onperiods = null, interactive = true } = $props();
 
-  let feats = $derived([...(doc?.features ?? [])].sort((a, b) => a.stationFt - b.stationFt));
+  // Ramps only. Lane changes and work zones live in the same `features` array
+  // but carry no demand vector at all, and reading `f.demand[p]` off one throws
+  // during render, which takes the whole page down rather than showing a blank
+  // row. Every consumer of `features` has to say which kinds it means.
+  let feats = $derived(
+    [...(doc?.features ?? [])].filter(isRamp).sort((a, b) => a.stationFt - b.stationFt)
+  );
   let periods = $derived(doc?.periods ?? 0);
 
   const mi = (ft) => (ft / 5280).toFixed(2);

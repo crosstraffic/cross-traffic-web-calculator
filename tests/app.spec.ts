@@ -3286,6 +3286,94 @@ test.describe('facility builder', () => {
     await expect(page.locator('[data-testid="validation-flag"][data-level="error"]')).toHaveCount(0);
   });
 
+  const lanesOf = (page: Page) =>
+    page.getByTestId('strip-seg').evaluateAll((els) =>
+      els.map((e) => Number((e as HTMLElement).dataset.segLanes))
+    );
+
+  test('Example Problem 3 shows the added lane as a step in the cross section', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('example-ep3').click();
+    const case3 = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', 'case3.json'), 'utf8'));
+    expect(await typesOf(page)).toEqual(case3.segments.map((s: { seg_type: string }) => s.seg_type));
+    // The strip is the thing that has to show the step, not just the table.
+    expect(await lanesOf(page)).toEqual(case3.segments.map((s: { lanes: number }) => s.lanes));
+    await expect(page.getByTestId('lane-change-marker')).toHaveCount(1);
+    await expect(page.getByTestId('lane-change-marker')).toHaveAttribute('data-lanes', '4');
+    // Removing it puts the downstream half back to three lanes.
+    const id = await page.getByTestId('lane-change-marker').getAttribute('data-feature-id');
+    await page.getByTestId(`remove-${id}`).click();
+    expect((await lanesOf(page)).slice(6)).toEqual([3, 3, 3, 3, 3]);
+  });
+
+  test('Example Problem 4 codes the closure segment with the lanes that stay open', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('example-ep4').click();
+    const case4 = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', 'case4.json'), 'utf8'));
+    expect(await typesOf(page)).toEqual(case4.segments.map((s: { seg_type: string }) => s.seg_type));
+    expect(await lanesOf(page)).toEqual(case4.segments.map((s: { lanes: number }) => s.lanes));
+    const closure = page.locator('[data-testid="strip-seg"][data-seg-wz="yes"]');
+    await expect(closure).toHaveCount(1);
+    await expect(closure).toHaveAttribute('data-seg-lanes', '2');
+    await expect(page.getByTestId('work-zone-marker')).toHaveCount(1);
+    // Opening a third lane puts the segment back to three, live.
+    const id = await page.getByTestId('work-zone-marker').getAttribute('data-feature-id');
+    await page.getByTestId(`open-lanes-${id}`).fill('3');
+    await page.getByTestId(`open-lanes-${id}`).blur();
+    await expect(page.locator('[data-testid="strip-seg"][data-seg-wz="yes"]')).toHaveAttribute('data-seg-lanes', '3');
+  });
+
+  test('a lane change added from the toolbar cuts the segment it lands in', async ({ page }) => {
+    await openBuilder(page);
+    expect(await typesOf(page)).toEqual(['Basic']);
+    await page.getByTestId('add-lane-change').click();
+    // One basic stretch becomes two, and only the downstream half is wider.
+    expect(await typesOf(page)).toEqual(['Basic', 'Basic']);
+    expect(await lanesOf(page)).toEqual([3, 4]);
+    await page.getByTestId('undo').click();
+    expect(await typesOf(page)).toEqual(['Basic']);
+  });
+
+  test('EP2 is EP1 at higher demands, and the segmentation does not move', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('example-ep1').click();
+    const ep1Types = await typesOf(page);
+    const ep1Lanes = await lanesOf(page);
+    await page.getByTestId('example-ep2').click();
+    expect(await typesOf(page)).toEqual(ep1Types);
+    expect(await lanesOf(page)).toEqual(ep1Lanes);
+    const case2 = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', 'case2.json'), 'utf8'));
+    await expect(page.locator('[data-testid="demand-row"][data-source="mainline"] input').first())
+      .toHaveValue(String(case2.mainline_demand[0]));
+  });
+
+  // Every feature kind shares one `features` array, and the ramp kinds are the
+  // only ones carrying a demand vector. A consumer that iterates the array
+  // without saying which kinds it means throws during render, and a thrown
+  // render does not blank the page: it leaves the last good DOM standing while
+  // every later update is silently dropped, which reads as "the button is
+  // disabled" rather than as an error. So the assertion is on pageerror.
+  test('placing one of every feature kind raises no page errors', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await openBuilder(page);
+    for (const kind of ['add-on-ramp', 'add-off-ramp', 'add-lane-change', 'add-work-zone']) {
+      await page.getByTestId(kind).click();
+    }
+    await expect(page.getByTestId('feature-table')).toBeVisible();
+    await expect(page.getByTestId('mainline-feature-table')).toBeVisible();
+    await expect(page.getByTestId('demand-grid')).toBeVisible();
+    // The demand grid holds the mainline row plus one per ramp, and nothing for
+    // the two kinds that have no demand. The ramp-to-ramp row is not among them
+    // because it belongs to a weave, and no auxiliary lane is set here.
+    await expect(page.getByTestId('demand-row')).toHaveCount(3);
+    await expect(page.locator('[data-testid="demand-row"][data-source="mainline"]')).toHaveCount(1);
+    // Still live after all four: undo unwinds them one at a time.
+    for (let i = 0; i < 4; i++) await page.getByTestId('undo').click();
+    expect(await typesOf(page)).toEqual(['Basic']);
+    expect(errors).toEqual([]);
+  });
+
   test('the builder link is in both navigation menus', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.navbar a[href="/builder"]')).toHaveCount(2);

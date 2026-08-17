@@ -39,7 +39,8 @@ const SEGMENT_KEYS = [
 	'lc_fr',
 	'on_ramp_demand',
 	'off_ramp_demand',
-	'ramp_to_ramp_demand'
+	'ramp_to_ramp_demand',
+	'work_zone'
 ];
 
 /** Fields of `FacilitySegment` and `FreewayFacility` that phase 1 has no editor
@@ -49,7 +50,6 @@ export const UNCARRIED_FIELDS = [
 	'ffs (per-segment free-flow speed override)',
 	'caf / saf / daf',
 	'caf_schedule / saf_schedule',
-	'work_zone',
 	'ramp_metering',
 	'c_ifl_override',
 	'time_step_s'
@@ -133,6 +133,13 @@ function isCarried(r, k) {
 	return true;
 }
 
+/** Work-zone configs are objects rather than scalars, so cloning has to reach
+ * one level in or the exported fixture would share the live config and an edit
+ * after export would reach back into it. */
+function cloneDeep(v) {
+	return v && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v;
+}
+
 function cloneVal(v) {
-	return Array.isArray(v) ? [...v] : v;
+	return Array.isArray(v) ? [...v] : cloneDeep(v);
 }

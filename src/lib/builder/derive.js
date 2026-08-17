@@ -43,9 +43,14 @@ export function deriveRows(doc, api) {
 	const errors = [];
 	const L = doc.mainline.lengthFt;
 	const ria = api.ramp_influence_area_ft();
-	const feats = [...doc.features].sort(
+	const all = [...doc.features].sort(
 		(a, b) => a.stationFt - b.stationFt || a.id.localeCompare(b.id)
 	);
+	// Ramps are what the segmentation rules act on. Lane changes and work zones
+	// act on the segments those rules produce, in the property pass below.
+	const feats = all.filter((f) => f.kind === 'on_ramp' || f.kind === 'off_ramp');
+	const laneChanges = all.filter((f) => f.kind === 'lane_change');
+	const workZones = all.filter((f) => f.kind === 'work_zone');
 
 	// Pass 1: each feature or ramp pair claims a span of the mainline.
 	const sections = [];
@@ -134,24 +139,49 @@ export function deriveRows(doc, api) {
 	// segments." Including the two termini, which is also how "the first and
 	// last segments of the defined facility are recommended to be basic freeway
 	// segments" is satisfied without a special case.
+	// Every station where the cross section changes is a segment boundary:
+	// "A new segment should be started whenever capacity changes (i.e., when a
+	// full or auxiliary lane is added, when one or more lanes are added or
+	// dropped, when the terrain changes significantly, or where lane widths or
+	// lateral clearances change in a way that affects capacity)." A lane change
+	// is one such station; a work zone is two, its upstream and downstream ends.
+	const breakpoints = [
+		...laneChanges.map((f) => f.stationFt),
+		...workZones.flatMap((f) => [f.stationFt, f.endFt])
+	]
+		.filter((x) => x > 0.5 && x < L - 0.5)
+		.sort((a, b) => a - b);
+
 	const rows = [];
 	let cursor = 0;
 	const pushBasic = (from, to, afterKey) => {
 		const len = to - from;
 		if (len <= 0.5) return; // sub-foot slivers are rounding, not segments
-		rows.push(
-			row(doc, {
-				key: `gap:${afterKey}`,
-				seg_type: BASIC,
-				length_ft: len,
-				startFt: from,
-				section: null,
-				why: `Unassigned stretch between the ramp segments around it, so it is a basic freeway segment (Chapter 10 Section 2, last segmentation rule).`
-			})
-		);
+		// One unassigned stretch can span several cross sections, so it is cut
+		// at every breakpoint inside it before it becomes a row.
+		const cuts = [from, ...breakpoints.filter((b) => b > from + 0.5 && b < to - 0.5), to];
+		for (let i = 0; i < cuts.length - 1; i++) {
+			rows.push(
+				row(doc, {
+					key: `gap:${afterKey}${i ? `+${i}` : ''}`,
+					seg_type: BASIC,
+					length_ft: cuts[i + 1] - cuts[i],
+					startFt: cuts[i],
+					section: null,
+					why: `Unassigned stretch between the ramp segments around it, so it is a basic freeway segment (Chapter 10 Section 2, last segmentation rule).${cuts.length > 2 ? ' It is cut here because the cross section changes at this station.' : ''}`
+				})
+			);
+		}
 	};
 
 	for (const s of sections) {
+		const secEnd = sectionEnd(s);
+		const inside = breakpoints.filter((b) => b > s.startFt + 0.5 && b < secEnd - 0.5);
+		if (inside.length) {
+			errors.push(
+				`the cross section changes at ${inside.map((b) => `${Math.round(b)} ft`).join(', ')}, inside the ramp section between ${s.on?.id ?? '?'} and ${s.off?.id ?? '?'}. A ramp influence area cannot be split, so the change is applied to the whole section instead of starting a segment there.`
+			);
+		}
 		if (s.startFt < cursor - 0.5) {
 			errors.push(
 				`the influence area of ${s.on?.id ?? s.off?.id} starts upstream of the segment before it, so the ramps are too close to segment independently`
@@ -189,7 +219,64 @@ export function deriveRows(doc, api) {
 		);
 	}
 
+	applyCrossSection(doc, rows, laneChanges, workZones, errors);
 	return { rows: applyOverrides(doc, rows), sections, errors };
+}
+
+/**
+ * Apply the properties that belong to a stretch of mainline rather than to a
+ * ramp: the lane count in force, and any work zone covering the row.
+ *
+ * This runs after the segmentation rather than inside it because that is the
+ * order the manual gives. Step A-2 divides the facility by where the demand and
+ * capacity change; what the cross section then *is* at each of those segments
+ * is Step A-3 onward. Keeping it separate is also what lets a work zone sit on
+ * a merge segment without the segmentation having to know about work zones.
+ */
+function applyCrossSection(doc, rows, laneChanges, workZones, errors) {
+	const steps = [...laneChanges].sort((a, b) => a.stationFt - b.stationFt);
+	const lanesAt = (ft) => {
+		let n = doc.mainline.lanes;
+		for (const s of steps) {
+			if (s.stationFt <= ft + 0.5) n = s.lanes;
+			else break;
+		}
+		return n;
+	};
+
+	for (const r of rows) {
+		const base = lanesAt(r.startFt);
+		// The auxiliary lane that makes a section a weave is a lane added to
+		// whatever cross section is in force there.
+		r.lanes = r.seg_type === 'Weaving' ? base + 1 : base;
+		if (base !== doc.mainline.lanes) {
+			r.why += ` The mainline carries ${base} lanes here.`;
+		}
+	}
+
+	for (const wz of workZones) {
+		const covered = rows.filter(
+			(r) => r.startFt >= wz.stationFt - 0.5 && r.startFt + r.length_ft <= wz.endFt + 0.5
+		);
+		if (covered.length === 0) {
+			errors.push(
+				`work zone ${wz.id} covers no whole segment, so it would not reach the analysis. Move its ends to segment boundaries, or place a ramp so a boundary falls inside it.`
+			);
+			continue;
+		}
+		for (const r of covered) {
+			r.work_zone = { ...wz.config };
+			// The engine takes a work-zone segment's lane count as the lanes that
+			// stay OPEN and folds the closure into CAF_wz and SAF_wz through the
+			// lane closure severity index (Equations 10-7, 10-11, 10-12). Example
+			// Problem 4 codes its three-to-two closure as a two-lane segment for
+			// exactly this reason, so the drawn cross section and the run agree.
+			r.lanes = Math.max(1, Math.round(wz.config.open_lanes));
+			r.workZoneId = wz.id;
+			r.sourceIds = [...r.sourceIds, wz.id];
+			r.why += ` A work zone closes ${Math.round(wz.config.total_lanes) - Math.round(wz.config.open_lanes)} of ${Math.round(wz.config.total_lanes)} lanes over this segment, so it is coded with the ${Math.round(wz.config.open_lanes)} lanes that stay open (Chapter 10 Section 4).`;
+		}
+	}
 }
 
 function sectionEnd(s) {
@@ -301,6 +388,7 @@ function importedRows(doc) {
 		num_weaving_lanes: s.num_weaving_lanes,
 		lc_rf: s.lc_rf,
 		lc_fr: s.lc_fr,
+		work_zone: s.work_zone,
 		sourceIds: [],
 		why: 'Imported from a fixture, which stores segments and not the ramps that produced them. There is no feature layer to explain this row, so it is editable only as an override.',
 		overridden: false,

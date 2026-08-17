@@ -11,7 +11,7 @@
 // is what round-trips the builder, and the fixture is what round-trips the
 // engines.
 
-export const DOC_VERSION = 1;
+export const DOC_VERSION = 2;
 
 /** Stations are stored in FEET, like every length in the Chapter 10 schema. The
  * strip snaps drags to 0.1 mi, which is 528 ft, but nothing downstream sees
@@ -70,6 +70,33 @@ export function emptyDocument() {
  * (Chapter 10 Section 2, Exhibit 10-1). */
 export function makeFeature(doc, kind, stationFt) {
 	const periods = doc.periods;
+	// The two non-ramp kinds are not demand sources, so they share nothing with
+	// the ramp shape but an id and a station.
+	if (kind === 'lane_change') {
+		// A station where the mainline lane count steps. Chapter 10 Section 2:
+		// "A new segment should be started whenever capacity changes (i.e., when
+		// a full or auxiliary lane is added, when one or more lanes are added or
+		// dropped ...)" — the same sentence the auxiliary lane is derived from.
+		return {
+			id: nextId(doc, 'lc'),
+			kind,
+			stationFt: Math.round(stationFt),
+			label: '',
+			lanes: doc.mainline.lanes + 1
+		};
+	}
+	if (kind === 'work_zone') {
+		// An interval feature. `stationFt` is its upstream end so that every
+		// feature sorts by one key; `endFt` is the other end.
+		return {
+			id: nextId(doc, 'wz'),
+			kind,
+			stationFt: Math.round(stationFt),
+			endFt: Math.round(stationFt) + FT_PER_MI,
+			label: '',
+			config: defaultWorkZone(doc)
+		};
+	}
 	const base = {
 		id: nextId(doc, kind === 'on_ramp' ? 'on' : 'off'),
 		kind,
@@ -96,6 +123,34 @@ export function makeFeature(doc, kind, stationFt) {
 	return { ...base, decelLaneFt: 500 };
 }
 
+/** The ten fields of the library's `WorkZone`, defaulted to the shape of a
+ * routine lane closure rather than to zeros, because a work zone whose
+ * `total_lanes` is 0 analyzes and prints numbers. `speed_ratio` and
+ * `queue_discharge_drop` are the two the caller is most likely to want to
+ * change and the two whose defaults are least obvious, so both are the
+ * Chapter 10 Section 4 defaults rather than invented values. */
+export function defaultWorkZone(doc) {
+	const lanes = doc?.mainline?.lanes ?? 3;
+	return {
+		total_lanes: lanes,
+		open_lanes: Math.max(1, lanes - 1),
+		soft_barrier: true,
+		rural: (doc?.mainline?.cityType ?? 'Urban') === 'Rural',
+		lateral_distance_ft: 0,
+		night: false,
+		speed_ratio: 1,
+		speed_limit_mi_h: 55,
+		total_ramp_density: doc?.mainline?.totalRampDensity ?? 1,
+		queue_discharge_drop: doc?.mainline?.queueDischargeDrop ?? 0.07
+	};
+}
+
+/** Ramps are the features the segmentation rules act on. Lane changes and work
+ * zones act on the segments those rules produce, which is why they are
+ * separated everywhere rather than filtered at each use. */
+export const isRamp = (f) => f.kind === 'on_ramp' || f.kind === 'off_ramp';
+export const isInterval = (f) => f.kind === 'work_zone';
+
 export function sortedFeatures(doc) {
 	return [...doc.features].sort((a, b) => a.stationFt - b.stationFt || a.id.localeCompare(b.id));
 }
@@ -119,6 +174,7 @@ export function setPeriods(doc, n) {
 	doc.periods = periods;
 	doc.mainline.demand = fit(doc.mainline.demand);
 	for (const f of doc.features) {
+		if (!isRamp(f)) continue;
 		f.demand = fit(f.demand);
 		if (f.kind === 'on_ramp') f.rampToRampDemand = fit(f.rampToRampDemand);
 	}
@@ -138,21 +194,31 @@ export function setPeriods(doc, n) {
  * a segment table that looks finished. */
 export function migrate(raw) {
 	if (!raw || typeof raw !== 'object') throw new Error('not a builder document');
-	if (raw.version !== DOC_VERSION) {
+	if (raw.version > DOC_VERSION) {
 		throw new Error(`unsupported builder document version ${raw.version} (this build reads ${DOC_VERSION})`);
 	}
 	if (raw.facilityType !== 'freeway') {
 		throw new Error(`unsupported facility type "${raw.facilityType}" (phase 1 is freeway only)`);
 	}
-	const doc = { ...emptyDocument(), ...raw };
-	doc.meta = { ...emptyDocument().meta, ...(raw.meta ?? {}) };
-	doc.mainline = { ...emptyDocument().mainline, ...(raw.mainline ?? {}) };
-	doc.features = Array.isArray(raw.features) ? raw.features : [];
-	doc.overrides = raw.overrides && typeof raw.overrides === 'object' ? raw.overrides : {};
+	const raw2 = upgradeToV2(raw);
+	const doc = { ...emptyDocument(), ...raw2 };
+	doc.meta = { ...emptyDocument().meta, ...(raw2.meta ?? {}) };
+	doc.mainline = { ...emptyDocument().mainline, ...(raw2.mainline ?? {}) };
+	doc.features = Array.isArray(raw2.features) ? raw2.features : [];
+	doc.overrides = raw2.overrides && typeof raw2.overrides === 'object' ? raw2.overrides : {};
 	if (!Array.isArray(doc.mainline.demand) || doc.mainline.demand.length === 0) {
 		throw new Error('document has no mainline demand, so it has no analysis periods');
 	}
 	// The period count is whatever the mainline vector says, and every other
 	// vector is refit to it rather than trusted.
 	return setPeriods(doc, doc.mainline.demand.length);
+}
+
+/** v1 to v2: v2 added the `lane_change` and `work_zone` feature kinds and
+ * nothing else, so every v1 document is already a valid v2 document with none
+ * of them. The migration is a version stamp, and it is written out rather than
+ * assumed because the next one will not be. */
+function upgradeToV2(raw) {
+	if (raw.version >= 2) return raw;
+	return { ...raw, version: 2 };
 }

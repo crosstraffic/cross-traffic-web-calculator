@@ -19,7 +19,7 @@
   import BuilderStrip from '$lib/builder/BuilderStrip.svelte';
   import SegmentTable from '$lib/builder/SegmentTable.svelte';
   import DemandGrid from '$lib/builder/DemandGrid.svelte';
-  import { emptyDocument, makeFeature, migrate, setPeriods, FT_PER_MI } from '$lib/builder/document.js';
+  import { emptyDocument, makeFeature, migrate, setPeriods, FT_PER_MI, isRamp } from '$lib/builder/document.js';
   import { deriveRows } from '$lib/builder/derive.js';
   import { validateFacility } from '$lib/builder/validate.js';
   import { fromFixture, toFixture, UNCARRIED_FIELDS } from '$lib/builder/fixture.js';
@@ -168,6 +168,13 @@
     });
   }
 
+  function setWorkZone(id, field, value) {
+    commit((d) => {
+      const f = d.features.find((x) => x.id === id);
+      if (f?.config) f.config[field] = value;
+    });
+  }
+
   function moveFeature(id, stationFt, phase) {
     // The final position of a drag coalesces into the same undo step as the
     // moves that led to it. Committing it under a null key instead would make
@@ -175,7 +182,12 @@
     // pointermove short of where the user let go.
     commit((d) => {
       const f = d.features.find((x) => x.id === id);
-      if (f) f.stationFt = Math.round(stationFt);
+      if (!f) return;
+      const next = Math.round(stationFt);
+      // An interval feature is dragged whole: its length is a property of the
+      // work zone, not of where it happens to sit.
+      if (f.endFt != null) f.endFt += next - f.stationFt;
+      f.stationFt = next;
     }, `drag:${id}`);
     if (phase === 'end') history.seal();
   }
@@ -315,6 +327,8 @@
         <span class="bd-group-label">Add</span>
         <button type="button" class="btn btn-sm" onclick={() => addFeature('on_ramp')} data-testid="add-on-ramp">On-ramp</button>
         <button type="button" class="btn btn-sm" onclick={() => addFeature('off_ramp')} data-testid="add-off-ramp">Off-ramp</button>
+        <button type="button" class="btn btn-sm" onclick={() => addFeature('lane_change')} data-testid="add-lane-change">Lane change</button>
+        <button type="button" class="btn btn-sm" onclick={() => addFeature('work_zone')} data-testid="add-work-zone">Work zone</button>
         {#each TEMPLATES as t}
           <button type="button" class="btn btn-sm" title={t.summary}
                   onclick={() => dropTemplate(t.id)} data-testid="template-{t.id}">{t.name}</button>
@@ -373,9 +387,9 @@
                     onmovefeature={moveFeature} />
     </section>
 
-    {#if doc.features.length}
-      <section class="bd-features" aria-label="Features">
-        <h2>Features</h2>
+    {#if doc.features.some(isRamp)}
+      <section class="bd-features" aria-label="Ramps">
+        <h2>Ramps</h2>
         <div class="bd-scroll">
           <table class="bd-table" data-testid="feature-table">
             <thead>
@@ -385,7 +399,7 @@
               </tr>
             </thead>
             <tbody>
-              {#each [...doc.features].sort((a, b) => a.stationFt - b.stationFt) as f (f.id)}
+              {#each [...doc.features].filter(isRamp).sort((a, b) => a.stationFt - b.stationFt) as f (f.id)}
                 <tr class:selected={selectedFeature === f.id} data-testid="feature-row" data-feature-id={f.id}>
                   <th scope="row">
                     <span class="bd-kind" class:on={f.kind === 'on_ramp'}>{f.kind === 'on_ramp' ? 'On' : 'Off'}</span>
@@ -414,6 +428,117 @@
                              aria-label="auxiliary lane from {f.id} to the next off-ramp" />
                     {:else}<span class="bd-dash">—</span>{/if}
                   </td>
+                  <td><button type="button" class="bd-remove" onclick={() => removeFeature(f.id)} data-testid="remove-{f.id}">remove</button></td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {/if}
+
+    {#if doc.features.some((f) => !isRamp(f))}
+      <section class="bd-features" aria-label="Mainline changes">
+        <h2>Mainline changes</h2>
+        <p class="bd-sub">
+          A lane change and a work zone are both places where capacity changes, so each one starts a new segment (Chapter 10 Section 2). A work zone is coded with the lanes that stay open, which is what the engine analyzes; the lanes it closes feed the severity index instead.
+        </p>
+        <div class="bd-scroll">
+          <table class="bd-table" data-testid="mainline-feature-table">
+            <tbody>
+              {#each [...doc.features].filter((f) => !isRamp(f)).sort((a, b) => a.stationFt - b.stationFt) as f (f.id)}
+                <tr data-testid="mainline-feature-row" data-feature-id={f.id} data-kind={f.kind}>
+                  <th scope="row">
+                    <span class="bd-kind">{f.kind === 'lane_change' ? 'Lanes' : 'WZ'}</span>
+                    <input type="text" class="bd-label-input" value={f.label} placeholder={f.id}
+                           onchange={(e) => setFeature(f.id, 'label', e.currentTarget.value)}
+                           aria-label="label for {f.id}" />
+                  </th>
+                  <td>
+                    <label class="bd-inline">from (mi)
+                      <input type="number" min="0" step="0.01" value={(f.stationFt / FT_PER_MI).toFixed(2)}
+                             data-testid="station-{f.id}"
+                             onchange={(e) => setFeature(f.id, 'stationFt', Math.round(Number(e.currentTarget.value) * FT_PER_MI))}
+                             aria-label="station of {f.id} in miles" />
+                    </label>
+                  </td>
+                  {#if f.kind === 'lane_change'}
+                    <td>
+                      <label class="bd-inline">to lanes
+                        <input type="number" min="2" max="8" step="1" value={f.lanes}
+                               data-testid="lanes-{f.id}"
+                               onchange={(e) => setFeature(f.id, 'lanes', Number(e.currentTarget.value))}
+                               aria-label="lane count downstream of {f.id}" />
+                      </label>
+                    </td>
+                    <td colspan="4"></td>
+                  {:else}
+                    <td>
+                      <label class="bd-inline">to (mi)
+                        <input type="number" min="0" step="0.01" value={(f.endFt / FT_PER_MI).toFixed(2)}
+                               data-testid="end-{f.id}"
+                               onchange={(e) => setFeature(f.id, 'endFt', Math.round(Number(e.currentTarget.value) * FT_PER_MI))}
+                               aria-label="downstream end of {f.id} in miles" />
+                      </label>
+                    </td>
+                    <td>
+                      <label class="bd-inline">lanes
+                        <input type="number" min="1" max="8" step="1" value={f.config.total_lanes}
+                               onchange={(e) => setWorkZone(f.id, 'total_lanes', Number(e.currentTarget.value))}
+                               aria-label="total lanes at {f.id}" />
+                      </label>
+                      <label class="bd-inline">open
+                        <input type="number" min="1" max="8" step="1" value={f.config.open_lanes}
+                               data-testid="open-lanes-{f.id}"
+                               onchange={(e) => setWorkZone(f.id, 'open_lanes', Number(e.currentTarget.value))}
+                               aria-label="open lanes at {f.id}" />
+                      </label>
+                    </td>
+                    <td>
+                      <label class="bd-inline">barrier
+                        <select value={f.config.soft_barrier ? 'soft' : 'hard'}
+                                onchange={(e) => setWorkZone(f.id, 'soft_barrier', e.currentTarget.value === 'soft')}
+                                aria-label="barrier type at {f.id}">
+                          <option value="soft">cones/drums</option>
+                          <option value="hard">hard barrier</option>
+                        </select>
+                      </label>
+                      <label class="bd-inline">limit (mi/h)
+                        <input type="number" min="25" max="75" step="5" value={f.config.speed_limit_mi_h}
+                               onchange={(e) => setWorkZone(f.id, 'speed_limit_mi_h', Number(e.currentTarget.value))}
+                               aria-label="work zone speed limit at {f.id}" />
+                      </label>
+                    </td>
+                    <td>
+                      <label class="bd-inline">speed ratio
+                        <input type="number" min="0.5" max="2" step="0.0001" value={f.config.speed_ratio}
+                               onchange={(e) => setWorkZone(f.id, 'speed_ratio', Number(e.currentTarget.value))}
+                               aria-label="speed ratio at {f.id}" />
+                      </label>
+                      <label class="bd-inline">queue drop
+                        <input type="number" min="0" max="0.5" step="0.001" value={f.config.queue_discharge_drop}
+                               onchange={(e) => setWorkZone(f.id, 'queue_discharge_drop', Number(e.currentTarget.value))}
+                               aria-label="queue discharge drop at {f.id}" />
+                      </label>
+                    </td>
+                    <td>
+                      <label class="bd-inline">lateral (ft)
+                        <input type="number" min="0" step="1" value={f.config.lateral_distance_ft}
+                               onchange={(e) => setWorkZone(f.id, 'lateral_distance_ft', Number(e.currentTarget.value))}
+                               aria-label="lateral distance at {f.id}" />
+                      </label>
+                      <label class="bd-inline bd-check">night
+                        <input type="checkbox" checked={f.config.night}
+                               onchange={(e) => setWorkZone(f.id, 'night', e.currentTarget.checked)}
+                               aria-label="night work at {f.id}" />
+                      </label>
+                      <label class="bd-inline bd-check">rural
+                        <input type="checkbox" checked={f.config.rural}
+                               onchange={(e) => setWorkZone(f.id, 'rural', e.currentTarget.checked)}
+                               aria-label="rural work zone at {f.id}" />
+                      </label>
+                    </td>
+                  {/if}
                   <td><button type="button" class="bd-remove" onclick={() => removeFeature(f.id)} data-testid="remove-{f.id}">remove</button></td>
                 </tr>
               {/each}
@@ -470,6 +595,9 @@
   .bd-message { font-size: 0.8rem; color: var(--ok-text); background: var(--ok-bg); border: 1px solid var(--ok-border); border-radius: 4px; padding: 0.35rem 0.5rem; margin: 0.4rem 0; }
 
   .bd-mainline h2, .bd-features h2 { font-size: 1rem; margin: 1rem 0 0.35rem; }
+  .bd-sub { font-size: 0.76rem; color: var(--text-muted); margin: 0 0 0.35rem; max-width: 82ch; line-height: 1.5; }
+  .bd-inline { font-size: 0.7rem; color: var(--text-muted); display: inline-flex; flex-direction: column; gap: 0.08rem; margin-right: 0.45rem; }
+  .bd-inline.bd-check { flex-direction: row; align-items: center; gap: 0.2rem; }
   .bd-fields { display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; }
   .bd-fields label { font-size: 0.75rem; color: var(--text-secondary); display: inline-flex; flex-direction: column; gap: 0.12rem; }
 

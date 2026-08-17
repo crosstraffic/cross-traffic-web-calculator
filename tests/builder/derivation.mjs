@@ -14,7 +14,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 import { deriveRows, WEAVE_EXTENSION_FT } from '../../src/lib/builder/derive.js';
-import { emptyDocument, makeFeature, setPeriods } from '../../src/lib/builder/document.js';
+import { emptyDocument, makeFeature, setPeriods, migrate, DOC_VERSION } from '../../src/lib/builder/document.js';
 import { loadExample } from '../../src/lib/builder/examples.js';
 import { fromFixture, toFixture } from '../../src/lib/builder/fixture.js';
 import { validateFacility } from '../../src/lib/builder/validate.js';
@@ -175,6 +175,122 @@ ok(
 		for (const k of Object.keys(want)) eq(got[k], want[k], `exported EP1 segment ${i + 1} key ${k}`);
 		eq(Object.keys(got), Object.keys(want), `exported EP1 segment ${i + 1} key set and order`);
 	});
+}
+
+// ── Example Problems 2, 3 and 4 ─────────────────────────────────────────
+//
+// EP2 is EP1's geometry at higher demands, EP3 adds a lane downstream of the
+// weave, and EP4 puts a three-to-two closure on the last segment. Each is
+// reconstructed the same way EP1 is, against its own published fixture: what is
+// being checked is not that the loader has the right numbers in it, but that
+// the feature layer produces the published segment table.
+for (const [id, file] of [['ep2', 'case2.json'], ['ep3', 'case3.json'], ['ep4', 'case4.json']]) {
+	const want = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', file)));
+	const doc = loadExample(id);
+	const { rows, errors } = deriveRows(doc, api);
+	eq(errors, [], `${id} derives without errors`);
+	eq(rows.length, want.segments.length, `${id} segment count`);
+	want.segments.forEach((w, i) => {
+		const got = rows[i];
+		eq(got?.seg_type, w.seg_type, `${id} segment ${i + 1} type`);
+		eq(Math.round(got?.length_ft), Math.round(w.length_ft), `${id} segment ${i + 1} length`);
+		eq(got?.lanes, w.lanes, `${id} segment ${i + 1} lanes`);
+		for (const k of ['lc_rf', 'lc_fr', 'short_length_ft', 'num_weaving_lanes']) {
+			if (w[k] != null) eq(got?.[k], w[k], `${id} segment ${i + 1} ${k}`);
+		}
+		for (const k of ['on_ramp_demand', 'off_ramp_demand', 'ramp_to_ramp_demand']) {
+			if (w[k]) eq(got?.[k], w[k], `${id} segment ${i + 1} ${k}`);
+		}
+		if (w.work_zone) eq(got?.work_zone, w.work_zone, `${id} segment ${i + 1} work_zone`);
+	});
+	// And the exported fixture is the fixture, key for key.
+	const exported = toFixture(doc, rows);
+	want.segments.forEach((w, i) => {
+		eq(Object.keys(exported.segments[i]), Object.keys(w), `${id} exported segment ${i + 1} key set and order`);
+		for (const k of Object.keys(w)) eq(exported.segments[i][k], w[k], `${id} exported segment ${i + 1} ${k}`);
+	});
+	eq(exported.mainline_demand, want.mainline_demand, `${id} exported mainline demand`);
+}
+
+// The lane change is what makes EP3 differ from EP2, so removing it has to put
+// EP3 back to EP2's cross section. Without this, a lane step that happened to
+// be applied by something else would look like a passing reconstruction.
+{
+	const ep3 = loadExample('ep3');
+	const withStep = deriveRows(ep3, api).rows.map((r) => r.lanes);
+	eq(withStep, [3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4], 'EP3 cross section with the lane change');
+	ep3.features = ep3.features.filter((f) => f.kind !== 'lane_change');
+	const without = deriveRows(ep3, api).rows.map((r) => r.lanes);
+	eq(without, [3, 3, 3, 3, 3, 4, 3, 3, 3, 3, 3], 'EP3 without it falls back to EP2, weave aside');
+}
+
+// Same for the work zone: it is the only thing that makes EP4 differ from EP1.
+{
+	const ep4 = loadExample('ep4');
+	const rows = deriveRows(ep4, api).rows;
+	eq(rows.filter((r) => r.work_zone).length, 1, 'exactly one EP4 segment carries a work zone');
+	eq(rows[10].lanes, 2, 'the closure segment is coded with the lanes that stay open');
+	ep4.features = ep4.features.filter((f) => f.kind !== 'work_zone');
+	const without = deriveRows(ep4, api).rows;
+	eq(without[10].lanes, 3, 'without the work zone the segment is back to three lanes');
+	ok(!without.some((r) => r.work_zone), 'and no segment carries a config');
+}
+
+// A lane change splits an unassigned stretch, and does it at the station given.
+{
+	const doc = emptyDocument();
+	doc.mainline.lengthFt = 20000;
+	doc.features.push({ id: 'lc9', kind: 'lane_change', stationFt: 8000, label: '', lanes: 4 });
+	const rows = deriveRows(doc, api).rows;
+	eq(rows.map((r) => [r.seg_type, r.length_ft, r.lanes]),
+		[['Basic', 8000, 3], ['Basic', 12000, 4]],
+		'a lane change cuts the basic stretch it sits in');
+}
+
+// A cross-section change inside a ramp influence area cannot start a segment
+// there, and the derivation says so rather than splitting the merge.
+{
+	const doc = emptyDocument();
+	doc.mainline.lengthFt = 30000;
+	const on = makeFeature(doc, 'on_ramp', 10000);
+	doc.features.push(on);
+	doc.features.push(makeFeature(doc, 'off_ramp', 14000));
+	doc.features.push({ id: 'lc8', kind: 'lane_change', stationFt: 11000, label: '', lanes: 4 });
+	const { rows, errors } = deriveRows(doc, api);
+	ok(errors.some((e) => /cannot be split/.test(e)), 'a lane change inside a ramp section is reported');
+	eq(rows.map((r) => r.seg_type),
+		['Basic', 'Merge', 'Basic', 'Diverge', 'Basic'],
+		'and the section is not split');
+}
+
+// A work zone that covers no whole segment would not reach the analysis.
+{
+	const doc = emptyDocument();
+	doc.mainline.lengthFt = 20000;
+	doc.features.push({
+		id: 'wz9', kind: 'work_zone', stationFt: 5000, endFt: 9000, label: '',
+		config: { total_lanes: 3, open_lanes: 2, soft_barrier: true, rural: false, lateral_distance_ft: 0, night: false, speed_ratio: 1, speed_limit_mi_h: 55, total_ramp_density: 1, queue_discharge_drop: 0.07 }
+	});
+	const { rows } = deriveRows(doc, api);
+	// Its two ends are breakpoints, so it does cover a whole segment.
+	eq(rows.map((r) => [r.seg_type, r.length_ft, r.lanes]),
+		[['Basic', 5000, 3], ['Basic', 4000, 2], ['Basic', 11000, 3]],
+		'a work zone cuts its own segment out of the stretch it sits in');
+	eq(rows[1].work_zone.open_lanes, 2, 'and the config lands on it');
+	ok(!rows[0].work_zone && !rows[2].work_zone, 'and on nothing either side of it');
+}
+
+// ── Document migration ──────────────────────────────────────────────────
+{
+	// A v1 document is a v2 document with no lane changes and no work zones.
+	// The migration is a version stamp today and will not be next time, so it
+	// is exercised rather than assumed.
+	const v1 = JSON.parse(JSON.stringify(loadExample('ep1')));
+	v1.version = 1;
+	const up = migrate(v1);
+	eq(up.version, DOC_VERSION, 'a v1 document migrates to the current version');
+	eq(deriveRows(up, api).rows.length, 11, 'and still derives EP1');
+	throws(() => migrate({ ...v1, version: 99 }), 'unsupported', 'a future version is refused');
 }
 
 // ── Fixture import round-trip ───────────────────────────────────────────

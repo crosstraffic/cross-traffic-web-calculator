@@ -134,6 +134,35 @@ export function validateFacility(doc, rows, deriveErrors = []) {
 		}
 	}
 
+	// A closure that leaves fewer lanes open than the segment can carry is the
+	// one work-zone mistake the engine cannot catch, because `open_lanes` is
+	// what it analyzes and `total_lanes` only feeds the lane closure severity
+	// index. A config claiming more open lanes than total lanes produces a
+	// negative LCSI and a capacity adjustment above 1.
+	for (const wz of (doc.features ?? []).filter((f) => f.kind === 'work_zone')) {
+		const c = wz.config ?? {};
+		if (!(c.open_lanes >= 1)) {
+			add(ERROR, 'work-zone-no-open-lanes', `Work zone ${wz.id} leaves ${c.open_lanes} lanes open. A closed facility is not an HCM analysis.`, 'HCM Chapter 10, Section 4 (work zones)', { featureId: wz.id });
+		} else if (c.open_lanes > c.total_lanes) {
+			add(ERROR, 'work-zone-lanes-inverted', `Work zone ${wz.id} declares ${c.open_lanes} lanes open out of ${c.total_lanes}. The lane closure severity index would come out negative and raise capacity rather than lower it.`, 'HCM Equations 10-7, 10-11, 10-12', { featureId: wz.id });
+		}
+		if (wz.endFt <= wz.stationFt) {
+			add(ERROR, 'work-zone-empty', `Work zone ${wz.id} ends at or before it starts.`, 'HCM Chapter 10, Section 4 (work zones)', { featureId: wz.id });
+		}
+	}
+
+	// A lane change to fewer than two lanes is rejected by the segment check
+	// above, but only once it has produced a segment. Saying it at the feature
+	// is more useful than saying it at every segment downstream of it.
+	for (const lc of (doc.features ?? []).filter((f) => f.kind === 'lane_change')) {
+		if (!(lc.lanes >= 2)) {
+			add(ERROR, 'lane-change-below-two', `The lane change at ${(lc.stationFt / 5280).toFixed(2)} mi drops the mainline to ${lc.lanes} lanes. Chapter 10 needs at least two.`, 'FreewayFacility::validate', { featureId: lc.id });
+		}
+		if (lc.stationFt <= 0 || lc.stationFt >= doc.mainline.lengthFt) {
+			add(NOTE, 'lane-change-outside', `The lane change ${lc.id} sits at or past a terminus, so it starts no segment. Set the mainline lane count instead.`, 'HCM Chapter 10, Section 2', { featureId: lc.id });
+		}
+	}
+
 	if (doc.importedSegments) {
 		add(
 			NOTE,
