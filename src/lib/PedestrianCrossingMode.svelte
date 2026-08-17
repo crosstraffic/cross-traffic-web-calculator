@@ -198,7 +198,7 @@
   </div>
 {/if}
 
-<form id="hcm20ped" onsubmit={(e) => { e.preventDefault(); runAnalysis(); }}>
+<form id="hcm20ped" inert={!ready} onsubmit={(e) => { e.preventDefault(); runAnalysis(); }}>
   <section class="panel">
     <div class="panel-head">
       <div>
