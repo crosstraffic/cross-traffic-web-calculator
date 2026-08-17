@@ -360,7 +360,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">HCM Chapter 18 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">HCM Chapter 18</span>
     <h1 class="page-title">Urban Street Segments</h1>
     <p class="page-sub">
       Estimate free-flow speed, travel speed, stop rate, and level of service
@@ -370,7 +370,7 @@
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> The compute engine is boundary-validated against HCM
+      <strong>Scope.</strong> The compute engine is boundary-validated against HCM
       Chapter 30, Example Problem 1 (Exhibits 30-26 through 30-36), which the page
       defaults reproduce, and against all three access-point delay sources the
       method allows. The page itself is in beta pending final inspection. Verify

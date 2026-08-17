@@ -78,15 +78,15 @@
       <thead><tr><th>Chapter</th><th>What it computes</th><th>Service measure</th></tr></thead>
       <tbody>
         <tr><td><a href="/hcm10">10 Freeway Facilities</a></td><td>Whole-facility analysis over 15-min periods, composing basic, merge, diverge, and weaving segments, with oversaturated queue tracking</td><td>Density and LOS per segment and period</td></tr>
-        <tr><td><a href="/hcm11">11 Freeway Reliability</a> (Beta)</td><td>Whole-year weekday travel time reliability with demand variation and random incidents</td><td>TTI distribution, PTI, reliability rating</td></tr>
+        <tr><td><a href="/hcm11">11 Freeway Reliability</a></td><td>Whole-year weekday travel time reliability with demand variation and random incidents</td><td>TTI distribution, PTI, reliability rating</td></tr>
         <tr><td><a href="/hcm12">12 Basic Freeway Segments</a></td><td>Single directional segment: FFS, capacity, speed, density</td><td>Density (pc/mi/ln)</td></tr>
-        <tr><td><a href="/hcm12ml">12 Basic Managed Lane Segments</a> (Beta)</td><td>A managed lane alongside general purpose freeway lanes: separation-specific breakpoint and capacity, speed, and the friction effect of the adjacent lanes</td><td>Density (pc/mi/ln)</td></tr>
+        <tr><td><a href="/hcm12ml">12 Basic Managed Lane Segments</a></td><td>A managed lane alongside general purpose freeway lanes: separation-specific breakpoint and capacity, speed, and the friction effect of the adjacent lanes</td><td>Density (pc/mi/ln)</td></tr>
         <tr><td><a href="/hcm13">13 Freeway Weaving</a></td><td>Weaving segment speeds and capacity, 7th Edition or Edition 7.1</td><td>Density (pc/mi/ln)</td></tr>
         <tr><td><a href="/hcm14">14 Merge and Diverge</a></td><td>Ramp influence area speeds and capacity, 7th Edition or Edition 7.1</td><td>Influence area density</td></tr>
         <tr><td><a href="/hcm15">15 Two-Lane Highways</a></td><td>Segment-by-segment facility with passing configuration and horizontal curves</td><td>Follower density</td></tr>
-        <tr><td><a href="/hcm16">16 Urban Street Facilities</a> (Beta)</td><td>A chain of urban street segments aggregated into one direction of an arterial facility, from Chapter 18 inputs or from published segment measures</td><td>Facility travel speed (mi/h)</td></tr>
-        <tr><td><a href="/hcm17">17 Urban Street Reliability</a> (Beta)</td><td>A year of weekday scenarios over a signalized arterial: weather, demand, and incident generation, then the travel time distribution</td><td>Travel time index and reliability rating</td></tr>
-        <tr><td><a href="/hcm18">18 Urban Street Segments</a> (Beta)</td><td>One direction of an arterial segment: base and adjusted free-flow speed, running time, through delay, stop rate</td><td>Travel speed (mi/h)</td></tr>
+        <tr><td><a href="/hcm16">16 Urban Street Facilities</a></td><td>A chain of urban street segments aggregated into one direction of an arterial facility, from Chapter 18 inputs or from published segment measures</td><td>Facility travel speed (mi/h)</td></tr>
+        <tr><td><a href="/hcm17">17 Urban Street Reliability</a></td><td>A year of weekday scenarios over a signalized arterial: weather, demand, and incident generation, then the travel time distribution</td><td>Travel time index and reliability rating</td></tr>
+        <tr><td><a href="/hcm18">18 Urban Street Segments</a></td><td>One direction of an arterial segment: base and adjusted free-flow speed, running time, through delay, stop rate</td><td>Travel speed (mi/h)</td></tr>
         <tr><td><a href="/hcm19">19 Signalized Intersections</a></td><td>Pretimed four-leg signal: saturation flows, capacities, delay by approach</td><td>Control delay (s/veh)</td></tr>
         <tr><td><a href="/hcm20">20 Two-Way STOP Control</a></td><td>Gap-acceptance capacities and delay by movement rank, with the December 2022 HCM corrections</td><td>Control delay per movement and lane</td></tr>
         <tr><td><a href="/hcm21">21 All-Way STOP Control</a></td><td>Iterated departure headways, service times, delay per lane</td><td>Control delay (s/veh)</td></tr>
@@ -322,11 +322,11 @@
       period chips.
     </p>
     <p>
-      <a href="/hcm11">Freeway Reliability</a> (Beta) wraps that engine in a whole-year weekday
+      <a href="/hcm11">Freeway Reliability</a> wraps that engine in a whole-year weekday
       scenario generator: monthly and weekday demand ratios plus randomly generated incidents
       from your crash rate. Keep the same <strong>Random Seed</strong> to reproduce a scenario
       set exactly. The run takes a few seconds because every scenario is a full Chapter 10
-      analysis. Read the Beta note on the page for what the tail measures (PTI) can and cannot
+      analysis. Read the scope note on the page for what the tail measures (PTI) can and cannot
       reproduce.
     </p>
   </section>
@@ -403,7 +403,7 @@
       capacity is worth supplying even when the facility is plainly undersaturated. Click a
       segment in the facility strip to highlight its card, and read the poorest-performing
       segment LOS alongside the facility letter, since a C facility can hold an E segment.
-      <a href="/hcm17">Chapter 17</a> (Beta) wraps the segment method in a whole-year weekday
+      <a href="/hcm17">Chapter 17</a> wraps the segment method in a whole-year weekday
       scenario generator. Each segment card is a Chapter 18 segment with its boundary signal,
       and the facility is evaluated once per analysis period of every weekday in the year, which
       is 3,120 scenarios for a 3-hour study period in twelve 15-min periods. The run is

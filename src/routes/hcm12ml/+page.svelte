@@ -215,7 +215,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">HCM Chapter 12 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">HCM Chapter 12</span>
     <h1 class="page-title">Basic Managed Lane Segments</h1>
     <p class="page-sub">
       Estimate capacity, space mean speed, density, and level of service for a
@@ -225,7 +225,7 @@
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> The compute engine is boundary-validated against HCM
+      <strong>Scope.</strong> The compute engine is boundary-validated against HCM
       Chapter 26, Example Problem 7 (both cases), which the page defaults reproduce,
       and against the Exhibit 12-30 separation parameters and the Exhibit 12-11
       capacities at every tabulated free-flow speed. The page itself is in beta

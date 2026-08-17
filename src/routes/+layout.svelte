@@ -92,15 +92,15 @@
               </summary>
               <ul class="p-2 bg-base-200">
                 <li><a href="/hcm10">Freeway Facilities</a></li>
-                <li><a href="/hcm11">Freeway Reliability (Beta)</a></li>
+                <li><a href="/hcm11">Freeway Reliability</a></li>
                 <li><a href="/hcm12">Basic Freeway Segments</a></li>
-                <li><a href="/hcm12ml">Basic Managed Lane Segments (Beta)</a></li>
+                <li><a href="/hcm12ml">Basic Managed Lane Segments</a></li>
                 <li><a href="/hcm13">Freeway Weaving Segments</a></li>
                 <li><a href="/hcm14">Freeway Merge and Diverge Segments</a></li>
                 <li><a href="/hcm15">Two-Lane Highways</a></li>
-                <li><a href="/hcm16">Urban Street Facilities (Beta)</a></li>
-                <li><a href="/hcm17">Urban Street Reliability (Beta)</a></li>
-                <li><a href="/hcm18">Urban Street Segments (Beta)</a></li>
+                <li><a href="/hcm16">Urban Street Facilities</a></li>
+                <li><a href="/hcm17">Urban Street Reliability</a></li>
+                <li><a href="/hcm18">Urban Street Segments</a></li>
                 <li><a href="/hcm19">Signalized Intersections</a></li>
                 <li><a href="/hcm20">Two-Way STOP Control</a></li>
                 <li><a href="/hcm21">All-Way STOP Control</a></li>
@@ -129,15 +129,15 @@
             </summary>
             <ul class="p-2 bg-base-200 chapters-menu">
               <li><a href="/hcm10">Freeway Facilities</a></li>
-              <li><a href="/hcm11">Freeway Reliability (Beta)</a></li>
+              <li><a href="/hcm11">Freeway Reliability</a></li>
               <li><a href="/hcm12">Basic Freeway Segments</a></li>
-              <li><a href="/hcm12ml">Basic Managed Lane Segments (Beta)</a></li>
+              <li><a href="/hcm12ml">Basic Managed Lane Segments</a></li>
               <li><a href="/hcm13">Freeway Weaving Segments</a></li>
                 <li><a href="/hcm14">Freeway Merge and Diverge Segments</a></li>
               <li><a href="/hcm15">Two-Lane Highways</a></li>
-              <li><a href="/hcm16">Urban Street Facilities (Beta)</a></li>
-              <li><a href="/hcm17">Urban Street Reliability (Beta)</a></li>
-              <li><a href="/hcm18">Urban Street Segments (Beta)</a></li>
+              <li><a href="/hcm16">Urban Street Facilities</a></li>
+              <li><a href="/hcm17">Urban Street Reliability</a></li>
+              <li><a href="/hcm18">Urban Street Segments</a></li>
               <li><a href="/hcm19">Signalized Intersections</a></li>
               <li><a href="/hcm20">Two-Way STOP Control</a></li>
               <li><a href="/hcm21">All-Way STOP Control</a></li>

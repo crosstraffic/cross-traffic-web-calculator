@@ -447,7 +447,7 @@
         summary: [],
         methodology: [
           `HCM Chapter 11 reliability methodology: a whole-year weekday reporting period built from monthly and weekday demand ratios${weather ? ', severe weather events from the Step B-6 inputs' : ''} and randomly generated incidents, every scenario evaluated with the Chapter 10 core methodology, and the travel time index distribution ${tti_weighting === 'vmt' ? 'VMT-weighted' : 'probability-weighted over the observations'}.`,
-          'Beta scope. The engine reproduces the published scenario generation and central reliability measures within a few percent, but tail measures depend on the published engine’s Monte Carlo stream and are not reproduced. The 95th percentile TTI runs up to about 20% high. Work zones and special events are excluded on this page.',
+          'Scope. The engine reproduces the published scenario generation and central reliability measures within a few percent, but tail measures depend on the published engine’s Monte Carlo stream and are not reproduced. The 95th percentile TTI runs up to about 20% high. Work zones and special events are excluded on this page.',
         ],
       });
     } catch (err) {
@@ -490,7 +490,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">HCM Chapter 11 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">HCM Chapter 11</span>
     <h1 class="page-title">Freeway Reliability Analysis</h1>
     <p class="page-sub">
       Estimate the travel time reliability of a freeway facility across a whole-year
@@ -503,7 +503,7 @@
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> The engine reproduces the scenario generation and the
+      <strong>Scope.</strong> The engine reproduces the scenario generation and the
       central reliability measures of the published HCM worked example within a few
       percent (median and mean TTI, misery index). Tail measures depend on the
       published engine's Monte Carlo stream and are not reproduced, the 95th

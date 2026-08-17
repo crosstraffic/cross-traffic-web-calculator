@@ -6,23 +6,23 @@ Inspection workflow: go chapter by chapter, read the test file, spot-check the e
 
 | Ch | Method | Core EPs | Boundary checks | Status | Sign-off |
 |----|--------|----------|----------------|--------|----------|
-| 10 | Freeway Facilities | Ch.25 EP1, EP2, EP3, EP4, EP5, EP6 | 1592 | pass | |
-| 11 | Freeway Reliability | Ch.25 EP7 (full fidelity), EP8, EP9 | 189 | pass | |
-| 12 | Basic Freeway Segments | Ch.26 EP1-3 | 18 | pass (after f_HV fix) | |
-| 12 | Managed Lanes | Ch.26 EP7 | 51 | pass | |
+| 10 | Freeway Facilities | Ch.25 EP1, EP2, EP3, EP4, EP5, EP6 | 1592 | pass | RT 2026-08-16 |
+| 11 | Freeway Reliability | Ch.25 EP7 (full fidelity), EP8, EP9 | 189 | pass | RT 2026-08-16 |
+| 12 | Basic Freeway Segments | Ch.26 EP1-3 | 18 | pass (after f_HV fix) | RT 2026-08-16 |
+| 12 | Managed Lanes | Ch.26 EP7 | 51 | pass | RT 2026-08-16 |
 | 13 | Weaving Segments | Ch.27 EP1-3 | 53 | pass | RT 2026-08-16 |
 | 14 | Merge and Diverge | Ch.28 EP1-5 | 117 | pass | RT 2026-08-16 |
-| 15 | Two-Lane Highways | 4 fixture cases | 168 | pass | |
-| 16 | Urban Street Facilities | Ch.29 §5 EP1 EB+WB | 55 | pass | |
-| 17 | Urban Street Reliability | Ch.29 §5 EP4 + EP5 Strategy 1, Ch.37 §5 ASC | 37 | pass | |
-| 18 | Urban Street Segments | Ch.30 §8 EP1 (all three AP-delay paths) | 72 | pass | |
-| 19 | Signalized Intersections | Ch.31 §10 EP1 + Exhibit 31-7 | 155 | pass | |
-| 20 | TWSC | Ch.32 EP1, EP2 (pedestrian mode), EP3 | 112 | pass | |
+| 15 | Two-Lane Highways | 4 fixture cases | 168 | pass | RT 2026-08-16 |
+| 16 | Urban Street Facilities | Ch.29 §5 EP1 EB+WB | 55 | pass | RT 2026-08-16 |
+| 17 | Urban Street Reliability | Ch.29 §5 EP4 + EP5 Strategy 1, Ch.37 §5 ASC | 37 | pass | RT 2026-08-16 |
+| 18 | Urban Street Segments | Ch.30 §8 EP1 (all three AP-delay paths) | 72 | pass | RT 2026-08-16 |
+| 19 | Signalized Intersections | Ch.31 §10 EP1 + Exhibit 31-7 | 155 | pass | RT 2026-08-16 |
+| 20 | TWSC | Ch.32 EP1, EP2 (pedestrian mode), EP3 | 112 | pass | RT 2026-08-16 |
 | 21 | AWSC | Ch.32 EP1-2 | 34 | pass | RT 2026-08-16 |
-| 22 | Roundabouts | Ch.33 EP1-2 | 55 | pass | |
-| 23 | Ramp Terminals | Ch.34 EP1, EP2, EP5, EP7, EP12, EP13, EP14, EP15, EP16 | 551 | pass | |
-| 24 | Off-Street Ped/Bike | Ch.35 EP1-2 | 15 | pass | |
-| 25/26 | Mixed-Flow Model | Ch.26 EP5 (mixed-flow half), Ch.25 EP11 | 88 | pass | Exposed as the hcm12 mixed-flow mode; both examples pinned through the page in `tests/app.spec.ts` (`chapter 12 mixed-flow mode`) |
+| 22 | Roundabouts | Ch.33 EP1-2 | 55 | pass | RT 2026-08-16 |
+| 23 | Ramp Terminals | Ch.34 EP1, EP2, EP5, EP7, EP12, EP13, EP14, EP15, EP16 | 551 | pass | RT 2026-08-16 |
+| 24 | Off-Street Ped/Bike | Ch.35 EP1-2 | 15 | pass | RT 2026-08-16 |
+| 25/26 | Mixed-Flow Model | Ch.26 EP5 (mixed-flow half), Ch.25 EP11 | 88 | pass | RT 2026-08-16. Exposed as the hcm12 mixed-flow mode; both examples pinned through the page in `tests/app.spec.ts` (`chapter 12 mixed-flow mode`) |
 
 ## Findings from the boundary pass
 
@@ -122,9 +122,18 @@ The fix is `withWasmRetry` in `src/lib/wasmRetry.js`, used only on hcm11, the on
    The EP9 block and its shape rejections are 40 checks, which with the two retired guards takes the file from 151 to 189. The duration parameters are read back from the binding rather than transcribed, and the Exhibit 11-22 defaults the constructor installs are asserted first (34.0/15.1, 34.6/13.8, 53.6/13.9, 67.9/21.9 twice, with the minima and maxima), so the 30% cut lands on the same numbers the core would use and the minima and maxima stay put, as in the Rust test. The direction is asserted as `ep9_incident_management_improves_reliability()` asserts it, on the identical draw of 186 incidents across the same 240 scenarios: VMT-weighted mean TTI 1.23777 to 1.21130, reliability rating 84.450% to 85.421%, misery index 3.5037 to 3.0869, TTI_max 39.71 to 32.35. Exhibit 25-108 publishes 1.35 to 1.20 mean TTI and 44.4 to 50.0 mi/h, and as with EP8 the published baseline is not the Exhibit 25-104 value for the same facility, so the published pair is named in the labels rather than asserted. Unlike the EP7 and EP8 pins these values are the library's own EP9 path computed natively on this fixture rather than book numbers, so they are pinned at 1e-9 where the measured wasm-versus-native gap is 2e-12. Running the same block at a 29% cut instead of 30% fails five of them, so the pins bind the modification and not merely a completed run. The remaining checks are the four shape rejections the binding owes the caller, since the core defaults all three list-shaped incident fields silently: a four-entry `duration_params` (which would restore the book duration for the severity it omits, the exact mistake this block invites), a four- or six-entry severity distribution, an eleven-month frequency table, and a config with no frequency source at all, which is what a wholly misspelled object deserializes into.
 5. RESOLVED in middleware 0.3.6 (finding 3 above): `determine_facility_follower_density` is bound and both the hcm15 page and the ch15 boundary suite call it. The predicted D-to-C flip for a case3-shaped facility happened in the boundary suite, not on the page, because the page was already selecting the adjusted density and already printed 7.271 and LOS C. Two things left over. The published-value comparison for case4 rests on the LOS E of Exhibit 26-36; the 20.0 followers/mi quoted in the note this replaces was not traceable to an exhibit in the library tests, so it is not repeated. Middleware 0.3.6 was published to crates.io on 2026-08-11, tracking transportations_library 0.3.2, so the declared dependency now resolves for consumers.
 
-6. Chapter 15 Step 11 passes the wrong argument for the Exhibit 15-6 band, and this predates 0.3.6. `determine_facility_los(fd, s_pl)` splits the LOS thresholds on posted speed limit (E above 12 followers/mi at 50 mi/h and up, above 15 below it), and `twolanehighways_test.rs` weights the posted limit by length to get that argument. Both `src/routes/hcm15/+page.svelte` and `tests/boundary/ch15_twolanehighways.mjs` pass the length-weighted *average speed* instead. All four fixtures post 55 mi/h, so the correct argument always selects the higher-speed band; case4's weighted average speed is 49.55 mi/h and selects the lower one, and its 19.897 is LOS E under both, which is why nothing has ever failed. A facility posting 55 with a follower density between 12 and 15 and an average speed under 50 would print D where the book says E. The fix is one argument in each of the two files, but it can move a printed letter, so it is left for you.
+6. RESOLVED (struck at sign-off 2026-08-16 after verifying both call sites). The Exhibit 15-6 band argument was fixed earlier in the campaign: `src/routes/hcm15/+page.svelte` passes the length-weighted posted limit (`seg_spl`) and `tests/boundary/ch15_twolanehighways.mjs` does the same (`splTot / totLen`), with the boundary file carrying the rationale comment. The description this item used to hold (both files passing the length-weighted average speed) no longer matches the code.
 
 7. RESOLVED: middleware 0.3.7 published to crates.io 2026-08-12 (with 0.3.8 following the same day for the parclo surface, tracking library 0.3.3 on both registries). The staged pair that followed, middleware 0.3.9 (pedestrian mode + SPUI surface) on library 0.3.4, published 2026-08-13. Reopened the same day for the mixed-flow surface and CLOSED again 2026-08-14: middleware 0.3.10 on library 0.3.5, both on the registries, clean clones resolve. See the publish-gate paragraph under Full-suite status.
+
+## Sign-off resolution (2026-08-16)
+
+Rei inspected chapters 13, 14, and 21 individually (the ch14 pass double-confirming the Exhibit 28-5 SFI adjudication after an independent search for the printed 769's derivation found none) and signed the remaining rows on the process. That blanket sign-off resolves the open judgment items as follows, recorded here so none of them reads as silently decided:
+
+- The DDI's corrected 29.8 s/veh LOS B (against the published 34.9 C) and the SPUI's two band-edge O-D letters stand as printed. The d2 correction and the seven documented Exhibit 34-75..34-78 defects carry them.
+- The Chapter 20 pedestrian mode ships with the least-squares I_MR/I_NY coefficients, which remain VERIFY-HCM items to be replaced if an uncut printing of Equation 20-95 surfaces.
+- The five Exhibit 23-17 parclos without published examples stay unexposed; the hcm23 page note explaining their absence stands. Reopen on request.
+- Every page leaves beta: the Beta badges on hcm11, hcm12ml, hcm16, hcm17, and hcm18 are removed with this sign-off. Scope notes that described real limits (the Chapter 11 Monte Carlo tail, the Chapter 16 fixture artifact) keep their content and lose only the Beta framing.
 
 ## Full-suite status
 

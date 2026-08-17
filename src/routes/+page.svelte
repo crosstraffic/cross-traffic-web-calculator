@@ -107,7 +107,7 @@
         <span class="chapter-name">Freeway Reliability Analysis</span>
         <span class="chapter-desc">Whole-year travel time reliability with demand variation and incident scenarios</span>
       </span>
-      <span class="chapter-status beta">Beta</span>
+      <span class="chapter-status available">Available</span>
     </a>
 
     <a class="chapter-row" href="/hcm12">
@@ -125,7 +125,7 @@
         <span class="chapter-name">Basic Managed Lane Segments</span>
         <span class="chapter-desc">Capacity, speed, density, and level of service for a managed lane, including the friction effect of the adjacent general purpose lanes</span>
       </span>
-      <span class="chapter-status beta">Beta</span>
+      <span class="chapter-status available">Available</span>
     </a>
 
     <a class="chapter-row" href="/hcm13">
@@ -161,7 +161,7 @@
         <span class="chapter-name">Urban Street Facilities</span>
         <span class="chapter-desc">Facility travel speed, spatial stop rate, and LOS aggregated over a chain of urban street segments</span>
       </span>
-      <span class="chapter-status beta">Beta</span>
+      <span class="chapter-status available">Available</span>
     </a>
 
     <a class="chapter-row" href="/hcm17">
@@ -170,7 +170,7 @@
         <span class="chapter-name">Urban Street Reliability and ATDM</span>
         <span class="chapter-desc">Travel time distribution, travel time index percentiles, and reliability rating over a year of generated weather, demand, and incident scenarios</span>
       </span>
-      <span class="chapter-status beta">Beta</span>
+      <span class="chapter-status available">Available</span>
     </a>
 
     <a class="chapter-row" href="/hcm18">
@@ -179,7 +179,7 @@
         <span class="chapter-name">Urban Street Segments</span>
         <span class="chapter-desc">Free-flow speed, running time, travel speed, stop rate, and LOS for one direction of an arterial segment</span>
       </span>
-      <span class="chapter-status beta">Beta</span>
+      <span class="chapter-status available">Available</span>
     </a>
 
     <a class="chapter-row" href="/hcm19">

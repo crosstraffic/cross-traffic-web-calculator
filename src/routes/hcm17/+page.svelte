@@ -350,7 +350,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">HCM Chapter 17 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">HCM Chapter 17</span>
     <h1 class="page-title">Urban Street Reliability and ATDM</h1>
     <p class="page-sub">
       Estimate the travel time distribution, travel time index, and reliability
@@ -361,7 +361,7 @@
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> The compute engine is boundary-validated against HCM
+      <strong>Scope.</strong> The compute engine is boundary-validated against HCM
       Chapter 29, Example Problem 4 (Exhibits 29-62 through 29-77), which the page
       defaults reproduce, along with the Example Problem 5 Strategy 1 and Chapter 37
       adaptive signal control directions of effect. Verify results independently

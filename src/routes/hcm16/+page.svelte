@@ -339,7 +339,7 @@
 
 <div class="hcm-page">
   <header class="page-header">
-    <span class="badge badge-outline page-badge">HCM Chapter 16 <span class="badge badge-warning badge-sm ml-2">Beta</span></span>
+    <span class="badge badge-outline page-badge">HCM Chapter 16</span>
     <h1 class="page-title">Urban Street Facilities</h1>
     <p class="page-sub">
       Aggregate urban street segments into facility travel speed, spatial stop
@@ -349,7 +349,7 @@
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Beta.</strong> The compute engine is boundary-validated against HCM
+      <strong>Scope.</strong> The compute engine is boundary-validated against HCM
       Chapter 30, Example Problem 1 aggregated to facility level and against
       Chapter 29, Example Problem 1 in both directions, which the two modes'
       defaults reproduce. The page itself is in beta pending final inspection.
