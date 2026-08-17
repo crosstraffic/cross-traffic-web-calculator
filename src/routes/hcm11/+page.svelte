@@ -7,6 +7,8 @@
 
   import init, { WasmFacilitySegment, WasmFreewayReliability } from "HCM-middleware";
   import { setReport } from '$lib/report';
+  import { discussion } from './discussion.js';
+  import Discussion from '$lib/Discussion.svelte';
   import { withWasmRetry } from '$lib/wasmRetry';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import FacilityDiagram from '$lib/FacilityDiagram.svelte';
@@ -389,6 +391,12 @@
         expected_vhd: rel.expected_vhd(),
         pct_below_target: rel.failure_pct_below_speed(Number(target_speed))
       };
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      results.discussion = discussion(results, {
+        targetSpeed: Number(target_speed),
+        vmtWeighted: tti_weighting === 'vmt'
+      });
 
       setReport({
         chapter: 'Freeway Reliability Analysis',
@@ -396,6 +404,7 @@
         href: '/hcm11',
         generatedAt: new Date().toLocaleString(),
         headline: null,
+        discussion: results.discussion,
         inputs: [
           { label: 'Free-flow speed', value: `${ffs} mi/h` },
           { label: 'Heavy vehicles', value: `${hv_pct} %` },
@@ -985,6 +994,10 @@
         <p>Reliability Rating: {results ? results.reliability_rating.toFixed(1) + ratingSuffix : ''}</p>
       </div>
     </div>
+
+    {#if results}
+      <Discussion sentences={results.discussion} />
+    {/if}
   </section>
 </div>
 

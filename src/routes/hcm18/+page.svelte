@@ -10,6 +10,8 @@
   import UrbanSegmentDiagram3D from '$lib/UrbanSegmentDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
+  import { discussion } from './discussion.js';
+  import Discussion from '$lib/Discussion.svelte';
   import { onMount } from "svelte";
 
   let diagramMode = $state('2d');
@@ -217,6 +219,12 @@
         vc_ratio: seg.get_vc_ratio(),
         perception_score: seg.get_perception_score()
       };
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      results.discussion = discussion(results, {
+        apSource: ap_source,
+        segmentLength: Number(segment_length)
+      });
 
       const apSourceLabel = ap_source === 'measured'
         ? `measured or published per-point delays (${ap_delays})`
@@ -230,6 +238,7 @@
         href: '/hcm18',
         generatedAt: new Date().toLocaleString(),
         headline: { label: 'Segment LOS', value: results.los },
+        discussion: results.discussion,
         inputs: [
           { label: 'Segment length', value: `${segment_length} ft` },
           { label: 'Through lanes, subject direction', value: n_through_lanes },
@@ -899,6 +908,10 @@
         <p>Segment LOS: {results ? results.los : ''}</p>
       </div>
     </div>
+
+    {#if results}
+      <Discussion sentences={results.discussion} />
+    {/if}
   </section>
 </div>
 

@@ -13,7 +13,9 @@
   import FreewaySegment3D from '../FreewaySegment3D/+page.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import MixedFlowMode from '$lib/MixedFlowMode.svelte';
+  import Discussion from '$lib/Discussion.svelte';
   import { setReport } from '$lib/report';
+  import { discussion } from './discussion.js';
 
   let ready = $state(false);
   let method = $state('standard');   // 'standard' = Chapter 12 PCE | 'mixed' = Chapter 25/26 mixed flow
@@ -108,6 +110,13 @@
         ffs_adj: fw.get_ffs_adj(),
         breakpoint: fw.get_breakpoint()
       };
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      results.discussion = discussion(results, {
+        phv: Number(phv),
+        usesGrade,
+        sutPercentage: Number(sut_percentage)
+      });
       publishReport();
     } catch (err) {
       console.error('Chapter 12 analysis failed:', err);
@@ -160,6 +169,7 @@
         ],
       },
       summary: [],
+      discussion: results.discussion,
       methodology: [
         'Free-flow speed: base FFS reduced for lane width, right-side lateral clearance, and total ramp density (HCM Ch. 12, Step 2).',
         usesGrade
@@ -627,6 +637,10 @@
         <p>Density and LOS follow HCM Exhibit 12-15. E<sub>T</sub> is read from {usesGrade ? `the ${sut_percentage}% specific-upgrade exhibit` : 'the general-terrain exhibit (12-25)'}.</p>
       </div>
     </div>
+
+    {#if results}
+      <Discussion sentences={results.discussion} />
+    {/if}
   </section>
   {/if}
 </div>

@@ -7,6 +7,8 @@
 
   import init, { WasmFacilitySegment, WasmFreewayFacility, WasmManagedLaneFacility } from "HCM-middleware";
   import { setReport } from '$lib/report';
+  import { discussion } from './discussion.js';
+  import Discussion from '$lib/Discussion.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import FacilityDiagram from '$lib/FacilityDiagram.svelte';
   import FacilityDiagram3D from '$lib/FacilityDiagram3D.svelte';
@@ -264,6 +266,10 @@
         };
       }
 
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      results.discussion = discussion(results, { segments });
+
       const worstLos = perPeriod.reduce((w, p) => (p.los > w ? p.los : w), 'A');
       const wzNums = segments.filter((s) => s.work_zone).map((s) => s.seg_num);
       setReport({
@@ -272,6 +278,7 @@
         href: '/hcm10',
         generatedAt: new Date().toLocaleString(),
         headline: { label: 'Facility LOS (worst period)', value: worstLos },
+        discussion: results.discussion,
         inputs: [
           { label: 'Free-flow speed', value: `${ffs} mi/h` },
           { label: 'Heavy vehicles', value: `${hv_pct} %` },
@@ -930,6 +937,10 @@
         <p>Oversaturated: {results ? (results.oversaturated ? 'Yes, demand exceeds capacity somewhere in the time-space domain' : 'No') : ''}</p>
       </div>
     </div>
+
+    {#if results}
+      <Discussion sentences={results.discussion} />
+    {/if}
   </section>
 </div>
 

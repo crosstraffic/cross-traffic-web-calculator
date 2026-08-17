@@ -10,6 +10,8 @@
   import RampDiagram3D from '$lib/RampDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
+  import { discussion, discussion71 } from './discussion.js';
+  import Discussion from '$lib/Discussion.svelte';
 
   let diagramMode = $state('2d');
   import { onMount } from "svelte";
@@ -110,6 +112,18 @@
         on_ramp: 'On-ramp (merge)', off_ramp: 'Off-ramp (diverge)',
         major_merge: 'Major merge', major_diverge: 'Major diverge',
       }[ramp_type] || ramp_type;
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      if (is71) {
+        results71.discussion = discussion71(results71, { typeLabel });
+      } else {
+        results.discussion = discussion(results, {
+          typeLabel,
+          accelLen: accel_lane_length,
+          decelLen: decel_lane_length,
+          isOnRamp: ramp_type === 'on_ramp' || ramp_type === 'major_merge'
+        });
+      }
       setReport({
         chapter: 'Freeway Merge and Diverge Segments',
         chapterRef: 'HCM Chapter 14',
@@ -118,6 +132,7 @@
         headline: is71
           ? { label: 'Segment LOS (Edition 7.1)', value: results71.los }
           : (results.losUndefined ? null : { label: 'Segment LOS', value: results.los }),
+        discussion: is71 ? results71.discussion : results.discussion,
         inputs: [
           { label: 'HCM edition', value: is71 ? 'Edition 7.1 (2025)' : '7th Edition' },
           { label: 'Ramp type', value: typeLabel },
@@ -554,5 +569,9 @@
         {/if}
       </div>
     </div>
+
+    {#if results || results71}
+      <Discussion sentences={results71 ? results71.discussion : results.discussion} />
+    {/if}
   </section>
 </div>

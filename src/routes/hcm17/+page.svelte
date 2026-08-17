@@ -10,6 +10,8 @@
   import UrbanFacilityDiagram3D from '$lib/UrbanFacilityDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
+  import { discussion } from './discussion.js';
+  import Discussion from '$lib/Discussion.svelte';
   import { onMount } from "svelte";
 
   let ready = $state(false);
@@ -213,6 +215,9 @@
 
         rel.run();
         results = rel.results_to_js_value();
+        // Generated once, off the run that produced these numbers, and carried on the result so the
+        // page and the printable report can never drift apart or restate a since-edited input.
+        results.discussion = discussion(results, { strategyCount: strategies.length });
 
         setReport({
           chapter: 'Urban Street Reliability and ATDM',
@@ -220,6 +225,7 @@
           href: '/hcm17',
           generatedAt: new Date().toLocaleString(),
           headline: { label: 'Reliability rating', value: `${fmt(results.reliability_rating, 1)} %` },
+          discussion: results.discussion,
           inputs: [
             { label: 'Functional class', value: CLASS_LABEL[functional_class] },
             { label: 'Study period', value: `${study_start_hour}:00 onward, ${analysis_periods} analysis periods of 15 min` },
@@ -840,6 +846,10 @@
         <p>Urban Street Reliability Rating: {results ? fmt(results.reliability_rating, 1) + ' %' : ''}</p>
       </div>
     </div>
+
+    {#if results}
+      <Discussion sentences={results.discussion} />
+    {/if}
   </section>
 </div>
 
