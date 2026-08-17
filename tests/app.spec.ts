@@ -987,8 +987,11 @@ test.describe('chapter 13 weaving calculator', () => {
     await calculate.click();
 
     await expect(page.getByText(/Segment LOS: C/)).toBeVisible();
-    await expect(page.getByText(/26\.[0-9]/)).toBeVisible(); // D ≈ 26.3
-    await expect(page.getByText(/53\.[0-9]/).first()).toBeVisible(); // S ≈ 53.1
+    // Scoped to the step table: the generated discussion below it quotes the same figures, so a
+    // page-wide text match on a bare number is ambiguous rather than wrong.
+    const table = page.locator('.results-panel table');
+    await expect(table.getByText(/26\.[0-9]/)).toBeVisible(); // D ≈ 26.3
+    await expect(table.getByText(/53\.[0-9]/).first()).toBeVisible(); // S ≈ 53.1
   });
 
   test('reproduces the published example under Edition 7.1 via the picker', async ({ page }) => {
@@ -1004,8 +1007,9 @@ test.describe('chapter 13 weaving calculator', () => {
     await calculate.click();
 
     await expect(page.getByText(/Edition 7.1 bands.*: C/)).toBeVisible();
-    await expect(page.getByText(/23\.[0-9]/)).toBeVisible(); // D ≈ 23.6
-    await expect(page.getByText(/59\.[0-9]/).first()).toBeVisible(); // S_o ≈ 59.32
+    const table = page.locator('.results-panel table');
+    await expect(table.getByText(/23\.[0-9]/)).toBeVisible(); // D ≈ 23.6
+    await expect(table.getByText(/59\.[0-9]/).first()).toBeVisible(); // S_o ≈ 59.32
     await expect(page.getByText('Configuration Class:')).toBeVisible();
   });
 
@@ -1064,8 +1068,9 @@ test.describe('chapter 14 merge and diverge calculator', () => {
     await calculate.click();
 
     await expect(page.getByText(/Segment LOS: D/)).toBeVisible();
-    await expect(page.getByText(/28\.[0-9]/)).toBeVisible(); // D_R ≈ 28.2
-    await expect(page.getByText(/5[23]\.[0-9]/).first()).toBeVisible(); // S_R ≈ 53.0
+    const table = page.locator('.results-panel table');
+    await expect(table.getByText(/28\.[0-9]/)).toBeVisible(); // D_R ≈ 28.2
+    await expect(table.getByText(/5[23]\.[0-9]/).first()).toBeVisible(); // S_R ≈ 53.0
   });
 
   test('the same on-ramp under Edition 7.1 via the picker', async ({ page }) => {
@@ -1091,8 +1096,9 @@ test.describe('chapter 14 merge and diverge calculator', () => {
     await calculate.click();
 
     await expect(page.getByText(/Edition 7.1 bands.*: E/)).toBeVisible();
-    await expect(page.getByText(/32\.[0-9]/)).toBeVisible(); // density ≈ 32.1
-    await expect(page.getByText(/55\.[0-9]/).first()).toBeVisible(); // S ≈ 55.1
+    const table = page.locator('.results-panel table');
+    await expect(table.getByText(/32\.[0-9]/)).toBeVisible(); // density ≈ 32.1
+    await expect(table.getByText(/55\.[0-9]/).first()).toBeVisible(); // S ≈ 55.1
     await expect(page.getByText('Demand-to-Capacity Ratio:')).toBeVisible();
   });
 
@@ -3078,3 +3084,129 @@ async function expectTwoLaneOutputs(
   await expect(page.locator('#los')).toHaveText(want.los);
   await expect(page.locator('#fdF')).toHaveText(want.fdF);
 }
+
+test.describe('results discussion', () => {
+  // Every chapter page closes its results with a short generated Discussion, modelled on the ones
+  // that close the HCM's Example Problems. The pins below are one page per family plus the
+  // mixed-flow mode, and they assert the sentence that names what governs the result rather than
+  // just that the section exists, because an empty or generic paragraph would still render.
+  const discussion = (page: Page) => page.getByTestId('discussion');
+
+  async function run(page: Page, path: string) {
+    await page.goto(path);
+    const calculate = page.getByRole('button', { name: 'Calculate' }).first();
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+    await calculate.click();
+    await expect(discussion(page)).toBeVisible();
+  }
+
+  test('a freeway segment discussion names the breakpoint that is holding the speed down', async ({ page }) => {
+    await page.goto('/hcm12');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await page.getByRole('button', { name: 'Load example' }).click();
+    // The bundled example arrives by fetch, so the demand field settling is what says it landed.
+    // Filling before that races the fetch and the analysis silently runs the example's own demand.
+    await expect(page.locator('#DEMAND_input')).toHaveValue('4500');
+    await page.getByRole('button', { name: 'Calculate' }).click();
+
+    const d = discussion(page);
+    await expect(d).toContainText('Density of 26.9 pc/mi/ln earns LOS D');
+    await expect(d).toContainText(
+      'Flow of 1737 pc/h/ln is past the Equation 12-1 breakpoint of 1329 pc/h/ln'
+    );
+    await expect(d).toContainText('Demand flow rate of 1737 pc/h/ln is 73% of the capacity of 2368 pc/h/ln');
+  });
+
+  test('a value near a band edge says how close it is', async ({ page }) => {
+    // Engineered rather than seeded: the bundled example sits at 26.9 pc/mi/ln, and dropping the
+    // demand to 4,350 veh/h puts the density at 25.8, a fifth of a unit inside LOS C. The letter
+    // alone cannot show that, which is the whole reason the proximity clause exists.
+    await page.goto('/hcm12');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await page.getByRole('button', { name: 'Load example' }).click();
+    await expect(page.locator('#DEMAND_input')).toHaveValue('4500');
+    await page.locator('#DEMAND_input').fill('4350');
+    await page.getByRole('button', { name: 'Calculate' }).click();
+
+    await expect(discussion(page)).toContainText(
+      'Density of 25.8 pc/mi/ln earns LOS C and sits 0.2 pc/mi/ln below the C/D boundary of 26, within 1% of the band edge.'
+    );
+  });
+
+  test('an urban street segment discussion splits travel time between the link and the signal', async ({ page }) => {
+    await run(page, '/hcm18');
+    const d = discussion(page);
+    await expect(d).toContainText('Exhibit 18-1 reads LOS C from that travel speed');
+    await expect(d).toContainText(
+      'Of 51.9 s spent on the segment, 18.3 s is control delay at the boundary intersection and 33.5 s is running time, so the link rather than the signal governs at 35% of the total.'
+    );
+  });
+
+  test('an unsignalized discussion names the governing lane and refuses an intersection letter', async ({ page }) => {
+    await run(page, '/hcm20');
+    const d = discussion(page);
+    await expect(d).toContainText(
+      'Control delay on the NB minor lane 1 of 15.0 s/veh earns LOS B and sits right on the B/C boundary of 15.'
+    );
+    await expect(d).toContainText(
+      'the HCM defines no level of service for a TWSC intersection as a whole'
+    );
+  });
+
+  test('the mixed-flow discussion states the capacity margin and why there is no letter', async ({ page }) => {
+    await page.goto('/hcm12');
+    await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+    await page.selectOption('#METHOD_input', 'mixed');
+    await page.getByRole('button', { name: 'Load Ch.26 EP5' }).click();
+    await page.locator('#hcm12mf').getByRole('button', { name: 'Calculate' }).click();
+
+    const d = discussion(page);
+    await expect(d).toContainText('A mixed-flow speed of 47.4 mi/h at 1500 veh/h/ln gives a density of 31.6 veh/mi/ln');
+    await expect(d).toContainText('Demand is 87% of the mixed-flow capacity of 1726 veh/h/ln, leaving 226 veh/h/ln of headroom.');
+    // The no-LOS rule of Chapter 26. A letter here would be the defect this sentence exists to
+    // prevent, so the pin is on the refusal and its reason, not only on the absence of a badge.
+    await expect(d).toContainText('No level of service letter is assigned below capacity.');
+    await expect(d).toContainText('D_mix is a mixed-flow density in veh/mi/ln');
+  });
+
+  test('the printable report includes the discussion and the toggle removes it', async ({ page }) => {
+    await run(page, '/hcm19');
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page).toHaveURL(/\/report$/);
+
+    const section = page.getByTestId('report-discussion');
+    const toggle = page.getByTestId('include-discussion');
+    await expect(toggle).toBeChecked();
+    await expect(section).toBeVisible();
+    await expect(section).toContainText('Intersection control delay of 17.7 s/veh earns LOS B');
+
+    await toggle.uncheck();
+    await expect(section).toHaveCount(0);
+
+    await toggle.check();
+    await expect(section).toBeVisible();
+  });
+});
+
+test('the composite mixed-flow report prints its summary rows', async ({ page }) => {
+  // The composite-grade setReport passed its two summary rows as bare strings while /report reads
+  // row.label and row.value, so both printed as empty cells with no error anywhere. The pin is on
+  // the rendered cells rather than on the payload, because the payload was never the visible half.
+  await page.goto('/hcm12');
+  await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 });
+  await page.selectOption('#METHOD_input', 'mixed');
+  await page.getByRole('button', { name: 'Load Ch.25 EP11' }).click();
+  await page.locator('#hcm12mf').getByRole('button', { name: 'Calculate' }).click();
+
+  await page.getByRole('link', { name: 'Open printable report' }).click();
+  const rows = page.locator('.report-summary tbody tr');
+  await expect(rows).toHaveCount(2);
+  for (let i = 0; i < 2; i++) {
+    await expect(rows.nth(i).locator('th')).not.toBeEmpty();
+    await expect(rows.nth(i).locator('td')).not.toBeEmpty();
+  }
+  await expect(rows.nth(0)).toContainText('Governing capacity');
+  await expect(rows.nth(0)).toContainText('1747 veh/h/ln');
+  await expect(rows.nth(1)).toContainText('Overall mixed-flow speed');
+  await expect(rows.nth(1)).toContainText('55.7 mi/h over 4.50 mi');
+});

@@ -13,7 +13,9 @@
   import { WasmMixedFlow, WasmCompositeGrade } from 'HCM-middleware';
   import GradeProfileStrip from '$lib/GradeProfileStrip.svelte';
   import LosBadge from '$lib/LosBadge.svelte';
+  import Discussion from '$lib/Discussion.svelte';
   import { setReport } from '$lib/report';
+  import { discussion, discussionComposite } from '$lib/MixedFlowMode.discussion.js';
 
   let { ready = false } = $props();
 
@@ -115,12 +117,25 @@
         const r = new WasmMixedFlow({ ...baseConfig(), length: Number(length), grade: Number(grade) })
           .results_to_js_value();
         results = { kind: 'single', ...r };
+        // Generated once, off the run that produced these numbers, and carried on the result so the
+        // page and the printable report can never drift apart or restate a since-edited input.
+        results.discussion = discussion(results, {
+          grade: Number(grade),
+          length: Number(length),
+          vMix: Number(v_mix),
+          pSutPct: Number(p_sut_pct),
+          pTtPct: Number(p_tt_pct)
+        });
       } else {
         const r = new WasmCompositeGrade({
           ...baseConfig(),
           segments: segments.map((s) => ({ length: Number(s.length), grade: Number(s.grade) }))
         }).results_to_js_value();
         results = { kind: 'composite', ...r };
+        results.discussion = discussionComposite(results, {
+          segments: segments.map((s) => ({ length: Number(s.length), grade: Number(s.grade) })),
+          vMix: Number(v_mix)
+        });
       }
       publishReport();
     } catch (err) {
@@ -158,6 +173,7 @@
           label: 'Mixed-flow result',
           value: oversaturated ? 'LOS F' : `${fmt(results.s_mix)} mi/h`
         },
+        discussion: results.discussion,
         inputs: [...common, { label: 'Grade', value: `${grade} %` }, { label: 'Grade length', value: `${length} mi` }],
         resultTable: {
           columns: ['Quantity', 'Value'],
@@ -194,6 +210,7 @@
         label: 'Overall mixed-flow speed',
         value: oversaturated ? 'LOS F' : `${fmt(results.s_mix_overall)} mi/h`
       },
+      discussion: results.discussion,
       inputs: [
         ...common,
         { label: 'Grades, in order of travel', value: segments.map((s) => `${s.length} mi @ ${s.grade}%`).join(', ') }
@@ -210,8 +227,14 @@
         ])
       },
       summary: [
-        `Governing capacity ${fmt(results.capacity_mix, 0)} veh/h/ln, set by segment ${results.governing_segment + 1}.`,
-        `Overall mixed-flow speed ${fmt(results.s_mix_overall)} mi/h over ${fmt(results.total_length, 2)} mi in ${fmt(results.total_travel_time)} s (Equation 25-70).`
+        {
+          label: `Governing capacity, C_mix (set by segment ${results.governing_segment + 1})`,
+          value: `${fmt(results.capacity_mix, 0)} veh/h/ln`
+        },
+        {
+          label: 'Overall mixed-flow speed, S_mix,oa (Equation 25-70)',
+          value: `${fmt(results.s_mix_overall)} mi/h over ${fmt(results.total_length, 2)} mi in ${fmt(results.total_travel_time)} s`
+        }
       ],
       methodology: [
         'Per-segment capacity: Equations 25-53 through 25-57, the facility capacity being the tightest of them.',
@@ -567,6 +590,10 @@
       own discussion makes the same point about the composite procedure.
     </p>
   </div>
+
+  {#if results}
+    <Discussion sentences={results.discussion} />
+  {/if}
 </section>
 
 <style>

@@ -11,6 +11,8 @@
   import SignalizedDiagram3D from '$lib/SignalizedDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
+  import { discussion } from './discussion.js';
+  import Discussion from '$lib/Discussion.svelte';
 
   let diagramMode = $state('2d');
   import init, { WasmSignalizedIntersection } from "HCM-middleware";
@@ -95,6 +97,9 @@
         critical_vc: r.critical_vc_ratio,
         approaches: r.approaches
       };
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      results.discussion = discussion(results, { cycleLength: Number(cycle_length) });
 
       setReport({
         chapter: 'Signalized Intersections',
@@ -102,6 +107,7 @@
         href: '/hcm19',
         generatedAt: new Date().toLocaleString(),
         headline: { label: 'Intersection LOS', value: results.los },
+        discussion: results.discussion,
         inputs: [
           { label: 'Cycle length', value: `${cycle_length} s` },
           { label: 'Peak hour factor', value: phf },
@@ -443,6 +449,10 @@
             />
           </div>
         </div>
+      {/if}
+
+      {#if results}
+        <Discussion sentences={results.discussion} />
       {/if}
     </div>
   </section>

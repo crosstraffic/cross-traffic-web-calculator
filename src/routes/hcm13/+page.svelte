@@ -10,6 +10,8 @@
   import WeavingDiagram3D from '$lib/WeavingDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
+  import { discussion, discussion71 } from './discussion.js';
+  import Discussion from '$lib/Discussion.svelte';
 
   let diagramMode = $state('2d');
   import { onMount } from "svelte";
@@ -110,12 +112,23 @@
       }
 
       const is71 = version === '7.1';
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      if (is71) {
+        results71.discussion = discussion71(results71);
+      } else {
+        results.discussion = discussion(results, {
+          facilityType: facility_type,
+          lengthShort: Number(length_short)
+        });
+      }
       setReport({
         chapter: 'Freeway Weaving Segments',
         chapterRef: 'HCM Chapter 13',
         href: '/hcm13',
         generatedAt: new Date().toLocaleString(),
         headline: { label: is71 ? 'Segment LOS (Edition 7.1)' : 'Segment LOS', value: is71 ? results71.los : results.los },
+        discussion: is71 ? results71.discussion : results.discussion,
         inputs: [
           { label: 'HCM edition', value: is71 ? 'Edition 7.1 (2025)' : '7th Edition' },
           { label: 'Weaving type', value: weaving_type === 'two_sided' ? 'Two-sided' : 'One-sided' },
@@ -601,5 +614,9 @@
         <p>Segment LOS: {results ? results.los : ''}</p>
       </div>
     </div>
+
+    {#if results || results71}
+      <Discussion sentences={results71 ? results71.discussion : results.discussion} />
+    {/if}
   </section>
 </div>

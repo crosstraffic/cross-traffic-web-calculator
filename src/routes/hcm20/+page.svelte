@@ -11,6 +11,8 @@
   import PedestrianCrossingMode from '$lib/PedestrianCrossingMode.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
+  import { discussion } from './discussion.js';
+  import Discussion from '$lib/Discussion.svelte';
   import { onMount } from "svelte";
 
   let diagramMode = $state('2d');
@@ -119,6 +121,9 @@
         approachRows,
         intersectionDelay: res.intersection_delay
       };
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      results.discussion = discussion(results, { threeLeg: intersection_type === 'three_leg' });
 
       // Worst minor-approach lane sets the headline, since the HCM assigns
       // TWSC LOS by lane/movement rather than for the whole intersection.
@@ -129,6 +134,7 @@
         href: '/hcm20',
         generatedAt: new Date().toLocaleString(),
         headline: { label: 'Worst minor-lane LOS', value: worst },
+        discussion: results.discussion,
         inputs: [
           { label: 'Intersection type', value: intersection_type === 'three_leg' ? 'Three-leg (T), minor stem northbound' : 'Four-leg' },
           { label: 'Major lanes per direction', value: major_lanes },
@@ -587,6 +593,10 @@
         <p>LOS is reported per movement and per lane. The HCM does not define a LOS letter for a TWSC intersection as a whole.</p>
       </div>
     </div>
+
+    {#if results}
+      <Discussion sentences={results.discussion} />
+    {/if}
   </section>
   {/if}
 </div>

@@ -10,6 +10,8 @@
   import RoundaboutDiagram3D from '$lib/RoundaboutDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
+  import { discussion } from './discussion.js';
+  import Discussion from '$lib/Discussion.svelte';
   import { onMount } from "svelte";
 
   let diagramMode = $state('2d');
@@ -113,6 +115,9 @@
         intersectionDelay: res.intersection_delay,
         intersectionLos: res.intersection_los
       };
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      results.discussion = discussion(results);
 
       setReport({
         chapter: 'Roundabouts',
@@ -120,6 +125,7 @@
         href: '/hcm22',
         generatedAt: new Date().toLocaleString(),
         headline: { label: 'Intersection LOS', value: results.intersectionLos },
+        discussion: results.discussion,
         inputs: [
           ...legs.map((leg) => {
             const e = entries[leg.key];
@@ -407,5 +413,9 @@
         <p>Intersection LOS: {results ? (results.intersectionLos ?? '') : ''}</p>
       </div>
     </div>
+
+    {#if results}
+      <Discussion sentences={results.discussion} />
+    {/if}
   </section>
 </div>

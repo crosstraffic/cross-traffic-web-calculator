@@ -2,7 +2,9 @@
   import { WasmPedestrianCrossing } from "HCM-middleware";
   import PedCrossingDiagram from '$lib/PedCrossingDiagram.svelte';
   import LosBadge from '$lib/LosBadge.svelte';
+  import Discussion from '$lib/Discussion.svelte';
   import { setReport } from '$lib/report';
+  import { discussion } from '$lib/PedestrianCrossingMode.discussion.js';
 
   let { ready = false } = $props();
 
@@ -138,6 +140,16 @@
       // The stage count is read back rather than assumed. A dropped stage is a valid crossing,
       // so it produces a plausible answer at half the delay instead of an error.
       results = { ...r, stageCount: crossing.get_stage_count() };
+      // Generated once, off the run that produced these numbers, and carried on the result so the
+      // page and the printable report can never drift apart or restate a since-edited input.
+      results.discussion = discussion(results, {
+        yieldPct: Number(p.yield_pct),
+        countermeasures: [
+          config.has_marked_crosswalk ? 'a marked crosswalk' : null,
+          config.has_median_refuge ? 'a median refuge' : null,
+          config.has_rrfb ? 'RRFBs' : null
+        ].filter(Boolean).join(' and ') || 'no countermeasures'
+      });
 
       setReport({
         chapter: 'Pedestrian Crossing at a Two-Way STOP-Controlled Intersection',
@@ -145,6 +157,7 @@
         href: '/hcm20',
         generatedAt: new Date().toLocaleString(),
         headline: { label: 'Pedestrian LOS', value: r.los },
+        discussion: results.discussion,
         inputs: [
           { label: 'Crossing stages', value: `${results.stageCount}${results.stageCount > 1 ? ' (median refuge)' : ' (no refuge)'}` },
           ...config.stages.map((s, i) => ({
@@ -541,6 +554,8 @@
           </p>
         {/if}
     </div>
+
+    <Discussion sentences={results.discussion} />
   {/if}
 </section>
 

@@ -36,6 +36,12 @@
   let current = $derived(selected ? $reports[selected] : null);
   let tabs = $derived(keys.map((k) => ({ key: k, label: $reports[k].chapter })));
 
+  // The discussion is the one section a reader may not want in a deliverable, so it is opt-out
+  // rather than opt-in: it prints unless the box is cleared. The choice is per view, not stored
+  // with the report, because it belongs to this printing rather than to the analysis.
+  let includeDiscussion = $state(true);
+  let hasDiscussion = $derived(Boolean(current && current.discussion && current.discussion.length));
+
   function printReport() { window.print(); }
 
   function losClass(v) {
@@ -69,7 +75,15 @@
       {:else}
         <a class="btn btn-ghost btn-sm" href={current.href}>← Back to {current.chapter}</a>
       {/if}
-      <button class="btn btn-primary btn-sm" type="button" onclick={printReport}>Print / Save as PDF</button>
+      <div class="report-options">
+        {#if hasDiscussion}
+          <label class="report-toggle">
+            <input type="checkbox" bind:checked={includeDiscussion} data-testid="include-discussion" />
+            Include discussion
+          </label>
+        {/if}
+        <button class="btn btn-primary btn-sm" type="button" onclick={printReport}>Print / Save as PDF</button>
+      </div>
     </div>
 
     <article class="report-sheet">
@@ -112,6 +126,9 @@
             </tbody>
           </table>
         </div>
+        <!-- Rows are { label, value }. A bare string renders as two empty cells rather than as
+             an error, which is how the composite mixed-flow rows went missing from the printed
+             report unnoticed. -->
         {#if current.summary && current.summary.length}
           <table class="report-table kv report-summary">
             <tbody>
@@ -185,6 +202,17 @@
                 segments={current.diagram.props.segments}
                 governing={current.diagram.props.governing ?? -1} />
             {/if}
+          </div>
+        </section>
+      {/if}
+
+      {#if hasDiscussion && includeDiscussion}
+        <section class="report-section" data-testid="report-discussion">
+          <h2>Discussion</h2>
+          <div class="report-discussion">
+            {#each current.discussion as line}
+              <p>{line}</p>
+            {/each}
           </div>
         </section>
       {/if}
@@ -280,6 +308,19 @@
   .report-summary { margin-top: 0.6rem; }
   .report-summary th { font-weight: 700; }
   .report-diagram { max-width: 560px; margin: 0 auto; }
+  .report-options { display: inline-flex; align-items: center; gap: 0.9rem; }
+  .report-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .report-discussion p { font-size: 0.9rem; color: #334155; margin: 0 0 0.45rem; line-height: 1.5; }
+  .report-discussion p:last-child { margin-bottom: 0; }
+
   .report-notes { margin: 0; padding-left: 1.1rem; }
   .report-notes li { font-size: 0.85rem; color: #334155; margin-bottom: 0.3rem; }
   .report-foot { font-size: 0.72rem; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 0.8rem; margin-top: 1rem; }
