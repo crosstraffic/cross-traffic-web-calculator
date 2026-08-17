@@ -12,6 +12,6 @@ vercel_runtime = { version = "1.1.0" }
 
 [dependencies]
 # Path resolves to the sibling checkout for local development; CI and clean clones resolve the version from crates.io, so bump this only after that version is published.
-# 0.3.11 (the Chapter 28 ramp service-flow-rate solver) is NOT on crates.io yet. It tracks transportations_library 0.3.5, which IS published, so unlike the 0.3.10 line only one crate has to go out: publishing the middleware alone makes a clean clone resolve this version. Local builds resolve through the path entry, so the committed pkg/ below is real. The previous line, 0.3.10 tracking library 0.3.5, was published on 2026-08-14 and does resolve.
+# 0.3.11 (the Chapter 28 ramp service-flow-rate solver) was published to crates.io on 2026-08-16, tracking transportations_library 0.3.5 (published 2026-08-14). A clean clone resolves this version from the registry; local builds resolve through the path entry.
 
 crosstraffic_middleware = { version = "0.3.11", path = "../../cross-traffic-middleware" }
