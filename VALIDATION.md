@@ -11,7 +11,7 @@ Inspection workflow: go chapter by chapter, read the test file, spot-check the e
 | 12 | Basic Freeway Segments | Ch.26 EP1-3 | 18 | pass (after f_HV fix) | |
 | 12 | Managed Lanes | Ch.26 EP7 | 51 | pass | |
 | 13 | Weaving Segments | Ch.27 EP1-3 | 53 | pass | RT 2026-08-16 |
-| 14 | Merge and Diverge | Ch.28 EP1-5 | 75 | pass | |
+| 14 | Merge and Diverge | Ch.28 EP1-5 | 117 | pass | RT 2026-08-16 |
 | 15 | Two-Lane Highways | 4 fixture cases | 168 | pass | |
 | 16 | Urban Street Facilities | Ch.29 §5 EP1 EB+WB | 55 | pass | |
 | 17 | Urban Street Reliability | Ch.29 §5 EP4 + EP5 Strategy 1, Ch.37 §5 ASC | 37 | pass | |
