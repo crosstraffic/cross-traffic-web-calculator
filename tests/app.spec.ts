@@ -1,22 +1,47 @@
-// The offline test below runs a throwaway HTTP proxy. @types/node is not a
-// dependency of this app, so the import has no declarations and the shapes the
-// proxy touches are described here instead.
-// @ts-expect-error missing @types/node
-import { createServer, request } from 'node:http';
-// @ts-expect-error missing @types/node
+// The offline test below runs a throwaway HTTP proxy, and the Word-export test
+// reads a zip. Both use the Node standard library, whose declarations arrive
+// with the @types/node devDependency; before it was declared these imports were
+// suppressed and the shapes they touch were hand-written here.
+import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFileSync } from 'node:fs';
-// @ts-expect-error missing @types/node
 import { join } from 'node:path';
+import { inflateRawSync } from 'node:zlib';
 import { expect, test, type Page } from '@playwright/test';
 
-type ProxyMessage = {
-  url?: string;
-  method?: string;
-  statusCode?: number;
-  headers: Record<string, unknown>;
-  socket?: { destroy: () => void } | null;
-  pipe: (destination: unknown) => void;
-};
+// A .docx is a zip, and the assertion worth making about one is what its
+// document part says. Reading it takes a zip reader, and adding a dependency to
+// get one would be a heavier change than the twenty lines the central directory
+// needs: find the end-of-central-directory record, walk the entries, and
+// inflate the one asked for. Stored (method 0) and deflated (method 8) are the
+// only methods a docx uses.
+function readZipEntry(zip: Buffer, name: string): string {
+  const EOCD = 0x06054b50;
+  let eocd = -1;
+  for (let i = zip.length - 22; i >= 0; i--) {
+    if (zip.readUInt32LE(i) === EOCD) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('not a zip file');
+  const count = zip.readUInt16LE(eocd + 10);
+  let p = zip.readUInt32LE(eocd + 16);
+  for (let i = 0; i < count; i++) {
+    const method = zip.readUInt16LE(p + 10);
+    const compressedSize = zip.readUInt32LE(p + 20);
+    const nameLen = zip.readUInt16LE(p + 28);
+    const extraLen = zip.readUInt16LE(p + 30);
+    const commentLen = zip.readUInt16LE(p + 32);
+    const localOffset = zip.readUInt32LE(p + 42);
+    const entryName = zip.toString('utf8', p + 46, p + 46 + nameLen);
+    if (entryName === name) {
+      const lNameLen = zip.readUInt16LE(localOffset + 26);
+      const lExtraLen = zip.readUInt16LE(localOffset + 28);
+      const start = localOffset + 30 + lNameLen + lExtraLen;
+      const body = zip.subarray(start, start + compressedSize);
+      return (method === 0 ? body : inflateRawSync(body)).toString('utf8');
+    }
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  throw new Error(`no ${name} in the archive`);
+}
 
 type OfflineProxy = {
   /** Point the browser here, not at baseURL. */
@@ -41,13 +66,13 @@ async function startOfflineProxy(baseURL: string): Promise<OfflineProxy> {
   let cut = false;
   let blockWasm = false;
   let seen: string[] = [];
-  const proxy = createServer((req: ProxyMessage, res: ProxyMessage & { writeHead: (status: number, headers: Record<string, unknown>) => void }) => {
+  const proxy = createServer((req: IncomingMessage, res: ServerResponse) => {
     seen.push(req.url ?? '/');
     if (cut || (blockWasm && req.url?.endsWith('.wasm'))) return req.socket?.destroy();
     const upstream = request(
       baseURL + (req.url ?? '/'),
       { method: req.method, headers: req.headers },
-      (response: ProxyMessage) => {
+      (response: IncomingMessage) => {
         res.writeHead(response.statusCode ?? 502, response.headers);
         response.pipe(res);
       }
@@ -3102,10 +3127,8 @@ async function expectTwoLaneOutputs(
 test.describe('facility builder', () => {
   // The library checkout sits beside this repo, the same place the boundary
   // suite looks for it.
-  // @ts-expect-error missing @types/node
-  const env = process as { env: Record<string, string | undefined>; cwd: () => string };
   const LIB_CASES: string =
-    env.env.HCM_LIB_CASES || join(env.cwd(), '..', 'transportations-library', 'tests', 'ExampleCases', 'hcm');
+    process.env.HCM_LIB_CASES || join(process.cwd(), '..', 'transportations-library', 'tests', 'ExampleCases', 'hcm');
   const CASE1 = join(LIB_CASES, 'FreewayFacilities', 'case1.json');
 
   /** The whole editor sits behind `inert={!ready}`, so every test waits for the
@@ -3763,6 +3786,63 @@ test.describe('facility builder', () => {
       .toEqual(['3', 'D', 'D', 'D', 'D', 'D', 'D', 'E', 'E', 'E', 'D', 'E']);
     // The discussion rides under the same opt-out toggle every chapter uses.
     await expect(page.getByTestId('report-discussion')).toContainText('governing cell');
+  });
+
+  // ── Word export ────────────────────────────────────────────────────────
+  //
+  // The claim is that the file is a real Word document carrying the whole
+  // session's report, built from the frozen run rather than from the form, and
+  // that the discussion toggle reaches it. A .docx is a zip, so the assertion
+  // reads its document part rather than trusting the byte count.
+
+  test('the report exports every held analysis as a Word file, and the toggle reaches it', async ({ page }) => {
+    // One builder run: Example Problem 1, whose published facility speed is
+    // 56.9 mi/h (Exhibit 25-52).
+    await analyze(page, 'ep1');
+    await expect(page.getByTestId('overall-speed')).toHaveText('56.9');
+
+    // One chapter analysis, so the export has two reports to carry.
+    await page.goto('/hcm10');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+    await calculate.click();
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page).toHaveURL(/\/report$/);
+    // Both runs are held side by side, and the page says the Word file carries
+    // both while the print carries the one on screen.
+    await expect(page.locator('.report-tabs button')).toHaveCount(2);
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('download-docx').click()
+    ]);
+    expect(download.suggestedFilename()).toMatch(/\.docx$/);
+    const path = await download.path();
+    const bytes = readFileSync(path);
+    // A Word file this size is a document, not an empty skeleton.
+    expect(bytes.length).toBeGreaterThan(8_000);
+
+    const xml = readZipEntry(bytes, 'word/document.xml');
+    // Both analyses are in it, and the builder's numbers are the published ones.
+    expect(xml).toContain('56.9');
+    expect(xml).toContain('Facility Builder');
+    expect(xml).toContain('Chapter 10');
+    // The time-space domain rides along as letters.
+    expect(xml).toContain('Time-space domain');
+    expect(xml).toContain('>Discussion<');
+
+    // Clearing the toggle takes the discussion out of the file as well as off
+    // the page, which is the whole point of one control for both.
+    await page.getByTestId('include-discussion').uncheck();
+    await expect(page.getByTestId('report-discussion')).toHaveCount(0);
+    const [second] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('download-docx').click()
+    ]);
+    const withoutDiscussion = readZipEntry(readFileSync(await second.path()), 'word/document.xml');
+    expect(withoutDiscussion).not.toContain('>Discussion<');
+    // And nothing else went with it.
+    expect(withoutDiscussion).toContain('56.9');
   });
 
   test('the builder link is in both navigation menus', async ({ page }) => {

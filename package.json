@@ -24,6 +24,7 @@
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@tailwindcss/postcss": "^4.1.11",
     "@tailwindcss/vite": "^4.1.11",
+    "@types/node": "^25.9.5",
     "@typescript-eslint/eslint-plugin": "^8.38.0",
     "@typescript-eslint/parser": "^8.38.0",
     "autoprefixer": "^10.4.21",
@@ -45,5 +46,8 @@
     "vite-plugin-wasm-pack": "^0.1.12",
     "wasm-pack": "^0.15.0"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "docx": "^9.7.1"
+  }
 }
