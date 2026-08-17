@@ -18,7 +18,7 @@ Inspection workflow: go chapter by chapter, read the test file, spot-check the e
 | 18 | Urban Street Segments | Ch.30 §8 EP1 (all three AP-delay paths) | 72 | pass | |
 | 19 | Signalized Intersections | Ch.31 §10 EP1 + Exhibit 31-7 | 155 | pass | |
 | 20 | TWSC | Ch.32 EP1, EP2 (pedestrian mode), EP3 | 112 | pass | |
-| 21 | AWSC | Ch.32 EP1-2 | 34 | pass | |
+| 21 | AWSC | Ch.32 EP1-2 | 34 | pass | RT 2026-08-16 |
 | 22 | Roundabouts | Ch.33 EP1-2 | 55 | pass | |
 | 23 | Ramp Terminals | Ch.34 EP1, EP2, EP5, EP7, EP12, EP13, EP14, EP15, EP16 | 551 | pass | |
 | 24 | Off-Street Ped/Bike | Ch.35 EP1-2 | 15 | pass | |
