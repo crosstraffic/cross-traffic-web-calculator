@@ -2982,6 +2982,28 @@ test.describe('chapter 24 pedestrian and bicycle path calculator', () => {
 });
 
 test.describe('chapter 15 two-lane highway calculator', () => {
+  test('importing a library fixture carries its horizontal curves through to the published answer', async ({ page }) => {
+    // case2.json is Chapter 26 Example Problem 2: EP1 plus eleven horizontal
+    // curve subsegments. The import previously read design_radius/superelevation
+    // where the library schema writes design_rad/sup_ele, so every curve arrived
+    // as zero and the analysis silently degraded to EP1's flat geometry.
+    await page.goto('/hcm15');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    await page.locator('#jsonInput').setInputFiles(libCase('TwoLaneHighways', 'case2.json'));
+
+    // The second subsegment is the fixture's first real curve (450 ft radius,
+    // 3% superelevation); the first is a tangent whose radius is legitimately
+    // zero, so it proves nothing about the schema mapping.
+    await expect(page.locator('#design_radius2')).toHaveValue('450');
+
+    await calculate.click();
+    // EP2's published facility answer (boundary suite pins 10.933 / LOS D);
+    // with the curves dropped this reads EP1's 10.092 instead.
+    await expect(page.locator('#fdF')).toContainText('10.933');
+  });
+
   test('page loads with its segment controls', async ({ page }) => {
     await page.goto('/hcm15');
     await expect(page).toHaveTitle(/Two-Lane Highways/);
