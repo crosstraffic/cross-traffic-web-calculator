@@ -231,8 +231,11 @@
   <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">
     <span>
       The compute engine reproduces the published HCM worked examples for this
-      chapter. Verify results independently before relying on them in engineering
-      work, and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      chapter under both editions. The 7th Edition and Edition 7.1 are different models. The same
+      junction can land a full LOS letter apart between them, and under 7.1 a density above
+      35 pc/mi/ln is LOS F on its own where Exhibit 14-3 read it as LOS E, so results are only
+      comparable within one edition. Please
+      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
     </span>
   </div>
 
