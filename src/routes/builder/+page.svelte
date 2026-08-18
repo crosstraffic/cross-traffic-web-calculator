@@ -23,26 +23,39 @@
     ramp_influence_area_ft,
     WasmFacilitySegment,
     WasmFreewayFacility,
-    WasmFreewayReliability
+    WasmFreewayReliability,
+    WasmUrbanFacility,
+    WasmUrbanReliability
   } from 'HCM-middleware';
 
   import BuilderStrip from '$lib/builder/BuilderStrip.svelte';
   import FeatureEditor from '$lib/builder/FeatureEditor.svelte';
+  import UrbanFeatureEditor from '$lib/builder/UrbanFeatureEditor.svelte';
   import SegmentTable from '$lib/builder/SegmentTable.svelte';
   import DemandGrid from '$lib/builder/DemandGrid.svelte';
   import Heatmap from '$lib/builder/Heatmap.svelte';
+  import UrbanResultStrip from '$lib/builder/UrbanResultStrip.svelte';
   import Discussion from '$lib/Discussion.svelte';
-  import { emptyDocument, makeFeature, migrate, setPeriods, FT_PER_MI, isRamp } from '$lib/builder/document.js';
+  import { emptyDocument, makeFeature, migrate, setPeriods, FT_PER_MI, isRamp, defaultAccessApproach } from '$lib/builder/document.js';
   import { deriveRows } from '$lib/builder/derive.js';
   import { validateFacility } from '$lib/builder/validate.js';
-  import { fromFixture, toFixture, UNCARRIED_FIELDS } from '$lib/builder/fixture.js';
+  import { fromFixture, fromUrbanFixture, toFixture, UNCARRIED_FIELDS, URBAN_UNCARRIED_FIELDS } from '$lib/builder/fixture.js';
   import { TEMPLATES, applyTemplate } from '$lib/builder/templates.js';
   import { EXAMPLES, loadExample } from '$lib/builder/examples.js';
+  import { URBAN_EXAMPLES, loadUrbanExample } from '$lib/builder/urbanExamples.js';
   import { createHistory, parseSnapshot } from '$lib/builder/history.js';
   import { saveSlot, loadSlot, downloadJson, readJsonFile } from '$lib/builder/storage.js';
   import { analyzeFacility } from '$lib/builder/analyze.js';
+  import { analyzeUrbanFacility } from '$lib/builder/urbanAnalyze.js';
   import { analyzeReliability, defaultReliabilityInputs, handoffNotes } from '$lib/builder/reliability.js';
+  import {
+    analyzeUrbanReliability,
+    defaultUrbanReliabilityInputs,
+    defaultUrbanWeather,
+    urbanHandoffNotes
+  } from '$lib/builder/urbanReliability.js';
   import { discussion, reliabilityDiscussion } from '$lib/builder/discussion.js';
+  import { urbanDiscussion, urbanReliabilityDiscussion } from '$lib/builder/urbanDiscussion.js';
   import { withWasmRetry } from '$lib/wasmRetry';
   import { setReport } from '$lib/report';
 
@@ -73,6 +86,13 @@
 
   let api = $derived(ready ? { segment_ramp_section, ramp_influence_area_ft } : null);
 
+  // The one branch the whole page turns on. The urban derivation is structural
+  // and calls no engine function, so `api` gates it only because the analysis
+  // below it needs the module loaded either way.
+  let isUrban = $derived(doc.facilityType === 'urban');
+  let examples = $derived(isUrban ? URBAN_EXAMPLES : EXAMPLES);
+  let uncarried = $derived(isUrban ? URBAN_UNCARRIED_FIELDS : UNCARRIED_FIELDS);
+
   // ── Results ─────────────────────────────────────────────────────
   //
   // A run is frozen onto the moment it happened: `analyzeFacility` copies every
@@ -88,6 +108,8 @@
   let reliabilityError = $state('');
   let reliabilityRunning = $state(false);
   let relInputs = $state(defaultReliabilityInputs());
+  let urbanRelInputs = $state(defaultUrbanReliabilityInputs());
+  const urbanWeather = defaultUrbanWeather();
   let runDocJson = $state('');
   let stale = $derived(!!results && runDocJson !== JSON.stringify(doc));
 
@@ -111,7 +133,7 @@
   // Shown before the reliability run as well as after it, because "this facility
   // carries something the reliability path cannot express" is worth knowing
   // before pressing the button rather than after reading the answer.
-  let relNotes = $derived(api ? handoffNotes(doc, rows) : []);
+  let relNotes = $derived(!api ? [] : isUrban ? urbanHandoffNotes(doc, rows) : handoffNotes(doc, rows));
 
   // "Why this segment?" lights the features that produced the selected row.
   let highlightIds = $derived(
@@ -290,6 +312,55 @@
     });
   }
 
+  /** A signal's Chapter 18 inputs for the segment ending at it. Separate from
+   * `setWorkZone` despite both writing into `config`, because a work zone's
+   * config is the engine's `WorkZone` struct and a signal's is this builder's
+   * own shape. */
+  function setSignalConfig(id, field, value) {
+    commit((d) => {
+      const f = d.features.find((x) => x.id === id);
+      if (f?.config) f.config[field] = value;
+    });
+  }
+
+  function setMeasure(id, field, value) {
+    commit((d) => {
+      const f = d.features.find((x) => x.id === id);
+      if (!f) return;
+      f.measures = { ...(f.measures ?? {}), [field]: value };
+    });
+  }
+
+  /** Turning the computed access-point branch on installs a whole approach
+   * rather than an empty object, because an approach of zeros is a valid input
+   * the Chapter 30 Section 4 procedure will happily run to a delay of zero. The
+   * published Example Problem 1 approach is the one shape certain to analyze. */
+  function setApproach(id, field, value) {
+    commit((d) => {
+      const f = d.features.find((x) => x.id === id);
+      if (!f?.approach) return;
+      f.approach[field] = value;
+    });
+  }
+
+  function setUrbanFeature(id, field, value) {
+    commit((d) => {
+      const f = d.features.find((x) => x.id === id);
+      if (!f) return;
+      if (field === 'approach') {
+        f.approach = value === 'enable' ? defaultAccessApproach() : null;
+        return;
+      }
+      f[field] = value;
+    });
+  }
+
+  function setAnalysisMode(mode) {
+    commit((d) => {
+      d.analysisMode = mode;
+    });
+  }
+
   function moveFeature(id, stationFt, phase) {
     // The final position of a drag coalesces into the same undo step as the
     // moves that led to it. Committing it under a null key instead would make
@@ -388,6 +459,15 @@
       // says which of the two it failed to be.
       if (raw && typeof raw === 'object' && 'version' in raw && 'facilityType' in raw) {
         replaceDoc(migrate(raw), `Loaded the builder document ${file.name}.`);
+      } else if (isUrbanFixture(raw)) {
+        // An urban fixture is invertible, unlike a freeway one, so this import
+        // recovers the boundary signals rather than arriving as a bare segment
+        // list. The message says so, because the two imports behave differently
+        // and the difference is not something to discover by poking at it.
+        replaceDoc(
+          fromUrbanFixture(raw, file.name),
+          `Imported ${file.name} as an urban street. The boundary signals were recovered from the segment lengths, so it is editable as features.`
+        );
       } else {
         replaceDoc(fromFixture(raw, file.name), `Imported ${file.name} as a fixture. It arrived as segments with no feature layer.`);
       }
@@ -396,17 +476,44 @@
     }
   }
 
-  function newFacility() {
-    replaceDoc(emptyDocument(), 'Started an empty facility.');
+  function newFacility(type = doc.facilityType) {
+    replaceDoc(
+      emptyDocument(type),
+      type === 'urban'
+        ? 'Started an empty urban street. Place a boundary signal at each end, because a Chapter 18 segment runs between two of them.'
+        : 'Started an empty facility.'
+    );
   }
 
   function openExample(id) {
+    if (isUrban) {
+      replaceDoc(
+        loadUrbanExample(id),
+        `Loaded ${URBAN_EXAMPLES.find((e) => e.id === id).name} as placed boundary signals, not as a segment table.`
+      );
+      return;
+    }
     replaceDoc(loadExample(id), `Loaded ${EXAMPLES.find((e) => e.id === id).name} as placed ramps, not as a segment table.`);
   }
 
   // ── Analysis ────────────────────────────────────────────────────
 
-  const wasm = { WasmFacilitySegment, WasmFreewayFacility, WasmFreewayReliability };
+  const wasm = {
+    WasmFacilitySegment,
+    WasmFreewayFacility,
+    WasmFreewayReliability,
+    WasmUrbanFacility,
+    WasmUrbanReliability
+  };
+
+  /** Which schema a dropped JSON file is. The two fixture shapes are told apart
+   * by the field that only one of them has on its segments, rather than by the
+   * facility keys, because a freeway fixture and an urban one both have a
+   * `segments` array and neither names its own chapter. */
+  function isUrbanFixture(raw) {
+    const s = raw?.segments?.[0];
+    return !!s && (s.segment_length_ft != null || s.n_through_lanes != null || s.control != null);
+  }
 
   /** Errors block the run and warnings do not. The distinction is the one
    * `validate.js` already draws: an error is a state the engine either rejects
@@ -422,12 +529,12 @@
       return;
     }
     try {
-      const run = analyzeFacility(doc, rows, wasm);
+      const run = isUrban ? analyzeUrbanFacility(doc, rows, wasm) : analyzeFacility(doc, rows, wasm);
       results = run;
       // Generated once, off the run that produced these numbers, so the page
       // and the printable report can never drift apart or restate a
       // since-edited input.
-      discussionLines = discussion(run);
+      discussionLines = isUrban ? urbanDiscussion(run) : discussion(run);
       runDocJson = JSON.stringify(doc);
       publishReport(run);
     } catch (e) {
@@ -442,8 +549,13 @@
     reliabilityError = '';
     reliabilityRunning = true;
     try {
-      reliability = analyzeReliability(doc, rows, relInputs, wasm, withWasmRetry);
-      relDiscussion = reliabilityDiscussion(reliability, results);
+      if (isUrban) {
+        reliability = analyzeUrbanReliability(doc, rows, urbanRelInputs, urbanWeather, wasm, withWasmRetry);
+        relDiscussion = urbanReliabilityDiscussion(reliability, results);
+      } else {
+        reliability = analyzeReliability(doc, rows, relInputs, wasm, withWasmRetry);
+        relDiscussion = reliabilityDiscussion(reliability, results);
+      }
       if (results) publishReport(results);
     } catch (e) {
       reliability = null;
@@ -461,6 +573,10 @@
   /** The report is published off the frozen run rather than off `doc`, so the
    * printed page and the screen cannot disagree even after an edit. */
   function publishReport(run) {
+    if (isUrban) {
+      publishUrbanReport(run);
+      return;
+    }
     const wzSegs = run.segments.filter((s) => s.workZone).map((s) => s.index + 1);
     setReport({
       chapter: `Facility Builder — ${run.facilityName}`,
@@ -533,6 +649,110 @@
     });
   }
 
+  /**
+   * The urban street's report, published off the frozen run for the same reason
+   * the freeway one is: the printed page and the screen cannot disagree even
+   * after an edit.
+   *
+   * The result table is one row per segment rather than one per period, because
+   * the Chapter 16 and 18 engines are single-period. The `matrixTable` the
+   * freeway report carries has no urban counterpart for the same reason, and it
+   * is left off rather than filled with a one-column grid that would imply an
+   * axis the method does not have.
+   */
+  function publishUrbanReport(run) {
+    const m = doc.mainline;
+    setReport({
+      chapter: `Facility Builder — ${run.facilityName}`,
+      chapterRef: 'HCM Chapter 16',
+      href: '/builder',
+      generatedAt: new Date().toLocaleString(),
+      headline: { label: 'Facility LOS', value: run.los },
+      discussion: [...discussionLines, ...relDiscussion],
+      inputs: [
+        { label: 'Facility length', value: `${(run.lengthFt / FT_PER_MI).toFixed(2)} mi` },
+        { label: 'Direction', value: m.direction },
+        { label: 'Through lanes', value: m.lanes },
+        { label: 'Posted speed limit', value: `${m.speedLimitMph} mi/h` },
+        { label: 'Left-turn lane proportion', value: m.propLeftTurnLanes },
+        { label: 'Proportion with curb', value: m.proportionWithCurb },
+        { label: 'On-street parking proportion', value: m.proportionOnStreetParking },
+        { label: 'Restrictive median length', value: `${m.restrictiveMedianLengthFt} ft` },
+        { label: 'Boundary signals', value: doc.features.filter((f) => f.kind === 'signal').length },
+        { label: 'Access points', value: doc.features.filter((f) => f.kind === 'access_point').length },
+        {
+          label: 'Segment description',
+          value:
+            run.mode === 'measures'
+              ? 'Published Chapter 18 measures, aggregated by Chapter 16 (Exhibit 16-7 "HCM method output")'
+              : 'Chapter 18 inputs, evaluated per segment and then aggregated'
+        },
+        {
+          label: 'Derived segments (upstream to downstream)',
+          value: run.segments.map((s) => `${Math.round(s.lengthFt)} ft x${s.lanes}`).join(', ')
+        }
+      ],
+      resultTable: {
+        columns: ['Segment', 'Length (ft)', 'Base FFS (mi/h)', 'Travel speed (mi/h)', 'Stop rate (stops/mi)', 'Through v/c', 'LOS'],
+        rows: run.segments.map((s) => [
+          `${s.index + 1}`,
+          `${Math.round(s.lengthFt)}`,
+          n2(s.baseFfs),
+          n2(s.travelSpeed),
+          n2(s.spatialStopRate),
+          n3(s.vcRatio),
+          s.los ?? '–'
+        ])
+      },
+      summary: [
+        { label: 'Facility LOS', value: run.los },
+        { label: 'Poorest-performing segment LOS', value: run.poorestSegmentLos },
+        { label: 'Facility base free-flow speed', value: `${n2(run.baseFfs)} mi/h` },
+        { label: 'Facility travel speed', value: `${n2(run.travelSpeed)} mi/h` },
+        { label: 'Facility spatial stop rate', value: `${n2(run.spatialStopRate)} stops/mi` },
+        { label: 'Critical through v/c ratio', value: n3(run.criticalVcRatio) },
+        { label: 'Traveler perception score', value: n2(run.perceptionScore) },
+        ...(reliability
+          ? [
+              { label: 'Mean travel time index', value: n3(reliability.ttiMean) },
+              { label: 'Median travel time index', value: n3(reliability.tti50) },
+              { label: 'Planning time index (95th percentile)', value: n3(reliability.tti95) },
+              { label: 'Reliability rating', value: `${n1(reliability.reliabilityRating)} %` }
+            ]
+          : [])
+      ],
+      methodology: [
+        run.mode === 'measures'
+          ? 'HCM Chapter 16 Steps 1 through 4, aggregating published Chapter 18 performance measures over the segments the boundary signals derived. This is the Exhibit 16-7 "HCM method output" path, which the published example problems take. The Chapter 18 engine is not re-run, because there are no Chapter 18 inputs behind the supplied measures to recompute from.'
+          : 'HCM Chapter 18 evaluated per segment and then aggregated by Chapter 16 (Equations 16-2 through 16-4 and the Exhibit 16-3 level of service), over the segment table the Chapter 18 segment definition derived from the placed boundary signals. Each segment runs from one boundary intersection to the next and takes its through control delay, cycle length and effective green from the intersection at its downstream end.',
+        'The Chapter 16 and 18 methods are single-period. There is one value per segment rather than a time-space domain, and the reliability run below is where variation over time is described.',
+        ...(run.mode === 'inputs'
+          ? [
+              `Access-point delay (Equation 18-7) came from ${describeApSources(run)}.`
+            ]
+          : []),
+        ...(reliability
+          ? [
+              `HCM Chapter 17 reliability run over ${reliability.numScenarios.toLocaleString('en-US')} scenarios. The reliability engine takes a strict subset of what a Chapter 18 segment holds, so the capacity, control delay, cross-section geometry and access-point delay of the facility above do not cross into it; the handoff panel on the builder names each one.`
+            ]
+          : [])
+      ]
+    });
+  }
+
+  function describeApSources(run) {
+    const set = new Set(run.segments.map((s) => s.apDelaySource).filter(Boolean));
+    const LABEL = {
+      published: 'per-point delays supplied on the access points',
+      computed: 'the Chapter 30 Section 4 computed procedure',
+      planning: 'the Exhibit 18-13 planning estimate'
+    };
+    return [...set].map((s) => LABEL[s] ?? s).join(', ');
+  }
+
+  const n2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : '–');
+  const n3 = (v) => (Number.isFinite(v) ? v.toFixed(3) : '–');
+
   const slug = (s) => (s || 'facility').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const LEVEL_LABEL = { error: 'Blocks analysis', warn: 'Check this', note: 'Note' };
   const n1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : '–');
@@ -545,6 +765,22 @@
     f.kind === 'on_ramp'
       ? `FFS ${f.rampFfs} mi/h · accel ${f.accelLaneFt} ft${f.auxLaneToNext ? ' · aux lane to next' : ''}`
       : `FFS ${f.rampFfs} mi/h · decel ${f.decelLaneFt} ft`;
+  /** The collapsed row's one line. For a signal that is the timing the segment
+   * ending at it reads; for an access point it is which of the three Equation
+   * 18-7 sources it supplies, since that is the thing most worth seeing without
+   * opening the panel. */
+  const urbanSummary = (f) => {
+    if (f.kind === 'signal') {
+      const c = f.config ?? {};
+      const timing = c.control === 'Signalized' ? `C ${c.cycle_length_s ?? '–'} s · g ${c.effective_green_s ?? '–'} s` : String(c.control ?? '');
+      return `${timing}${c.speed_limit_mph ? ` · ${c.speed_limit_mph} mi/h` : ''}${f.inferred ? ' · timing inferred on import' : ''}`;
+    }
+    if (f.side === 'opposing') return 'Opposing side, counted for f_A only';
+    if (f.delayS != null) return `${f.delayS} s/veh supplied`;
+    if (f.approach) return 'Chapter 30 Section 4, computed from the approach';
+    return 'Exhibit 18-13 planning estimate';
+  };
+
   const changeSummary = (f) =>
     f.kind === 'lane_change'
       ? `to ${f.lanes} lanes`
@@ -563,7 +799,11 @@
     <div>
       <h1>Facility Builder</h1>
       <p class="bd-lede">
-        Place ramps along a mainline and the HCM Chapter 10 segmentation rules derive the analysis segments. The derivation calls the library's own <code>segment_ramp_section</code>, so the table here and the table the engines analyze cannot disagree.
+        {#if isUrban}
+          Place boundary signals along a street and the Chapter 18 segment definition derives the analysis segments: a segment runs from one boundary intersection to the next, and reads its timing from the one at its downstream end. Access points attach to the segment that contains them.
+        {:else}
+          Place ramps along a mainline and the HCM Chapter 10 segmentation rules derive the analysis segments. The derivation calls the library's own <code>segment_ramp_section</code>, so the table here and the table the engines analyze cannot disagree.
+        {/if}
       </p>
     </div>
     <div class="bd-status" aria-live="polite">
@@ -577,24 +817,43 @@
   <div class="bd-body" inert={!ready} data-testid="builder-body" data-ready={ready}>
     <section class="bd-bar" aria-label="Facility actions">
       <div class="bd-group">
-        <button type="button" class="btn btn-sm" onclick={newFacility} data-testid="new-facility">New</button>
+        <span class="bd-group-label">Type</span>
+        <!-- Changing the facility type starts a new document rather than
+             converting the current one. A freeway's ramps have no urban
+             counterpart and an urban street's signal timing has no freeway one,
+             so a conversion would silently drop most of the document. The
+             selector says "new" for that reason, and undo still reaches back
+             past it. -->
+        <select value={doc.facilityType} disabled={!ready} data-testid="facility-type"
+                onchange={(e) => newFacility(e.currentTarget.value)}>
+          <option value="freeway">Freeway (Ch 10/11)</option>
+          <option value="urban">Urban street (Ch 16/17/18)</option>
+        </select>
+      </div>
+      <div class="bd-group">
+        <button type="button" class="btn btn-sm" onclick={() => newFacility()} data-testid="new-facility">New</button>
         <button type="button" class="btn btn-sm" onclick={undo} disabled={!canUndo} data-testid="undo">Undo</button>
         <button type="button" class="btn btn-sm" onclick={redo} disabled={!canRedo} data-testid="redo">Redo</button>
       </div>
       <div class="bd-group">
         <span class="bd-group-label">Add</span>
-        <button type="button" class="btn btn-sm" onclick={() => addFeature('on_ramp')} data-testid="add-on-ramp">On-ramp</button>
-        <button type="button" class="btn btn-sm" onclick={() => addFeature('off_ramp')} data-testid="add-off-ramp">Off-ramp</button>
-        <button type="button" class="btn btn-sm" onclick={() => addFeature('lane_change')} data-testid="add-lane-change">Lane change</button>
-        <button type="button" class="btn btn-sm" onclick={() => addFeature('work_zone')} data-testid="add-work-zone">Work zone</button>
-        {#each TEMPLATES as t}
-          <button type="button" class="btn btn-sm" title={t.summary}
-                  onclick={() => dropTemplate(t.id)} data-testid="template-{t.id}">{t.name}</button>
-        {/each}
+        {#if isUrban}
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('signal')} data-testid="add-signal">Boundary signal</button>
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('access_point')} data-testid="add-access-point">Access point</button>
+        {:else}
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('on_ramp')} data-testid="add-on-ramp">On-ramp</button>
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('off_ramp')} data-testid="add-off-ramp">Off-ramp</button>
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('lane_change')} data-testid="add-lane-change">Lane change</button>
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('work_zone')} data-testid="add-work-zone">Work zone</button>
+          {#each TEMPLATES as t}
+            <button type="button" class="btn btn-sm" title={t.summary}
+                    onclick={() => dropTemplate(t.id)} data-testid="template-{t.id}">{t.name}</button>
+          {/each}
+        {/if}
       </div>
       <div class="bd-group">
         <span class="bd-group-label">Load</span>
-        {#each EXAMPLES as ex}
+        {#each examples as ex}
           <button type="button" class="btn btn-sm" title={ex.summary}
                   onclick={() => openExample(ex.id)} data-testid="example-{ex.id}">{ex.name}</button>
         {/each}
@@ -615,7 +874,43 @@
     {/if}
 
     <section class="bd-mainline" aria-label="Mainline">
-      <h2>Mainline</h2>
+      <h2>{isUrban ? 'Street' : 'Mainline'}</h2>
+      {#if isUrban}
+        <div class="bd-fields">
+          <label>Name <input type="text" value={doc.meta.name} onchange={(e) => commit((d) => (d.meta.name = e.target.value))} data-testid="facility-name" /></label>
+          <label>Length (mi) <input type="number" min="0.05" step="0.05" value={(doc.mainline.lengthFt / FT_PER_MI).toFixed(2)} onchange={(e) => setLengthMi(e.currentTarget.value)} data-testid="facility-length" /></label>
+          <label>Direction
+            <select value={doc.mainline.direction} onchange={(e) => setMainline('direction', e.currentTarget.value)} data-testid="facility-direction">
+              <option>Eastbound</option><option>Westbound</option><option>Northbound</option><option>Southbound</option>
+            </select>
+          </label>
+          <label>Through lanes <input type="number" min="1" max="6" step="1" value={doc.mainline.lanes} onchange={(e) => setMainline('lanes', e.currentTarget.value)} data-testid="facility-lanes" /></label>
+          <label>Speed limit (mi/h) <input type="number" min="20" max="60" step="1" value={doc.mainline.speedLimitMph} onchange={(e) => setMainline('speedLimitMph', e.currentTarget.value)} data-testid="facility-speed-limit" /></label>
+          <label>Left-turn lane proportion <input type="number" min="0" max="1" step="0.01" value={doc.mainline.propLeftTurnLanes} onchange={(e) => setMainline('propLeftTurnLanes', e.currentTarget.value)} data-testid="facility-pltl" /></label>
+          <label>Proportion with curb <input type="number" min="0" max="1" step="0.05" value={doc.mainline.proportionWithCurb} onchange={(e) => setMainline('proportionWithCurb', e.currentTarget.value)} data-testid="facility-curb" /></label>
+          <label>On-street parking <input type="number" min="0" max="1" step="0.05" value={doc.mainline.proportionOnStreetParking} onchange={(e) => setMainline('proportionOnStreetParking', e.currentTarget.value)} data-testid="facility-parking" /></label>
+          <label>Restrictive median (ft) <input type="number" min="0" step="10" value={doc.mainline.restrictiveMedianLengthFt} onchange={(e) => setMainline('restrictiveMedianLengthFt', e.currentTarget.value)} data-testid="facility-median" /></label>
+          <label>Analysis period (h) <input type="number" min="0.05" max="1" step="0.05" value={doc.mainline.analysisPeriodH} onchange={(e) => setMainline('analysisPeriodH', e.currentTarget.value)} data-testid="facility-period-h" /></label>
+        </div>
+        <p class="bd-sub">
+          Chapter 18 has no area-type input. What an area type would imply is the cross section, so the curb proportion, the on-street parking and the restrictive median are the fields that carry it into the free-flow speed chain (Equations 18-3 through 18-6). The analysis period length is read only by the computed Chapter 30 Section 4 access-point procedure, which a segment enters only when its access points carry approaches.
+        </p>
+        <div class="bd-fields bd-mode">
+          <label>Segments described by
+            <select value={doc.analysisMode} onchange={(e) => setAnalysisMode(e.currentTarget.value)} data-testid="analysis-mode">
+              <option value="inputs">Chapter 18 inputs</option>
+              <option value="measures">Published Chapter 18 measures</option>
+            </select>
+          </label>
+        </div>
+        <p class="bd-sub" data-testid="mode-note">
+          {#if doc.analysisMode === 'measures'}
+            Each segment carries its published base free-flow speed, travel speed, stop rate, v/c and LOS, and only the Chapter 16 aggregation runs over them. That is the Exhibit 16-7 "HCM method output" path and the one the published example problems take, because Chapter 29 publishes per-segment outputs rather than the geometry behind them. The engine refuses to re-run Chapter 18 on these segments, since there are no inputs behind them to recompute from.
+          {:else}
+            Each segment carries its Chapter 18 inputs and the full pipeline runs: the Chapter 18 engine per segment, then the Chapter 16 aggregation. One kind per run, because the engine would accept a facility mixing the two but a per-segment switch doubles every editor for a case no published example exercises.
+          {/if}
+        </p>
+      {:else}
       <div class="bd-fields">
         <label>Name <input type="text" value={doc.meta.name} onchange={(e) => commit((d) => (d.meta.name = e.target.value))} data-testid="facility-name" /></label>
         <label>Length (mi) <input type="number" min="0.1" step="0.1" value={(doc.mainline.lengthFt / FT_PER_MI).toFixed(2)} onchange={(e) => setLengthMi(e.currentTarget.value)} data-testid="facility-length" /></label>
@@ -636,6 +931,7 @@
         <label>Ramp density (ramps/mi) <input type="number" min="0" step="0.1" value={doc.mainline.totalRampDensity} onchange={(e) => setMainline('totalRampDensity', e.currentTarget.value)} /></label>
         <label>Interchange density (int/mi) <input type="number" min="0" step="0.1" value={doc.mainline.interchangeDensity} onchange={(e) => setMainline('interchangeDensity', e.currentTarget.value)} /></label>
       </div>
+      {/if}
     </section>
 
     <!-- Strip, features and derived table are one editor, so they maximize
@@ -654,13 +950,68 @@
 
     <section class="bd-strip-wrap" aria-label="Facility strip">
       <BuilderStrip {doc} {rows} {selectedKey} {highlightIds} interactive={ready}
+                    mode={isUrban ? 'urban' : 'freeway'}
                     onselectrow={(k) => { selectedKey = selectedKey === k ? null : k; selectedFeature = null; }}
                     onselectfeature={(id) => { selectedFeature = id; selectedKey = null; }}
                     onrevealfeature={revealFeature}
                     onmovefeature={moveFeature} />
     </section>
 
-    {#if doc.features.some(isRamp)}
+    {#if isUrban}
+      {#each [['signal', 'Boundary signals', 'A Chapter 18 segment runs from one boundary intersection to the next, so the signals are what derive the segment table. Each segment reads its through control delay, cycle length and effective green from the signal at its downstream end, and a row opens that whole signal including the Chapter 17 inputs that reach only the reliability run.'], ['access_point', 'Access points', 'Access points do not bound a segment. They sit inside one and feed two things: the count Exhibit 18-11 note c reads for the free-flow speed adjustment, and the Equation 18-7 access-point delay term, from whichever of its three sources the point carries.']] as [kind, heading, blurb]}
+        {@const list = [...doc.features].filter((f) => f.kind === kind).sort((a, b) => a.stationFt - b.stationFt)}
+        {#if list.length}
+          <section class="bd-features" aria-label={heading}>
+            <h2>{heading}</h2>
+            <p class="bd-sub">{blurb}</p>
+            <div class="bd-scroll">
+              <table class="bd-table" data-testid="urban-{kind}-table">
+                <thead>
+                  <tr>
+                    <th scope="col">{kind === 'signal' ? 'Signal' : 'Access point'}</th>
+                    <th scope="col">Station (mi)</th>
+                    <th scope="col">{kind === 'signal' ? 'Timing' : 'Delay source'}</th>
+                    <th scope="col"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each list as f (f.id)}
+                    {@const open = selectedFeature === f.id}
+                    <tr class:selected={open} data-testid="urban-feature-row" data-feature-id={f.id}
+                        data-kind={f.kind} data-expanded={open}>
+                      <th scope="row">
+                        <button type="button" class="bd-disclose" onclick={() => toggleFeature(f.id)}
+                                aria-expanded={open} aria-controls="fe-{f.id}" data-testid="expand-{f.id}">
+                          <span class="bd-caret" class:open aria-hidden="true">▸</span>
+                          <span class="bd-kind" class:on={f.kind === 'signal'}>{f.kind === 'signal' ? 'Sig' : f.side === 'opposing' ? 'Opp' : 'AP'}</span>
+                          <span class="bd-feat-name">{f.label || f.id}</span>
+                        </button>
+                      </th>
+                      <td class="bd-num">{mi2(f.stationFt)}</td>
+                      <td class="bd-summary">{urbanSummary(f)}</td>
+                      <td><button type="button" class="bd-remove" onclick={() => removeFeature(f.id)} data-testid="remove-{f.id}">remove</button></td>
+                    </tr>
+                    {#if open}
+                      <tr class="bd-detail" data-testid="feature-detail" data-feature-id={f.id}>
+                        <td colspan="4" id="fe-{f.id}">
+                          <UrbanFeatureEditor feature={f} {doc} interactive={ready}
+                                              onfield={setUrbanFeature}
+                                              onsignalconfig={setSignalConfig}
+                                              onmeasure={setMeasure}
+                                              onapproach={setApproach} />
+                        </td>
+                      </tr>
+                    {/if}
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        {/if}
+      {/each}
+    {/if}
+
+    {#if !isUrban && doc.features.some(isRamp)}
       <section class="bd-features" aria-label="Ramps">
         <h2>Ramps</h2>
         <p class="bd-sub">
@@ -706,7 +1057,7 @@
       </section>
     {/if}
 
-    {#if doc.features.some((f) => !isRamp(f))}
+    {#if !isUrban && doc.features.some((f) => !isRamp(f))}
       <section class="bd-features" aria-label="Mainline changes">
         <h2>Mainline changes</h2>
         <p class="bd-sub">
@@ -757,7 +1108,13 @@
                   onclearoverride={clearOverride} />
     </div>
 
-    <DemandGrid {doc} interactive={ready} onedit={editDemand} onperiods={setPeriodCount} />
+    <!-- The demand grid is a period axis, and the urban engines do not have
+         one: demand is a scalar per segment, entered on the signal that
+         terminates it. Showing a one-column grid here would imply an axis the
+         method lacks. -->
+    {#if !isUrban}
+      <DemandGrid {doc} interactive={ready} onedit={editDemand} onperiods={setPeriodCount} />
+    {/if}
 
     <section class="bd-checks" aria-label="Validation" data-testid="validation-panel">
       <h3>Checks</h3>
@@ -775,7 +1132,7 @@
         </ul>
       {/if}
       <p class="bd-uncarried">
-        Exporting to the fixture schema carries the facility parameters above and every per-segment field this editor shows. It does not carry {UNCARRIED_FIELDS.join(', ')}, which have no editor here. A fixture that was imported keeps those fields verbatim through a round trip.
+        Exporting to the fixture schema carries the facility parameters above and every per-segment field this editor shows. It does not carry {uncarried.join(', ')}, which have no editor here. A fixture that was imported keeps those fields verbatim through a round trip{#if isUrban}, and a key the fixture never wrote stays absent unless it has been changed here, so an untouched import re-exports to the file it came from{/if}.
       </p>
     </section>
 
@@ -787,7 +1144,11 @@
           {#if errors.length}
             {errors.length} check{errors.length === 1 ? '' : 's'} above block the analysis. Warnings and notes do not.
           {:else}
-            Runs the HCM Chapter 10 core methodology on the derived segment table.
+            {isUrban
+              ? doc.analysisMode === 'measures'
+                ? 'Aggregates the published Chapter 18 measures over the derived segment table (HCM Chapter 16 Steps 1 through 4).'
+                : 'Runs the HCM Chapter 18 engine on each derived segment, then the Chapter 16 aggregation.'
+              : 'Runs the HCM Chapter 10 core methodology on the derived segment table.'}
           {/if}
         </span>
         {#if results}
@@ -804,7 +1165,154 @@
       {/if}
     </section>
 
-    {#if results}
+    {#if results && isUrban}
+      <UrbanResultStrip result={results} {dark} />
+
+      <section class="bd-summary" aria-label="Facility summary" data-testid="urban-facility-summary">
+        <h2>Facility summary</h2>
+        <div class="bd-figures">
+          <div class="bd-fig">
+            <span class="bd-fig-label">Facility LOS</span>
+            <span class="bd-fig-value" data-testid="urban-los">{results.los}</span>
+          </div>
+          <div class="bd-fig">
+            <span class="bd-fig-label">Travel speed</span>
+            <span class="bd-fig-value" data-testid="urban-travel-speed">{n2(results.travelSpeed)}</span>
+            <span class="bd-fig-unit">mi/h</span>
+          </div>
+          <div class="bd-fig">
+            <span class="bd-fig-label">Base free-flow speed</span>
+            <span class="bd-fig-value" data-testid="urban-base-ffs">{n2(results.baseFfs)}</span>
+            <span class="bd-fig-unit">mi/h</span>
+          </div>
+          <div class="bd-fig">
+            <span class="bd-fig-label">Poorest segment LOS</span>
+            <span class="bd-fig-value" data-testid="urban-poorest-los">{results.poorestSegmentLos}</span>
+          </div>
+          <div class="bd-fig">
+            <span class="bd-fig-label">Spatial stop rate</span>
+            <span class="bd-fig-value" data-testid="urban-stop-rate">{n2(results.spatialStopRate)}</span>
+            <span class="bd-fig-unit">stops/mi</span>
+          </div>
+          <div class="bd-fig">
+            <span class="bd-fig-label">Critical through v/c</span>
+            <span class="bd-fig-value" data-testid="urban-critical-vc">{n3(results.criticalVcRatio)}</span>
+          </div>
+          <div class="bd-fig">
+            <span class="bd-fig-label">Perception score</span>
+            <span class="bd-fig-value" data-testid="urban-perception">{n2(results.perceptionScore)}</span>
+          </div>
+        </div>
+        <p class="bd-undersat" data-testid="urban-mode-readout">
+          {#if results.mode === 'measures'}
+            Aggregated from published Chapter 18 measures by Chapter 16 Steps 1 through 4. The Chapter 18 engine was not run, because there are no inputs behind these measures to recompute from.
+          {:else}
+            Every segment evaluated by the Chapter 18 engine, then aggregated by Chapter 16 (Equations 16-2 through 16-4, Exhibit 16-3).
+          {/if}
+        </p>
+      </section>
+
+      <section class="bd-discussion" aria-label="Discussion">
+        <Discussion sentences={discussionLines} />
+      </section>
+
+      <section class="bd-rel" aria-label="Reliability" data-testid="urban-reliability-panel">
+        <h2>Reliability</h2>
+        <p class="bd-sub">
+          Hands this street to the HCM Chapter 17 methodology. The handoff is a re-statement rather than a re-use: the reliability engine takes sixteen scalars per segment, which is a strict subset of what a Chapter 18 segment holds, so the notes below name every field that reaches the run above and not this one.
+        </p>
+        <div class="bd-fields">
+          <label>Study period start hour
+            <input type="number" min="0" max="23" step="1" value={urbanRelInputs.studyPeriodStartHour}
+                   data-testid="urel-start-hour"
+                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, studyPeriodStartHour: Number(e.currentTarget.value) })} />
+          </label>
+          <label>Analysis periods per day
+            <input type="number" min="1" max="96" step="1" value={urbanRelInputs.analysisPeriodsPerDay}
+                   data-testid="urel-periods"
+                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, analysisPeriodsPerDay: Number(e.currentTarget.value) })} />
+          </label>
+          <label>Entry intersection crashes
+            <input type="number" min="0" step="1" value={urbanRelInputs.entryIntersectionCrashes}
+                   data-testid="urel-entry-crashes"
+                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, entryIntersectionCrashes: Number(e.currentTarget.value) })} />
+          </label>
+          <label>Minor leg volume (veh/h)
+            <input type="number" min="0" step="10" value={urbanRelInputs.minorLegVolume}
+                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, minorLegVolume: Number(e.currentTarget.value) })} />
+          </label>
+          <label>Weather seed
+            <input type="number" min="0" step="1" value={urbanRelInputs.weatherSeed}
+                   data-testid="urel-weather-seed"
+                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, weatherSeed: Number(e.currentTarget.value) })} />
+          </label>
+          <label>Demand seed
+            <input type="number" min="0" step="1" value={urbanRelInputs.demandSeed}
+                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, demandSeed: Number(e.currentTarget.value) })} />
+          </label>
+          <label>Incident seed
+            <input type="number" min="0" step="1" value={urbanRelInputs.incidentSeed}
+                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, incidentSeed: Number(e.currentTarget.value) })} />
+          </label>
+          <label class="bd-check-field">Shoulder present
+            <input type="checkbox" checked={urbanRelInputs.shoulderPresent}
+                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, shoulderPresent: e.currentTarget.checked })} />
+          </label>
+        </div>
+        <div class="bd-run-bar">
+          <button type="button" class="btn btn-sm" onclick={runReliability}
+                  disabled={reliabilityRunning} data-testid="run-reliability">
+            {reliabilityRunning ? 'Running…' : 'Run reliability'}
+          </button>
+          <span class="bd-run-note">Scenario generation plus one evaluation per scenario, over the Lincoln weather of Exhibit 29-65.</span>
+        </div>
+
+        {#if reliabilityError}
+          <p class="bd-error" role="alert" data-testid="reliability-error">{reliabilityError}</p>
+        {/if}
+
+        {#if reliability}
+          <div class="bd-figures" data-testid="urban-reliability-summary">
+            <div class="bd-fig">
+              <span class="bd-fig-label">Mean TTI</span>
+              <span class="bd-fig-value" data-testid="urel-tti-mean">{n3(reliability.ttiMean)}</span>
+            </div>
+            <div class="bd-fig">
+              <span class="bd-fig-label">Median TTI</span>
+              <span class="bd-fig-value" data-testid="urel-tti-50">{n3(reliability.tti50)}</span>
+            </div>
+            <div class="bd-fig">
+              <span class="bd-fig-label">Planning time index (95th)</span>
+              <span class="bd-fig-value" data-testid="urel-pti">{n3(reliability.tti95)}</span>
+            </div>
+            <div class="bd-fig">
+              <span class="bd-fig-label">Reliability rating</span>
+              <span class="bd-fig-value" data-testid="urel-rating">{n1(reliability.reliabilityRating)}</span>
+              <span class="bd-fig-unit">%</span>
+            </div>
+            <div class="bd-fig">
+              <span class="bd-fig-label">Scenarios</span>
+              <span class="bd-fig-value" data-testid="urel-scenarios">{reliability.numScenarios.toLocaleString('en-US')}</span>
+            </div>
+          </div>
+          <p class="bd-rel-meta">
+            {reliability.numOversaturatedScenarios} of them ran oversaturated, with {reliability.numWeatherEvents} weather events and {reliability.numIncidents} incidents generated. Base free-flow travel time {n1(reliability.baseFreeFlowTravelTime)} s.
+          </p>
+          <Discussion sentences={relDiscussion} />
+        {/if}
+
+        <ul class="bd-rel-notes" data-testid="urban-reliability-notes">
+          {#each relNotes as note}
+            <li class="bd-rel-note {note.level}" data-note-id={note.id}>{note.text}</li>
+          {/each}
+          <li class="bd-rel-note note">
+            <a href="/hcm17">The Chapter 17 calculator</a> has a panel for the weather table and the ATDM strategies, and takes the same street.
+          </li>
+        </ul>
+      </section>
+    {/if}
+
+    {#if results && !isUrban}
       <Heatmap result={results} {dark} />
 
       <section class="bd-summary" aria-label="Facility summary" data-testid="facility-summary">
@@ -997,6 +1505,7 @@
   .bd-fields label { font-size: 0.75rem; color: var(--text-secondary); display: inline-flex; flex-direction: column; gap: 0.12rem; }
 
   .bd-strip-wrap { margin-top: 0.75rem; overflow-x: auto; }
+  .bd-mode { margin-top: 0.4rem; }
 
   .bd-editor-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-top: 1rem; }
   .bd-editor-title { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
