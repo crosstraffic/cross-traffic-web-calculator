@@ -151,15 +151,23 @@
       is_hc: segment.is_hc,
       vi: segment.volume,
       vo: segment.volume_op,
-      vertical_class: segment.vertical_class,
+      // The select binds string option values (the blank row defaults to '1'),
+      // and Svelte matches options strictly, so the fixture's number must be
+      // stringified or no option selects and the required select silently
+      // blocks form submission.
+      vertical_class: String(segment.vertical_class),
       phf: segment.phf,
       phv: segment.phv,
       passing_type: passTypes[segment.passing_type] ?? "",
+      // The library's SubSegment schema names these design_rad and sup_ele
+      // (see tests/ExampleCases/hcm/TwoLaneHighways/case2.json); this page's
+      // own older exports wrote design_radius and superelevation, so both
+      // spellings are accepted.
       subrows: segment.subsegments.map((subseg, j) => ({
         subseg_num: j + 1,
         subseg_length: subseg.length,
-        design_radius: subseg.design_radius,
-        superelevation: subseg.superelevation,
+        design_radius: subseg.design_rad ?? subseg.design_radius ?? '0',
+        superelevation: subseg.sup_ele ?? subseg.superelevation ?? '0',
       })),
     }));
     results = null;
@@ -195,8 +203,9 @@
         hor_class: 0,
         subsegments: row.subrows.map((subrow) => ({
           length: subrow.subseg_length,
-          design_radius: subrow.design_radius,
-          superelevation: subrow.superelevation,
+          design_rad: subrow.design_radius,
+          central_angle: 0.0,
+          sup_ele: subrow.superelevation,
           avg_speed: 0.0,
           hor_class: 0,
         })),
