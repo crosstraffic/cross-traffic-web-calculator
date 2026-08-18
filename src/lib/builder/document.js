@@ -71,7 +71,12 @@ function emptyFreewayDocument() {
 		// The verbatim parsed fixture an import came from, so an untouched
 		// import exports byte-identically including keys this builder has no
 		// editor for.
-		importedRaw: null
+		importedRaw: null,
+		// Set only when this document arrived from a chapter page's "Open in
+		// Builder". It names where it came from and what that page holds which this
+		// builder has no place for, and the checks panel prints the second half
+		// beside its own carried/dropped disclosure. Null for everything else.
+		handoff: null
 	};
 }
 
@@ -133,7 +138,12 @@ function emptyUrbanDocument() {
 		features: [],
 		overrides: {},
 		importedSegments: null,
-		importedRaw: null
+		importedRaw: null,
+		// Set only when this document arrived from a chapter page's "Open in
+		// Builder". It names where it came from and what that page holds which this
+		// builder has no place for, and the checks panel prints the second half
+		// beside its own carried/dropped disclosure. Null for everything else.
+		handoff: null
 	};
 }
 
@@ -195,7 +205,12 @@ function emptyTwoLaneDocument() {
 		features: [],
 		overrides: {},
 		importedSegments: null,
-		importedRaw: null
+		importedRaw: null,
+		// Set only when this document arrived from a chapter page's "Open in
+		// Builder". It names where it came from and what that page holds which this
+		// builder has no place for, and the checks panel prints the second half
+		// beside its own carried/dropped disclosure. Null for everything else.
+		handoff: null
 	};
 }
 

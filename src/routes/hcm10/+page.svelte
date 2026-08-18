@@ -12,6 +12,8 @@
   import ViewToggle from '$lib/ViewToggle.svelte';
   import FacilityDiagram from '$lib/FacilityDiagram.svelte';
   import FacilityDiagram3D from '$lib/FacilityDiagram3D.svelte';
+  import OpenInBuilder from '$lib/OpenInBuilder.svelte';
+  import { freewayHandoff } from '$lib/builder/handoff.js';
   import { onMount } from "svelte";
 
   let ready = $state(false);
@@ -365,6 +367,17 @@
     results = null;
     hasError = false;
   }
+
+  /** This form to the builder, through the library's own fixture schema. The
+   * mapping lives in the handoff module beside every other chapter's, so they
+   * cannot drift apart. This hands it the state and nothing else. */
+  function handoff() {
+    return freewayHandoff({
+      ffs, hv_pct, terrain, city_type, phf, jam_density, queue_discharge_drop,
+      total_ramp_density, interchange_density, mainline_demand, segments,
+      ml_enabled, workZoneConfig
+    });
+  }
 </script>
 
 <div class="hcm-page">
@@ -377,6 +390,8 @@
       mixed-flow core methodology, optional per-segment work zones, and an optional
       adjacent managed lane analyzed as a parallel lane group.
     </p>
+    <OpenInBuilder build={handoff}
+      note="Takes this form to the facility builder as a Chapter 10 fixture. A freeway fixture records segments and not the ramps behind them, so it arrives there as a segment table with no feature layer." />
   </header>
 
   <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">

@@ -59,6 +59,7 @@
   import { TWOLANE_EXAMPLES, loadTwoLaneExample } from '$lib/builder/twoLaneExamples.js';
   import { createHistory, parseSnapshot } from '$lib/builder/history.js';
   import { saveSlot, loadSlot, downloadJson, readJsonFile } from '$lib/builder/storage.js';
+  import { takeHandoff } from '$lib/builder/handoff.js';
   import { analyzeFacility } from '$lib/builder/analyze.js';
   import { analyzeUrbanFacility } from '$lib/builder/urbanAnalyze.js';
   import { analyzeTwoLaneFacility } from '$lib/builder/twoLaneAnalyze.js';
@@ -165,6 +166,26 @@
 
   onMount(async () => {
     await init();
+    // A handoff from a chapter page wins over the autosaved slot, because it is
+    // the thing the analyst just asked for. It is consumed by the read, so a
+    // later reload of this page shows the slot again rather than replaying it.
+    const handed = takeHandoff();
+    if (handed) {
+      try {
+        doc = docFromHandoff(handed);
+        message = `Opened the facility from ${handed.label}. ${HANDOFF_NOTES[handed.facilityType]}`;
+        history.reset(doc);
+        syncHistoryFlags();
+        saveSlot(SLOT, doc);
+        ready = true;
+        return;
+      } catch (e) {
+        // Falling through to the saved slot rather than leaving an empty editor:
+        // whatever went wrong with the handoff, the analyst's own last facility
+        // is still the better thing to be looking at.
+        error = `Could not open that facility here: ${e.message}`;
+      }
+    }
     const saved = loadSlot(SLOT);
     if (saved) {
       try {
@@ -473,6 +494,39 @@
   }
 
   // ── Persistence ──────────────────────────────────────────────────────
+
+  /** A chapter page's handoff to a document, through the same three fixture
+   * importers the Open file… button uses. There is no fourth path: a page hands
+   * over the library's own schema precisely so it arrives here as an import and
+   * not as a special case, and so the segments-only freeway state stays the
+   * segments-only freeway state rather than growing a feature layer nobody
+   * placed. */
+  function docFromHandoff(handed) {
+    const IMPORTERS = { freeway: fromFixture, urban: fromUrbanFixture, twolane: fromTwoLaneFixture };
+    const from = IMPORTERS[handed.facilityType];
+    // Thrown rather than defaulted to the freeway importer, which would read a
+    // Chapter 18 fixture as a facility with no segments and report it as an
+    // empty one instead of as the mismatch it is.
+    if (!from) throw new Error(`unsupported facility type "${handed.facilityType}"`);
+    const next = from(handed.fixture, handed.name);
+    // Recorded on the document rather than in page state so it survives the
+    // autosave: the disclosure about what did not come across has to still be
+    // there tomorrow, beside the facility it is about.
+    next.handoff = { from: handed.from, label: handed.label, dropped: handed.dropped ?? [] };
+    return next;
+  }
+
+  /** The same sentence each fixture import already prints, because a handoff is
+   * one and the two should not describe the arrival differently. Only the three
+   * cases a chapter page can actually produce: hcm16's summary mode does not
+   * hand over at all, so there is no measures sentence to write here. */
+  const HANDOFF_NOTES = {
+    freeway:
+      'A freeway fixture stores segments and not the ramps that produced them, so it arrived as segments with no feature layer and is edited through the table below.',
+    urban: 'The boundary signals were recovered from the segment lengths, so it is editable as features.',
+    twolane:
+      'The passing features, grades, demand changes and horizontal curves were recovered from the segment table, so it is editable as features.'
+  };
 
   function downloadDocument() {
     downloadJson(`${slug(doc.meta.name)}.builder.json`, doc);
@@ -1427,6 +1481,16 @@
           There is nothing it does not carry: the Chapter 15 segment schema is twenty keys wide and the derivation fills every one of them, so an export from here is the whole schema rather than a subset and an untouched import re-exports to the file it came from.
         {/if}
       </p>
+      {#if doc.handoff}
+        <p class="bd-uncarried" data-testid="handoff-note">
+          This facility came from {doc.handoff.label}.
+          {#if doc.handoff.dropped.length}
+            That page also holds {doc.handoff.dropped.join('; ')}, so {doc.handoff.dropped.length === 1 ? 'it did' : 'they did'} not come across.
+          {:else}
+            Everything that page holds came across.
+          {/if}
+        </p>
+      {/if}
     </section>
 
     <section class="bd-run" aria-label="Analysis">
