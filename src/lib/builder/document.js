@@ -585,6 +585,16 @@ export function migrate(raw) {
 	doc.meta = { ...base.meta, ...(raw2.meta ?? {}) };
 	doc.mainline = { ...base.mainline, ...(raw2.mainline ?? {}) };
 	doc.features = Array.isArray(raw2.features) ? raw2.features : [];
+	// Early urban builds offered "TwoWayStop" as a boundary control, which is
+	// not a BoundaryControlType serde variant and fails on analyze. The
+	// variant's own doc says the through movement at a two-way STOP boundary
+	// is Uncontrolled, so a stored draft carrying the invalid name maps there.
+	for (const f of doc.features) {
+		if (f?.config?.control === 'TwoWayStop') f.config.control = 'Uncontrolled';
+	}
+	for (const o of Object.values(doc.overrides)) {
+		if (o?.fields?.seg_type === 'TwoWayStop') o.fields.seg_type = 'Uncontrolled';
+	}
 	doc.overrides = raw2.overrides && typeof raw2.overrides === 'object' ? raw2.overrides : {};
 	if (!Array.isArray(doc.mainline.demand) || doc.mainline.demand.length === 0) {
 		throw new Error('document has no mainline demand, so it has no analysis periods');
