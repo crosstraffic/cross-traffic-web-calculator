@@ -10,7 +10,13 @@
 // features can be re-derived.
 
 import { emptyDocument, setPeriods, defaultSignalConfig } from './document.js';
-import { URBAN_SEGMENT_KEYS, URBAN_MEASURE_KEYS, deriveUrbanRows } from './derive.js';
+import {
+	URBAN_SEGMENT_KEYS,
+	URBAN_MEASURE_KEYS,
+	TWOLANE_SEGMENT_KEYS,
+	deriveUrbanRows,
+	deriveTwoLaneRows
+} from './derive.js';
 
 const FACILITY_KEYS = [
 	['mainline_demand', (m) => m.demand],
@@ -66,7 +72,10 @@ export const URBAN_UNCARRIED_FIELDS = [
 	'midsegment_other_delay_s',
 	'access_point_turn_delay_speed_mph',
 	'free_flow_speed_override_mph',
-	'prop_opposing_left_accessible'
+	'prop_opposing_left_accessible',
+	's_calib_mph',
+	'upstream_discharge_profiles',
+	'arrival_uniform_volume_veh_h / flow_profile_time_step_s / downstream_green_start_s'
 ];
 
 /**
@@ -146,6 +155,14 @@ export function fromUrbanFixture(raw, name = 'imported fixture') {
 				sat_flow_veh_h_ln: s.sat_flow_veh_h_ln ?? null,
 				arrival_type: s.arrival_type ?? null,
 				full_stop_rate_override: s.full_stop_rate_override ?? null,
+				// The Exhibit 18-13 planning parameters, recovered so a fixture that
+				// states them round-trips and shows them in the editor rather than
+				// carrying them invisibly through `importedRaw`.
+				n_influential_access_points: s.n_influential_access_points ?? null,
+				pct_left_turns_access: s.pct_left_turns_access ?? null,
+				pct_right_turns_access: s.pct_right_turns_access ?? null,
+				access_left_bay_adequate: s.access_left_bay_adequate ?? null,
+				access_right_bay_adequate: s.access_right_bay_adequate ?? null,
 				// The width of the intersection at the NEXT segment's upstream end,
 				// which is this one. The last signal has no segment after it to have
 				// recorded its width, so it keeps the default.
@@ -245,6 +262,208 @@ function same(a, b) {
 	return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 }
 
+/** Fields of the Chapter 15 schema this editor has no control for. There are
+ * none: the two-lane segment schema is twenty keys wide and the derivation fills
+ * every one of them. The list is kept, and kept empty, because the checks panel
+ * prints it either way and an empty list is a claim worth making explicitly. */
+export const TWOLANE_UNCARRIED_FIELDS = [];
+
+/**
+ * A `TwoLaneHighways` fixture to a builder document, feature layer and all.
+ *
+ * Like the urban import and unlike the freeway one, this is invertible. A
+ * Chapter 15 fixture states, per segment, everything the features encode: the
+ * passing type, the grade and its vertical class, the demand and its peak hour
+ * factor and heavy-vehicle percentage, the posted limit, and the subsegments a
+ * horizontal curve produced. So the features come back and the imported highway
+ * is editable as features rather than only through overrides.
+ *
+ * A demand feature is emitted at the START OF EVERY SEGMENT rather than only
+ * where the traffic characteristics change. That looks redundant on a fixture
+ * whose segments all carry the same volume, and it is the thing that makes the
+ * import exact: a demand feature marks a segment boundary, so emitting one per
+ * segment guarantees the boundary set regardless of whether a grade or a passing
+ * feature happens to bound that segment too. Emitting them only on a change
+ * would silently merge two identical adjacent segments into one, which is a
+ * different facility with a different segment count.
+ */
+export function fromTwoLaneFixture(raw, name = 'imported fixture') {
+	if (!raw || typeof raw !== 'object') throw new Error('not a JSON object');
+	if (!Array.isArray(raw.segments) || raw.segments.length === 0) {
+		throw new Error('not a TwoLaneHighways fixture: no "segments" array');
+	}
+	const doc = emptyDocument('twolane');
+	doc.meta = { name, source: `fixture:${name}`, modified: null };
+	const m = doc.mainline;
+	if (raw.lane_width != null) m.laneWidthFt = raw.lane_width;
+	if (raw.shoulder_width != null) m.shoulderWidthFt = raw.shoulder_width;
+	if (raw.apd != null) m.accessPointDensity = raw.apd;
+	if (raw.pmhvfl != null) m.pctHeavyVehInPassingLane = raw.pmhvfl;
+	if (raw.l_de != null) m.effectiveDownstreamLengthMi = raw.l_de;
+
+	const first = raw.segments[0];
+	if (first.spl != null) m.speedLimitMph = first.spl;
+	if (first.volume != null) m.demand = [first.volume];
+	if (first.phf != null) m.phf = first.phf;
+	if (first.phv != null) m.heavyVehiclePct = first.phv;
+	if (first.vertical_class != null) m.verticalClass = first.vertical_class;
+
+	// MILES to FEET, once, here. Everything on the document side of this call is
+	// feet, and a subsegment's length is already feet and is not touched.
+	//
+	// The highway length is the LAST STATION rather than the rounded sum, and the
+	// two are different numbers. Rounding the sum and rounding each segment
+	// separately can disagree by up to half a foot per segment, and both end up as
+	// marks in the derivation, so the shortfall would appear as a sliver segment
+	// past the last one and an overshoot would collapse the final boundary. It is
+	// set below, once the stations have been walked.
+	doc.features = [];
+	let stationFt = 0;
+	raw.segments.forEach((s, i) => {
+		const lengthFt = Math.round((s.length ?? 0) * 5280);
+		const startFt = stationFt;
+		const endFt = startFt + lengthFt;
+
+		doc.features.push({
+			id: `dm${i + 1}`,
+			kind: 'demand',
+			stationFt: startFt,
+			label: `Segment ${i + 1} conditions`,
+			config: {
+				volume: s.volume ?? 0,
+				opposingVolume: s.volume_op ?? 0,
+				phf: s.phf ?? 0.95,
+				heavyVehiclePct: s.phv ?? 5,
+				// Only carried when it differs from the highway's, so a fixture posting
+				// one limit throughout does not put an override on every segment.
+				speedLimitMph: s.spl != null && s.spl !== m.speedLimitMph ? s.spl : null
+			}
+		});
+
+		if ((s.passing_type ?? 0) > 0) {
+			doc.features.push({
+				id: `ps${i + 1}`,
+				kind: 'passing',
+				stationFt: startFt,
+				endFt,
+				label: s.passing_type === 2 ? `Passing lane ${i + 1}` : `Passing zone ${i + 1}`,
+				passingType: s.passing_type
+			});
+		}
+
+		// A grade feature is emitted whenever the segment states a grade or a
+		// vertical class other than the highway's default, because the class is a
+		// Step 2 input in its own right: the passing-lane capacity lookup reads it
+		// before Step 3 has a chance to recompute it.
+		if ((s.grade ?? 0) !== 0 || (s.vertical_class ?? 1) !== (m.verticalClass ?? 1)) {
+			doc.features.push({
+				id: `gr${i + 1}`,
+				kind: 'grade',
+				stationFt: startFt,
+				endFt,
+				label: `Grade ${i + 1}`,
+				gradePct: s.grade ?? 0,
+				verticalClass: s.vertical_class ?? 1
+			});
+		}
+
+		// Subsegments back to curves. A subsegment with no radius is the tangent
+		// filler the derivation puts between curves, so it is not a feature; it is
+		// what the derivation will produce again from the gaps between these.
+		let subStation = startFt;
+		for (const [k, ss] of (s.subsegments ?? []).entries()) {
+			const len = ss.length ?? 0;
+			if ((ss.design_rad ?? 0) > 0) {
+				doc.features.push({
+					id: `hc${i + 1}_${k + 1}`,
+					kind: 'curve',
+					// Not rounded, unlike every other station in every document. A
+					// subsegment boundary genuinely falls between feet in the published
+					// fixtures, and rounding it moves the tangent beside it by the same
+					// amount, which is a silent change to a Step 5d weight.
+					stationFt: subStation,
+					endFt: subStation + len,
+					label: '',
+					designRadiusFt: ss.design_rad,
+					superelevationPct: ss.sup_ele ?? 0,
+					centralAngleDeg: ss.central_angle ?? 0,
+					horClassEntered: ss.hor_class ?? null
+				});
+			}
+			subStation += len;
+		}
+
+		stationFt = endFt;
+	});
+	m.lengthFt = stationFt;
+
+	doc.importedRaw = JSON.parse(JSON.stringify(raw));
+	return setPeriods(doc, 1);
+}
+
+/**
+ * The derived Chapter 15 segment table back to the `TwoLaneHighways` serde
+ * schema.
+ *
+ * For an imported document the original parse is the base and the derived rows
+ * are merged onto it key by key, the same arrangement the freeway and urban
+ * exports use, so an untouched import re-exports to the file it came from.
+ */
+export function toTwoLaneFixture(doc, rows) {
+	if (doc.importedRaw) {
+		const out = JSON.parse(JSON.stringify(doc.importedRaw));
+		for (const [key, get] of TWOLANE_FACILITY_MAP) if (key in out) out[key] = get(doc.mainline);
+		// A key the fixture never wrote meant "take the serde default", and the
+		// derivation fills all twenty regardless, so writing them all back would
+		// turn a hand-written segment into a full one and no such import would
+		// round-trip. The test for whether an absent key has become worth writing
+		// is whether the user changed it, which is the comparison against what this
+		// same fixture derived to on arrival. Same arrangement the urban export
+		// uses, and the reason the published fixtures did not catch this is that
+		// all four of them state every key.
+		const baseline = twoLaneImportBaseline(doc.importedRaw);
+		out.segments = out.segments.map((orig, i) => {
+			const r = rows[i];
+			if (!r) return orig;
+			const merged = { ...orig };
+			for (const k of TWOLANE_SEGMENT_KEYS) {
+				if (k in orig) merged[k] = cloneVal(r[k] ?? orig[k]);
+				else if (r[k] != null && !same(r[k], baseline[i]?.[k])) merged[k] = cloneVal(r[k]);
+			}
+			return merged;
+		});
+		return out;
+	}
+
+	const out = {};
+	for (const [key, get] of TWOLANE_FACILITY_MAP) out[key] = get(doc.mainline);
+	out.segments = rows.map((r) => {
+		const s = {};
+		for (const k of TWOLANE_SEGMENT_KEYS) if (r[k] != null) s[k] = cloneVal(r[k]);
+		return s;
+	});
+	return out;
+}
+
+/** The five facility-level keys, in the order the library's own fixtures write
+ * them. They are exactly the `WasmTwoLaneHighways` constructor arguments after
+ * the segment list. */
+const TWOLANE_FACILITY_MAP = [
+	['lane_width', (m) => m.laneWidthFt],
+	['shoulder_width', (m) => m.shoulderWidthFt],
+	['apd', (m) => m.accessPointDensity],
+	['pmhvfl', (m) => m.pctHeavyVehInPassingLane],
+	['l_de', (m) => m.effectiveDownstreamLengthMi]
+];
+
+/** What a Chapter 15 fixture's segments derive to the moment it is imported,
+ * before any edit. Pure in `raw` for the same reason the urban one is, and
+ * cheap for the same reason: a two-lane facility is a handful of segments. */
+function twoLaneImportBaseline(raw) {
+	const doc = fromTwoLaneFixture(raw, 'baseline');
+	return deriveTwoLaneRows(doc).rows;
+}
+
 export function fromFixture(raw, name = 'imported fixture') {
 	if (!raw || typeof raw !== 'object') throw new Error('not a JSON object');
 	if (!Array.isArray(raw.segments) || raw.segments.length === 0) {
@@ -284,6 +503,7 @@ export function fromFixture(raw, name = 'imported fixture') {
  */
 export function toFixture(doc, rows) {
 	if (doc.facilityType === 'urban') return toUrbanFixture(doc, rows);
+	if (doc.facilityType === 'twolane') return toTwoLaneFixture(doc, rows);
 	if (doc.importedRaw) {
 		const out = JSON.parse(JSON.stringify(doc.importedRaw));
 		out.mainline_demand = [...doc.mainline.demand];

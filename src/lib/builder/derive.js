@@ -39,6 +39,7 @@ const BASIC = 'Basic';
  */
 export function deriveRows(doc, api) {
 	if (doc.facilityType === 'urban') return deriveUrbanRows(doc);
+	if (doc.facilityType === 'twolane') return deriveTwoLaneRows(doc);
 	if (doc.importedSegments) return importedRows(doc);
 
 	const errors = [];
@@ -365,8 +366,49 @@ function applyOverrides(doc, rows) {
 		out.staleOverride = !!o.appliedTo && o.appliedTo !== r.seg_type;
 		out.derivedSegType = r.seg_type;
 		out.derivedLengthFt = r.length_ft;
+		syncOverrideTwins(doc, out, o.fields ?? {});
 		return out;
 	});
+}
+
+/**
+ * Carry an override on a chassis field through to the chapter-schema field that
+ * holds the same quantity.
+ *
+ * A row is two things at once: the chassis' own view, which the table, the strip
+ * and the summary read, and the chapter's serde schema, which the ENGINE reads.
+ * For the freeway the two share their names, so an override reaches both. For
+ * the other two they do not, and an override that moved only the chassis half
+ * would change every number on the page except the one the engine computed.
+ *
+ * Chapter 18's segment length is feet like the chassis'; Chapter 15's is miles,
+ * so pinning a two-lane length to 3,000 ft without this would analyze whatever
+ * the derivation last said and report 3,000. Both are silent.
+ */
+function syncOverrideTwins(doc, out, fields) {
+	if ('length_ft' in fields) {
+		if (doc.facilityType === 'urban') {
+			out.segment_length_ft = out.length_ft;
+			// Signal spacing and segment length are the same distance on a derived
+			// urban row by construction, so a pinned length moves both or Equation
+			// 18-4's f_L reads a spacing the segment does not have.
+			out.signal_spacing_ft = out.length_ft;
+		}
+		if (doc.facilityType === 'twolane') out.length = out.length_ft / 5280;
+	}
+	if ('lanes' in fields && doc.facilityType === 'urban') out.n_through_lanes = out.lanes;
+	if ('seg_type' in fields) {
+		if (doc.facilityType === 'urban') out.control = out.seg_type;
+		if (doc.facilityType === 'twolane') {
+			const pt = PASSING_TYPE_NAMES.indexOf(out.seg_type);
+			if (pt >= 0) {
+				out.passing_type = pt;
+				// The drawn cross section follows the pinned type unless the lane
+				// count was pinned too, in which case the analyst said both.
+				if (!('lanes' in fields)) out.lanes = pt === 2 ? 2 : 1;
+			}
+		}
+	}
 }
 
 /** A fixture arrives as a segment list with no feature layer, so there is
@@ -452,6 +494,14 @@ export const URBAN_SEGMENT_KEYS = [
 	'prop_left_turn_lanes',
 	'access_point_delays_s',
 	'access_point_approaches',
+	// The Exhibit 18-13 planning estimate's parameters. They sit beside the two
+	// preferred sources rather than under them because the library reads them
+	// only on the fall-through, and a segment cannot be on two sources at once.
+	'n_influential_access_points',
+	'pct_left_turns_access',
+	'pct_right_turns_access',
+	'access_left_bay_adequate',
+	'access_right_bay_adequate',
 	'analysis_period_h'
 ];
 
@@ -557,6 +607,27 @@ export function deriveUrbanRows(doc) {
 	return { rows: applyOverrides(doc, rows), sections: [], errors };
 }
 
+/**
+ * Which of the three Equation 18-7 sources the segment ENDING at one signal is
+ * on, for an editor that holds the document but not the derivation.
+ *
+ * It re-derives rather than re-implementing the containment rule. Which access
+ * points belong to which segment is the one genuinely subtle rule in this
+ * module — half-open at one end, tolerant at the other, so a point is counted
+ * once — and a second copy of it in a Svelte component is how the panel would
+ * start telling a user their planning parameters are inert when they are not.
+ *
+ * Returns null when no segment ends at the signal, which is the upstream-most
+ * one and the case the editor already has a note for.
+ */
+export function urbanSourceEndingAt(doc, signalId) {
+	if (!doc || doc.facilityType !== 'urban' || !signalId) return null;
+	const { rows } = deriveUrbanRows(doc);
+	// Keys are `seg:<upstream>:<downstream>`, so the suffix is unambiguous even
+	// though `sig1` is a prefix of `sig11`.
+	return rows.find((r) => r.key.endsWith(`:${signalId}`))?.apDelaySource ?? null;
+}
+
 function clamp(v, lo, hi) {
 	return Math.min(hi, Math.max(lo, v));
 }
@@ -605,6 +676,16 @@ function urbanRow(doc, { key, startFt, endFt, upstream, downstream, subject, opp
 		sat_flow_veh_h_ln: cfg.sat_flow_veh_h_ln ?? undefined,
 		arrival_type: cfg.arrival_type ?? undefined,
 		full_stop_rate_override: cfg.full_stop_rate_override ?? undefined,
+		// Carried whatever source the segment ends up on. The library reads them
+		// only on the Exhibit 18-13 fall-through, so on a segment with per-point
+		// delays they are inert, and dropping them here instead would lose an
+		// analyst's numbers out of the document the moment a delay was supplied
+		// and not give them back when it was cleared.
+		n_influential_access_points: cfg.n_influential_access_points ?? undefined,
+		pct_left_turns_access: cfg.pct_left_turns_access ?? undefined,
+		pct_right_turns_access: cfg.pct_right_turns_access ?? undefined,
+		access_left_bay_adequate: cfg.access_left_bay_adequate ?? undefined,
+		access_right_bay_adequate: cfg.access_right_bay_adequate ?? undefined,
 		prop_left_turn_lanes: m.propLeftTurnLanes,
 
 		sourceIds: [upstream?.id, downstream?.id, ...subject.map((a) => a.id), ...opposing.map((a) => a.id)].filter(Boolean),
@@ -663,6 +744,443 @@ function whyUrban({ index, startFt, endFt, upstream, downstream, subject, opposi
 		parts.push('Its access-point delay is computed from the access point approach volumes and geometry by the Chapter 30 Section 4 procedure (Equations 30-31 through 30-68).');
 	} else {
 		parts.push('No access point here carries a delay or an approach, so the segment falls to the Exhibit 18-13 planning estimate for its access-point delay.');
+	}
+	return parts.join(' ');
+}
+
+// ── Two-lane highway (HCM Chapter 15) ────────────────────────────────────
+//
+// Like the urban derivation and unlike the freeway one, this is structural: the
+// features partition the highway and nothing here computes a speed, a flow or a
+// class. Every rule below is quoted from Chapter 15 rather than invented.
+//
+// Chapter 15 Section 2, "Segmentation": "A two-lane highway is divided into
+// segments for analysis purposes. The ability to pass, lane geometry, grades,
+// lane and shoulder widths, posted speed limits, traffic demands, adjacent land
+// uses, driveways, and other characteristics of the facility should be
+// homogeneous within each analysis segment. Note that segmentation will be
+// different for each direction of the highway because passing zones and other
+// characteristics will start and end in different locations depending on the
+// direction of travel."
+//
+// Section 3 Step 1: "Classify the study segment, or each segment being analyzed
+// as part of a facility, as a Passing Constrained, Passing Zone, or Passing Lane
+// segment. Each segment should have homogeneous properties with respect to
+// traffic demand, grade, lane and shoulder widths, posted speed limit, etc.
+// Varying horizontal curvature can be included within a single segment, as
+// described in Step 5d."
+//
+// That last sentence is why a curve is the one two-lane feature that does NOT
+// start a segment. It becomes a subsegment of whichever segment contains it,
+// and Step 5d adds that "the segment length minima given in Step 1 do not apply
+// to the subsegments used in this adjustment."
+//
+// UNITS. This module works in feet throughout, like the document and like the
+// strip. A derived row therefore carries `length_ft` for the chassis AND
+// `length` in MILES for the Chapter 15 serde schema, and its subsegment lengths
+// stay in feet because that is what `SubSegment.length` is. The one division by
+// 5,280 that an engine input passes through is in `twoLaneRow` below, and it is
+// here rather than at the fixture boundary because the row IS the fixture
+// segment, the same arrangement `urbanRow` uses. Prose elsewhere divides to say
+// a distance in miles; nothing else divides to produce an input.
+
+import { PASSING_TYPE_NAMES, defaultDemandChange } from './document.js';
+
+/** Two stations closer than this are the same boundary. Stations are whole feet
+ * and the strip snaps to 528, so this only collapses features an analyst dropped
+ * on exactly the same point. */
+const TL_TOL_FT = 0.5;
+
+/** The minimum length of a passing lane, from Exhibit 15-10. It is 0.5 mi for
+ * every one of the five vertical classes, which is why this is a constant here
+ * rather than a copy of that table: the whole Passing Lane column reads 0.5.
+ *
+ * Chapter 15 Section 3, Step 1: "Passing lanes shorter than the minima given in
+ * Exhibit 15-10 should be ignored and treated as Passing Constrained segments
+ * instead." That is a change of segment TYPE rather than of any number, so the
+ * derivation applies it and says so in the row's reason. The rest of Exhibit
+ * 15-10, which asks for a short segment's length to be substituted in Steps 2
+ * through 9, is a change to an engine input and is reported by the analysis off
+ * the engine's own `identify_vertical_class` instead of being reimplemented
+ * here. */
+export const PASSING_LANE_MIN_FT = 0.5 * 5280;
+
+/** The keys of the library's Chapter 15 segment schema that a derived row
+ * carries. Explicit, for the same reason `URBAN_SEGMENT_KEYS` is: the two-lane
+ * constructors are positional and long, and a key that fell through by accident
+ * would become a plausible wrong answer rather than a throw. */
+export const TWOLANE_SEGMENT_KEYS = [
+	'passing_type',
+	'length',
+	'grade',
+	'spl',
+	'is_hc',
+	'volume',
+	'volume_op',
+	'flow_rate',
+	'flow_rate_o',
+	'capacity',
+	'ffs',
+	'avg_speed',
+	'vertical_class',
+	'phf',
+	'phv',
+	'pf',
+	'fd',
+	'fd_mid',
+	'hor_class',
+	'subsegments'
+];
+
+const covers = (f, a, b) => f.stationFt <= a + TL_TOL_FT && f.endFt >= b - TL_TOL_FT;
+const overlaps = (f, a, b) => f.stationFt < b - TL_TOL_FT && f.endFt > a + TL_TOL_FT;
+
+/**
+ * Features -> the Chapter 15 segment table.
+ *
+ * @param {object} doc two-lane builder document
+ * @returns {{rows: object[], sections: object[], errors: string[]}}
+ */
+export function deriveTwoLaneRows(doc) {
+	const errors = [];
+	// Rounded, because the last segment's length in MILES is this number minus a
+	// station divided by 5,280, and 5.1 x 5280 is 26928.000000000004 in binary
+	// floating point. Unrounded it makes a published 0.5-mi segment arrive at the
+	// engine as 0.49999999999999933, which analyzes and prints.
+	const L = Math.round(doc.mainline.lengthFt);
+	const all = [...doc.features].sort((a, b) => a.stationFt - b.stationFt || a.id.localeCompare(b.id));
+	const grades = all.filter((f) => f.kind === 'grade');
+	const passings = all.filter((f) => f.kind === 'passing');
+	const curves = all.filter((f) => f.kind === 'curve');
+	const demands = all.filter((f) => f.kind === 'demand');
+
+	for (const f of [...grades, ...passings, ...curves]) {
+		if (f.endFt <= f.stationFt + TL_TOL_FT) {
+			errors.push(`${f.label || f.id} ends at or before it starts, so it covers no highway.`);
+		}
+	}
+	// Two passing features over the same stretch is not a segmentation the
+	// chapter describes: a stretch is one of three types, not two. Said rather
+	// than silently resolved, because the resolution below picks the wider
+	// classification and an analyst who meant the other one would never see it.
+	for (let i = 1; i < passings.length; i++) {
+		if (passings[i].stationFt < passings[i - 1].endFt - TL_TOL_FT) {
+			errors.push(
+				`${passings[i - 1].label || passings[i - 1].id} and ${passings[i].label || passings[i].id} overlap. A stretch of highway is Passing Constrained, a Passing Zone or a Passing Lane, and cannot be two of them, so the overlap is classified as the more permissive of the two.`
+			);
+		}
+	}
+	for (let i = 1; i < grades.length; i++) {
+		if (grades[i].stationFt < grades[i - 1].endFt - TL_TOL_FT) {
+			errors.push(
+				`${grades[i - 1].label || grades[i - 1].id} and ${grades[i].label || grades[i].id} overlap, so the grade over the overlap is ambiguous. Grade has to be homogeneous within a segment (Chapter 15, Section 2).`
+			);
+		}
+	}
+	// Curves overlap differently from the other two, and worse. A subsegment has
+	// one horizontal class, so two curves over one stretch of road is not a
+	// geometry Exhibit 15-22 describes, and the tiling below resolves it by
+	// giving the overlap to whichever curve reached it first. That silently
+	// discards part of the second curve, and a curve entirely inside another
+	// disappears completely, so it is blocked rather than resolved quietly.
+	for (let i = 1; i < curves.length; i++) {
+		if (curves[i].stationFt < curves[i - 1].endFt - TL_TOL_FT) {
+			errors.push(
+				`${curves[i - 1].label || curves[i - 1].id} and ${curves[i].label || curves[i].id} overlap. A Step 5d subsegment carries one horizontal class, so a stretch of road cannot be on two curves at once, and the overlap would be given to the upstream curve alone.`
+			);
+		}
+	}
+
+	// Every station where one of the homogeneity properties changes, with what
+	// changed there kept so the row key names its provenance rather than its
+	// index. A curve is deliberately absent: Step 1 sends varying curvature to
+	// Step 5d inside one segment.
+	const marks = new Map();
+	const mark = (ft, id) => {
+		const at = clamp(Math.round(ft), 0, L);
+		if (!marks.has(at)) marks.set(at, new Set());
+		marks.get(at).add(id);
+	};
+	mark(0, 'start');
+	mark(L, 'end');
+	for (const f of [...grades, ...passings]) {
+		mark(f.stationFt, f.id);
+		mark(f.endFt, f.id);
+	}
+	for (const f of demands) mark(f.stationFt, f.id);
+
+	// Every key is a whole foot, because `mark` rounds, so two stations are either
+	// the same key or at least a foot apart and the map has already collapsed the
+	// duplicates. The sort is what orders them; there is no second pass because
+	// there is nothing left to merge.
+	const bounds = [...marks.keys()].sort((a, b) => a - b);
+	const srcOf = (st) => [...(marks.get(st) ?? ['?'])].sort().join('+');
+
+	const rows = [];
+	for (let i = 0; i < bounds.length - 1; i++) {
+		rows.push(
+			twoLaneRow(doc, {
+				key: `tl:${srcOf(bounds[i])}:${srcOf(bounds[i + 1])}`,
+				startFt: bounds[i],
+				endFt: bounds[i + 1],
+				index: i,
+				passings,
+				grades,
+				curves,
+				demands,
+				errors
+			})
+		);
+	}
+
+	if (rows.length === 0) {
+		errors.push('The highway has no length, so it has no segments.');
+	}
+
+	// Two engine behaviours the builder can produce and the engine cannot survive
+	// or cannot get right. Both are raised here rather than in validate.js because
+	// both are properties of the derived segment sequence rather than of a
+	// feature, and the analysis must not run into either.
+	const plIndexes = rows.map((r, i) => (r.passing_type === 2 ? i : -1)).filter((i) => i >= 0);
+	// Counted over the FEATURES rather than over the rows, because one lane split
+	// by a demand change is two rows and still one passing lane. Counting rows
+	// would refuse to analyze a facility the chapter has no objection to.
+	const laneFeatures = passings.filter(
+		(f) => f.passingType === 2 && f.endFt - f.stationFt >= PASSING_LANE_MIN_FT - TL_TOL_FT
+	);
+	if (plIndexes.length && plIndexes[0] === 0) {
+		errors.push(
+			'The first segment is a passing lane. Step 9 measures every later segment from the segment upstream of the passing lane, and there is none, so the engine cannot evaluate this facility. Start the highway upstream of the passing lane.'
+		);
+	}
+	if (laneFeatures.length > 1) {
+		errors.push(
+			`This facility has ${laneFeatures.length} passing lanes. Chapter 15 Step 9 considers only the closest upstream passing lane and resets at each new one, and this engine measures every downstream segment from the LAST passing lane in the facility instead, so the segments between the two would take the wrong adjustment. Analyze one passing lane at a time.`
+		);
+	}
+	// One lane carried by several segments is a second way into the same engine
+	// defect, because Step 9 reads the LAST segment whose passing type is 2 and
+	// the segments between the pieces are downstream of the first piece. The
+	// message names the split rather than the count, since the count is one.
+	if (laneFeatures.length === 1 && plIndexes.length > 1) {
+		errors.push(
+			`The passing lane ${laneFeatures[0].label || laneFeatures[0].id} is split into ${plIndexes.length} segments by a grade or demand change inside it. Step 9 measures downstream distance from the last passing-lane segment in the facility, so a split lane would be measured from its own downstream end rather than from its start. Move the change outside the lane, or shorten the lane to end at it.`
+		);
+	}
+
+	return { rows: applyOverrides(doc, rows), sections: [], errors };
+}
+
+/** One derived Chapter 15 segment, in the library's own field names so the row
+ * IS the fixture segment, less the bookkeeping keys. */
+function twoLaneRow(doc, { key, startFt, endFt, index, passings, grades, curves, demands, errors }) {
+	const m = doc.mainline;
+	const lengthFt = endFt - startFt;
+
+	// The most permissive passing feature covering the span wins, so an overlap
+	// resolves rather than throwing away a passing lane. The overlap itself is
+	// reported above.
+	const covering = passings.filter((f) => covers(f, startFt, endFt));
+	const passing = covering.reduce((best, f) => (!best || f.passingType > best.passingType ? f : best), null);
+	const grade = grades.find((f) => covers(f, startFt, endFt)) ?? null;
+	// The last demand change at or before this segment's start is the one in
+	// force over it, the same reading `applyCrossSection` gives a lane change.
+	const demand = [...demands].filter((f) => f.stationFt <= startFt + TL_TOL_FT).pop() ?? null;
+	const cfg = demand?.config ?? defaultDemandChange(doc);
+
+	let passing_type = passing?.passingType ?? 0;
+	// Exhibit 15-10's minimum is a property of the PASSING LANE, not of the
+	// segment a boundary happened to cut out of it. A demand change inside a
+	// 0.6 mi lane splits it into two 0.3 mi segments, and measuring the segment
+	// would demote both halves of a lane the chapter is perfectly happy with, and
+	// then explain the demotion with a length the lane does not have.
+	const passingLengthFt = passing ? passing.endFt - passing.stationFt : 0;
+	const demoted = passing_type === 2 && passingLengthFt < PASSING_LANE_MIN_FT - TL_TOL_FT;
+	if (demoted) passing_type = 0;
+
+	const { subsegments, curvesOn } = subsegmentsFor(curves, startFt, endFt);
+
+	const r = {
+		key,
+		startFt,
+		// The chassis keys overrides, staleness and the strip off `seg_type`, and
+		// the thing that can change underneath an override here is the passing
+		// type, so that is what fills it.
+		seg_type: PASSING_TYPE_NAMES[passing_type],
+		length_ft: lengthFt,
+		// A two-lane highway carries one lane in the analysis direction, and a
+		// passing lane is the added second one. The strip draws `lanes`, so this
+		// is what makes a passing lane read as a widening rather than as a colour.
+		lanes: passing_type === 2 ? 2 : 1,
+
+		// ── the Chapter 15 serde schema ──
+		passing_type,
+		// MILES. The one conversion in the two-lane path; everything on either
+		// side of this line is feet.
+		length: lengthFt / 5280,
+		grade: grade?.gradePct ?? 0,
+		// The POSTED speed limit. BFFS is 1.14 x this inside the engine.
+		spl: cfg.speedLimitMph ?? m.speedLimitMph,
+		// Curve geometry is ignored entirely unless this is set, so it is derived
+		// from whether any curve actually lands on the segment rather than being a
+		// switch of its own.
+		is_hc: curvesOn.length > 0,
+		volume: cfg.volume,
+		// Read only on a Passing Zone. The engine hardcodes 1,500 veh/h of
+		// opposing flow on a Passing Constrained segment and 0 on a Passing Lane,
+		// so this value reaches the answer on one of the three types.
+		volume_op: cfg.opposingVolume,
+		// The engine fills these; they are written so an exported fixture has the
+		// same shape as a hand-written one.
+		flow_rate: 0,
+		flow_rate_o: 0,
+		capacity: 0,
+		ffs: 0,
+		avg_speed: 0,
+		vertical_class: grade?.verticalClass ?? m.verticalClass ?? 1,
+		phf: cfg.phf,
+		// PERCENT.
+		phv: cfg.heavyVehiclePct,
+		pf: 0,
+		fd: 0,
+		fd_mid: 0,
+		hor_class: 0,
+		subsegments,
+
+		// Not part of the schema. Carried so the result, the strip and the
+		// discussion can all say that a passing lane was placed here and demoted,
+		// which is otherwise visible only in the row's reason.
+		demotedPassingLane: demoted,
+
+		sourceIds: [passing?.id, grade?.id, demand?.id, ...curvesOn.map((c) => c.f.id)].filter(Boolean),
+		overridden: false,
+		staleOverride: false
+	};
+
+	if (r.is_hc) {
+		// Nothing in the engine checks that the subsegments tile the segment, and
+		// the failure is quantitative and silent: the weighted speed sum is divided
+		// by the SEGMENT length, so subsegments that fall short report a speed
+		// proportionally too low. The derivation tiles by construction, and this
+		// asserts the construction rather than trusting it.
+		const sum = subsegments.reduce((a, s) => a + s.length, 0);
+		if (Math.abs(sum - lengthFt) > 0.05) {
+			errors.push(
+				`The subsegments of the segment at ${ft(startFt)} sum to ${ft(sum)} against a segment length of ${ft(lengthFt)}. Chapter 15 Step 5d weights subsegment speeds by their share of the segment, and the engine divides by the segment length either way, so a gap would be reported as a speed rather than as an error.`
+			);
+		}
+	}
+
+	r.why = whyTwoLane({ index, startFt, endFt, passing, passing_type, demoted, grade, demand, curvesOn, r });
+	return r;
+}
+
+/**
+ * The Step 5d subsegments of one segment: its curves, clipped to it, with
+ * tangent fillers between them so the list tiles the segment exactly.
+ *
+ * The fillers are not decoration. A curve subsegment takes the Exhibit 15-22
+ * horizontal class from its radius and superelevation and a tangent one takes
+ * the segment's own speed, and the two are averaged by length over the SEGMENT
+ * length. Omitting the tangents would weight the curves against a shorter total
+ * than the engine divides by, which is the silent-and-quantitative failure the
+ * caller asserts against above.
+ *
+ * `hor_class` is inert either way: Step 5d computes it from the radius and the
+ * superelevation and overwrites whatever it is handed. A hand-placed curve
+ * therefore carries 0, and one that came from a fixture carries the class the
+ * fixture stated, so that the fixture round-trips. Neither value reaches an
+ * answer. The published case2 classes agree with what the engine computes, so
+ * nothing is lost by not transcribing them onto new curves.
+ */
+function subsegmentsFor(curves, startFt, endFt) {
+	const curvesOn = curves
+		.filter((f) => overlaps(f, startFt, endFt))
+		.map((f) => ({ f, a: Math.max(f.stationFt, startFt), b: Math.min(f.endFt, endFt) }))
+		.sort((x, y) => x.a - y.a);
+	if (curvesOn.length === 0) return { subsegments: [], curvesOn };
+
+	// Subsegment boundaries are the only lengths in this document that are not
+	// whole feet: the published case2 curves run 366.5 and 767.9 ft. So the
+	// stations are kept unrounded and only the emitted length is rounded, at a
+	// precision fine enough that the sum still closes on the segment and coarse
+	// enough that 2080.1 - 1804.5 is 275.6 rather than 275.60000000000014.
+	const round4 = (v) => Math.round(v * 1e4) / 1e4;
+	const out = [];
+	// Key order is the library's own fixture order, so an exported subsegment
+	// reads like a hand-written one.
+	const tangent = (length) =>
+		out.push({
+			length: round4(length),
+			avg_speed: 0,
+			hor_class: 0,
+			design_rad: 0,
+			central_angle: 0,
+			sup_ele: 0
+		});
+	let cursor = startFt;
+	for (const c of curvesOn) {
+		// Where this curve actually starts contributing, which is not where it
+		// starts when an earlier curve already covered part of it.
+		const from = Math.max(cursor, c.a);
+		// A curve entirely swallowed by the one before it contributes nothing.
+		// Emitting it anyway would push a NEGATIVE length, and a negative
+		// subsegment length is the worst shape available here: nothing in the
+		// engine checks the tiling, the Step 5d weights are lengths, and the sum
+		// would still be arithmetically consistent with a shorter segment. The
+		// overlap itself is reported by the caller.
+		if (c.b <= from + TL_TOL_FT) continue;
+		if (from > cursor + TL_TOL_FT) tangent(from - cursor);
+		out.push({
+			length: round4(c.b - from),
+			avg_speed: 0,
+			hor_class: c.f.horClassEntered ?? 0,
+			design_rad: c.f.designRadiusFt,
+			// Not read by the method. Carried so a fixture that states it survives a
+			// round trip and so the strip can draw the curve at its real sweep.
+			central_angle: c.f.centralAngleDeg ?? 0,
+			// PERCENT, per Exhibit 15-22's own column headings.
+			sup_ele: c.f.superelevationPct
+		});
+		cursor = c.b;
+	}
+	if (endFt > cursor + TL_TOL_FT) tangent(endFt - cursor);
+	return { subsegments: out, curvesOn };
+}
+
+function whyTwoLane({ index, startFt, endFt, passing, passing_type, demoted, grade, demand, curvesOn, r }) {
+	const parts = [
+		`Segment ${index + 1} runs ${ft(endFt - startFt)} from ${ft(startFt)} to ${ft(endFt)}, and is ${PASSING_TYPE_NAMES[passing_type]}.`
+	];
+	if (demoted) {
+		parts.push(
+			`The passing lane ${passing.label || passing.id} covering this segment is ${ft(passing.endFt - passing.stationFt)} long, under the 0.5 mi Exhibit 15-10 minimum, and Step 1 says a passing lane shorter than that "should be ignored and treated as Passing Constrained segments instead", so it is. The minimum is measured over the whole lane rather than over this segment, since a demand or grade change inside a lane does not make it two shorter lanes.`
+		);
+	} else if (passing) {
+		parts.push(
+			passing_type === 2
+				? `The passing lane ${passing.label || passing.id} covers it, so the segment carries the added lane and Step 8 reports its midpoint follower density rather than its endpoint one.`
+				: `The passing zone ${passing.label || passing.id} covers it, so passing in the opposing lane is permitted and the opposing demand of ${Math.round(r.volume_op)} veh/h reaches the speed and percent-follower models.`
+		);
+	} else {
+		parts.push(
+			'No passing feature covers it, so it is Passing Constrained, and the engine applies its standing 1,500 veh/h opposing flow rather than the entered opposing demand.'
+		);
+	}
+	parts.push(
+		grade
+			? `Its grade is ${grade.gradePct}% over vertical class ${r.vertical_class}, from ${grade.label || grade.id}. A grade change starts a segment because grade is one of the properties Chapter 15 Section 2 asks to be homogeneous within one.`
+			: 'No grade feature covers it, so it is level and vertical class 1 unless the highway says otherwise. Step 3 recomputes the class from the grade and this length and overwrites what it was given.'
+	);
+	if (demand) {
+		parts.push(
+			`Its demand of ${Math.round(r.volume)} veh/h at a peak hour factor of ${r.phf} and ${r.phv}% heavy vehicles comes from ${demand.label || demand.id}, which is the last demand change at or before it. Traffic demand is homogeneous within a segment, so a change in it starts one.`
+		);
+	}
+	if (curvesOn.length) {
+		parts.push(
+			`${curvesOn.length} horizontal curve${curvesOn.length === 1 ? '' : 's'} sit inside it, so it is coded with horizontal curves and its ${r.subsegments.length} subsegments carry them at ${curvesOn.map((c) => `${Math.round(c.f.designRadiusFt)} ft`).join(', ')} radius with tangents between. A curve does not start a segment: Step 1 sends varying curvature to the Step 5d subsegment adjustment inside one segment, and the subsegment lengths are in feet where the segment length is in miles.`
+		);
 	}
 	return parts.join(' ');
 }

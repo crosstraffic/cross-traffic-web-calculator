@@ -22,6 +22,10 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// The sibling library's fixtures; tests/libCases.mjs resolves the checkout and
+// says why that is not a one-line join.
+import { readCase } from '../libCases.mjs';
+
 import { deriveRows } from '../../src/lib/builder/derive.js';
 import { emptyDocument, makeFeature, migrate, setPeriods, DOC_VERSION } from '../../src/lib/builder/document.js';
 import { loadUrbanExample, URBAN_EXAMPLES } from '../../src/lib/builder/urbanExamples.js';
@@ -38,14 +42,11 @@ import { urbanDiscussion, urbanReliabilityDiscussion } from '../../src/lib/build
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkgDir = join(here, '..', '..', 'HCM-middleware', 'pkg');
-const LIB_CASES =
-	process.env.HCM_LIB_CASES ||
-	join(here, '..', '..', '..', 'transportations-library', 'tests', 'ExampleCases', 'hcm');
 
 const wasm = await import(join(pkgDir, 'HCM_middleware.js'));
 await wasm.default(readFileSync(join(pkgDir, 'HCM_middleware_bg.wasm')));
 
-const loadCase = (name) => JSON.parse(readFileSync(join(LIB_CASES, 'UrbanFacilities', name)));
+const loadCase = (name) => readCase('UrbanFacilities', name);
 
 const failures = [];
 let checks = 0;
@@ -254,14 +255,19 @@ function street(stations, lengthFt = stations[stations.length - 1]) {
 }
 
 {
-	// A v2 document is a valid v3 freeway document, and an unknown type is still
-	// refused rather than half-loaded.
+	// A v2 document is a valid document at the current version, and an unknown
+	// type is still refused rather than half-loaded.
 	const v2 = { ...emptyDocument(), version: 2 };
-	eq(migrate(v2).version, DOC_VERSION, 'a v2 freeway document migrates to v3');
+	eq(migrate(v2).version, DOC_VERSION, 'a v2 freeway document migrates to the current version');
 	eq(migrate(v2).facilityType, 'freeway', 'and stays a freeway');
 	const urban = emptyDocument('urban');
 	eq(migrate(JSON.parse(JSON.stringify(urban))).facilityType, 'urban', 'an urban document round-trips through migrate');
-	throws(() => migrate({ ...urban, facilityType: 'twolane' }), 'unsupported facility type', 'an unshipped facility type is refused');
+	// `twolane` used to be the unshipped type this line proved was refused. Phase
+	// 3 shipped it, so the assertion moved to a name no phase will ever claim
+	// rather than being deleted: the claim is that an unknown type is refused,
+	// and it needs a type that stays unknown.
+	throws(() => migrate({ ...urban, facilityType: 'monorail' }), 'unsupported facility type', 'an unshipped facility type is refused');
+	eq(migrate({ ...emptyDocument('twolane') }).facilityType, 'twolane', 'and the two-lane type phase 3 shipped is accepted');
 }
 
 // ── Validation ──────────────────────────────────────────────────────────
@@ -290,6 +296,25 @@ function street(stations, lengthFt = stations[stations.length - 1]) {
 	measures.features[1].measures = { base_ffs_mph: 40 };
 	ok(flagIds(measures).includes('measures-incomplete'), 'a summary segment missing its travel speed is an error');
 	ok(flagIds(measures).includes('no-stop-rate'), 'a summary segment missing its stop rate is a warning, since it leaves Equation 16-4 undefined');
+}
+
+{
+	// The override layer's join between the chassis and the Chapter 18 schema.
+	// The chassis reads `length_ft`, `lanes` and `seg_type`; the ENGINE reads
+	// `segment_length_ft`, `n_through_lanes` and `control`. A pin that moved only
+	// the chassis half changed the table and left the analysis alone, silently.
+	const doc = street([0, 1000, 2000]);
+	const key = derive(doc).rows[0].key;
+	doc.overrides = {
+		[key]: { fields: { length_ft: 1500, lanes: 3, seg_type: 'AllWayStop' }, appliedTo: 'Signalized' }
+	};
+	const r = derive(doc).rows[0];
+	eq(r.segment_length_ft, 1500, 'a pinned length reaches the Chapter 18 segment length');
+	eq(r.signal_spacing_ft, 1500, 'and the signal spacing Equation 18-4 reads, which is the same distance');
+	eq(r.n_through_lanes, 3, 'a pinned lane count reaches the through lanes');
+	eq(r.control, 'AllWayStop', 'and a pinned type reaches the boundary control');
+	doc.overrides = {};
+	eq(derive(doc).rows[0].segment_length_ft, 1000, 'clearing the override restores the derived length');
 }
 
 // ── 2. The published values, through the page's own engine calls ────────
@@ -329,7 +354,7 @@ function street(stations, lengthFt = stations[stations.length - 1]) {
 	// documented default path, and it is 1.1 mi/h off the published travel speed
 	// — which is why an example loader that took it would quietly fail to
 	// reproduce its own exhibit.
-	const approaches = JSON.parse(readFileSync(join(LIB_CASES, 'UrbanSegments', 'case3.json'))).access_point_approaches;
+	const approaches = readCase('UrbanSegments', 'case3.json').access_point_approaches;
 
 	const published = loadUrbanExample('ch30ep1');
 	const pubRun = analyzeUrbanFacility(published, derive(published).rows, wasm);
@@ -362,6 +387,75 @@ function street(stations, lengthFt = stations[stations.length - 1]) {
 	const planRun = analyzeUrbanFacility(planning, planRows, wasm);
 	near(planRun.travelSpeed, 22.55, 0.05, 'the planning estimate lands on the boundary file\'s documented default path');
 	ok(planRun.travelSpeed < pubRun.travelSpeed - 1.0, 'and misses the published travel speed by over 1 mi/h, which is why the loaders supply a real source');
+
+	// The Exhibit 18-13 parameters themselves, which the builder had no editor
+	// for until now. They are what separates the two planning numbers the ch18
+	// boundary file pins: 22.55 mi/h is the estimate at its defaults, N_ap = 8
+	// from the raw driveway counts and the exhibit's own 10%/10% turn split;
+	// 23.60 is the same estimate given the segment's 2 influential approaches and
+	// the 6.5%/8.1% the Exhibit 30-35 volumes imply. Both are values this engine
+	// computes rather than values Chapter 30 publishes, and the published 23.67
+	// above is reached by a different source entirely.
+	const tuned = loadUrbanExample('ch30ep1');
+	for (const f of tuned.features) {
+		if (f.kind === 'access_point') {
+			f.delayS = null;
+			f.approach = null;
+			continue;
+		}
+		// Station 0 terminates no segment, so its parameters would reach nothing
+		// and setting them would prove nothing.
+		if (f.stationFt === 0) continue;
+		Object.assign(f.config, {
+			n_influential_access_points: 2,
+			pct_left_turns_access: 6.5,
+			pct_right_turns_access: 8.1
+		});
+	}
+	const tunedRows = derive(tuned).rows;
+	eq(tunedRows[0].apDelaySource, 'planning', 'the tuned facility is still on the planning source');
+	eq(
+		tunedRows.map((r) => [r.n_influential_access_points, r.pct_left_turns_access, r.pct_right_turns_access]),
+		[[2, 6.5, 8.1], [2, 6.5, 8.1], [2, 6.5, 8.1]],
+		'and every derived row carries the three parameters off the signal that terminates it'
+	);
+	const tunedRun = analyzeUrbanFacility(tuned, tunedRows, wasm);
+	near(tunedRun.travelSpeed, 23.60, 0.05, 'the Exhibit 18-13 parameters move the planning estimate to the ch18 boundary file\'s case2 value');
+	ok(tunedRun.travelSpeed > planRun.travelSpeed + 1.0, 'which is over 1 mi/h above the same facility left at the exhibit defaults');
+
+	// A bay of adequate length halves the per-point delay and two take it to
+	// zero, so the two flags have to be reachable and have to be distinguishable
+	// from "unset". A control on the strongest of the five: with both bays the
+	// access-point delay term vanishes and the travel speed rises again.
+	const bays = loadUrbanExample('ch30ep1');
+	for (const f of bays.features) {
+		if (f.kind === 'access_point') {
+			f.delayS = null;
+			f.approach = null;
+		} else if (f.stationFt !== 0) {
+			Object.assign(f.config, { access_left_bay_adequate: true, access_right_bay_adequate: true });
+		}
+	}
+	const bayRun = analyzeUrbanFacility(bays, derive(bays).rows, wasm);
+	ok(bayRun.travelSpeed > planRun.travelSpeed, 'two adequate turn bays take the Exhibit 18-13 delay to zero and raise the travel speed');
+
+	// The five are nullable, so a facility nobody touched exports exactly what it
+	// did before they existed. This is the claim that adding them cost the
+	// round trip nothing.
+	const untouched = loadUrbanExample('ch30ep1');
+	const untouchedRows = derive(untouched).rows;
+	ok(
+		untouchedRows.every((r) =>
+			[
+				'n_influential_access_points',
+				'pct_left_turns_access',
+				'pct_right_turns_access',
+				'access_left_bay_adequate',
+				'access_right_bay_adequate'
+			].every((k) => r[k] === undefined)
+		),
+		'an untouched facility carries none of the five, so a blank field stays the engine\'s own default'
+	);
 }
 
 {

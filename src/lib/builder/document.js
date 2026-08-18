@@ -11,7 +11,7 @@
 // is what round-trips the builder, and the fixture is what round-trips the
 // engines.
 
-export const DOC_VERSION = 3;
+export const DOC_VERSION = 4;
 
 /** Stations are stored in FEET, like every length in the Chapter 10 schema. The
  * strip snaps drags to 0.1 mi, which is 528 ft, but nothing downstream sees
@@ -30,13 +30,15 @@ export function nextId(doc, prefix) {
 	return `${prefix}${n}`;
 }
 
-/** The facility types the builder can hold. Phase 1 shipped freeway; phase 2
- * adds urban street. Two-lane (Chapter 15) is phase 3 and is deliberately not
- * listed, because an entry here is a promise the derivation can keep. */
-export const FACILITY_TYPES = ['freeway', 'urban'];
+/** The facility types the builder can hold. Phase 1 shipped freeway, phase 2
+ * urban street, phase 3 two-lane. An entry here is a promise the derivation can
+ * keep, which is why the list grew a phase at a time. */
+export const FACILITY_TYPES = ['freeway', 'urban', 'twolane'];
 
 export function emptyDocument(facilityType = 'freeway') {
-	return facilityType === 'urban' ? emptyUrbanDocument() : emptyFreewayDocument();
+	if (facilityType === 'urban') return emptyUrbanDocument();
+	if (facilityType === 'twolane') return emptyTwoLaneDocument();
+	return emptyFreewayDocument();
 }
 
 function emptyFreewayDocument() {
@@ -135,6 +137,87 @@ function emptyUrbanDocument() {
 	};
 }
 
+/**
+ * The two-lane highway document (HCM Chapter 15).
+ *
+ * ONE UNIT, AND IT IS FEET. Chapter 15 is the one chapter that mixes: a
+ * `Segment.length` is MILES and a `SubSegment.length` is FEET, and the footguns
+ * note calls mixing them the classic error because the results stay plausible.
+ * So this document keeps every length in feet, like the freeway and urban
+ * documents and like the strip that draws all three. Exactly one place turns a
+ * length into an engine input in miles, `twoLaneRow` in derive.js, where a
+ * derived row's `length_ft / 5280` becomes the segment's `length`; a subsegment
+ * stays in feet from here to the engine and is never divided at all. Nothing
+ * between this document and that line converts anything.
+ *
+ * Chapter 15 is single-period, so `periods` is pinned at 1 the way the urban
+ * document pins it. `WasmTwoLaneHighways` takes one demand volume per segment
+ * and has no period axis to fill.
+ *
+ * The facility-level fields are exactly the five `WasmTwoLaneHighways`
+ * constructor arguments after the segment list, plus the defaults a segment
+ * inherits when no feature covers it. `spl` is the POSTED speed limit and not
+ * the free-flow speed: the engine derives BFFS as 1.14 x spl, so a free-flow
+ * speed entered here would inflate everything downstream of it silently.
+ */
+function emptyTwoLaneDocument() {
+	return {
+		version: DOC_VERSION,
+		facilityType: 'twolane',
+		meta: { name: 'Untitled two-lane highway', source: 'builder', modified: null },
+		periods: 1,
+		mainline: {
+			lengthFt: 3 * FT_PER_MI,
+			// Segmentation differs by direction, because passing zones start and end
+			// at different places depending on which way you are going (Chapter 15
+			// Section 2, "Segmentation"). The document describes one direction.
+			direction: 'Northbound',
+			// The five WasmTwoLaneHighways constructor arguments after the segments.
+			laneWidthFt: 12,
+			shoulderWidthFt: 6,
+			accessPointDensity: 2,
+			pctHeavyVehInPassingLane: 0,
+			// The seed for the facility's effective downstream length of a passing
+			// lane. Every published fixture passes 0, and Step 9 overwrites it the
+			// moment the walk reaches a passing lane, so 0 means "let Step 9 decide".
+			effectiveDownstreamLengthMi: 0,
+			// What a segment gets when no demand feature covers it. `demand` is the
+			// single-element vector the chassis' period machinery reads.
+			speedLimitMph: 55,
+			demand: [800],
+			opposingDemand: 0,
+			phf: 0.95,
+			// PERCENT, not a fraction. 5% is 5, and a 0.05 here lands in the lowest
+			// lookup bucket rather than erroring.
+			heavyVehiclePct: 5,
+			verticalClass: 1
+		},
+		features: [],
+		overrides: {},
+		importedSegments: null,
+		importedRaw: null
+	};
+}
+
+/** The traffic characteristics in force from a demand feature's station
+ * downstream, and the defaults for a document with none. Chapter 15 Section 2
+ * puts traffic demand among the things that "should be homogeneous within each
+ * analysis segment", which is why a change in any of them starts a segment. */
+export function defaultDemandChange(doc) {
+	const m = doc?.mainline ?? {};
+	return {
+		volume: m.demand?.[0] ?? 800,
+		opposingVolume: m.opposingDemand ?? 0,
+		phf: m.phf ?? 0.95,
+		heavyVehiclePct: m.heavyVehiclePct ?? 5,
+		// Null inherits the highway's posted limit. It is overridable from here
+		// because posted speed limit is one of the properties Section 2 asks to be
+		// homogeneous within a segment, so a change in it is a segment boundary
+		// like a change in demand, and the same feature carries both.
+		speedLimitMph: null
+	};
+}
+
 /** The per-segment Chapter 18 inputs a boundary signal carries for the segment
  * ENDING at it. Defaults are the Chapter 30 Example Problem 1 eastbound segment
  * (Exhibits 30-26 through 30-36), because a signal dropped on an empty street
@@ -158,6 +241,23 @@ export function defaultSignalConfig(doc) {
 		sat_flow_veh_h_ln: null,
 		arrival_type: null,
 		full_stop_rate_override: 0.547,
+		// The Exhibit 18-13 planning estimate's own parameters, for the segment
+		// ending here. They are read only when no access point on the segment
+		// carries a per-point delay or an approach, because those are the two
+		// sources Equation 18-7 prefers.
+		//
+		// All five are null rather than the library's serde defaults, so that a
+		// blank field means the engine's own value rather than a number this
+		// builder chose. The count is the important one: left blank the library
+		// uses N_ap = N_ap,s + p_ap,lt N_ap,o, every driveway counted, and the
+		// estimate is at its coarsest. Chapter 30 Example Problem 1 is what that
+		// costs, 22.55 mi/h against 23.60 with the segment's own two influential
+		// approaches and its own turn percentages.
+		n_influential_access_points: null,
+		pct_left_turns_access: null,
+		pct_right_turns_access: null,
+		access_left_bay_adequate: null,
+		access_right_bay_adequate: null,
 		// The width of THIS intersection, which Chapter 18 charges to the segment
 		// on its far side as `upstream_intersection_width_ft`.
 		width_ft: 50,
@@ -208,6 +308,18 @@ export function defaultAccessApproach() {
 export const isSignal = (f) => f.kind === 'signal';
 export const isAccessPoint = (f) => f.kind === 'access_point';
 export const isUrban = (doc) => doc?.facilityType === 'urban';
+export const isTwoLane = (doc) => doc?.facilityType === 'twolane';
+
+/** The three two-lane feature kinds that occupy a stretch of highway rather than
+ * a station. All three store `stationFt` as the upstream end and `endFt` as the
+ * other, so every feature in every document sorts by one key. */
+export const TWOLANE_INTERVALS = ['grade', 'passing', 'curve'];
+
+/** The passing types, in the library's own `passing_type` order: the index is
+ * the value the engine takes and the name is Chapter 15's. One list, because
+ * four copies of three strings is how a strip fill, a table row and a result
+ * column start disagreeing about what a segment is. */
+export const PASSING_TYPE_NAMES = ['Passing Constrained', 'Passing Zone', 'Passing Lane'];
 
 /** A feature is a point on the mainline. `stationFt` is the gore point: the
  * downstream end of an on-ramp's gore area and the upstream end of an
@@ -244,6 +356,76 @@ export function makeFeature(doc, kind, stationFt) {
 			// null leaves the segment on the Exhibit 18-13 planning estimate.
 			delayS: null,
 			approach: null
+		};
+	}
+	// ── Two-lane highway (Chapter 15) ────────────────────────────────────
+	//
+	// Three intervals and one point, which is what Chapter 15 Section 3 Step 1
+	// asks a segment to be homogeneous in: "Each segment should have homogeneous
+	// properties with respect to traffic demand, grade, lane and shoulder widths,
+	// posted speed limit, etc. Varying horizontal curvature can be included
+	// within a single segment, as described in Step 5d." So grade, passing type
+	// and demand bound segments, and curvature deliberately does not.
+	if (kind === 'grade') {
+		return {
+			id: nextId(doc, 'gr'),
+			kind,
+			stationFt: Math.round(stationFt),
+			endFt: Math.round(stationFt) + FT_PER_MI,
+			label: '',
+			// Percent, signed. A downgrade is negative and Exhibit 15-11 reads it
+			// down its parenthesized column.
+			gradePct: 3,
+			// Exhibit 15-11's classification. The engine recomputes this in Step 3
+			// from the grade and the segment length and overwrites what it is given,
+			// but Step 2 has already picked a passing-lane capacity off the supplied
+			// value by then, so it is an input rather than a display field.
+			verticalClass: 3
+		};
+	}
+	if (kind === 'passing') {
+		return {
+			id: nextId(doc, 'ps'),
+			kind,
+			stationFt: Math.round(stationFt),
+			endFt: Math.round(stationFt) + FT_PER_MI,
+			label: '',
+			// 1 = Passing Zone, 2 = Passing Lane. 0 needs no feature: a stretch no
+			// passing feature covers is Passing Constrained, which is the chapter's
+			// own default reading of a two-lane highway with no passing opportunity.
+			passingType: 2
+		};
+	}
+	if (kind === 'curve') {
+		return {
+			id: nextId(doc, 'hc'),
+			kind,
+			stationFt: Math.round(stationFt),
+			// Curves are short. A default of one mile would be a curve nothing in
+			// Exhibit 15-22 describes.
+			endFt: Math.round(stationFt) + 400,
+			label: '',
+			designRadiusFt: 750,
+			// Percent, per Exhibit 15-22's own columns. Not a fraction.
+			superelevationPct: 4,
+			// Not read by the HCM method at all; the library's own field comment says
+			// so. Carried because the published fixtures state it and because the
+			// strip can draw a curve's real sweep with it.
+			centralAngleDeg: 0,
+			// Also inert: Step 5d computes the Exhibit 15-22 class from the radius and
+			// the superelevation and overwrites whatever it is handed. Null on a
+			// hand-placed curve and set only by a fixture import, so that a fixture
+			// stating its classes re-exports with them rather than with zeros.
+			horClassEntered: null
+		};
+	}
+	if (kind === 'demand') {
+		return {
+			id: nextId(doc, 'dm'),
+			kind,
+			stationFt: Math.round(stationFt),
+			label: '',
+			config: defaultDemandChange(doc)
 		};
 	}
 	// The two non-ramp kinds are not demand sources, so they share nothing with
@@ -325,7 +507,7 @@ export function defaultWorkZone(doc) {
  * zones act on the segments those rules produce, which is why they are
  * separated everywhere rather than filtered at each use. */
 export const isRamp = (f) => f.kind === 'on_ramp' || f.kind === 'off_ramp';
-export const isInterval = (f) => f.kind === 'work_zone';
+export const isInterval = (f) => f.kind === 'work_zone' || TWOLANE_INTERVALS.includes(f.kind);
 
 export function sortedFeatures(doc) {
 	return [...doc.features].sort((a, b) => a.stationFt - b.stationFt || a.id.localeCompare(b.id));
@@ -341,11 +523,11 @@ export function cloneDoc(doc) {
  * off the mainline demand vector alone, so a short ramp vector would be read as
  * zeros rather than rejected. */
 export function setPeriods(doc, n) {
-	// The urban engines take a scalar demand per segment and have no period
-	// axis at all, so the count is pinned rather than clamped: accepting a 4 here
-	// would grow vectors nothing downstream reads and show a grid that cannot
-	// affect a result.
-	const periods = isUrban(doc) ? 1 : Math.max(1, Math.round(n));
+	// The urban and two-lane engines take a scalar demand per segment and have no
+	// period axis at all, so the count is pinned rather than clamped: accepting a
+	// 4 here would grow vectors nothing downstream reads and show a grid that
+	// cannot affect a result.
+	const periods = isUrban(doc) || isTwoLane(doc) ? 1 : Math.max(1, Math.round(n));
 	const fit = (v) => {
 		const out = (v ?? []).slice(0, periods);
 		while (out.length < periods) out.push(out.length ? out[out.length - 1] : 0);
@@ -382,7 +564,7 @@ export function migrate(raw) {
 			`unsupported facility type "${raw.facilityType}" (this build reads ${FACILITY_TYPES.join(' and ')})`
 		);
 	}
-	const raw2 = upgradeToV3(upgradeToV2(raw));
+	const raw2 = upgradeToV4(upgradeToV3(upgradeToV2(raw)));
 	const base = emptyDocument(raw2.facilityType);
 	const doc = { ...base, ...raw2 };
 	doc.meta = { ...base.meta, ...(raw2.meta ?? {}) };
@@ -413,4 +595,13 @@ function upgradeToV2(raw) {
 function upgradeToV3(raw) {
 	if (raw.version >= 3) return raw;
 	return { ...raw, version: 3 };
+}
+
+/** v3 to v4: v4 added the two-lane facility type and nothing else, so every v3
+ * document is a valid v4 freeway or urban one. The `facilityType` check in
+ * `migrate` runs before this and is what rejects a v5 type name, so a v3
+ * document can only be one of the two types v3 could write. */
+function upgradeToV4(raw) {
+	if (raw.version >= 4) return raw;
+	return { ...raw, version: 4 };
 }

@@ -4,9 +4,12 @@
 // suppressed and the shapes they touch were hand-written here.
 import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { inflateRawSync } from 'node:zlib';
 import { expect, test, type Page } from '@playwright/test';
+
+// The sibling library's published fixtures. tests/libCases.mjs resolves the
+// checkout, including from inside a git worktree, and says why that took a file.
+import { libCase, readCase } from './libCases.mjs';
 
 // A .docx is a zip, and the assertion worth making about one is what its
 // document part says. Reading it takes a zip reader, and adding a dependency to
@@ -3152,11 +3155,9 @@ async function expectTwoLaneOutputs(
 // The numbers come from the library's own Example Problem 1 fixture, which is
 // read off disk rather than transcribed.
 test.describe('facility builder', () => {
-  // The library checkout sits beside this repo, the same place the boundary
-  // suite looks for it.
-  const LIB_CASES: string =
-    process.env.HCM_LIB_CASES || join(process.cwd(), '..', 'transportations-library', 'tests', 'ExampleCases', 'hcm');
-  const CASE1 = join(LIB_CASES, 'FreewayFacilities', 'case1.json');
+  // Resolved per test rather than once here: a missing library checkout must
+  // fail the tests that need a fixture, not the whole spec file at collection.
+  const CASE1 = () => libCase('FreewayFacilities', 'case1.json');
 
   /** The whole editor sits behind `inert={!ready}`, so every test waits for the
    * wasm module the same way the chapter pages wait for Calculate. */
@@ -3309,7 +3310,7 @@ test.describe('facility builder', () => {
   test('Example Problem 1 loads as placed ramps and rebuilds the published eleven segments', async ({ page }) => {
     await openBuilder(page);
     await page.getByTestId('example-ep1').click();
-    const case1 = JSON.parse(readFileSync(CASE1, 'utf8'));
+    const case1 = readCase('FreewayFacilities', 'case1.json');
     expect(await typesOf(page)).toEqual(case1.segments.map((s: { seg_type: string }) => s.seg_type));
     await expect(page.getByTestId('feature-row')).toHaveCount(6);
     // The weave carries the auxiliary lane, so it is one lane wider than the
@@ -3320,11 +3321,11 @@ test.describe('facility builder', () => {
 
   test('a fixture imports as segments with no feature layer, and says so', async ({ page }) => {
     await openBuilder(page);
-    const case1 = JSON.parse(readFileSync(CASE1, 'utf8'));
+    const case1 = readCase('FreewayFacilities', 'case1.json');
     await page.locator('input[type="file"]').setInputFiles({
       name: 'case1.json',
       mimeType: 'application/json',
-      buffer: readFileSync(CASE1)
+      buffer: readFileSync(CASE1())
     });
     expect(await typesOf(page)).toEqual(case1.segments.map((s: { seg_type: string }) => s.seg_type));
     await expect(page.getByTestId('segment-row')).toHaveCount(11);
@@ -3359,7 +3360,7 @@ test.describe('facility builder', () => {
   test('Example Problem 3 shows the added lane as a step in the cross section', async ({ page }) => {
     await openBuilder(page);
     await page.getByTestId('example-ep3').click();
-    const case3 = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', 'case3.json'), 'utf8'));
+    const case3 = readCase('FreewayFacilities', 'case3.json');
     expect(await typesOf(page)).toEqual(case3.segments.map((s: { seg_type: string }) => s.seg_type));
     // The strip is the thing that has to show the step, not just the table.
     expect(await lanesOf(page)).toEqual(case3.segments.map((s: { lanes: number }) => s.lanes));
@@ -3374,7 +3375,7 @@ test.describe('facility builder', () => {
   test('Example Problem 4 codes the closure segment with the lanes that stay open', async ({ page }) => {
     await openBuilder(page);
     await page.getByTestId('example-ep4').click();
-    const case4 = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', 'case4.json'), 'utf8'));
+    const case4 = readCase('FreewayFacilities', 'case4.json');
     expect(await typesOf(page)).toEqual(case4.segments.map((s: { seg_type: string }) => s.seg_type));
     expect(await lanesOf(page)).toEqual(case4.segments.map((s: { lanes: number }) => s.lanes));
     const closure = page.locator('[data-testid="strip-seg"][data-seg-wz="yes"]');
@@ -3408,7 +3409,7 @@ test.describe('facility builder', () => {
     await page.getByTestId('example-ep2').click();
     expect(await typesOf(page)).toEqual(ep1Types);
     expect(await lanesOf(page)).toEqual(ep1Lanes);
-    const case2 = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', 'case2.json'), 'utf8'));
+    const case2 = readCase('FreewayFacilities', 'case2.json');
     await expect(page.locator('[data-testid="demand-row"][data-source="mainline"] input').first())
       .toHaveValue(String(case2.mainline_demand[0]));
   });
@@ -4044,6 +4045,68 @@ test.describe('facility builder', () => {
       await expect(page.getByTestId('urban-los')).toHaveText('E');
     });
 
+    test('the Exhibit 18-13 planning parameters move the run, and say when they do not', async ({ page }) => {
+      await loadUrbanExample(page, 'ch30ep1');
+
+      // While the access points supply their published per-point delays, the
+      // planning group is inert and says so rather than pretending to work.
+      await page.getByTestId('expand-sig2').click();
+      await expect(page.getByTestId('planning-inert-sig2')).toHaveAttribute('data-inert-reason', 'published');
+      await page.getByTestId('expand-sig2').click();
+
+      // Strip both preferred sources, which drops the facility onto the
+      // Exhibit 18-13 estimate at its defaults. Six of the twelve access points
+      // carry a delay, two per segment, and the other six are counted only.
+      for (const id of ['ap1s1', 'ap1s2', 'ap2s1', 'ap2s2', 'ap3s1', 'ap3s2']) {
+        await page.getByTestId(`expand-${id}`).click();
+        const delay = page.getByTestId(`apdelay-${id}`);
+        await delay.fill('');
+        await delay.blur();
+        await page.getByTestId(`expand-${id}`).click();
+      }
+
+      await page.getByTestId('analyze').click();
+      // 22.55 mi/h: N_ap = 4 + 1.0 x 4 = 8 from the raw driveway counts, at the
+      // exhibit's own 10%/10% turn split. It is what this engine computes on the
+      // default path, not a number Chapter 30 publishes, and it is 1.1 mi/h
+      // below the 23.67 the example problem reaches through its per-point
+      // delays. tests/boundary/ch18_urban_segments.mjs pins the same value at
+      // segment level.
+      await expect(page.getByTestId('urban-travel-speed')).toHaveText('22.55');
+
+      // The group is live now, so the inert note is gone.
+      await page.getByTestId('expand-sig2').click();
+      await expect(page.getByTestId('planning-inert-sig2')).toHaveCount(0);
+      await page.getByTestId('expand-sig2').click();
+
+      // Give each segment its own two influential approaches and the turn
+      // percentages the Exhibit 30-35 volumes imply. Only the three signals that
+      // terminate a segment carry them; the one at station 0 terminates nothing.
+      for (const id of ['sig2', 'sig3', 'sig4']) {
+        await page.getByTestId(`expand-${id}`).click();
+        for (const [testid, value] of [['nap', '2'], ['pctlt', '6.5'], ['pctrt', '8.1']]) {
+          const field = page.getByTestId(`${testid}-${id}`);
+          await field.fill(value);
+          await field.blur();
+        }
+        await page.getByTestId(`expand-${id}`).click();
+      }
+
+      await expect(page.getByTestId('results-stale')).toBeVisible();
+      await page.getByTestId('analyze').click();
+      await expect(page.getByTestId('results-stale')).toHaveCount(0);
+      // 23.60 mi/h, the ch18 boundary file's case2 value for the same estimate
+      // with the fixture's own parameters. The whole 1.05 mi/h is the five
+      // fields this panel exposes.
+      await expect(page.getByTestId('urban-travel-speed')).toHaveText('23.60');
+
+      // The panel quotes the same pair it just produced, so the explanation and
+      // the engine cannot drift apart.
+      await page.getByTestId('expand-sig2').click();
+      await expect(page.getByTestId('planning-demo-from')).toHaveText('22.55');
+      await expect(page.getByTestId('planning-demo-to')).toHaveText('23.60');
+    });
+
     test('the Chapter 17 handoff reproduces Example Problem 4 and says what does not cross', async ({ page }) => {
       test.slow();
       await loadUrbanExample(page, 'ch29ep4');
@@ -4074,7 +4137,7 @@ test.describe('facility builder', () => {
 
     test('an urban fixture imports as signals and exports byte-identically', async ({ page }) => {
       await openUrban(page);
-      const fixture = join(LIB_CASES, 'UrbanFacilities', 'case3.json');
+      const fixture = libCase('UrbanFacilities', 'case3.json');
       await page.getByTestId('import-file').click();
       await page.locator('input[type=file]').setInputFiles(fixture);
       await expect(page.getByTestId('builder-message')).toContainText('boundary signals were recovered');
@@ -4127,6 +4190,349 @@ test.describe('facility builder', () => {
       const flags = page.getByTestId('validation-flag');
       await expect(flags.filter({ hasText: 'boundary intersections' }).first()).toBeVisible();
       await expect(page.getByTestId('analyze')).toBeDisabled();
+    });
+  });
+
+  // These run through the rendered page rather than through the modules, for the
+  // reason the urban block gives: the modules are pinned in
+  // tests/builder/twolane.mjs, and what is being checked here is the half that
+  // file cannot see. The loaders, the derivation, the engine call and the strip
+  // are wired to each other on the page, and the published numbers survive the
+  // trip to the DOM.
+  test.describe('two-lane highway', () => {
+    async function openTwoLane(page: Page) {
+      await openBuilder(page);
+      await page.getByTestId('facility-type').selectOption('twolane');
+      await expect(page.getByTestId('add-passing')).toBeVisible();
+    }
+
+    async function loadTwoLane(page: Page, id: string) {
+      await openTwoLane(page);
+      await page.getByTestId(`example-${id}`).click();
+      await expect(page.getByTestId('segment-row').first()).toBeVisible();
+    }
+
+    /** The values of one measure across the result strip, in segment order. */
+    const cellValues = (page: Page) =>
+      page.getByTestId('twolane-cell').evaluateAll((cells) =>
+        cells.map((c) => (c as HTMLElement).dataset.value ?? '')
+      );
+
+    async function readMeasure(page: Page, id: string, digits: number) {
+      await page.getByTestId('twolane-measure').selectOption(id);
+      return (await cellValues(page)).map((v) => Number(Number(v).toFixed(digits)));
+    }
+
+    test('the two-lane mode swaps the whole editor, and leaks neither of the other two', async ({ page }) => {
+      await openTwoLane(page);
+      await expect(page.getByTestId('add-grade')).toBeVisible();
+      await expect(page.getByTestId('add-passing')).toBeVisible();
+      await expect(page.getByTestId('add-curve')).toBeVisible();
+      await expect(page.getByTestId('add-demand')).toBeVisible();
+      // Neither the freeway feature set nor the urban one.
+      await expect(page.getByTestId('add-on-ramp')).toHaveCount(0);
+      await expect(page.getByTestId('add-signal')).toHaveCount(0);
+      await expect(page.getByTestId('template-diamond')).toHaveCount(0);
+      // Chapter 15 is single-period, so no period axis anywhere.
+      await expect(page.getByTestId('demand-grid')).toHaveCount(0);
+      // The Chapter 15 facility inputs, and not the other chapters'.
+      await expect(page.getByTestId('facility-spl')).toBeVisible();
+      await expect(page.getByTestId('facility-lane-width')).toBeVisible();
+      await expect(page.getByTestId('facility-pmhvfl')).toBeVisible();
+      await expect(page.getByTestId('facility-ffs')).toHaveCount(0);
+      await expect(page.getByTestId('facility-curb')).toHaveCount(0);
+      // An empty highway is a complete facility, which is what Example Problem 1
+      // is, so it analyzes rather than blocking.
+      await expect(page.getByTestId('twolane-empty-note')).toBeVisible();
+      await expect(page.getByTestId('analyze')).toBeEnabled();
+      // The uncarried-fields note has an empty list here, because the Chapter 15
+      // schema is fully covered. It has to read as a sentence rather than as the
+      // other two facility types' sentence with the list cut out of the middle.
+      const uncarried = page.getByTestId('uncarried-note');
+      await expect(uncarried).toContainText('There is nothing it does not carry');
+      await expect(uncarried).not.toContainText('carry ,');
+    });
+
+    test('Example Problem 1 is a highway with no features at all, and reproduces its Step 11 value', async ({ page }) => {
+      await loadTwoLane(page, 'ch26ep1');
+      // The honest reconstruction of a level Passing Constrained highway is a
+      // highway and nothing else, so the feature tables are absent.
+      await expect(page.getByTestId('twolane-feature-row')).toHaveCount(0);
+      await expect(page.getByTestId('segment-row')).toHaveCount(1);
+
+      await page.getByTestId('analyze').click();
+      // tests/boundary/ch15_twolanehighways.mjs pins 10.092 and LOS D.
+      await expect(page.getByTestId('twolane-fd')).toHaveText('10.092');
+      await expect(page.getByTestId('twolane-los')).toHaveText('D');
+      // Exhibit 15-6 bands by posted limit, and this one posts 50, so the letter
+      // comes off the 50-and-above column by exactly one mile per hour.
+      await expect(page.getByTestId('twolane-weighted-spl')).toHaveText('50.0');
+      expect(await readMeasure(page, 'ffs', 2)).toEqual([56.83]);
+      expect(await readMeasure(page, 'avgSpeed', 1)).toEqual([53.7]);
+      expect(await readMeasure(page, 'percentFollowers', 1)).toEqual([67.7]);
+    });
+
+    test('Example Problem 2 is the same highway with five curves, and they are subsegments rather than segments', async ({ page }) => {
+      await loadTwoLane(page, 'ch26ep2');
+      // Five curves, and the segment count does NOT move: Chapter 15 Step 1
+      // sends varying curvature to Step 5d inside one segment.
+      await expect(page.getByTestId('curve-marker')).toHaveCount(5);
+      await expect(page.getByTestId('segment-row')).toHaveCount(1);
+      await expect(page.getByTestId('twolane-curve-table')).toBeVisible();
+
+      await page.getByTestId('analyze').click();
+      await expect(page.getByTestId('twolane-fd')).toHaveText('10.933');
+      await expect(page.getByTestId('twolane-los')).toHaveText('D');
+      // The free-flow speed is untouched by the curves and the average speed is
+      // not, which is the whole of the Step 5d adjustment.
+      expect(await readMeasure(page, 'ffs', 2)).toEqual([56.83]);
+      expect(await readMeasure(page, 'avgSpeed', 1)).toEqual([49.5]);
+
+      // The detail panel counts the subsegments, which is the only place the
+      // eleven appear: they are not rows in the segment table.
+      await page.getByTestId('twolane-cell').first().click();
+      await expect(page.getByTestId('twolane-cell-detail')).toContainText('5 in 11 subsegments');
+    });
+
+    test('Example Problem 3 reproduces Exhibit 26-27 from a passing lane and a passing zone', async ({ page }) => {
+      await loadTwoLane(page, 'ch26ep3');
+      await expect(page.getByTestId('segment-row')).toHaveCount(5);
+      await expect(page.getByTestId('passing-marker')).toHaveCount(2);
+      await expect(page.getByTestId('demand-marker')).toHaveCount(4);
+
+      await page.getByTestId('analyze').click();
+      // Exhibit 26-27 publishes 7.3 followers/mi and LOS C; the engine's own
+      // Equation 15-39 value is 7.271, and the difference is the exhibit's
+      // rounding of its per-segment column.
+      await expect(page.getByTestId('twolane-fd')).toHaveText('7.271');
+      await expect(page.getByTestId('twolane-los')).toHaveText('C');
+      expect(await readMeasure(page, 'ffs', 2)).toEqual([62.43, 62.43, 62.43, 62.45, 62.43]);
+      expect(await readMeasure(page, 'avgSpeed', 1)).toEqual([58.8, 57.8, 58.9, 59.2, 58.9]);
+      expect(await readMeasure(page, 'percentFollowers', 1)).toEqual([69.7, 60.7, 68.0, 67.8, 67.7]);
+
+      // The centerline is the house two-lane language, the same RoadDiagram.svelte
+      // uses on the chapter pages: solid where passing is not permitted, dashed
+      // through a passing zone. Read off the rendered style rather than off the
+      // source, because a class that never reaches the element looks identical in
+      // the markup and identical in a screenshot at strip scale.
+      const centerlines = await page.getByTestId('strip-seg').evaluateAll((segs) =>
+        segs.map((sg) => {
+          const line = sg.querySelector('.bs-tl-center');
+          return [
+            (sg as HTMLElement).dataset.segType,
+            line ? getComputedStyle(line).strokeDasharray : 'missing'
+          ];
+        })
+      );
+      expect(centerlines).toEqual([
+        ['Passing Constrained', 'none'],
+        ['Passing Lane', 'none'],
+        ['Passing Constrained', 'none'],
+        ['Passing Zone', '6px, 5px'],
+        ['Passing Constrained', 'none']
+      ]);
+
+      // The passing lane's cell is marked, because its value is a midpoint
+      // density and its neighbours' are endpoint ones.
+      await page.getByTestId('twolane-measure').selectOption('followerDensity');
+      const pl = page.locator('[data-testid="twolane-cell"][data-passing-type="2"]');
+      await expect(pl).toHaveCount(1);
+      await expect(pl).toHaveClass(/midpoint/);
+      await expect(page.getByTestId('twolane-midpoint-note')).toBeVisible();
+    });
+
+    test('Example Problem 4 reproduces Exhibit 26-36 and carries the passing lane downstream', async ({ page }) => {
+      await loadTwoLane(page, 'ch26ep4');
+      await expect(page.getByTestId('segment-row')).toHaveCount(6);
+      await expect(page.getByTestId('grade-marker')).toHaveCount(5);
+      await expect(page.getByTestId('curve-marker')).toHaveCount(3);
+      await expect(page.getByTestId('passing-marker')).toHaveCount(1);
+
+      await page.getByTestId('analyze').click();
+      await expect(page.getByTestId('twolane-fd')).toHaveText('19.897');
+      await expect(page.getByTestId('twolane-los')).toHaveText('E');
+      expect(await readMeasure(page, 'avgSpeed', 1)).toEqual([47.9, 43.9, 50.8, 49.2, 56.0, 58.3]);
+
+      // Segment 6, below the passing lane, reports the Step 9 adjusted density
+      // rather than its own, and the detail panel says which is which. That is
+      // the assertion the whole ordering guard exists for: an unrestored Step 9
+      // walk would put the facility value at 14.936 instead.
+      await page.getByTestId('twolane-measure').selectOption('followerDensity');
+      await page.getByTestId('twolane-cell').nth(5).click();
+      const detail = page.getByTestId('twolane-cell-detail');
+      await expect(detail).toContainText('Segment 6');
+      await expect(detail).toContainText('before the Step 9 passing-lane adjustment');
+
+      // And the discussion says it in words, off the same run.
+      await expect(page.locator('body')).toContainText('midpoint follower density');
+    });
+
+    test('a passing lane under the Exhibit 15-10 minimum is analyzed as Passing Constrained, and says so', async ({ page }) => {
+      await openTwoLane(page);
+      await page.getByTestId('add-passing').click();
+      const row = page.getByTestId('twolane-feature-row').first();
+      const id = await row.getAttribute('data-feature-id');
+      await page.getByTestId(`expand-${id}`).click();
+      // A default passing lane is one mile, which is over the minimum. Shorten it
+      // to 0.3 mi and it must be demoted.
+      const length = page.getByTestId(`length-${id}`);
+      await length.fill('0.3');
+      await length.blur();
+      await expect(page.getByTestId(`pl-too-short-${id}`)).toBeVisible();
+
+      const types = await page.getByTestId('strip-seg').evaluateAll((segs) =>
+        segs.map((sg) => (sg as HTMLElement).dataset.segType)
+      );
+      expect(types).not.toContain('Passing Lane');
+      expect(types.every((t) => t === 'Passing Constrained')).toBe(true);
+
+      // And putting it back over the minimum restores it, so the rule is applied
+      // live rather than at load.
+      await length.fill('0.6');
+      await length.blur();
+      const back = await page.getByTestId('strip-seg').evaluateAll((segs) =>
+        segs.map((sg) => (sg as HTMLElement).dataset.segType)
+      );
+      expect(back).toContain('Passing Lane');
+    });
+
+    test('moving a passing feature re-derives the segments on both sides of it', async ({ page }) => {
+      await loadTwoLane(page, 'ch26ep3');
+      const before = await page.getByTestId('strip-seg').evaluateAll((segs) =>
+        segs.map((sg) => Number((sg as HTMLElement).dataset.segLanes))
+      );
+      expect(before).toEqual([1, 2, 1, 1, 1]);
+
+      await page.getByTestId('expand-ps1').click();
+      const station = page.getByTestId('station-ps1');
+      await station.fill('1.00');
+      await station.blur();
+
+      // The lane moved WHOLE, so its own length is unchanged and it now starts a
+      // boundary where none was. Example Problem 3 already has a demand change at
+      // 0.75 mi, so the old boundary stays and the highway gains segments rather
+      // than the first one simply growing.
+      const after = await page.getByTestId('strip-seg').evaluateAll((segs) =>
+        segs.map((sg) => (sg as HTMLElement).getAttribute('aria-label') ?? '')
+      );
+      expect(after.length).toBeGreaterThan(before.length);
+      // The feature's own extent is unchanged, which is what "moved whole"
+      // means, and it is read off the marker rather than off the segments.
+      const marker = page.locator('[data-testid="passing-marker"][data-feature-id="ps1"]');
+      await expect(marker).toHaveAttribute('data-station-ft', '5280');
+      await expect(marker).toHaveAttribute('data-end-ft', '13200');
+
+      // The segments under it are a different story, and a useful one. Example
+      // Problem 3's demand change at 2.25 mi now falls INSIDE the lane, and a
+      // demand change bounds a segment wherever it lands, so one 1.5 mi lane is
+      // carried by two segments of 6,600 and 1,320 ft. Both stay Passing Lane:
+      // the Exhibit 15-10 minimum is a property of the lane, so a boundary cutting
+      // through one does not turn it into two lanes that are each too short.
+      expect(after.filter((l) => l.includes('Passing Lane'))).toEqual([
+        'segment 3, Passing Lane, 6600 feet, 2 lanes',
+        'segment 4, Passing Lane, 1320 feet, 2 lanes'
+      ]);
+
+      // But it is refused, and on its own terms. Step 9 measures downstream
+      // distance from the LAST passing-lane segment in the facility, so a split
+      // lane would be measured from its own far end rather than from its start.
+      const flags = page.getByTestId('validation-flag');
+      await expect(flags.filter({ hasText: 'is split into 2 segments' }).first()).toBeVisible();
+      await expect(page.getByTestId('analyze')).toBeDisabled();
+      await expect(page.getByTestId('undo')).toBeEnabled();
+      await page.getByTestId('undo').click();
+      await expect(page.getByTestId('station-ps1')).toHaveValue('0.75');
+    });
+
+    test('a two-lane fixture imports as features and exports byte-identically', async ({ page }) => {
+      await openTwoLane(page);
+      const fixture = libCase('TwoLaneHighways', 'case4.json');
+      await page.getByTestId('import-file').click();
+      await page.locator('input[type=file]').setInputFiles(fixture);
+      await expect(page.getByTestId('builder-message')).toContainText('recovered from the segment table');
+
+      // A Chapter 15 fixture is invertible, so the import has a feature layer
+      // rather than arriving as bare segments.
+      await expect(page.getByTestId('segment-row')).toHaveCount(6);
+      await expect(page.getByTestId('passing-marker')).toHaveCount(1);
+      await expect(page.getByTestId('curve-marker')).toHaveCount(3);
+      // Six rather than the loader's five: the loader states the last two
+      // segments as one -3% stretch split by the passing lane, and the import
+      // recovers one grade per segment because that is how the fixture states
+      // it. Both derive the same six segments, which is the claim that matters.
+      await expect(page.getByTestId('grade-marker')).toHaveCount(6);
+
+      const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        page.getByTestId('download-fixture').click()
+      ]);
+      const exported = JSON.parse(readFileSync(await download.path(), 'utf8'));
+      expect(exported).toEqual(readCase('TwoLaneHighways', 'case4.json'));
+
+      // And it still analyzes to the published value after the round trip.
+      await page.getByTestId('analyze').click();
+      await expect(page.getByTestId('twolane-fd')).toHaveText('19.897');
+    });
+
+    test('the reliability panel says Chapter 15 has none rather than offering one', async ({ page }) => {
+      await loadTwoLane(page, 'ch26ep3');
+      await page.getByTestId('analyze').click();
+      await expect(page.getByTestId('twolane-reliability-panel')).toBeVisible();
+      await expect(page.getByTestId('twolane-no-reliability')).toContainText('There is none');
+      // No button, because there is nothing to run.
+      await expect(page.getByTestId('run-reliability')).toHaveCount(0);
+      await expect(page.getByTestId('reliability-panel')).toHaveCount(0);
+      await expect(page.getByTestId('urban-reliability-panel')).toHaveCount(0);
+      // And the checks panel says it too, before a run.
+      await expect(page.locator('[data-flag-id="no-reliability"]')).toBeVisible();
+    });
+
+    test('the run joins the printable report, without a time-space table', async ({ page }) => {
+      await loadTwoLane(page, 'ch26ep4');
+      await page.getByTestId('analyze').click();
+      await page.getByTestId('open-report').click();
+      await expect(page.locator('body')).toContainText('HCM Chapter 15');
+      await expect(page.locator('body')).toContainText('19.897');
+      await expect(page.locator('body')).toContainText('Passing Lane');
+      // Chapter 15 is single-period, so there is no time-space domain to print.
+      await expect(page.locator('body')).not.toContainText('Time-space domain');
+      // And the methodology says what is absent rather than leaving it out.
+      await expect(page.locator('body')).toContainText('no travel time reliability methodology');
+    });
+
+    test('every two-lane editor state renders without throwing', async ({ page }) => {
+      // A thrown Svelte render leaves the last good DOM standing and silently
+      // drops later updates, so the visible symptom lands far from the throw and
+      // a functional assertion cannot catch it. This exercises one of every
+      // component state and asserts nothing was thrown.
+      const errors: string[] = [];
+      page.on('pageerror', (e) => errors.push(String(e)));
+
+      // Example Problem 4 places grades, curves and a passing lane and states one
+      // demand for the whole highway, so the fourth kind is added rather than
+      // loaded. All four editors have to render, including the one no example
+      // produces.
+      await loadTwoLane(page, 'ch26ep4');
+      await page.getByTestId('add-demand').click();
+      for (const kind of ['grade', 'passing', 'curve', 'demand']) {
+        const row = page.locator(`[data-testid="twolane-feature-row"][data-kind="${kind}"]`).first();
+        const id = await row.getAttribute('data-feature-id');
+        await page.getByTestId(`expand-${id}`).click();
+        await expect(page.getByTestId('twolane-feature-editor')).toBeVisible();
+        await page.getByTestId(`expand-${id}`).click();
+      }
+      await page.getByTestId('analyze').click();
+      for (const m of ['los', 'followerDensity', 'avgSpeed', 'percentFollowers', 'ffs']) {
+        await page.getByTestId('twolane-measure').selectOption(m);
+        await page.getByTestId('twolane-cell').first().click();
+        await page.getByTestId('twolane-cell').first().click();
+      }
+      // Every feature added fresh, which is the state a loader never produces.
+      for (const kind of ['grade', 'passing', 'curve', 'demand']) {
+        await page.getByTestId(`add-${kind === 'passing' ? 'passing' : kind}`).click();
+      }
+      await expect(page.getByTestId('builder-editor')).toBeVisible();
+      expect(errors).toEqual([]);
     });
   });
 });

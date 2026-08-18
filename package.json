@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "test": "playwright test",
     "test:boundary": "for f in tests/boundary/ch*.mjs; do node \"$f\" || exit 1; done",
-    "test:builder": "node tests/builder/derivation.mjs && node tests/builder/analysis.mjs && node tests/builder/urban.mjs",
+    "test:builder": "node tests/builder/derivation.mjs && node tests/builder/analysis.mjs && node tests/builder/urban.mjs && node tests/builder/twolane.mjs",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-check --tsconfig ./tsconfig.json --watch",
     "lint": "eslint .",
