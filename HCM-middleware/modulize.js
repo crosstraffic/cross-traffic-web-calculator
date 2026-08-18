@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, unlinkSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 
 const dirName = "./HCM-middleware/pkg/"; 
 

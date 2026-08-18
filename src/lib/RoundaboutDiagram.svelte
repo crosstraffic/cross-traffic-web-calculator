@@ -37,7 +37,6 @@
 
   let RO = $derived(RI + circLanes * LANE + 6);      // outer edge of the circulating roadway
   let RC = $derived((RI + RO) / 2);                  // circulating centerline
-  let maxLeg = $derived(Math.max(eNB, eSB, eEB, eWB));
   let EXT = $derived(RO + RUN);
   let cx = $derived(EXT);
   let cy = $derived(EXT);

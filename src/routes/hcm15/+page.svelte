@@ -263,7 +263,7 @@
       const facility = new WasmTwoLaneHighways(wasmSegment, lane_width, shoulder_width, apd, pmhvfl);
 
       const segs = [];
-      let s_tot = 0, tot_len = 0;
+      let tot_len = 0;
 
       for (let i = 0; i < localRows.length; i++) {
         facility.identify_vertical_class(i);
@@ -293,7 +293,6 @@
         }
 
         const seg_len = facility.get_segments()[i].length;
-        s_tot += s * seg_len;
         tot_len += seg_len;
 
         segs.push({

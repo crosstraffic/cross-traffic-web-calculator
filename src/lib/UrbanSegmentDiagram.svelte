@@ -44,7 +44,6 @@
   let curbOff = $derived(parkDepth + 4);
 
   let subLane = $derived((i) => cy + (i + 0.5) * LANE);
-  let oppLane = $derived((i) => cy - (i + 0.5) * LANE);
 
   // The three spans of arterial that are not under a cross street. Edges,
   // lane lines, and the centerline are drawn per span so nothing is painted
