@@ -18,6 +18,21 @@
   // its own: it renders the document and calls back.
 
   import { FT_PER_MI } from '$lib/builder/document.js';
+  import { urbanSourceEndingAt } from '$lib/builder/derive.js';
+
+  /**
+   * What the Exhibit 18-13 parameters are worth, as one worked case.
+   *
+   * Both speeds are what THIS engine computes, not what Chapter 30 publishes:
+   * Exhibit 30-36 prints 23.67 mi/h, which the example problem reaches through
+   * its per-point delays rather than through the planning estimate at all. The
+   * pair below is the estimate at its default against the estimate given the
+   * segment's own parameters, and it is here so the panel can say what the
+   * fields are for in the units of the answer. Both are pinned, at segment level
+   * by tests/boundary/ch18_urban_segments.mjs and through this editor by the
+   * builder spec in tests/app.spec.ts.
+   */
+  const planningDemo = { from: '22.55', to: '23.60', published: '23.67', nap: '2', left: '6.5', right: '8.1' };
 
   let {
     feature,
@@ -42,6 +57,18 @@
         .filter((f) => f.kind === 'signal')
         .every((f) => f.id === feature.id || f.stationFt > feature.stationFt)
   );
+  // Why the Exhibit 18-13 group would not reach the run, or null when it does.
+  // Three ways it can be inert and they are different facts, so they are not
+  // collapsed: the Chapter 18 engine is not running at all, or it is running but
+  // Equation 18-7 prefers a source the access points already supply. The
+  // upstream-most case is left out because the note above it already covers
+  // every group on that signal at once.
+  let planningInert = $derived.by(() => {
+    if (feature?.kind !== 'signal' || upstreamMost) return null;
+    if (measuresMode) return 'measures';
+    const source = urbanSourceEndingAt(doc, feature.id);
+    return source === 'published' || source === 'computed' ? source : null;
+  });
   let cfg = $derived(feature?.config ?? {});
   let meas = $derived(feature?.measures ?? {});
   let ap = $derived(feature?.approach ?? null);
@@ -200,6 +227,55 @@
       <p class="fe-note">
         A blank platoon ratio means uniform arrivals, where the proportion arriving on green is the green-to-cycle ratio itself. Entering 0 is a different thing and would pin the worst arrival type, so a cleared field stays blank rather than becoming a zero.
       </p>
+    </fieldset>
+
+    <fieldset class="fe-group">
+      <legend>Access-point planning estimate (Exhibit 18-13)</legend>
+      <p class="fe-note">
+        Read only when no access point on this segment carries a per-point delay or an approach, because those are the two sources Equation 18-7 prefers. Left blank the library counts every driveway, N_ap = N_ap,s + p_ap,lt N_ap,o, and takes Exhibit 18-13's own 10% turn assumption, which is the coarsest the estimate gets. The count is what moves the answer. On Chapter 30 Example Problem 1 the estimate reads <span data-testid="planning-demo-from">{planningDemo.from}</span> mi/h left blank and <span data-testid="planning-demo-to">{planningDemo.to}</span> given that segment's {planningDemo.nap} influential approaches and its own {planningDemo.left}% and {planningDemo.right}% turn percentages. Neither is a published number; Exhibit 30-36 prints {planningDemo.published} mi/h, and the example problem reaches it through per-point delays rather than through this estimate.
+      </p>
+      <div class="fe-grid">
+        <label>Influential approaches N_ap
+          <input type="number" min="0" step="0.01" value={cfg.n_influential_access_points ?? ''}
+                 placeholder="from the counts"
+                 disabled={!interactive} data-testid="nap-{feature.id}"
+                 onchange={(e) => setOptional(cfgSet, 'n_influential_access_points', e.currentTarget.value)} />
+        </label>
+        <label>Left turns at a point (%)
+          <input type="number" min="0" max="100" step="0.1" value={cfg.pct_left_turns_access ?? ''}
+                 placeholder="10"
+                 disabled={!interactive} data-testid="pctlt-{feature.id}"
+                 onchange={(e) => setOptional(cfgSet, 'pct_left_turns_access', e.currentTarget.value)} />
+        </label>
+        <label>Right turns at a point (%)
+          <input type="number" min="0" max="100" step="0.1" value={cfg.pct_right_turns_access ?? ''}
+                 placeholder="10"
+                 disabled={!interactive} data-testid="pctrt-{feature.id}"
+                 onchange={(e) => setOptional(cfgSet, 'pct_right_turns_access', e.currentTarget.value)} />
+        </label>
+        <label class="fe-check">Left-turn bay adequate
+          <input type="checkbox" checked={cfg.access_left_bay_adequate === true} disabled={!interactive}
+                 data-testid="ltbayadq-{feature.id}"
+                 onchange={(e) => cfgSet('access_left_bay_adequate', e.currentTarget.checked || null)} />
+        </label>
+        <label class="fe-check">Right-turn bay adequate
+          <input type="checkbox" checked={cfg.access_right_bay_adequate === true} disabled={!interactive}
+                 data-testid="rtbayadq-{feature.id}"
+                 onchange={(e) => cfgSet('access_right_bay_adequate', e.currentTarget.checked || null)} />
+        </label>
+      </div>
+      <p class="fe-note">
+        A bay of adequate length halves the per-point delay and two of them take it to zero, so these two are the strongest controls on this panel and the easiest to assert without evidence. They describe the representative access point rather than any one driveway; the per-approach bay flags on an access point are a different input, on the computed Chapter 30 Section 4 path.
+      </p>
+      {#if planningInert}
+        <p class="fe-inert" data-testid="planning-inert-{feature.id}" data-inert-reason={planningInert}>
+          {#if planningInert === 'measures'}
+            This facility is described by its published Chapter 18 measures, so the Chapter 18 engine does not run and no access-point delay is computed at all. Nothing in this group reaches the answer while that mode is selected.
+          {:else}
+            This segment's access points supply {planningInert === 'published' ? 'per-point delays' : 'approaches'}, so Equation 18-7 takes that source and nothing in this group reaches the run. The values are kept and exported rather than dropped, so clearing that source gives them back.
+          {/if}
+        </p>
+      {/if}
     </fieldset>
 
     {#if measuresMode}

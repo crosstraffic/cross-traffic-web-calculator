@@ -452,6 +452,14 @@ export const URBAN_SEGMENT_KEYS = [
 	'prop_left_turn_lanes',
 	'access_point_delays_s',
 	'access_point_approaches',
+	// The Exhibit 18-13 planning estimate's parameters. They sit beside the two
+	// preferred sources rather than under them because the library reads them
+	// only on the fall-through, and a segment cannot be on two sources at once.
+	'n_influential_access_points',
+	'pct_left_turns_access',
+	'pct_right_turns_access',
+	'access_left_bay_adequate',
+	'access_right_bay_adequate',
 	'analysis_period_h'
 ];
 
@@ -557,6 +565,27 @@ export function deriveUrbanRows(doc) {
 	return { rows: applyOverrides(doc, rows), sections: [], errors };
 }
 
+/**
+ * Which of the three Equation 18-7 sources the segment ENDING at one signal is
+ * on, for an editor that holds the document but not the derivation.
+ *
+ * It re-derives rather than re-implementing the containment rule. Which access
+ * points belong to which segment is the one genuinely subtle rule in this
+ * module — half-open at one end, tolerant at the other, so a point is counted
+ * once — and a second copy of it in a Svelte component is how the panel would
+ * start telling a user their planning parameters are inert when they are not.
+ *
+ * Returns null when no segment ends at the signal, which is the upstream-most
+ * one and the case the editor already has a note for.
+ */
+export function urbanSourceEndingAt(doc, signalId) {
+	if (!doc || doc.facilityType !== 'urban' || !signalId) return null;
+	const { rows } = deriveUrbanRows(doc);
+	// Keys are `seg:<upstream>:<downstream>`, so the suffix is unambiguous even
+	// though `sig1` is a prefix of `sig11`.
+	return rows.find((r) => r.key.endsWith(`:${signalId}`))?.apDelaySource ?? null;
+}
+
 function clamp(v, lo, hi) {
 	return Math.min(hi, Math.max(lo, v));
 }
@@ -605,6 +634,16 @@ function urbanRow(doc, { key, startFt, endFt, upstream, downstream, subject, opp
 		sat_flow_veh_h_ln: cfg.sat_flow_veh_h_ln ?? undefined,
 		arrival_type: cfg.arrival_type ?? undefined,
 		full_stop_rate_override: cfg.full_stop_rate_override ?? undefined,
+		// Carried whatever source the segment ends up on. The library reads them
+		// only on the Exhibit 18-13 fall-through, so on a segment with per-point
+		// delays they are inert, and dropping them here instead would lose an
+		// analyst's numbers out of the document the moment a delay was supplied
+		// and not give them back when it was cleared.
+		n_influential_access_points: cfg.n_influential_access_points ?? undefined,
+		pct_left_turns_access: cfg.pct_left_turns_access ?? undefined,
+		pct_right_turns_access: cfg.pct_right_turns_access ?? undefined,
+		access_left_bay_adequate: cfg.access_left_bay_adequate ?? undefined,
+		access_right_bay_adequate: cfg.access_right_bay_adequate ?? undefined,
 		prop_left_turn_lanes: m.propLeftTurnLanes,
 
 		sourceIds: [upstream?.id, downstream?.id, ...subject.map((a) => a.id), ...opposing.map((a) => a.id)].filter(Boolean),

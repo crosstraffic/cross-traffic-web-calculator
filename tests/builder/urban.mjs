@@ -363,6 +363,75 @@ function street(stations, lengthFt = stations[stations.length - 1]) {
 	const planRun = analyzeUrbanFacility(planning, planRows, wasm);
 	near(planRun.travelSpeed, 22.55, 0.05, 'the planning estimate lands on the boundary file\'s documented default path');
 	ok(planRun.travelSpeed < pubRun.travelSpeed - 1.0, 'and misses the published travel speed by over 1 mi/h, which is why the loaders supply a real source');
+
+	// The Exhibit 18-13 parameters themselves, which the builder had no editor
+	// for until now. They are what separates the two planning numbers the ch18
+	// boundary file pins: 22.55 mi/h is the estimate at its defaults, N_ap = 8
+	// from the raw driveway counts and the exhibit's own 10%/10% turn split;
+	// 23.60 is the same estimate given the segment's 2 influential approaches and
+	// the 6.5%/8.1% the Exhibit 30-35 volumes imply. Both are values this engine
+	// computes rather than values Chapter 30 publishes, and the published 23.67
+	// above is reached by a different source entirely.
+	const tuned = loadUrbanExample('ch30ep1');
+	for (const f of tuned.features) {
+		if (f.kind === 'access_point') {
+			f.delayS = null;
+			f.approach = null;
+			continue;
+		}
+		// Station 0 terminates no segment, so its parameters would reach nothing
+		// and setting them would prove nothing.
+		if (f.stationFt === 0) continue;
+		Object.assign(f.config, {
+			n_influential_access_points: 2,
+			pct_left_turns_access: 6.5,
+			pct_right_turns_access: 8.1
+		});
+	}
+	const tunedRows = derive(tuned).rows;
+	eq(tunedRows[0].apDelaySource, 'planning', 'the tuned facility is still on the planning source');
+	eq(
+		tunedRows.map((r) => [r.n_influential_access_points, r.pct_left_turns_access, r.pct_right_turns_access]),
+		[[2, 6.5, 8.1], [2, 6.5, 8.1], [2, 6.5, 8.1]],
+		'and every derived row carries the three parameters off the signal that terminates it'
+	);
+	const tunedRun = analyzeUrbanFacility(tuned, tunedRows, wasm);
+	near(tunedRun.travelSpeed, 23.60, 0.05, 'the Exhibit 18-13 parameters move the planning estimate to the ch18 boundary file\'s case2 value');
+	ok(tunedRun.travelSpeed > planRun.travelSpeed + 1.0, 'which is over 1 mi/h above the same facility left at the exhibit defaults');
+
+	// A bay of adequate length halves the per-point delay and two take it to
+	// zero, so the two flags have to be reachable and have to be distinguishable
+	// from "unset". A control on the strongest of the five: with both bays the
+	// access-point delay term vanishes and the travel speed rises again.
+	const bays = loadUrbanExample('ch30ep1');
+	for (const f of bays.features) {
+		if (f.kind === 'access_point') {
+			f.delayS = null;
+			f.approach = null;
+		} else if (f.stationFt !== 0) {
+			Object.assign(f.config, { access_left_bay_adequate: true, access_right_bay_adequate: true });
+		}
+	}
+	const bayRun = analyzeUrbanFacility(bays, derive(bays).rows, wasm);
+	ok(bayRun.travelSpeed > planRun.travelSpeed, 'two adequate turn bays take the Exhibit 18-13 delay to zero and raise the travel speed');
+
+	// The five are nullable, so a facility nobody touched exports exactly what it
+	// did before they existed. This is the claim that adding them cost the
+	// round trip nothing.
+	const untouched = loadUrbanExample('ch30ep1');
+	const untouchedRows = derive(untouched).rows;
+	ok(
+		untouchedRows.every((r) =>
+			[
+				'n_influential_access_points',
+				'pct_left_turns_access',
+				'pct_right_turns_access',
+				'access_left_bay_adequate',
+				'access_right_bay_adequate'
+			].every((k) => r[k] === undefined)
+		),
+		'an untouched facility carries none of the five, so a blank field stays the engine\'s own default'
+	);
 }
 
 {

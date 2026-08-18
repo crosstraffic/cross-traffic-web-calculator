@@ -4045,6 +4045,68 @@ test.describe('facility builder', () => {
       await expect(page.getByTestId('urban-los')).toHaveText('E');
     });
 
+    test('the Exhibit 18-13 planning parameters move the run, and say when they do not', async ({ page }) => {
+      await loadUrbanExample(page, 'ch30ep1');
+
+      // While the access points supply their published per-point delays, the
+      // planning group is inert and says so rather than pretending to work.
+      await page.getByTestId('expand-sig2').click();
+      await expect(page.getByTestId('planning-inert-sig2')).toHaveAttribute('data-inert-reason', 'published');
+      await page.getByTestId('expand-sig2').click();
+
+      // Strip both preferred sources, which drops the facility onto the
+      // Exhibit 18-13 estimate at its defaults. Six of the twelve access points
+      // carry a delay, two per segment, and the other six are counted only.
+      for (const id of ['ap1s1', 'ap1s2', 'ap2s1', 'ap2s2', 'ap3s1', 'ap3s2']) {
+        await page.getByTestId(`expand-${id}`).click();
+        const delay = page.getByTestId(`apdelay-${id}`);
+        await delay.fill('');
+        await delay.blur();
+        await page.getByTestId(`expand-${id}`).click();
+      }
+
+      await page.getByTestId('analyze').click();
+      // 22.55 mi/h: N_ap = 4 + 1.0 x 4 = 8 from the raw driveway counts, at the
+      // exhibit's own 10%/10% turn split. It is what this engine computes on the
+      // default path, not a number Chapter 30 publishes, and it is 1.1 mi/h
+      // below the 23.67 the example problem reaches through its per-point
+      // delays. tests/boundary/ch18_urban_segments.mjs pins the same value at
+      // segment level.
+      await expect(page.getByTestId('urban-travel-speed')).toHaveText('22.55');
+
+      // The group is live now, so the inert note is gone.
+      await page.getByTestId('expand-sig2').click();
+      await expect(page.getByTestId('planning-inert-sig2')).toHaveCount(0);
+      await page.getByTestId('expand-sig2').click();
+
+      // Give each segment its own two influential approaches and the turn
+      // percentages the Exhibit 30-35 volumes imply. Only the three signals that
+      // terminate a segment carry them; the one at station 0 terminates nothing.
+      for (const id of ['sig2', 'sig3', 'sig4']) {
+        await page.getByTestId(`expand-${id}`).click();
+        for (const [testid, value] of [['nap', '2'], ['pctlt', '6.5'], ['pctrt', '8.1']]) {
+          const field = page.getByTestId(`${testid}-${id}`);
+          await field.fill(value);
+          await field.blur();
+        }
+        await page.getByTestId(`expand-${id}`).click();
+      }
+
+      await expect(page.getByTestId('results-stale')).toBeVisible();
+      await page.getByTestId('analyze').click();
+      await expect(page.getByTestId('results-stale')).toHaveCount(0);
+      // 23.60 mi/h, the ch18 boundary file's case2 value for the same estimate
+      // with the fixture's own parameters. The whole 1.05 mi/h is the five
+      // fields this panel exposes.
+      await expect(page.getByTestId('urban-travel-speed')).toHaveText('23.60');
+
+      // The panel quotes the same pair it just produced, so the explanation and
+      // the engine cannot drift apart.
+      await page.getByTestId('expand-sig2').click();
+      await expect(page.getByTestId('planning-demo-from')).toHaveText('22.55');
+      await expect(page.getByTestId('planning-demo-to')).toHaveText('23.60');
+    });
+
     test('the Chapter 17 handoff reproduces Example Problem 4 and says what does not cross', async ({ page }) => {
       test.slow();
       await loadUrbanExample(page, 'ch29ep4');

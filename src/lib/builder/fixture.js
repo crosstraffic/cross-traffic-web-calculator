@@ -66,7 +66,10 @@ export const URBAN_UNCARRIED_FIELDS = [
 	'midsegment_other_delay_s',
 	'access_point_turn_delay_speed_mph',
 	'free_flow_speed_override_mph',
-	'prop_opposing_left_accessible'
+	'prop_opposing_left_accessible',
+	's_calib_mph',
+	'upstream_discharge_profiles',
+	'arrival_uniform_volume_veh_h / flow_profile_time_step_s / downstream_green_start_s'
 ];
 
 /**
@@ -146,6 +149,14 @@ export function fromUrbanFixture(raw, name = 'imported fixture') {
 				sat_flow_veh_h_ln: s.sat_flow_veh_h_ln ?? null,
 				arrival_type: s.arrival_type ?? null,
 				full_stop_rate_override: s.full_stop_rate_override ?? null,
+				// The Exhibit 18-13 planning parameters, recovered so a fixture that
+				// states them round-trips and shows them in the editor rather than
+				// carrying them invisibly through `importedRaw`.
+				n_influential_access_points: s.n_influential_access_points ?? null,
+				pct_left_turns_access: s.pct_left_turns_access ?? null,
+				pct_right_turns_access: s.pct_right_turns_access ?? null,
+				access_left_bay_adequate: s.access_left_bay_adequate ?? null,
+				access_right_bay_adequate: s.access_right_bay_adequate ?? null,
 				// The width of the intersection at the NEXT segment's upstream end,
 				// which is this one. The last signal has no segment after it to have
 				// recorded its width, so it keeps the default.
