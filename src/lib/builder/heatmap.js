@@ -88,6 +88,75 @@ export function measureById(id) {
 	return MEASURES.find((m) => m.id === id) ?? MEASURES[0];
 }
 
+/**
+ * The measures an urban street result offers.
+ *
+ * There are five rather than four, and they sit on one row rather than a grid,
+ * because the Chapter 16 and 18 engines are single-period: `WasmUrbanSegment`
+ * and `WasmUrbanFacility` take a scalar demand and expose no period axis at all.
+ * So the time-space domain the freeway heatmap draws collapses to the
+ * strip-with-values row the design gives a single-period method, and the columns
+ * are the segments. Nothing here invents a period.
+ *
+ * `key` indexes a per-segment result object rather than a matrix, which is the
+ * other difference from `MEASURES`.
+ */
+export const URBAN_MEASURES = [
+	{
+		id: 'los',
+		key: 'los',
+		label: 'Level of service',
+		unit: '',
+		kind: 'status',
+		digits: 0,
+		note: 'Segment LOS by travel speed as a percentage of the base free-flow speed (Exhibit 18-1), or F where the through v/c at the boundary intersection exceeds 1.0.'
+	},
+	{
+		id: 'travelSpeed',
+		key: 'travelSpeed',
+		label: 'Travel speed',
+		unit: 'mi/h',
+		kind: 'ramp',
+		digits: 1,
+		invert: true,
+		note: 'The Chapter 18 service measure. Deeper is slower, so the deep cells are the poor ones on every measure here.'
+	},
+	{
+		id: 'baseFfs',
+		key: 'baseFfs',
+		label: 'Base free-flow speed',
+		unit: 'mi/h',
+		kind: 'ramp',
+		digits: 1,
+		invert: true,
+		note: 'What the segment would run with no signal, from the Equation 18-3 running-time chain. The LOS threshold is the travel speed as a percentage of this, not the travel speed itself.'
+	},
+	{
+		id: 'spatialStopRate',
+		key: 'spatialStopRate',
+		label: 'Spatial stop rate',
+		unit: 'stops/mi',
+		kind: 'ramp',
+		digits: 2,
+		invert: false,
+		note: 'Equation 18-16. It carries the traveler perception score, and omitting it on any segment leaves the facility stop rate undefined rather than partial.'
+	},
+	{
+		id: 'vcRatio',
+		key: 'vcRatio',
+		label: 'Through v/c ratio',
+		unit: '',
+		kind: 'ramp',
+		digits: 2,
+		invert: false,
+		note: 'The through movement at the segment\'s downstream boundary intersection. Above 1.0 at any boundary the Exhibit 16-3 footnote forces facility LOS F.'
+	}
+];
+
+export function urbanMeasureById(id) {
+	return URBAN_MEASURES.find((m) => m.id === id) ?? URBAN_MEASURES[0];
+}
+
 /** Finite low and high of a matrix, for the ramp domain and the legend. */
 export function domainOf(matrix) {
 	let lo = Infinity;
