@@ -27,10 +27,6 @@
   const RUN = 92;      // leg length outside the ring
   const RI = 34;       // central island radius
 
-  let eNB = $derived(Math.max(1, Number(entries?.nb?.entryLanes) || 1));
-  let eSB = $derived(Math.max(1, Number(entries?.sb?.entryLanes) || 1));
-  let eEB = $derived(Math.max(1, Number(entries?.eb?.entryLanes) || 1));
-  let eWB = $derived(Math.max(1, Number(entries?.wb?.entryLanes) || 1));
   let circLanes = $derived(Math.max(1, Math.min(2,
     Math.max(Number(entries?.nb?.circLanes) || 1, Number(entries?.sb?.circLanes) || 1,
              Number(entries?.eb?.circLanes) || 1, Number(entries?.wb?.circLanes) || 1))));
