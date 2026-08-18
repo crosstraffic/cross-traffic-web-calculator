@@ -157,6 +157,78 @@ export function urbanMeasureById(id) {
 	return URBAN_MEASURES.find((m) => m.id === id) ?? URBAN_MEASURES[0];
 }
 
+/**
+ * The measures a two-lane highway result offers.
+ *
+ * One row rather than a grid, like the urban ones and for the same reason:
+ * `WasmTwoLaneHighways` takes one demand volume per segment and has no period
+ * axis. Chapter 15 is a single-period method and nothing here invents an axis
+ * for it.
+ *
+ * The service measure is follower density, which is the one measure on this list
+ * that is not shared with any other chapter, and it is first after LOS because
+ * Exhibit 15-6 bands on it. The value shown for a passing lane is its MIDPOINT
+ * follower density and for every other segment the plain or Step 9 adjusted
+ * one, which is what Steps 10 and 11 read; the note says so, because a passing
+ * lane's midpoint value is much lower than its endpoint value and a reader
+ * comparing columns deserves to know the two are different quantities.
+ */
+export const TWOLANE_MEASURES = [
+	{
+		id: 'los',
+		key: 'los',
+		label: 'Level of service',
+		unit: '',
+		kind: 'status',
+		digits: 0,
+		note: 'Segment LOS by follower density (Exhibit 15-6), whose bands differ above and below a 50 mi/h posted speed limit.'
+	},
+	{
+		id: 'followerDensity',
+		key: 'followerDensity',
+		label: 'Follower density',
+		unit: 'followers/mi',
+		kind: 'ramp',
+		digits: 2,
+		invert: false,
+		note: 'The Chapter 15 service measure. A passing lane reports its midpoint value (Step 8) and every other segment its plain value, or the Step 9 adjusted one where it falls inside the effective length downstream of a passing lane. Deeper is worse.'
+	},
+	{
+		id: 'avgSpeed',
+		key: 'avgSpeed',
+		label: 'Average speed',
+		unit: 'mi/h',
+		kind: 'ramp',
+		digits: 1,
+		invert: true,
+		note: 'Step 5, including the Step 5d horizontal-curve adjustment on any segment carrying curves. Deeper is slower, so the deep cells are the poor ones on every measure here.'
+	},
+	{
+		id: 'percentFollowers',
+		key: 'percentFollowers',
+		label: 'Percent followers',
+		unit: '%',
+		kind: 'ramp',
+		digits: 1,
+		invert: false,
+		note: 'Step 6. Follower density is this and the flow rate over the average speed, so it is the half of the service measure that describes platooning rather than volume.'
+	},
+	{
+		id: 'ffs',
+		key: 'ffs',
+		label: 'Free-flow speed',
+		unit: 'mi/h',
+		kind: 'ramp',
+		digits: 2,
+		invert: true,
+		note: 'Step 4. The base free-flow speed is 1.14 times the POSTED speed limit, and this is that value after the lane width, shoulder width and access-point density adjustments.'
+	}
+];
+
+export function twoLaneMeasureById(id) {
+	return TWOLANE_MEASURES.find((m) => m.id === id) ?? TWOLANE_MEASURES[0];
+}
+
 /** Finite low and high of a matrix, for the ramp domain and the legend. */
 export function domainOf(matrix) {
 	let lo = Infinity;

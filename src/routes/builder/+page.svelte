@@ -25,7 +25,10 @@
     WasmFreewayFacility,
     WasmFreewayReliability,
     WasmUrbanFacility,
-    WasmUrbanReliability
+    WasmUrbanReliability,
+    WasmSegment,
+    WasmSubSegment,
+    WasmTwoLaneHighways
   } from 'HCM-middleware';
 
   import BuilderStrip from '$lib/builder/BuilderStrip.svelte';
@@ -35,18 +38,30 @@
   import DemandGrid from '$lib/builder/DemandGrid.svelte';
   import Heatmap from '$lib/builder/Heatmap.svelte';
   import UrbanResultStrip from '$lib/builder/UrbanResultStrip.svelte';
+  import TwoLaneFeatureEditor from '$lib/builder/TwoLaneFeatureEditor.svelte';
+  import TwoLaneResultStrip from '$lib/builder/TwoLaneResultStrip.svelte';
   import Discussion from '$lib/Discussion.svelte';
   import { emptyDocument, makeFeature, migrate, setPeriods, FT_PER_MI, isRamp, defaultAccessApproach } from '$lib/builder/document.js';
   import { deriveRows } from '$lib/builder/derive.js';
   import { validateFacility } from '$lib/builder/validate.js';
-  import { fromFixture, fromUrbanFixture, toFixture, UNCARRIED_FIELDS, URBAN_UNCARRIED_FIELDS } from '$lib/builder/fixture.js';
+  import {
+    fromFixture,
+    fromUrbanFixture,
+    fromTwoLaneFixture,
+    toFixture,
+    UNCARRIED_FIELDS,
+    URBAN_UNCARRIED_FIELDS,
+    TWOLANE_UNCARRIED_FIELDS
+  } from '$lib/builder/fixture.js';
   import { TEMPLATES, applyTemplate } from '$lib/builder/templates.js';
   import { EXAMPLES, loadExample } from '$lib/builder/examples.js';
   import { URBAN_EXAMPLES, loadUrbanExample } from '$lib/builder/urbanExamples.js';
+  import { TWOLANE_EXAMPLES, loadTwoLaneExample } from '$lib/builder/twoLaneExamples.js';
   import { createHistory, parseSnapshot } from '$lib/builder/history.js';
   import { saveSlot, loadSlot, downloadJson, readJsonFile } from '$lib/builder/storage.js';
   import { analyzeFacility } from '$lib/builder/analyze.js';
   import { analyzeUrbanFacility } from '$lib/builder/urbanAnalyze.js';
+  import { analyzeTwoLaneFacility } from '$lib/builder/twoLaneAnalyze.js';
   import { analyzeReliability, defaultReliabilityInputs, handoffNotes } from '$lib/builder/reliability.js';
   import {
     analyzeUrbanReliability,
@@ -56,6 +71,7 @@
   } from '$lib/builder/urbanReliability.js';
   import { discussion, reliabilityDiscussion } from '$lib/builder/discussion.js';
   import { urbanDiscussion, urbanReliabilityDiscussion } from '$lib/builder/urbanDiscussion.js';
+  import { twoLaneDiscussion } from '$lib/builder/twoLaneDiscussion.js';
   import { withWasmRetry } from '$lib/wasmRetry';
   import { setReport } from '$lib/report';
 
@@ -90,8 +106,13 @@
   // and calls no engine function, so `api` gates it only because the analysis
   // below it needs the module loaded either way.
   let isUrban = $derived(doc.facilityType === 'urban');
-  let examples = $derived(isUrban ? URBAN_EXAMPLES : EXAMPLES);
-  let uncarried = $derived(isUrban ? URBAN_UNCARRIED_FIELDS : UNCARRIED_FIELDS);
+  // The two-lane derivation is structural too, and Chapter 15 is the one of the
+  // three chapters with no reliability methodology at all, which is the second
+  // thing this flag gates.
+  let isTwoLane = $derived(doc.facilityType === 'twolane');
+  let examples = $derived(isUrban ? URBAN_EXAMPLES : isTwoLane ? TWOLANE_EXAMPLES : EXAMPLES);
+  let uncarried = $derived(isUrban ? URBAN_UNCARRIED_FIELDS : isTwoLane ? TWOLANE_UNCARRIED_FIELDS : UNCARRIED_FIELDS);
+  let stripMode = $derived(isUrban ? 'urban' : isTwoLane ? 'twolane' : 'freeway');
 
   // ── Results ─────────────────────────────────────────────────────
   //
@@ -133,7 +154,9 @@
   // Shown before the reliability run as well as after it, because "this facility
   // carries something the reliability path cannot express" is worth knowing
   // before pressing the button rather than after reading the answer.
-  let relNotes = $derived(!api ? [] : isUrban ? urbanHandoffNotes(doc, rows) : handoffNotes(doc, rows));
+  let relNotes = $derived(
+    !api || isTwoLane ? [] : isUrban ? urbanHandoffNotes(doc, rows) : handoffNotes(doc, rows)
+  );
 
   // "Why this segment?" lights the features that produced the selected row.
   let highlightIds = $derived(
@@ -355,6 +378,16 @@
     });
   }
 
+  /** A two-lane demand change's own conditions. Separate from `setSignalConfig`
+   * despite both writing into `config`, because the two shapes share no field
+   * and a single setter would accept either key on either kind. */
+  function setDemandConfig(id, field, value) {
+    commit((d) => {
+      const f = d.features.find((x) => x.id === id);
+      if (f?.config) f.config[field] = value;
+    });
+  }
+
   function setAnalysisMode(mode) {
     commit((d) => {
       d.analysisMode = mode;
@@ -459,6 +492,15 @@
       // says which of the two it failed to be.
       if (raw && typeof raw === 'object' && 'version' in raw && 'facilityType' in raw) {
         replaceDoc(migrate(raw), `Loaded the builder document ${file.name}.`);
+      } else if (isTwoLaneFixture(raw)) {
+        // A Chapter 15 fixture is invertible too, and for a longer list of
+        // reasons than the urban one: it states the passing type, the grade and
+        // its class, the demand and its factors, and the subsegments a curve
+        // produced, all per segment. So every feature comes back.
+        replaceDoc(
+          fromTwoLaneFixture(raw, file.name),
+          `Imported ${file.name} as a two-lane highway. The passing features, grades, demand changes and horizontal curves were all recovered from the segment table, so it is editable as features.`
+        );
       } else if (isUrbanFixture(raw)) {
         // An urban fixture is invertible, unlike a freeway one, so this import
         // recovers the boundary signals rather than arriving as a bare segment
@@ -481,7 +523,9 @@
       emptyDocument(type),
       type === 'urban'
         ? 'Started an empty urban street. Place a boundary signal at each end, because a Chapter 18 segment runs between two of them.'
-        : 'Started an empty facility.'
+        : type === 'twolane'
+          ? 'Started an empty two-lane highway. It is already one Passing Constrained segment and already analyzes, because that is what a two-lane highway with no passing feature on it is. Place grades, passing features and curves where they are.'
+          : 'Started an empty facility.'
     );
   }
 
@@ -490,6 +534,14 @@
       replaceDoc(
         loadUrbanExample(id),
         `Loaded ${URBAN_EXAMPLES.find((e) => e.id === id).name} as placed boundary signals, not as a segment table.`
+      );
+      return;
+    }
+    if (isTwoLane) {
+      const ex = TWOLANE_EXAMPLES.find((e) => e.id === id);
+      replaceDoc(
+        loadTwoLaneExample(id),
+        `Loaded ${ex.name} as placed grades, passing features and curves, not as a segment table.${ex.build().features.length === 0 ? ' This one places no features at all, because a level Passing Constrained highway is exactly a highway and nothing else.' : ''}`
       );
       return;
     }
@@ -503,13 +555,28 @@
     WasmFreewayFacility,
     WasmFreewayReliability,
     WasmUrbanFacility,
-    WasmUrbanReliability
+    WasmUrbanReliability,
+    // Chapter 15's three. `WasmSegment` and `WasmSubSegment` are the only
+    // constructors on this page whose instances the facility CONSUMES, so
+    // twoLaneAnalyze rebuilds them per run rather than holding any.
+    WasmSegment,
+    WasmSubSegment,
+    WasmTwoLaneHighways
   };
 
   /** Which schema a dropped JSON file is. The two fixture shapes are told apart
    * by the field that only one of them has on its segments, rather than by the
    * facility keys, because a freeway fixture and an urban one both have a
    * `segments` array and neither names its own chapter. */
+  /** A Chapter 15 fixture, told apart from the other two by the facility-level
+   * keys rather than by a segment field, because its segments carry `length` and
+   * `grade`, which are common enough words to collide. `apd` and `pmhvfl` appear
+   * in no other schema. */
+  function isTwoLaneFixture(raw) {
+    if (!raw?.segments?.length) return false;
+    return raw.apd != null || raw.pmhvfl != null || raw.segments[0]?.passing_type != null;
+  }
+
   function isUrbanFixture(raw) {
     const s = raw?.segments?.[0];
     return !!s && (s.segment_length_ft != null || s.n_through_lanes != null || s.control != null);
@@ -529,12 +596,16 @@
       return;
     }
     try {
-      const run = isUrban ? analyzeUrbanFacility(doc, rows, wasm) : analyzeFacility(doc, rows, wasm);
+      const run = isUrban
+        ? analyzeUrbanFacility(doc, rows, wasm)
+        : isTwoLane
+          ? analyzeTwoLaneFacility(doc, rows, wasm)
+          : analyzeFacility(doc, rows, wasm);
       results = run;
       // Generated once, off the run that produced these numbers, so the page
       // and the printable report can never drift apart or restate a
       // since-edited input.
-      discussionLines = isUrban ? urbanDiscussion(run) : discussion(run);
+      discussionLines = isUrban ? urbanDiscussion(run) : isTwoLane ? twoLaneDiscussion(run) : discussion(run);
       runDocJson = JSON.stringify(doc);
       publishReport(run);
     } catch (e) {
@@ -575,6 +646,10 @@
   function publishReport(run) {
     if (isUrban) {
       publishUrbanReport(run);
+      return;
+    }
+    if (isTwoLane) {
+      publishTwoLaneReport(run);
       return;
     }
     const wzSegs = run.segments.filter((s) => s.workZone).map((s) => s.index + 1);
@@ -740,6 +815,99 @@
     });
   }
 
+  /**
+   * The two-lane highway's report, published off the frozen run like the other
+   * two.
+   *
+   * There is no `matrixTable` and no reliability block, and both absences are
+   * the chapter rather than an omission. Chapter 15 is single-period, so a
+   * time-space domain would be a one-row grid implying an axis the method does
+   * not have; and Chapter 15 has no reliability methodology, so there is nothing
+   * to hand the facility to. The methodology list says so rather than leaving a
+   * reader to wonder.
+   */
+  function publishTwoLaneReport(run) {
+    const m = doc.mainline;
+    const pl = run.segments.filter((sg) => sg.passingType === 2).map((sg) => sg.index + 1);
+    const curved = run.segments.filter((sg) => sg.isHc);
+    setReport({
+      chapter: `Facility Builder — ${run.facilityName}`,
+      chapterRef: 'HCM Chapter 15',
+      href: '/builder',
+      generatedAt: new Date().toLocaleString(),
+      headline: { label: 'Facility LOS', value: run.los },
+      discussion: [...discussionLines],
+      inputs: [
+        { label: 'Facility length', value: `${(run.lengthFt / FT_PER_MI).toFixed(2)} mi` },
+        { label: 'Direction', value: m.direction },
+        { label: 'Posted speed limit', value: `${m.speedLimitMph} mi/h` },
+        { label: 'Lane width', value: `${m.laneWidthFt} ft` },
+        { label: 'Shoulder width', value: `${m.shoulderWidthFt} ft` },
+        { label: 'Access point density', value: `${m.accessPointDensity} /mi` },
+        { label: 'Heavy vehicles in passing lane', value: `${m.pctHeavyVehInPassingLane} %` },
+        { label: 'Entering demand', value: `${m.demand[0]} veh/h` },
+        { label: 'Peak hour factor', value: m.phf },
+        { label: 'Heavy vehicles', value: `${m.heavyVehiclePct} %` },
+        {
+          label: 'Derived segments (in the analysis direction)',
+          value: run.segments.map((sg) => `${sg.segType} ${sg.lengthMi.toFixed(2)} mi`).join(', ')
+        },
+        ...(pl.length ? [{ label: 'Passing lane segments', value: pl.join(', ') }] : []),
+        ...(curved.length
+          ? [
+              {
+                label: 'Horizontal curves',
+                value: `${curved.reduce((a, sg) => a + sg.curveCount, 0)} in segments ${curved.map((sg) => sg.index + 1).join(', ')}, as Step 5d subsegments`
+              }
+            ]
+          : [])
+      ],
+      resultTable: {
+        columns: [
+          'Segment',
+          'Type',
+          'Length (mi)',
+          'FFS (mi/h)',
+          'Average speed (mi/h)',
+          'Percent followers (%)',
+          'Follower density (followers/mi)',
+          'LOS'
+        ],
+        rows: run.segments.map((sg) => [
+          `${sg.index + 1}`,
+          sg.segType,
+          sg.lengthMi.toFixed(2),
+          n2(sg.ffs),
+          n1(sg.avgSpeed),
+          n1(sg.percentFollowers),
+          n2(sg.followerDensity),
+          sg.los ?? '–'
+        ])
+      },
+      summary: [
+        { label: 'Facility LOS', value: run.los },
+        { label: 'Facility follower density', value: `${n3(run.facilityFd)} followers/mi` },
+        { label: 'Length-weighted posted speed limit', value: `${n1(run.weightedSpl)} mi/h` }
+      ],
+      methodology: [
+        'HCM 7th Edition Chapter 15 (Two-Lane Highways), Steps 1 through 11, run on the segment table the Chapter 15 Section 2 segmentation rules derived from the placed grade, passing and demand features. A segment runs between the stations where the ability to pass, the grade, the demand or the posted speed limit changes.',
+        'Service measure: follower density (followers/mi). The facility value is length-weighted across the segments by Equation 15-39, taking each segment\'s adjusted follower density where it has one and a passing lane\'s midpoint value.',
+        'Level of service comes from Exhibit 15-6, whose bands differ above and below a 50 mi/h POSTED speed limit. The facility letter is read against the length-weighted posted limit rather than against the speed achieved.',
+        ...(curved.length
+          ? [
+              'Horizontal curves are subsegments of the segment containing them rather than segments of their own (Step 5d), and their lengths are in feet where a segment length is in miles. Each subsegment speed is weighted by its share of the segment.'
+            ]
+          : []),
+        ...(pl.length
+          ? [
+              'A passing lane segment reports its midpoint follower density, and the segments downstream of it carry the Step 9 adjusted follower density for as far as the passing lane\'s effective length reaches. Only the closest upstream passing lane is considered.'
+            ]
+          : []),
+        'Chapter 15 has no travel time reliability methodology, so unlike a Chapter 10 freeway facility or a Chapter 16 urban street facility there is no reliability run to report beside this one.'
+      ]
+    });
+  }
+
   function describeApSources(run) {
     const set = new Set(run.segments.map((s) => s.apDelaySource).filter(Boolean));
     const LABEL = {
@@ -779,6 +947,31 @@
     if (f.delayS != null) return `${f.delayS} s/veh supplied`;
     if (f.approach) return 'Chapter 30 Section 4, computed from the approach';
     return 'Exhibit 18-13 planning estimate';
+  };
+
+  /** The chip on a collapsed two-lane row, and its one line. Which of the four
+   * kinds it is matters more here than on the other two facility types, because
+   * one of the four does not bound a segment and a reader has to be able to tell
+   * that at a glance. */
+  const TL_KIND_CHIP = {
+    passing: (f) => (f.passingType === 2 ? 'PL' : 'PZ'),
+    grade: (f) => (f.gradePct < 0 ? 'Down' : 'Up'),
+    curve: () => 'Curve',
+    demand: () => 'Demand'
+  };
+
+  const twoLaneSummary = (f) => {
+    if (f.kind === 'passing') {
+      const lengthMi = (f.endFt - f.stationFt) / FT_PER_MI;
+      const short = f.passingType === 2 && lengthMi < 0.5 - 1e-9;
+      return `${f.passingType === 2 ? 'Passing lane' : 'Passing zone'}, ${lengthMi.toFixed(2)} mi${short ? ' \u00b7 under the 0.5 mi Exhibit 15-10 minimum, so analyzed as Passing Constrained' : ''}`;
+    }
+    if (f.kind === 'grade') return `${f.gradePct > 0 ? '+' : ''}${f.gradePct}% \u00b7 vertical class ${f.verticalClass}`;
+    if (f.kind === 'curve') {
+      return `${Math.round(f.endFt - f.stationFt)} ft \u00b7 R ${Math.round(f.designRadiusFt)} ft \u00b7 e ${f.superelevationPct}% \u00b7 a subsegment, not a segment`;
+    }
+    const c = f.config ?? {};
+    return `${Math.round(c.volume ?? 0)} veh/h \u00b7 PHF ${c.phf} \u00b7 ${c.heavyVehiclePct}% HV${c.opposingVolume ? ` \u00b7 opposing ${Math.round(c.opposingVolume)} veh/h` : ''}${c.speedLimitMph ? ` \u00b7 ${c.speedLimitMph} mi/h` : ''}`;
   };
 
   const changeSummary = (f) =>
@@ -828,6 +1021,7 @@
                 onchange={(e) => newFacility(e.currentTarget.value)}>
           <option value="freeway">Freeway (Ch 10/11)</option>
           <option value="urban">Urban street (Ch 16/17/18)</option>
+          <option value="twolane">Two-lane highway (Ch 15)</option>
         </select>
       </div>
       <div class="bd-group">
@@ -840,6 +1034,11 @@
         {#if isUrban}
           <button type="button" class="btn btn-sm" onclick={() => addFeature('signal')} data-testid="add-signal">Boundary signal</button>
           <button type="button" class="btn btn-sm" onclick={() => addFeature('access_point')} data-testid="add-access-point">Access point</button>
+        {:else if isTwoLane}
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('grade')} data-testid="add-grade">Grade</button>
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('passing')} data-testid="add-passing">Passing lane or zone</button>
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('curve')} data-testid="add-curve">Horizontal curve</button>
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('demand')} data-testid="add-demand">Demand change</button>
         {:else}
           <button type="button" class="btn btn-sm" onclick={() => addFeature('on_ramp')} data-testid="add-on-ramp">On-ramp</button>
           <button type="button" class="btn btn-sm" onclick={() => addFeature('off_ramp')} data-testid="add-off-ramp">Off-ramp</button>
@@ -874,8 +1073,33 @@
     {/if}
 
     <section class="bd-mainline" aria-label="Mainline">
-      <h2>{isUrban ? 'Street' : 'Mainline'}</h2>
-      {#if isUrban}
+      <h2>{isUrban ? 'Street' : isTwoLane ? 'Highway' : 'Mainline'}</h2>
+      {#if isTwoLane}
+        <div class="bd-fields">
+          <label>Name <input type="text" value={doc.meta.name} onchange={(e) => commit((d) => (d.meta.name = e.target.value))} data-testid="facility-name" /></label>
+          <label>Length (mi) <input type="number" min="0.1" step="0.05" value={(doc.mainline.lengthFt / FT_PER_MI).toFixed(2)} onchange={(e) => setLengthMi(e.currentTarget.value)} data-testid="facility-length" /></label>
+          <label>Direction
+            <select value={doc.mainline.direction} onchange={(e) => setMainline('direction', e.currentTarget.value)} data-testid="facility-direction">
+              <option>Northbound</option><option>Southbound</option><option>Eastbound</option><option>Westbound</option>
+            </select>
+          </label>
+          <label>Posted speed limit (mi/h) <input type="number" min="20" max="70" step="5" value={doc.mainline.speedLimitMph} onchange={(e) => setMainline('speedLimitMph', e.currentTarget.value)} data-testid="facility-spl" /></label>
+          <label>Lane width (ft) <input type="number" min="9" max="12" step="0.5" value={doc.mainline.laneWidthFt} onchange={(e) => setMainline('laneWidthFt', e.currentTarget.value)} data-testid="facility-lane-width" /></label>
+          <label>Shoulder width (ft) <input type="number" min="0" max="6" step="0.5" value={doc.mainline.shoulderWidthFt} onchange={(e) => setMainline('shoulderWidthFt', e.currentTarget.value)} data-testid="facility-shoulder-width" /></label>
+          <label>Access point density (/mi) <input type="number" min="0" step="1" value={doc.mainline.accessPointDensity} onchange={(e) => setMainline('accessPointDensity', e.currentTarget.value)} data-testid="facility-apd" /></label>
+          <label>Heavy vehicles in passing lane (%) <input type="number" min="0" max="100" step="0.1" value={doc.mainline.pctHeavyVehInPassingLane} onchange={(e) => setMainline('pctHeavyVehInPassingLane', e.currentTarget.value)} data-testid="facility-pmhvfl" /></label>
+          <label>Entering demand (veh/h) <input type="number" min="0" step="5" value={doc.mainline.demand[0]} onchange={(e) => commit((d) => (d.mainline.demand = [Number(e.target.value)]))} data-testid="facility-demand" /></label>
+          <label>Opposing demand (veh/h) <input type="number" min="0" step="5" value={doc.mainline.opposingDemand} onchange={(e) => setMainline('opposingDemand', e.currentTarget.value)} data-testid="facility-opposing" /></label>
+          <label>Peak hour factor <input type="number" min="0.1" max="1" step="0.005" value={doc.mainline.phf} onchange={(e) => setMainline('phf', e.currentTarget.value)} data-testid="facility-phf" /></label>
+          <label>Heavy vehicles (%) <input type="number" min="0" max="100" step="0.5" value={doc.mainline.heavyVehiclePct} onchange={(e) => setMainline('heavyVehiclePct', e.currentTarget.value)} data-testid="facility-phv" /></label>
+        </div>
+        <p class="bd-sub">
+          The posted speed limit is the POSTED limit and not a free-flow speed. Chapter 15 derives the base free-flow speed as 1.14 times it, so a free-flow speed entered here inflates every speed downstream of it and nothing errors. Heavy vehicles is a PERCENT, so 5% is 5 rather than 0.05, and a fraction lands in the lowest lookup bucket and still analyzes. The four values above them are the facility-wide arguments Chapter 15 takes; the demand, factors and posted limit are what a stretch with no demand change on it inherits.
+        </p>
+        <p class="bd-sub" data-testid="twolane-direction-note">
+          A two-lane highway is segmented separately for each direction, because passing zones and grades start and end in different places depending on which way you are going (Chapter 15, Section 2). This document describes the {doc.mainline.direction.toLowerCase()} direction; the other one is a second document.
+        </p>
+      {:else if isUrban}
         <div class="bd-fields">
           <label>Name <input type="text" value={doc.meta.name} onchange={(e) => commit((d) => (d.meta.name = e.target.value))} data-testid="facility-name" /></label>
           <label>Length (mi) <input type="number" min="0.05" step="0.05" value={(doc.mainline.lengthFt / FT_PER_MI).toFixed(2)} onchange={(e) => setLengthMi(e.currentTarget.value)} data-testid="facility-length" /></label>
@@ -950,7 +1174,7 @@
 
     <section class="bd-strip-wrap" aria-label="Facility strip">
       <BuilderStrip {doc} {rows} {selectedKey} {highlightIds} interactive={ready}
-                    mode={isUrban ? 'urban' : 'freeway'}
+                    mode={stripMode}
                     onselectrow={(k) => { selectedKey = selectedKey === k ? null : k; selectedFeature = null; }}
                     onselectfeature={(id) => { selectedFeature = id; selectedKey = null; }}
                     onrevealfeature={revealFeature}
@@ -1011,7 +1235,67 @@
       {/each}
     {/if}
 
-    {#if !isUrban && doc.features.some(isRamp)}
+    {#if isTwoLane}
+      {#each [['passing', 'Passing lanes and zones', 'A stretch no passing feature covers is Passing Constrained, so these are the opportunities placed on a constrained road rather than a classification of all of it. Both ends of one are segment boundaries. A passing lane shorter than the 0.5 mi Exhibit 15-10 minimum is analyzed as Passing Constrained and the row says so.'], ['grade', 'Grades', 'Grade is one of the properties Chapter 15 Section 2 asks to be homogeneous within a segment, so both ends of a grade are segment boundaries. The vertical class entered here is a real Step 2 input even though Step 3 recomputes it.'], ['curve', 'Horizontal curves', 'A curve is the one feature here that does NOT start a segment. Chapter 15 Step 1 sends varying curvature to the Step 5d subsegment adjustment inside one segment, so a curve becomes a subsegment of whichever segment contains it, and its length is in FEET where a segment length is in miles.'], ['demand', 'Demand changes', 'Traffic demand and posted speed limit are both homogeneity properties, so a change in either starts a segment. The values on one hold from its station until the next change, and a stretch upstream of the first one takes the highway\'s own.']] as [kind, heading, blurb]}
+        {@const list = [...doc.features].filter((f) => f.kind === kind).sort((a, b) => a.stationFt - b.stationFt)}
+        {#if list.length}
+          <section class="bd-features" aria-label={heading}>
+            <h2>{heading}</h2>
+            <p class="bd-sub">{blurb}</p>
+            <div class="bd-scroll">
+              <table class="bd-table" data-testid="twolane-{kind}-table">
+                <thead>
+                  <tr>
+                    <th scope="col">{heading.replace(/s$/, '')}</th>
+                    <th scope="col">{kind === 'demand' ? 'Station (mi)' : 'Extent (mi)'}</th>
+                    <th scope="col">Configuration</th>
+                    <th scope="col"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each list as f (f.id)}
+                    {@const open = selectedFeature === f.id}
+                    <tr class:selected={open} data-testid="twolane-feature-row" data-feature-id={f.id}
+                        data-kind={f.kind} data-expanded={open}>
+                      <th scope="row">
+                        <button type="button" class="bd-disclose" onclick={() => toggleFeature(f.id)}
+                                aria-expanded={open} aria-controls="fe-{f.id}" data-testid="expand-{f.id}">
+                          <span class="bd-caret" class:open aria-hidden="true">&#9656;</span>
+                          <span class="bd-kind" class:on={f.kind === 'passing' && f.passingType === 2}>{TL_KIND_CHIP[f.kind](f)}</span>
+                          <span class="bd-feat-name">{f.label || f.id}</span>
+                        </button>
+                      </th>
+                      <td class="bd-num">{mi2(f.stationFt)}{f.endFt != null ? ` \u2013 ${mi2(f.endFt)}` : ''}</td>
+                      <td class="bd-summary">{twoLaneSummary(f)}</td>
+                      <td><button type="button" class="bd-remove" onclick={() => removeFeature(f.id)} data-testid="remove-{f.id}">remove</button></td>
+                    </tr>
+                    {#if open}
+                      <tr class="bd-detail" data-testid="feature-detail" data-feature-id={f.id}>
+                        <td colspan="4" id="fe-{f.id}">
+                          <TwoLaneFeatureEditor feature={f} {doc} interactive={ready}
+                                                onfield={setFeature}
+                                                onmove={moveFeature}
+                                                ondemandconfig={setDemandConfig} />
+                        </td>
+                      </tr>
+                    {/if}
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        {/if}
+      {/each}
+      {#if doc.features.length === 0}
+        <section class="bd-features" aria-label="No features">
+          <p class="bd-sub" data-testid="twolane-empty-note">
+            No features placed, so the whole highway is one Passing Constrained segment at the values above. That is a complete Chapter 15 facility and it analyzes: Example Problem 1 is exactly this.
+          </p>
+        </section>
+      {/if}
+    {/if}
+
+    {#if !isUrban && !isTwoLane && doc.features.some(isRamp)}
       <section class="bd-features" aria-label="Ramps">
         <h2>Ramps</h2>
         <p class="bd-sub">
@@ -1057,7 +1341,7 @@
       </section>
     {/if}
 
-    {#if !isUrban && doc.features.some((f) => !isRamp(f))}
+    {#if !isUrban && !isTwoLane && doc.features.some((f) => !isRamp(f))}
       <section class="bd-features" aria-label="Mainline changes">
         <h2>Mainline changes</h2>
         <p class="bd-sub">
@@ -1112,7 +1396,7 @@
          one: demand is a scalar per segment, entered on the signal that
          terminates it. Showing a one-column grid here would imply an axis the
          method lacks. -->
-    {#if !isUrban}
+    {#if !isUrban && !isTwoLane}
       <DemandGrid {doc} interactive={ready} onedit={editDemand} onperiods={setPeriodCount} />
     {/if}
 
@@ -1148,7 +1432,9 @@
               ? doc.analysisMode === 'measures'
                 ? 'Aggregates the published Chapter 18 measures over the derived segment table (HCM Chapter 16 Steps 1 through 4).'
                 : 'Runs the HCM Chapter 18 engine on each derived segment, then the Chapter 16 aggregation.'
-              : 'Runs the HCM Chapter 10 core methodology on the derived segment table.'}
+              : isTwoLane
+                ? 'Runs HCM Chapter 15 Steps 1 through 11 on the derived segment table, in segment order, because the Step 9 passing-lane adjustment depends on it.'
+                : 'Runs the HCM Chapter 10 core methodology on the derived segment table.'}
           {/if}
         </span>
         {#if results}
@@ -1312,7 +1598,53 @@
       </section>
     {/if}
 
-    {#if results && !isUrban}
+    {#if results && isTwoLane}
+      <TwoLaneResultStrip result={results} {dark} />
+
+      <section class="bd-summary" aria-label="Facility summary" data-testid="twolane-facility-summary">
+        <h2>Facility summary</h2>
+        <div class="bd-figures">
+          <div class="bd-fig">
+            <span class="bd-fig-label">Facility LOS</span>
+            <span class="bd-fig-value" data-testid="twolane-los">{results.los}</span>
+          </div>
+          <div class="bd-fig">
+            <span class="bd-fig-label">Facility follower density</span>
+            <span class="bd-fig-value" data-testid="twolane-fd">{n3(results.facilityFd)}</span>
+            <span class="bd-fig-unit">followers/mi</span>
+          </div>
+          <div class="bd-fig">
+            <span class="bd-fig-label">Posted limit the letter reads</span>
+            <span class="bd-fig-value" data-testid="twolane-weighted-spl">{n1(results.weightedSpl)}</span>
+            <span class="bd-fig-unit">mi/h</span>
+          </div>
+          <div class="bd-fig">
+            <span class="bd-fig-label">Facility length</span>
+            <span class="bd-fig-value" data-testid="twolane-length">{(results.lengthFt / FT_PER_MI).toFixed(2)}</span>
+            <span class="bd-fig-unit">mi</span>
+          </div>
+        </div>
+        <p class="bd-undersat" data-testid="twolane-basis">
+          Follower density from Equation 15-39, length-weighted over {results.segments.length} segment{results.segments.length === 1 ? '' : 's'}, taking each segment's adjusted density where it has one and a passing lane's midpoint value. The letter comes from Exhibit 15-6 against the length-weighted POSTED speed limit above, which is the {results.weightedSpl >= 50 ? '50 mi/h and above' : 'below 50 mi/h'} column, and not against the speed the highway achieves.
+        </p>
+      </section>
+
+      <section class="bd-discussion" aria-label="Discussion">
+        <Discussion sentences={discussionLines} />
+      </section>
+
+      <!-- Where the other two facility types have a reliability panel. Chapter
+           15 has no reliability methodology, so this says so rather than
+           offering a button that cannot mean anything. -->
+      <section class="bd-rel" aria-label="Reliability" data-testid="twolane-reliability-panel">
+        <h2>Reliability</h2>
+        <p class="bd-sub" data-testid="twolane-no-reliability">
+          There is none. The HCM provides a travel time reliability methodology for freeway facilities in Chapter 11 and for urban street facilities in Chapter 17, and there is no two-lane highway counterpart, so this highway has no distribution to be handed to and no scenarios to generate. A freeway or urban street built here does have one, and this panel is where it appears.
+        </p>
+      </section>
+    {/if}
+
+    {#if results && !isUrban && !isTwoLane}
       <Heatmap result={results} {dark} />
 
       <section class="bd-summary" aria-label="Facility summary" data-testid="facility-summary">

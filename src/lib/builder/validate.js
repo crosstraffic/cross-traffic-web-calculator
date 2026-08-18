@@ -22,6 +22,7 @@ const NOTE = 'note';
  */
 export function validateFacility(doc, rows, deriveErrors = []) {
 	if (doc.facilityType === 'urban') return validateUrbanFacility(doc, rows, deriveErrors);
+	if (doc.facilityType === 'twolane') return validateTwoLaneFacility(doc, rows, deriveErrors);
 
 	const out = [];
 	const add = (level, id, message, cite, extra = {}) =>
@@ -336,6 +337,178 @@ export function validateUrbanFacility(doc, rows, deriveErrors = []) {
 			'imported-urban',
 			'This street was imported from a fixture. An urban fixture is invertible, unlike a freeway one, so the boundary signals were recovered from the segment lengths and each segment\'s timing put back on the signal at its downstream end. The one thing the fixture never recorded is the upstream terminus\'s own timing, because no segment ends there, so that signal carries the defaults.',
 			'library fixture schema (UrbanFacility)'
+		);
+	}
+
+	return out;
+}
+
+/**
+ * Inline validation for a two-lane highway (HCM Chapter 15).
+ *
+ * The same rule as the other two: everything here is either something the engine
+ * rejects, or something it accepts and then mis-handles silently. Chapter 15 has
+ * an unusual amount of the second kind, because `TwoLaneHighways` exposes no
+ * `validate` at all. The Python bindings carry a `validate_input` that range-
+ * checks eight scalars against Exhibit 15-8, and it is not bound in wasm and
+ * checks nothing structural, so every check below is this panel's own.
+ *
+ * Two rules a reader might expect are deliberately elsewhere. The Exhibit 15-10
+ * minimum and maximum segment lengths are reported by the analysis instead,
+ * because the engine computes them in `identify_vertical_class` and a second
+ * copy of that table here is exactly the drift the derivation avoids. And the
+ * passing-lane demotion is applied by the derivation rather than flagged here,
+ * because Step 1 states it as a change of segment type rather than as a warning.
+ */
+export function validateTwoLaneFacility(doc, rows, deriveErrors = []) {
+	const out = [];
+	const add = (level, id, message, cite, extra = {}) => out.push({ level, id, message, cite, ...extra });
+
+	for (const e of deriveErrors) {
+		add(ERROR, 'derivation', e, 'HCM Chapter 15, Section 2 (segmentation) and Section 3 Step 1');
+	}
+
+	const m = doc.mainline;
+	if (rows.length === 0) {
+		add(ERROR, 'no-segments', 'The highway has no segments, so there is nothing to analyze.', 'HCM Chapter 15, Section 3 Step 1');
+	}
+
+	for (const r of rows) {
+		if (!(r.length_ft > 0)) {
+			add(ERROR, 'nonpositive-length', `The segment at ${Math.round(r.startFt)} ft has a length of ${r.length_ft}.`, 'HCM Chapter 15, Section 3 Step 1', { rowKey: r.key });
+		}
+		if (!(r.volume > 0)) {
+			add(
+				ERROR,
+				'no-demand',
+				`The segment at ${Math.round(r.startFt)} ft carries no demand, so its flow rate is zero and its follower density is meaningless.`,
+				'HCM Chapter 15, Equation 15-3',
+				{ rowKey: r.key }
+			);
+		}
+		if (!(r.phf > 0 && r.phf <= 1)) {
+			add(ERROR, 'phf-range', `The segment at ${Math.round(r.startFt)} ft has a peak hour factor of ${r.phf}.`, 'HCM Chapter 15, Equation 15-3', { rowKey: r.key });
+		}
+		// The classic Chapter 15 unit error, and the one that produced the River
+		// Falls follower density this project had to correct. A fraction lands in
+		// the lowest lookup bucket rather than erroring.
+		if (r.phv > 0 && r.phv < 1) {
+			add(
+				WARN,
+				'phv-looks-fractional',
+				`The segment at ${Math.round(r.startFt)} ft states ${r.phv}% heavy vehicles. This field is a PERCENT, so 5% is 5 and not 0.05, and a fraction here lands in the lowest lookup bucket and analyzes to a plausible wrong answer rather than failing.`,
+				'HCM Chapter 15, Exhibit 15-8',
+				{ rowKey: r.key }
+			);
+		}
+		if (r.is_hc) {
+			const sum = (r.subsegments ?? []).reduce((a, s) => a + s.length, 0);
+			if (Math.abs(sum - r.length_ft) > 0.05) {
+				add(
+					ERROR,
+					'subsegments-do-not-tile',
+					`The subsegments of the segment at ${Math.round(r.startFt)} ft sum to ${Math.round(sum)} ft against a segment length of ${Math.round(r.length_ft)} ft. Nothing in the engine checks this, and Step 5d divides the length-weighted subsegment speeds by the SEGMENT length either way, so the gap would be reported as a slower highway.`,
+					'HCM Chapter 15, Section 3 Step 5d',
+					{ rowKey: r.key }
+				);
+			}
+		}
+	}
+
+	// Exhibit 15-8's own ranges for the two cross-section inputs, which are
+	// facility-wide here. The engine takes anything.
+	if (!(m.laneWidthFt >= 9 && m.laneWidthFt <= 12)) {
+		add(
+			WARN,
+			'lane-width-range',
+			`Lane width is ${m.laneWidthFt} ft, outside the 9 to 12 ft range Exhibit 15-8 gives for this method. The engine extrapolates rather than refusing.`,
+			'HCM Chapter 15, Exhibit 15-8'
+		);
+	}
+	if (!(m.shoulderWidthFt >= 0 && m.shoulderWidthFt <= 6)) {
+		add(
+			WARN,
+			'shoulder-width-range',
+			`Shoulder width is ${m.shoulderWidthFt} ft, outside the 0 to 6 ft range Exhibit 15-8 gives. The engine extrapolates rather than refusing.`,
+			'HCM Chapter 15, Exhibit 15-8'
+		);
+	}
+	// spl is the POSTED limit and BFFS is 1.14 x it. A free-flow speed typed here
+	// is the single most expensive mistake available on this page, and it is
+	// silent, so the check is on the value being high for a posted limit rather
+	// than on anything the engine would reject.
+	for (const r of rows) {
+		if (r.spl > 70) {
+			add(
+				WARN,
+				'spl-looks-like-ffs',
+				`The segment at ${Math.round(r.startFt)} ft posts ${r.spl} mi/h. This field is the POSTED speed limit, and the engine derives the base free-flow speed as 1.14 times it, so a free-flow speed entered here inflates every speed downstream of it without any error.`,
+				'HCM Chapter 15, Equation 15-1',
+				{ rowKey: r.key }
+			);
+		}
+	}
+
+	// A curve that reaches nothing. Both halves are silent: geometry outside the
+	// highway is simply never visited, and Step 5d ignores the entire subsegment
+	// list on a segment whose is_hc is unset, which the derivation sets from the
+	// curves themselves so the second half cannot happen from this editor.
+	for (const c of (doc.features ?? []).filter((f) => f.kind === 'curve')) {
+		if (c.endFt <= 0 || c.stationFt >= m.lengthFt) {
+			add(
+				NOTE,
+				'curve-outside',
+				`The curve ${c.label || c.id} lies outside the ${Math.round(m.lengthFt)} ft highway, so it belongs to no segment and reaches no analysis.`,
+				'HCM Chapter 15, Section 3 Step 5d',
+				{ featureId: c.id }
+			);
+		}
+		if (!(c.designRadiusFt > 0)) {
+			add(
+				WARN,
+				'curve-no-radius',
+				`The curve ${c.label || c.id} has no design radius. Step 5d treats a subsegment with no radius as a tangent, so this one lengthens the segment's tangent rather than slowing it.`,
+				'HCM Chapter 15, Exhibit 15-22',
+				{ featureId: c.id }
+			);
+		}
+		if (c.superelevationPct > 0 && c.superelevationPct < 1) {
+			add(
+				WARN,
+				'superelevation-looks-fractional',
+				`The curve ${c.label || c.id} states a superelevation of ${c.superelevationPct}%. Exhibit 15-22 columns this in PERCENT, so 4% is 4 and not 0.04.`,
+				'HCM Chapter 15, Exhibit 15-22',
+				{ featureId: c.id }
+			);
+		}
+	}
+
+	// Chapter 15 Section 2: a segment "cannot include all-way STOP, roundabout,
+	// or signal-controlled intersections between their endpoints". There is no
+	// intersection feature here to check, so the rule is stated rather than
+	// enforced, which is more honest than pretending the builder knows.
+	add(
+		NOTE,
+		'intersections-not-modelled',
+		'Chapter 15 does not compute intersection delay inside a segment, and states that a segment cannot contain an all-way STOP, a roundabout or a signalized intersection between its endpoints. This builder has no intersection feature, so if the highway has one, split the analysis there and run each part separately.',
+		'HCM Chapter 15, Section 2 (Segmentation)'
+	);
+
+	// Chapter 15 has no reliability methodology at all, which is worth saying
+	// where the other two facility types offer one.
+	add(
+		NOTE,
+		'no-reliability',
+		'Chapter 15 has no travel time reliability methodology. Chapters 11 and 17 provide one for freeway and urban street facilities and there is no two-lane counterpart, so there is no reliability handoff below this run.',
+		'HCM Chapter 15'
+	);
+
+	if (doc.importedRaw) {
+		add(
+			NOTE,
+			'imported-twolane',
+			'This highway was imported from a fixture. A Chapter 15 fixture is invertible, unlike a freeway one, so the passing features, the grades, the demand changes and the horizontal curves were all recovered from the segment table and it is editable as features.',
+			'library fixture schema (TwoLaneHighways)'
 		);
 	}
 

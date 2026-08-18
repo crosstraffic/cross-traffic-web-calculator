@@ -20,14 +20,15 @@
     onrevealfeature = null, // (id) on a click that moved nothing, so the list can scroll to it
     onmovefeature = null,   // (id, stationFt, phase) where phase is 'drag' | 'end'
     interactive = true,
-    // 'freeway' | 'urban'. The two draw different markers over the same
-    // pavement, ruler, drag handling and scale, so the mode switches only what
-    // is genuinely different: which features get glyphs, what a segment band is
-    // labelled, and what the note underneath says.
+    // 'freeway' | 'urban' | 'twolane'. The three draw different markers over the
+    // same pavement, ruler, drag handling and scale, so the mode switches only
+    // what is genuinely different: which features get glyphs, what a segment
+    // band is labelled, and what the note underneath says.
     mode = 'freeway'
   } = $props();
 
   let urban = $derived(mode === 'urban');
+  let twolane = $derived(mode === 'twolane');
 
   const W = 900;
   const LANE = 11;
@@ -37,6 +38,9 @@
   // points hang above it too, which together would otherwise print through the
   // station ruler's labels.
   const TOP_URBAN = 74;
+  // Two-lane needs headroom for the opposing lane and its centerline, which sit
+  // above the analysis direction, plus the grade bracket above those.
+  const TOP_TWOLANE = 62;
   const RAMP_H = 26;       // how far the ramp stubs reach below the mainline
   const PAD = 24;         // left room for the "mi" axis label beside the zero tick
   const SNAP_FT = 528;     // 0.1 mi, per the design; the numeric field is the fine adjustment
@@ -55,8 +59,11 @@
   let plotW = $derived(W - 2 * PAD);
   // Depth follows the widest cross section anywhere on the facility, so a lane
   // added halfway along does not resize the strip under the pointer mid-drag.
-  let maxLanes = $derived(Math.max(3, ...laid.map((s) => s.pav)));
-  let TOP = $derived(urban ? TOP_URBAN : TOP_FREEWAY);
+  // The floor is the widest ordinary cross section, so a wider one reads as an
+  // addition. On a two-lane highway that is two: one lane in the analysis
+  // direction, and the second is the passing lane.
+  let maxLanes = $derived(Math.max(twolane ? 2 : 3, ...laid.map((s) => s.pav)));
+  let TOP = $derived(twolane ? TOP_TWOLANE : urban ? TOP_URBAN : TOP_FREEWAY);
   let H = $derived(TOP + maxLanes * LANE + RAMP_H + 30);
   let bot = $derived(TOP + maxLanes * LANE);
 
@@ -80,6 +87,18 @@
     Weaving: 'var(--diag-scl-active)'
   };
   const SHORT = { OverlappingRamp: 'Ovlp', Weaving: 'Weave', Diverge: 'Div', Merge: 'Merge', Basic: 'Basic' };
+
+  // Two-lane fills follow the passing type, which is the one thing a Chapter 15
+  // segment IS. A Passing Constrained segment takes the plain pavement token so
+  // that the two that are not constrained are the ones that stand out, which is
+  // how an analyst reads a two-lane highway: as a constrained road with
+  // opportunities placed along it.
+  const FILL_TL = {
+    'Passing Constrained': 'var(--diag-pavement)',
+    'Passing Zone': 'var(--diag-infl-soft)',
+    'Passing Lane': 'var(--diag-scl-active)'
+  };
+  const SHORT_TL = { 'Passing Constrained': 'PC', 'Passing Zone': 'PZ', 'Passing Lane': 'PL' };
 
   let laid = $derived(
     rows.map((r, i) => {
@@ -147,6 +166,27 @@
       .map((f) => ({ f, x: xOf(f.stationFt), w: Math.max(2, xOf(f.endFt) - xOf(f.stationFt)) }))
   );
 
+  // The three two-lane interval kinds. All three are dragged whole, like a work
+  // zone, so they share its geometry helper.
+  const spans = (kind) =>
+    (doc?.features ?? [])
+      .filter((f) => f.kind === kind)
+      .sort((a, b) => a.stationFt - b.stationFt)
+      .map((f) => ({ f, x: xOf(f.stationFt), w: Math.max(2, xOf(f.endFt) - xOf(f.stationFt)) }));
+
+  let gradeSpans = $derived(spans('grade'));
+  let passingSpans = $derived(spans('passing'));
+  // A curve is drawn below the pavement rather than on it, because it is not a
+  // segment: it is a subsegment of whichever segment contains it, and drawing it
+  // on the pavement would read as a band the table has a row for.
+  let curveSpans = $derived(spans('curve'));
+  let demandMarks = $derived(
+    (doc?.features ?? [])
+      .filter((f) => f.kind === 'demand')
+      .sort((a, b) => a.stationFt - b.stationFt)
+      .map((f) => ({ f, x: xOf(f.stationFt) }))
+  );
+
   // Mile ticks, thinned so a long facility does not print a solid rule.
   let ticks = $derived.by(() => {
     const miles = L / 5280;
@@ -211,11 +251,25 @@
   }
 
   const mi = (ft) => (ft / 5280).toFixed(2);
+
+  /** How deep a curve's bow hangs, 4 to 12 px, deeper for a tighter radius.
+   * Exhibit 15-22's own bands run from under 300 ft to 2,550 ft and above, so
+   * that is the range mapped rather than an arbitrary one. A zero radius is a
+   * tangent and gets the shallowest bow, which is also what the validation panel
+   * warns about. */
+  const curveBow = (f) => {
+    const r = Number(f.designRadiusFt) || 0;
+    if (r <= 0) return 4;
+    const t = Math.max(0, Math.min(1, (2550 - r) / (2550 - 300)));
+    return 4 + 8 * t;
+  };
 </script>
 
 <div class="bs-strip" data-testid="builder-strip">
   <svg bind:this={svgEl} viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet"
-       role="img" aria-label={urban
+       role="img" aria-label={twolane
+         ? `two-lane highway under construction, ${rows.length} derived segments with ${passingSpans.length} passing features, ${gradeSpans.length} grades and ${curveSpans.length} horizontal curves`
+         : urban
          ? `urban street under construction, ${rows.length} derived segments between ${signals.length} boundary signals, with ${accessPoints.length} access points`
          : `freeway facility under construction, ${rows.length} derived segments and ${features.length} features`}>
     <defs>
@@ -252,7 +306,9 @@
          onclick={() => pick(s.r)} role="button" tabindex="-1"
          aria-label="segment {s.i + 1}, {s.r.seg_type}, {Math.round(s.r.length_ft)} feet, {s.open} lanes{s.wz ? `, work zone ${s.wz.total} to ${s.wz.open} lanes` : ''}">
         <title>Segment {s.i + 1} · {s.r.seg_type} · {Math.round(s.r.length_ft).toLocaleString('en-US')} ft · station {mi(s.r.startFt)}–{mi(s.r.startFt + s.r.length_ft)} mi</title>
-        <rect x={s.x} y={TOP} width={s.w} height={s.open * LANE} fill={FILL[s.r.seg_type] ?? FILL.Basic} class="bs-main" />
+        <rect x={s.x} y={TOP} width={s.w} height={s.open * LANE}
+              fill={twolane ? (FILL_TL[s.r.seg_type] ?? FILL_TL['Passing Constrained']) : (FILL[s.r.seg_type] ?? FILL.Basic)}
+              class="bs-main" />
         {#each Array.from({ length: s.open - 1 }) as _, li}
           <line x1={s.x} y1={TOP + LANE * (li + 1)} x2={s.x + s.w} y2={TOP + LANE * (li + 1)} class="bs-lane-line" />
         {/each}
@@ -260,6 +316,17 @@
           <rect x={s.x} y={TOP + s.open * LANE} width={s.w} height={s.closed * LANE} class="bs-wz" />
           <rect x={s.x} y={TOP + s.open * LANE} width={s.w} height={s.closed * LANE} class="bs-wz-hatch"
                 fill="url(#{s.wz.soft ? 'bsWzSoft' : 'bsWzHard'})" />
+        {/if}
+        <!-- The opposing lane and the centerline between it and the analysis
+             direction. The centerline is the house two-lane language, the same
+             one RoadDiagram.svelte uses on the chapter pages: solid where
+             passing is not permitted, dashed where it is. It is drawn per
+             segment rather than as one line so that it changes where the
+             passing type does. -->
+        {#if twolane}
+          <rect x={s.x} y={TOP - LANE} width={s.w} height={LANE} class="bs-tl-opposing" />
+          <line x1={s.x} y1={TOP} x2={s.x + s.w} y2={TOP} class="bs-tl-center"
+                class:dashed={s.r.seg_type === 'Passing Zone'} />
         {/if}
         {#if s.w > 34}
           <!-- Centred inside a lane rather than at mid-depth, because at an
@@ -270,7 +337,7 @@
           <!-- An urban segment has no type to print: every one of them is the
                stretch between two boundary intersections, so the fill carries
                nothing and the useful label is the length the signals set. -->
-          <text x={s.mid} y={TOP + (Math.floor(s.open / 2) + 0.5) * LANE + 3} class="bs-seg-label" class:plain={urban || s.r.seg_type === 'Basic'} text-anchor="middle">{urban ? `${Math.round(s.r.length_ft).toLocaleString('en-US')} ft` : (SHORT[s.r.seg_type] ?? s.r.seg_type)}</text>
+          <text x={s.mid} y={TOP + (Math.floor(s.open / 2) + 0.5) * LANE + 3} class="bs-seg-label" class:plain={urban || s.r.seg_type === 'Basic'} text-anchor="middle">{urban ? `${Math.round(s.r.length_ft).toLocaleString('en-US')} ft` : twolane ? (SHORT_TL[s.r.seg_type] ?? s.r.seg_type) : (SHORT[s.r.seg_type] ?? s.r.seg_type)}</text>
         {/if}
         <text x={s.mid} y={H - 4} class="bs-seg-num" text-anchor="middle">{s.i + 1}</text>
       </g>
@@ -405,12 +472,115 @@
       </g>
     {/each}
 
+    <!-- ── Two-lane highway markers ──────────────────────────────────
+         Four kinds and each is drawn where the chapter puts it. A grade is a
+         bracket over the stretch it covers, above the pavement, in the same
+         place a work zone's bracket sits. A passing feature is a bar ON the
+         centerline, because that is the thing it changes. A curve hangs below
+         the pavement, because it is a subsegment of a segment rather than a
+         segment. A demand change is a single rule, like a lane change. -->
+    {#each gradeSpans as { f, x, w } (f.id)}
+      {@const lit = highlightIds.includes(f.id)}
+      <g class="bs-grade" class:lit class:down={f.gradePct < 0} class:dragging={dragging === f.id}
+         data-testid="grade-marker" data-feature-id={f.id}
+         data-station-ft={f.stationFt} data-end-ft={f.endFt}
+         data-grade={f.gradePct} data-vertical-class={f.verticalClass}
+         role="slider" tabindex="0"
+         aria-label="{f.gradePct > 0 ? 'upgrade' : 'downgrade'} of {Math.abs(f.gradePct)} percent at vertical class {f.verticalClass}, from {mi(f.stationFt)} to {mi(f.endFt)} mi"
+         aria-valuemin="0" aria-valuemax={Math.round(L)} aria-valuenow={f.stationFt} aria-valuetext="{mi(f.stationFt)} mi"
+         onpointerdown={(e) => startDrag(e, f)}
+         onpointermove={(e) => moveDrag(e, f)}
+         onpointerup={(e) => endDrag(e, f)}
+         onpointercancel={(e) => endDrag(e, f)}
+         onkeydown={(e) => keyNudge(e, f)}>
+        <title>{f.gradePct > 0 ? '+' : ''}{f.gradePct}% grade, vertical class {f.verticalClass} &middot; {mi(f.stationFt)}&ndash;{mi(f.endFt)} mi</title>
+        <line x1={x} y1={TOP - 22} x2={x + w} y2={TOP - 22} class="bs-grade-bar" />
+        <line x1={x} y1={TOP - 26} x2={x} y2={TOP - 18} class="bs-grade-bar" />
+        <line x1={x + w} y1={TOP - 26} x2={x + w} y2={TOP - 18} class="bs-grade-bar" />
+        <text x={x + w / 2} y={TOP - 25} class="bs-grade-chip" text-anchor="middle">{f.gradePct > 0 ? '+' : ''}{f.gradePct}% &middot; VC{f.verticalClass}</text>
+      </g>
+    {/each}
+
+    {#each passingSpans as { f, x, w } (f.id)}
+      {@const lit = highlightIds.includes(f.id)}
+      {@const lane = f.passingType === 2}
+      <g class="bs-pass" class:lit class:lane class:dragging={dragging === f.id}
+         data-testid="passing-marker" data-feature-id={f.id}
+         data-station-ft={f.stationFt} data-end-ft={f.endFt} data-passing-type={f.passingType}
+         role="slider" tabindex="0"
+         aria-label="{lane ? 'passing lane' : 'passing zone'} from {mi(f.stationFt)} to {mi(f.endFt)} mi"
+         aria-valuemin="0" aria-valuemax={Math.round(L)} aria-valuenow={f.stationFt} aria-valuetext="{mi(f.stationFt)} mi"
+         onpointerdown={(e) => startDrag(e, f)}
+         onpointermove={(e) => moveDrag(e, f)}
+         onpointerup={(e) => endDrag(e, f)}
+         onpointercancel={(e) => endDrag(e, f)}
+         onkeydown={(e) => keyNudge(e, f)}>
+        <title>{lane ? 'Passing lane' : 'Passing zone'} &middot; {mi(f.stationFt)}&ndash;{mi(f.endFt)} mi</title>
+        <!-- On the centerline, because a passing feature is a statement about
+             the centerline: a zone dashes it, a lane makes it irrelevant by
+             adding a lane on the near side of it. -->
+        <line x1={x} y1={TOP - 2} x2={x + w} y2={TOP - 2} class="bs-pass-bar" />
+        <text x={x + w / 2} y={TOP - 5} class="bs-pass-chip" text-anchor="middle">{lane ? 'PL' : 'PZ'}</text>
+        <circle cx={x} cy={TOP - 2} r="3.4" class="bs-pass-handle" />
+      </g>
+    {/each}
+
+    {#each curveSpans as { f, x, w } (f.id)}
+      {@const lit = highlightIds.includes(f.id)}
+      <g class="bs-curve" class:lit class:dragging={dragging === f.id}
+         data-testid="curve-marker" data-feature-id={f.id}
+         data-station-ft={f.stationFt} data-end-ft={f.endFt}
+         data-radius-ft={f.designRadiusFt} data-superelevation={f.superelevationPct}
+         role="slider" tabindex="0"
+         aria-label="horizontal curve of {Math.round(f.designRadiusFt)} ft radius at {f.superelevationPct} percent superelevation, from {mi(f.stationFt)} to {mi(f.endFt)} mi"
+         aria-valuemin="0" aria-valuemax={Math.round(L)} aria-valuenow={f.stationFt} aria-valuetext="{mi(f.stationFt)} mi"
+         onpointerdown={(e) => startDrag(e, f)}
+         onpointermove={(e) => moveDrag(e, f)}
+         onpointerup={(e) => endDrag(e, f)}
+         onpointercancel={(e) => endDrag(e, f)}
+         onkeydown={(e) => keyNudge(e, f)}>
+        <title>Horizontal curve &middot; {Math.round(f.designRadiusFt)} ft radius, {f.superelevationPct}% superelevation &middot; {Math.round(f.endFt - f.stationFt)} ft</title>
+        <!-- A bow rather than a bracket: the deflection is what a curve IS, and
+             it distinguishes the marker from the grade bracket above at a
+             glance. It bows away from the pavement so it cannot be read as a
+             lane. Tighter radii bow deeper, which is the one place on this strip
+             where a glyph carries a magnitude, so the radius is printed too. -->
+        <path d="M{x},{bot + 6} Q{x + w / 2},{bot + 6 + curveBow(f)} {x + w},{bot + 6}" class="bs-curve-bow" />
+        <text x={x + w / 2} y={bot + 8 + curveBow(f)} class="bs-curve-chip" text-anchor="middle">R{Math.round(f.designRadiusFt)}</text>
+        <circle cx={x} cy={bot + 6} r="3.4" class="bs-curve-handle" />
+      </g>
+    {/each}
+
+    {#each demandMarks as { f, x } (f.id)}
+      {@const lit = highlightIds.includes(f.id)}
+      <g class="bs-demand" class:lit class:dragging={dragging === f.id}
+         data-testid="demand-marker" data-feature-id={f.id}
+         data-station-ft={f.stationFt} data-volume={f.config?.volume}
+         role="slider" tabindex="0"
+         aria-label="demand change to {Math.round(f.config?.volume ?? 0)} vehicles per hour at station {mi(f.stationFt)} mi"
+         aria-valuemin="0" aria-valuemax={Math.round(L)} aria-valuenow={f.stationFt} aria-valuetext="{mi(f.stationFt)} mi"
+         onpointerdown={(e) => startDrag(e, f)}
+         onpointermove={(e) => moveDrag(e, f)}
+         onpointerup={(e) => endDrag(e, f)}
+         onpointercancel={(e) => endDrag(e, f)}
+         onkeydown={(e) => keyNudge(e, f)}>
+        <title>Demand change to {Math.round(f.config?.volume ?? 0)} veh/h at {mi(f.stationFt)} mi</title>
+        <line x1={x} y1={TOP - LANE - 4} x2={x} y2={bot + 4} class="bs-demand-rule" />
+        <text x={x} y={TOP - LANE - 6} class="bs-demand-chip" text-anchor="middle">{Math.round(f.config?.volume ?? 0)}</text>
+        <circle cx={x} cy={bot + 4} r="4.4" class="bs-demand-handle" />
+      </g>
+    {/each}
+
     <!-- Direction of travel, on its own row above the ruler: at the right-hand
          edge it would otherwise sit on the last mile tick's label. -->
     <line x1={W - PAD - 46} y1="9" x2={W - PAD - 6} y2="9" class="bs-arrow-line" />
     <polygon points="{W - PAD - 10},{5} {W - PAD},{9} {W - PAD - 10},{13}" class="bs-arrow" />
   </svg>
-  {#if urban}
+  {#if twolane}
+    <p class="bs-note">
+      Segments break where the grade, the passing type, the demand or the posted limit changes, and cannot be dragged themselves. Drag a marker, or focus it and use the arrow keys, to move the feature that produced a boundary; stations snap to 0.1 mi and the station field is the fine adjustment. The centerline above the pavement is solid where passing is not permitted and dashed through a passing zone, and a passing lane is drawn as the added lane it is. A curve hangs below the pavement because it does NOT break a segment: it becomes a subsegment of whichever segment contains it, in feet. Clicking a marker without moving it opens that feature's editor in the list below.
+    </p>
+  {:else if urban}
     <p class="bs-note">
       Segments run from one boundary signal to the next and cannot be dragged themselves. Drag a signal, or focus it and use the arrow keys, to move a boundary; stations snap to 0.1 mi and the station field is the fine adjustment. Each segment reads its timing from the signal at its downstream end, so moving a signal changes the segment before it as well as the one after. Access points hang below the pavement on the subject side and above it on the opposing side, at the stations they were placed at. Clicking a marker without moving it opens that feature's editor in the list below.
     </p>
@@ -504,6 +674,44 @@
   .bs-zone-chip { font-size: 7px; font-weight: 700; fill: var(--warn-text); paint-order: stroke; stroke: var(--surface); stroke-width: 2.5px; }
   .bs-zone.lit .bs-zone-bar { stroke-width: 2.6; }
   .bs-zone:focus-visible .bs-zone-bar { stroke-width: 3; }
+
+  /* Two-lane. The opposing lane is drawn in the alternate pavement token so it
+     reads as road that is not the analysis direction, and the centerline takes
+     the accent the house RoadDiagram gives it. */
+  .bs-tl-opposing { fill: var(--diag-pavement-alt); stroke: var(--diag-edge); stroke-width: 0.6; vector-effect: non-scaling-stroke; }
+  .bs-tl-center { stroke: var(--accent); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+  .bs-tl-center.dashed { stroke-dasharray: 6 5; }
+
+  .bs-grade { cursor: ew-resize; touch-action: none; }
+  .bs-grade-bar { stroke: var(--diag-dim); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+  .bs-grade.down .bs-grade-bar { stroke-dasharray: 4 3; }
+  .bs-grade-chip { font-size: 7px; font-weight: 700; fill: var(--text-secondary); paint-order: stroke; stroke: var(--surface); stroke-width: 2.5px; }
+  .bs-grade.lit .bs-grade-bar { stroke: var(--accent); stroke-width: 2.6; }
+  .bs-grade:focus-visible .bs-grade-bar { stroke: var(--accent-strong); stroke-width: 3; }
+
+  .bs-pass { cursor: ew-resize; touch-action: none; }
+  .bs-pass-bar { stroke: var(--accent); stroke-width: 3; vector-effect: non-scaling-stroke; }
+  .bs-pass.lane .bs-pass-bar { stroke: var(--accent-strong); stroke-width: 4; }
+  .bs-pass-chip { font-size: 7px; font-weight: 700; fill: var(--accent-strong); paint-order: stroke; stroke: var(--surface); stroke-width: 2.5px; }
+  .bs-pass-handle { fill: var(--surface); stroke: var(--accent); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+  .bs-pass.lit .bs-pass-handle, .bs-pass.dragging .bs-pass-handle { fill: var(--accent); stroke: var(--accent-strong); }
+  .bs-pass:focus-visible .bs-pass-handle { fill: var(--accent-soft); stroke: var(--accent-strong); stroke-width: 2.2; }
+
+  .bs-curve { cursor: ew-resize; touch-action: none; }
+  .bs-curve-bow { fill: none; stroke: var(--diag-center); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+  .bs-curve-chip { font-size: 7px; font-weight: 600; fill: var(--text-muted); paint-order: stroke; stroke: var(--surface); stroke-width: 2.5px; }
+  .bs-curve-handle { fill: var(--surface); stroke: var(--text-secondary); stroke-width: 1.3; vector-effect: non-scaling-stroke; }
+  .bs-curve.lit .bs-curve-bow, .bs-curve.dragging .bs-curve-bow { stroke: var(--accent); stroke-width: 2.4; }
+  .bs-curve.lit .bs-curve-handle, .bs-curve.dragging .bs-curve-handle { fill: var(--accent); stroke: var(--accent-strong); }
+  .bs-curve:focus-visible .bs-curve-handle { fill: var(--accent-soft); stroke: var(--accent-strong); stroke-width: 2.2; }
+
+  .bs-demand { cursor: ew-resize; touch-action: none; }
+  .bs-demand-rule { stroke: var(--diag-dim); stroke-width: 1.4; vector-effect: non-scaling-stroke; stroke-dasharray: 2 3; }
+  .bs-demand-chip { font-size: 7px; font-weight: 700; fill: var(--text-secondary); paint-order: stroke; stroke: var(--surface); stroke-width: 2.5px; }
+  .bs-demand-handle { fill: var(--surface); stroke: var(--text-secondary); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+  .bs-demand.lit .bs-demand-rule, .bs-demand.dragging .bs-demand-rule { stroke: var(--accent); stroke-dasharray: none; }
+  .bs-demand.lit .bs-demand-handle, .bs-demand.dragging .bs-demand-handle { fill: var(--accent); stroke: var(--accent-strong); }
+  .bs-demand:focus-visible .bs-demand-handle { fill: var(--accent-soft); stroke: var(--accent-strong); stroke-width: 2.2; }
 
   .bs-datum { stroke: var(--diag-dim); stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-dasharray: 2 4; opacity: 0.9; }
 

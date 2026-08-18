@@ -255,14 +255,19 @@ function street(stations, lengthFt = stations[stations.length - 1]) {
 }
 
 {
-	// A v2 document is a valid v3 freeway document, and an unknown type is still
-	// refused rather than half-loaded.
+	// A v2 document is a valid document at the current version, and an unknown
+	// type is still refused rather than half-loaded.
 	const v2 = { ...emptyDocument(), version: 2 };
-	eq(migrate(v2).version, DOC_VERSION, 'a v2 freeway document migrates to v3');
+	eq(migrate(v2).version, DOC_VERSION, 'a v2 freeway document migrates to the current version');
 	eq(migrate(v2).facilityType, 'freeway', 'and stays a freeway');
 	const urban = emptyDocument('urban');
 	eq(migrate(JSON.parse(JSON.stringify(urban))).facilityType, 'urban', 'an urban document round-trips through migrate');
-	throws(() => migrate({ ...urban, facilityType: 'twolane' }), 'unsupported facility type', 'an unshipped facility type is refused');
+	// `twolane` used to be the unshipped type this line proved was refused. Phase
+	// 3 shipped it, so the assertion moved to a name no phase will ever claim
+	// rather than being deleted: the claim is that an unknown type is refused,
+	// and it needs a type that stays unknown.
+	throws(() => migrate({ ...urban, facilityType: 'monorail' }), 'unsupported facility type', 'an unshipped facility type is refused');
+	eq(migrate({ ...emptyDocument('twolane') }).facilityType, 'twolane', 'and the two-lane type phase 3 shipped is accepted');
 }
 
 // ── Validation ──────────────────────────────────────────────────────────
