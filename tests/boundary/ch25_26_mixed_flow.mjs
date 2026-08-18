@@ -225,7 +225,7 @@ exact(String(refusal25).includes('Exhibit 25-20/25-21'), true, `composite refusa
 // unadjusted at 1.0 with no error.
 let typo = null;
 try {
-  const { caf_ao, ...rest } = ep5;
+  const { caf_ao: _caf_ao, ...rest } = ep5;
   new m.WasmMixedFlow({ ...rest, caf_a0: 0.85 });
 } catch (e) {
   typo = String(e);

@@ -188,7 +188,6 @@
   ];
   const groupOf = { a: 'NBOFF', b: 'NBOFF', c: 'SBOFF', d: 'SBOFF', e: 'EB', f: 'EB', i: 'EB', g: 'WB', h: 'WB', j: 'WB' };
   const BASE_COLOR = { NBOFF: '#2563eb', SBOFF: '#16a34a', EB: '#ea7317', WB: '#dc2626' };
-  const clsOf = { NBOFF: 'nboff', SBOFF: 'sboff', EB: 'ebg', WB: 'wbg' };
 
   let volOf = $derived(Object.fromEntries((odDemands || []).map((d) => [d.key, Number(d.value) || 0])));
   let losOf = $derived(odLos || {});

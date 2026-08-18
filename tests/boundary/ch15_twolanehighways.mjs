@@ -271,11 +271,11 @@ for (let ci = 0; ci < cases.length; ci++) {
   // six, otherwise returns 14.936 instead of 19.897.
   {
     const hw = buildHighway(c);
-    let totLen = 0, sTot = 0, splTot = 0;
+    let totLen = 0, splTot = 0;
     for (let i = 0; i < nSeg; i++) {
       hw.determine_demand_flow(i);
       hw.determine_free_flow_speed(i);
-      const [s] = hw.estimate_average_speed(i);
+      hw.estimate_average_speed(i);
       hw.estimate_percent_followers(i);
       if (c.segments[i].passing_type === 2) {
         hw.determine_follower_density_pl(i);
@@ -284,7 +284,6 @@ for (let ci = 0; ci < cases.length; ci++) {
       }
       const len = c.segments[i].length;
       totLen += len;
-      sTot += s * len;
       splTot += c.segments[i].spl * len;
     }
     const fdF = hw.determine_facility_follower_density();
