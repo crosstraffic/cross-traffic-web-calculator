@@ -21,6 +21,8 @@ const NOTE = 'note';
  * @returns {{level: string, id: string, message: string, cite: string, rowKey?: string, featureId?: string}[]}
  */
 export function validateFacility(doc, rows, deriveErrors = []) {
+	if (doc.facilityType === 'urban') return validateUrbanFacility(doc, rows, deriveErrors);
+
 	const out = [];
 	const add = (level, id, message, cite, extra = {}) =>
 		out.push({ level, id, message, cite, ...extra });
@@ -169,6 +171,171 @@ export function validateFacility(doc, rows, deriveErrors = []) {
 			'imported-no-features',
 			'This facility was imported from a fixture. A fixture stores the segments the segmentation rules produced and not the ramps an analyst placed, so there is no feature layer to re-derive from and the segment table is the editor.',
 			'library fixture schema (FreewayFacility)'
+		);
+	}
+
+	return out;
+}
+
+/**
+ * Inline validation for an urban street (HCM Chapters 16/18).
+ *
+ * The same rule as the freeway side: everything here is either something the
+ * engine rejects, or something it accepts and then mis-handles silently.
+ *
+ * One check a reasonable person would expect is deliberately absent. There is no
+ * cap on segment length or on the number of segments: Chapter 16 states the
+ * facility "should not exceed 2 mi in downtown areas or 5 mi in other areas" as
+ * guidance about where the method's calibration holds, not as a threshold the
+ * engine enforces, so it is a note below rather than an error.
+ */
+export function validateUrbanFacility(doc, rows, deriveErrors = []) {
+	const out = [];
+	const add = (level, id, message, cite, extra = {}) =>
+		out.push({ level, id, message, cite, ...extra });
+
+	for (const e of deriveErrors) {
+		add(ERROR, 'derivation', e, 'HCM Chapter 18, Section 2 (urban street segment)');
+	}
+
+	const signals = (doc.features ?? []).filter((f) => f.kind === 'signal');
+	const measures = doc.analysisMode === 'measures';
+
+	if (rows.length === 0) {
+		add(ERROR, 'no-segments', 'The street has no segments, so there is nothing to analyze.', 'UrbanFacility::validate');
+	}
+	if (signals.length < 2) {
+		add(
+			ERROR,
+			'too-few-signals',
+			`A Chapter 18 segment runs between two boundary intersections, and this street has ${signals.length}. Place a signal at each end at least.`,
+			'HCM Chapter 18, Section 2 (urban street segment)'
+		);
+	}
+
+	for (const r of rows) {
+		if (!(r.length_ft > 0)) {
+			add(ERROR, 'nonpositive-length', `The segment ending at ${Math.round(r.startFt + r.length_ft)} ft has a length of ${r.length_ft}.`, 'UrbanSegment::validate', { rowKey: r.key });
+		}
+		if (!(r.n_through_lanes >= 1)) {
+			add(ERROR, 'lanes-below-one', `The segment ending at ${Math.round(r.startFt + r.length_ft)} ft has ${r.n_through_lanes} through lanes.`, 'UrbanSegment::validate', { rowKey: r.key });
+		}
+
+		if (measures) continue;
+
+		// The inputs the Chapter 18 engine needs and cannot invent. Each of these
+		// absent leaves the engine on a serde default that analyzes to a finished
+		// number, which is the failure this panel exists to catch.
+		if (!(r.through_demand_veh_h > 0)) {
+			add(ERROR, 'no-demand', `The segment ending at ${Math.round(r.startFt + r.length_ft)} ft has no through demand, so its v/c ratio and its LOS are meaningless.`, 'HCM Chapter 18, Exhibit 18-5', { rowKey: r.key });
+		}
+		if (r.control === 'Signalized' && !(r.cycle_length_s > 0)) {
+			add(ERROR, 'no-cycle', `The signal at ${Math.round(r.startFt + r.length_ft)} ft has no cycle length, which Equation 18-9's proportion arriving on green needs.`, 'HCM Chapter 18, Equation 18-9', { rowKey: r.key });
+		}
+		if (r.control === 'Signalized' && r.effective_green_s > r.cycle_length_s) {
+			add(
+				ERROR,
+				'green-exceeds-cycle',
+				`The signal at ${Math.round(r.startFt + r.length_ft)} ft shows ${r.effective_green_s} s of effective green in a ${r.cycle_length_s} s cycle, so the proportion arriving on green would exceed 1.`,
+				'HCM Chapter 18, Equation 18-9',
+				{ rowKey: r.key }
+			);
+		}
+		if (r.through_capacity_veh_h > 0 && r.through_demand_veh_h > r.through_capacity_veh_h) {
+			add(
+				WARN,
+				'demand-over-capacity',
+				`The segment ending at ${Math.round(r.startFt + r.length_ft)} ft carries ${Math.round(r.through_demand_veh_h)} veh/h against a capacity of ${Math.round(r.through_capacity_veh_h)}. A through v/c above 1.0 at any boundary intersection forces facility LOS F regardless of the travel speed.`,
+				'HCM Exhibit 16-3 (footnote)',
+				{ rowKey: r.key }
+			);
+		}
+		if (r.midsegment_flow_veh_h != null && r.midsegment_flow_veh_h < r.through_demand_veh_h) {
+			add(
+				WARN,
+				'midsegment-below-through',
+				`The segment ending at ${Math.round(r.startFt + r.length_ft)} ft reports a midsegment flow of ${Math.round(r.midsegment_flow_veh_h)} veh/h below its through demand of ${Math.round(r.through_demand_veh_h)}. The midsegment flow includes the turning traffic entering from the access points, so it is normally the larger of the two.`,
+				'HCM Chapter 18, Equation 18-6 (vehicle proximity adjustment)',
+				{ rowKey: r.key }
+			);
+		}
+	}
+
+	// The Chapter 16 spatial guidance, stated as guidance rather than as a
+	// threshold, since the engine enforces neither number.
+	const lengthMi = rows.reduce((a, r) => a + r.length_ft, 0) / 5280;
+	if (lengthMi > 2) {
+		add(
+			NOTE,
+			'facility-length',
+			`The facility is ${lengthMi.toFixed(2)} mi. Chapter 16 suggests an urban street facility should not exceed 2 mi in a downtown area or 5 mi elsewhere, so that the travel speed describes one coherent trip rather than an average over changing conditions.`,
+			'HCM Chapter 16, Section 2 (spatial limits)'
+		);
+	}
+
+	if (measures) {
+		add(
+			NOTE,
+			'measures-mode',
+			'This facility is described by its published Chapter 18 measures rather than by Chapter 18 inputs, so only the Chapter 16 aggregation runs over them. That is the Exhibit 16-7 "HCM method output" path, and it is what the published example problems take. The engine refuses to re-run Chapter 18 on these segments, because there are no inputs behind them to recompute from.',
+			'HCM Exhibit 16-7; UrbanFacility::analyze'
+		);
+		for (const r of rows) {
+			if (r.base_ffs_mph == null || r.travel_speed_mph == null) {
+				add(
+					ERROR,
+					'measures-incomplete',
+					`The segment ending at ${Math.round(r.startFt + r.length_ft)} ft is missing its base free-flow speed or its travel speed, which Equations 16-2 and 16-3 both need.`,
+					'HCM Equations 16-2, 16-3',
+					{ rowKey: r.key }
+				);
+			}
+			if (r.spatial_stop_rate_stops_mi == null) {
+				add(
+					WARN,
+					'no-stop-rate',
+					`The segment ending at ${Math.round(r.startFt + r.length_ft)} ft has no spatial stop rate. Omit it on any segment and the Equation 16-4 facility stop rate, and the perception score built on it, are reported as undefined rather than aggregated from a partial set.`,
+					'HCM Equation 16-4',
+					{ rowKey: r.key }
+				);
+			}
+		}
+	}
+
+	// A feature outside the street reaches nothing. Neither can happen through
+	// the strip, which clamps a drag to the mainline, but both can through an
+	// edited document, an imported one, or a street that was shortened after the
+	// features were placed.
+	const L = doc.mainline.lengthFt;
+	for (const sig of signals) {
+		if (sig.stationFt < 0 || sig.stationFt > L) {
+			add(
+				WARN,
+				'signal-outside',
+				`The signal ${sig.label || sig.id} sits at ${Math.round(sig.stationFt)} ft, outside the ${Math.round(L)} ft street. It is clamped to the nearer terminus for the derivation, so it bounds a segment at a station it does not sit at. Move it inside the street, or lengthen the street.`,
+				'HCM Chapter 18, Section 2 (urban street segment)',
+				{ featureId: sig.id }
+			);
+		}
+	}
+	for (const ap of (doc.features ?? []).filter((f) => f.kind === 'access_point')) {
+		if (ap.stationFt < 0 || ap.stationFt > L) {
+			add(
+				NOTE,
+				'access-point-outside',
+				`The access point ${ap.label || ap.id} sits at ${Math.round(ap.stationFt)} ft, outside the ${Math.round(L)} ft street, so it belongs to no segment and reaches no analysis.`,
+				'HCM Chapter 18, Exhibit 18-11 note c',
+				{ featureId: ap.id }
+			);
+		}
+	}
+
+	if (doc.importedRaw) {
+		add(
+			NOTE,
+			'imported-urban',
+			'This street was imported from a fixture. An urban fixture is invertible, unlike a freeway one, so the boundary signals were recovered from the segment lengths and each segment\'s timing put back on the signal at its downstream end. The one thing the fixture never recorded is the upstream terminus\'s own timing, because no segment ends there, so that signal carries the defaults.',
+			'library fixture schema (UrbanFacility)'
 		);
 	}
 

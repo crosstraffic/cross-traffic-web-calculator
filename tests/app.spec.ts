@@ -3876,4 +3876,257 @@ test.describe('facility builder', () => {
     await page.goto('/');
     await expect(page.locator('.navbar a[href="/builder"]')).toHaveCount(2);
   });
+
+  // ── Urban street (HCM Chapters 16/17/18) ──────────────────────────────
+  //
+  // These run through the rendered page rather than through the modules,
+  // because the modules are already pinned in tests/builder/urban.mjs. What is
+  // being checked here is the half that file cannot see: that the loaders, the
+  // mode switch, the derivation and the engine call are wired to each other on
+  // the page, and that the published numbers survive the trip to the DOM.
+  test.describe('urban street', () => {
+    /** Switching the facility type starts a new document, so it is the first
+     * thing every urban test does. */
+    async function openUrban(page: Page) {
+      await openBuilder(page);
+      await page.getByTestId('facility-type').selectOption('urban');
+      await expect(page.getByTestId('add-signal')).toBeVisible();
+    }
+
+    async function loadUrbanExample(page: Page, id: string) {
+      await openUrban(page);
+      await page.getByTestId(`example-${id}`).click();
+      await expect(page.getByTestId('segment-row').first()).toBeVisible();
+    }
+
+    const segLengths = (page: Page) =>
+      page.getByTestId('strip-seg').evaluateAll((rows) =>
+        rows.map((r) => (r as HTMLElement).dataset.segKey)
+      );
+
+    test('the urban mode swaps the whole editor, and does not leak freeway controls', async ({ page }) => {
+      await openUrban(page);
+      // The urban feature set replaces the freeway one rather than joining it.
+      await expect(page.getByTestId('add-signal')).toBeVisible();
+      await expect(page.getByTestId('add-access-point')).toBeVisible();
+      await expect(page.getByTestId('add-on-ramp')).toHaveCount(0);
+      await expect(page.getByTestId('template-diamond')).toHaveCount(0);
+      // The demand grid is a period axis and the urban engines have none.
+      await expect(page.getByTestId('demand-grid')).toHaveCount(0);
+      // The urban mainline fields are the Chapter 18 cross section.
+      await expect(page.getByTestId('facility-speed-limit')).toBeVisible();
+      await expect(page.getByTestId('facility-curb')).toBeVisible();
+      await expect(page.getByTestId('facility-ffs')).toHaveCount(0);
+    });
+
+    test('Chapter 30 EP1 loads from its signals and reproduces the published Exhibit 30-36 values', async ({ page }) => {
+      await loadUrbanExample(page, 'ch30ep1');
+
+      // Four boundary signals give three segments, and the access points are on
+      // the strip at their stations rather than spaced by count.
+      await expect(page.getByTestId('signal-marker')).toHaveCount(4);
+      await expect(page.getByTestId('strip-seg')).toHaveCount(3);
+      await expect(page.getByTestId('access-point-marker')).toHaveCount(24);
+
+      await page.getByTestId('analyze').click();
+      await expect(page.getByTestId('urban-facility-summary')).toBeVisible();
+
+      // The published Exhibit 30-36 values, read off the rendered page.
+      await expect(page.getByTestId('urban-los')).toHaveText('C');
+      await expect(page.getByTestId('urban-base-ffs')).toHaveText('40.78');
+      await expect(page.getByTestId('urban-travel-speed')).toHaveText('23.67');
+      await expect(page.getByTestId('urban-stop-rate')).toHaveText('1.60');
+      await expect(page.getByTestId('urban-perception')).toHaveText('2.53');
+      await expect(page.getByTestId('urban-poorest-los')).toHaveText('C');
+
+      // The result view is one row, not a grid, because the engines are
+      // single-period. The page says so rather than leaving it to be inferred.
+      await expect(page.getByTestId('urban-single-period')).toContainText('single-period');
+      await expect(page.getByTestId('urban-cell')).toHaveCount(3);
+    });
+
+    test('Chapter 29 EP1 loads in measures mode and reproduces the three exact published values', async ({ page }) => {
+      await loadUrbanExample(page, 'ch29ep1eb');
+
+      // The loader picks the mode, because what the chapter publishes decides
+      // it: Chapter 29 gives per-segment outputs and no input geometry.
+      await expect(page.getByTestId('analysis-mode')).toHaveValue('measures');
+      await expect(page.getByTestId('mode-note')).toContainText('HCM method output');
+      await expect(page.getByTestId('signal-marker')).toHaveCount(6);
+      await expect(page.getByTestId('strip-seg')).toHaveCount(5);
+
+      await page.getByTestId('analyze').click();
+      await expect(page.getByTestId('urban-facility-summary')).toBeVisible();
+
+      // The three Exhibit 29-49 values the aggregation reproduces exactly.
+      await expect(page.getByTestId('urban-los')).toHaveText('C');
+      await expect(page.getByTestId('urban-base-ffs')).toHaveText('40.11');
+      await expect(page.getByTestId('urban-poorest-los')).toHaveText('D');
+      // And the documented fixture artifact, pinned at the boundary suite's own
+      // computed value rather than at the published 22.6. Chapter 29 publishes
+      // per-segment measures only for Segments 1 and 5, and the fixture copies
+      // those into the unpublished Segments 2 through 4.
+      await expect(page.getByTestId('urban-travel-speed')).toHaveText('22.13');
+      await expect(page.getByTestId('urban-mode-readout')).toContainText('Chapter 18 engine was not run');
+    });
+
+    test('the westbound direction carries its own published measures', async ({ page }) => {
+      await loadUrbanExample(page, 'ch29ep1wb');
+      await page.getByTestId('analyze').click();
+      await expect(page.getByTestId('urban-los')).toHaveText('C');
+      await expect(page.getByTestId('urban-base-ffs')).toHaveText('40.11');
+      await expect(page.getByTestId('urban-poorest-los')).toHaveText('D');
+      // 21.54 rather than the eastbound 22.13, so the two directions are not
+      // quietly loading the same numbers.
+      await expect(page.getByTestId('urban-travel-speed')).toHaveText('21.54');
+    });
+
+    test('moving a signal re-derives the segments on both sides of it', async ({ page }) => {
+      await loadUrbanExample(page, 'ch30ep1');
+      const before = await segLengths(page);
+      expect(before).toHaveLength(3);
+
+      // The editor interaction: open the second signal and retype its station.
+      // A segment reads its timing from its downstream signal, so moving one
+      // boundary changes the segment before it as well as the one after.
+      const toggle = page.getByTestId('expand-sig2');
+      await toggle.click();
+      await expect(page.locator('[data-testid="urban-feature-editor"][data-feature-id="sig2"]')).toBeVisible();
+      const station = page.getByTestId('station-sig2');
+      await station.fill('0.20');
+      await station.blur();
+
+      // 0.20 mi is 1,056 ft, so segment 1 shortens and segment 2 lengthens.
+      const rows = page.getByTestId('strip-seg');
+      await expect(rows).toHaveCount(3);
+      const widths = await rows.evaluateAll((els) =>
+        els.map((e) => Number((e.querySelector('rect') as SVGRectElement).getAttribute('width')))
+      );
+      expect(widths[0]).toBeLessThan(widths[1]);
+
+      // And undo puts it back, since every commit is one history step.
+      await page.getByTestId('undo').click();
+      await expect(page.getByTestId('station-sig2')).toHaveValue('0.34');
+    });
+
+    test('a signal edit changes the analysis, so the editor is wired to the engine', async ({ page }) => {
+      await loadUrbanExample(page, 'ch30ep1');
+      await page.getByTestId('analyze').click();
+      await expect(page.getByTestId('urban-travel-speed')).toHaveText('23.67');
+
+      // Triple the through control delay at every boundary. Chapter 18's travel
+      // speed is the segment length over the running time plus the through
+      // delay, so a larger delay must slow the facility. The assertion is
+      // directional rather than a second published number, because this street
+      // is no longer a published one.
+      //
+      // The delay is edited rather than the effective green, and the reason is
+      // worth stating: on this segment the through control delay is a supplied
+      // input and the full stop rate is overridden, so the effective green
+      // reaches nothing in the Chapter 16 result at all. That inertness is
+      // asserted in tests/builder/urban.mjs, where it can be pinned precisely.
+      for (const id of ['sig2', 'sig3', 'sig4']) {
+        await page.getByTestId(`expand-${id}`).click();
+        const delay = page.getByTestId(`delay-${id}`);
+        await delay.fill('60');
+        await delay.blur();
+        await page.getByTestId(`expand-${id}`).click();
+      }
+      // The old result stands and is marked stale rather than silently updating.
+      await expect(page.getByTestId('results-stale')).toBeVisible();
+      await page.getByTestId('analyze').click();
+      await expect(page.getByTestId('results-stale')).toHaveCount(0);
+
+      const speed = Number(await page.getByTestId('urban-travel-speed').textContent());
+      expect(speed).toBeLessThan(23.67);
+      // And the letter follows it down, so the change reached the Exhibit 16-3
+      // banding and not only the arithmetic.
+      await expect(page.getByTestId('urban-los')).toHaveText('E');
+    });
+
+    test('the Chapter 17 handoff reproduces Example Problem 4 and says what does not cross', async ({ page }) => {
+      test.slow();
+      await loadUrbanExample(page, 'ch29ep4');
+      await expect(page.getByTestId('signal-marker')).toHaveCount(7);
+      await expect(page.getByTestId('strip-seg')).toHaveCount(6);
+
+      await page.getByTestId('analyze').click();
+      await expect(page.getByTestId('urban-facility-summary')).toBeVisible();
+
+      // The honesty panel is shown before the run as well as after it.
+      const notes = page.getByTestId('urban-reliability-notes');
+      await expect(notes).toBeVisible();
+      await expect(notes.locator('[data-note-id="snowfall"]')).toContainText('never reads it');
+      await expect(notes.locator('[data-note-id="per-scenario"]')).toContainText('summary-only');
+      await expect(notes.locator('[data-note-id="atdm"]')).toContainText('1.156');
+      await expect(notes.locator('[data-note-id="published-gap"]')).toContainText('Exhibit 29-73');
+
+      await page.getByTestId('run-reliability').click();
+      await expect(page.getByTestId('urban-reliability-summary')).toBeVisible({ timeout: 60_000 });
+
+      // The values tests/boundary/ch17_urban_reliability.mjs pins, reached from
+      // signals placed on a strip rather than from the fixture.
+      await expect(page.getByTestId('urel-scenarios')).toHaveText('3,120');
+      await expect(page.getByTestId('urel-tti-mean')).toHaveText('1.545');
+      await expect(page.getByTestId('urel-pti')).toHaveText('1.746');
+      await expect(page.getByTestId('urel-rating')).toHaveText('98.8');
+    });
+
+    test('an urban fixture imports as signals and exports byte-identically', async ({ page }) => {
+      await openUrban(page);
+      const fixture = join(LIB_CASES, 'UrbanFacilities', 'case3.json');
+      await page.getByTestId('import-file').click();
+      await page.locator('input[type=file]').setInputFiles(fixture);
+      await expect(page.getByTestId('builder-message')).toContainText('boundary signals were recovered');
+
+      // An urban fixture is invertible, so the import has a feature layer:
+      // three segments give four boundary intersections.
+      await expect(page.getByTestId('signal-marker')).toHaveCount(4);
+      await expect(page.getByTestId('strip-seg')).toHaveCount(3);
+      // The upstream terminus signal is marked, because no segment ended at it
+      // for the fixture to have recorded its timing.
+      await page.getByTestId('expand-sig1').click();
+      await expect(page.getByTestId('inferred-note-sig1')).toContainText('defaults rather than measurements');
+
+      const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        page.getByTestId('download-fixture').click()
+      ]);
+      const exported = JSON.parse(readFileSync(await download.path(), 'utf8'));
+      expect(exported).toEqual(JSON.parse(readFileSync(fixture, 'utf8')));
+    });
+
+    test('the report and the Word export carry the urban run', async ({ page }) => {
+      await loadUrbanExample(page, 'ch30ep1');
+      await page.getByTestId('analyze').click();
+      await expect(page.getByTestId('urban-los')).toHaveText('C');
+
+      await page.getByTestId('open-report').click();
+      await expect(page.locator('.report-title')).toContainText('Facility Builder');
+      // The published travel speed rides into the report, and the report names
+      // the chapter the run came from rather than the freeway one.
+      await expect(page.locator('body')).toContainText('23.67');
+      await expect(page.locator('body')).toContainText('Chapter 16');
+      // There is no time-space domain on an urban report, because there is no
+      // period axis to build one from.
+      await expect(page.locator('body')).not.toContainText('Time-space domain');
+
+      const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        page.getByTestId('download-docx').click()
+      ]);
+      const xml = readZipEntry(readFileSync(await download.path()), 'word/document.xml');
+      expect(xml).toContain('23.67');
+      expect(xml).toContain('Facility Builder');
+      expect(xml).toContain('Chapter 16');
+    });
+
+    test('an empty urban street blocks the analysis and says why', async ({ page }) => {
+      await openUrban(page);
+      // No signals means no boundary intersections, so no Chapter 18 segment.
+      const flags = page.getByTestId('validation-flag');
+      await expect(flags.filter({ hasText: 'boundary intersections' }).first()).toBeVisible();
+      await expect(page.getByTestId('analyze')).toBeDisabled();
+    });
+  });
 });

@@ -19,12 +19,24 @@
     onselectfeature = null,
     onrevealfeature = null, // (id) on a click that moved nothing, so the list can scroll to it
     onmovefeature = null,   // (id, stationFt, phase) where phase is 'drag' | 'end'
-    interactive = true
+    interactive = true,
+    // 'freeway' | 'urban'. The two draw different markers over the same
+    // pavement, ruler, drag handling and scale, so the mode switches only what
+    // is genuinely different: which features get glyphs, what a segment band is
+    // labelled, and what the note underneath says.
+    mode = 'freeway'
   } = $props();
+
+  let urban = $derived(mode === 'urban');
 
   const W = 900;
   const LANE = 11;
-  const TOP = 48;          // room for the work-zone bracket, the direction arrow and the station ruler
+  const TOP_FREEWAY = 48;  // room for the work-zone bracket, the direction arrow and the station ruler
+  // Urban needs more headroom than freeway: the signal heads sit above the
+  // pavement where the work-zone bracket sits, and the opposing-side access
+  // points hang above it too, which together would otherwise print through the
+  // station ruler's labels.
+  const TOP_URBAN = 74;
   const RAMP_H = 26;       // how far the ramp stubs reach below the mainline
   const PAD = 24;         // left room for the "mi" axis label beside the zero tick
   const SNAP_FT = 528;     // 0.1 mi, per the design; the numeric field is the fine adjustment
@@ -44,6 +56,7 @@
   // Depth follows the widest cross section anywhere on the facility, so a lane
   // added halfway along does not resize the strip under the pointer mid-drag.
   let maxLanes = $derived(Math.max(3, ...laid.map((s) => s.pav)));
+  let TOP = $derived(urban ? TOP_URBAN : TOP_FREEWAY);
   let H = $derived(TOP + maxLanes * LANE + RAMP_H + 30);
   let bot = $derived(TOP + maxLanes * LANE);
 
@@ -95,6 +108,28 @@
   let features = $derived(
     [...(doc?.features ?? [])]
       .filter((f) => f.kind === 'on_ramp' || f.kind === 'off_ramp')
+      .sort((a, b) => a.stationFt - b.stationFt)
+      .map((f) => ({ f, x: xOf(f.stationFt) }))
+  );
+
+  // Boundary signals are the urban segmentation feature, so their markers sit on
+  // the segment boundaries rather than inside a segment. The signal head goes in
+  // the headroom above the pavement that the work-zone bracket uses on a
+  // freeway, in the same four-primitive idiom the house urban diagrams use.
+  let signals = $derived(
+    [...(doc?.features ?? [])]
+      .filter((f) => f.kind === 'signal')
+      .sort((a, b) => a.stationFt - b.stationFt)
+      .map((f) => ({ f, x: xOf(f.stationFt) }))
+  );
+
+  // Access points hang below the pavement as driveway stubs, shallower than a
+  // ramp because they are a driveway rather than a road joining the facility.
+  // Unlike the house urban diagrams, which space them evenly because the method
+  // reads only the count, these sit at the station the analyst placed them at.
+  let accessPoints = $derived(
+    [...(doc?.features ?? [])]
+      .filter((f) => f.kind === 'access_point')
       .sort((a, b) => a.stationFt - b.stationFt)
       .map((f) => ({ f, x: xOf(f.stationFt) }))
   );
@@ -180,7 +215,9 @@
 
 <div class="bs-strip" data-testid="builder-strip">
   <svg bind:this={svgEl} viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet"
-       role="img" aria-label="freeway facility under construction, {rows.length} derived segments and {features.length} features">
+       role="img" aria-label={urban
+         ? `urban street under construction, ${rows.length} derived segments between ${signals.length} boundary signals, with ${accessPoints.length} access points`
+         : `freeway facility under construction, ${rows.length} derived segments and ${features.length} features`}>
     <defs>
       <!-- Closure hatching in the two barrier kinds the engine distinguishes:
            a solid stripe for a hard barrier, a dashed one for cones or drums
@@ -230,7 +267,10 @@
                show through the gaps between letters as a strikethrough. The
                halo hides the line under the glyphs and cannot hide it between
                them, so the label moves instead. -->
-          <text x={s.mid} y={TOP + (Math.floor(s.open / 2) + 0.5) * LANE + 3} class="bs-seg-label" class:plain={s.r.seg_type === 'Basic'} text-anchor="middle">{SHORT[s.r.seg_type] ?? s.r.seg_type}</text>
+          <!-- An urban segment has no type to print: every one of them is the
+               stretch between two boundary intersections, so the fill carries
+               nothing and the useful label is the length the signals set. -->
+          <text x={s.mid} y={TOP + (Math.floor(s.open / 2) + 0.5) * LANE + 3} class="bs-seg-label" class:plain={urban || s.r.seg_type === 'Basic'} text-anchor="middle">{urban ? `${Math.round(s.r.length_ft).toLocaleString('en-US')} ft` : (SHORT[s.r.seg_type] ?? s.r.seg_type)}</text>
         {/if}
         <text x={s.mid} y={H - 4} class="bs-seg-num" text-anchor="middle">{s.i + 1}</text>
       </g>
@@ -258,6 +298,70 @@
           <polygon points="{x + 16},{bot + RAMP_H} {x + 7},{bot + RAMP_H} {x},{bot + 4} {x + 6},{bot + 4}" class="bs-ramp" />
         {/if}
         <circle cx={x} cy={bot + 4} r="5.5" class="bs-handle" />
+      </g>
+    {/each}
+
+    <!-- boundary signals: the cross-street stub, the signal head, and the stop
+         bar on the approach the segment upstream of it runs into -->
+    {#each signals as { f, x } (f.id)}
+      {@const lit = highlightIds.includes(f.id)}
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <g class="bs-sig" class:dragging={dragging === f.id} class:lit class:inferred={f.inferred}
+         data-testid="signal-marker" data-feature-id={f.id} data-station-ft={f.stationFt}
+         data-control={f.config?.control ?? 'Signalized'}
+         role="slider" tabindex="0"
+         aria-label="boundary signal {f.label || f.id} at station {mi(f.stationFt)} mi"
+         aria-valuemin="0" aria-valuemax={Math.round(L)} aria-valuenow={f.stationFt} aria-valuetext="{mi(f.stationFt)} mi"
+         onpointerdown={(e) => startDrag(e, f)}
+         onpointermove={(e) => moveDrag(e, f)}
+         onpointerup={(e) => endDrag(e, f)}
+         onpointercancel={(e) => endDrag(e, f)}
+         onkeydown={(e) => keyNudge(e, f)}>
+        <title>Signal {f.label || f.id} · station {mi(f.stationFt)} mi · C {f.config?.cycle_length_s ?? '–'} s, g {f.config?.effective_green_s ?? '–'} s</title>
+        <!-- The cross street the boundary intersection sits on, run past the
+             pavement on both sides so the segment visibly ends at it. -->
+        <rect x={x - 5} y={TOP - 6} width="10" height={bot - TOP + 12} class="bs-cross" />
+        <!-- Stop bar on the upstream approach, which is the one the segment
+             ending here runs into. -->
+        <line x1={x - 7} y1={TOP} x2={x - 7} y2={bot} class="bs-stop" />
+        <!-- Signal head, in the housing-plus-three-lenses idiom the house urban
+             diagrams use. The lens colours are the one deliberate hardcode in
+             those diagrams and stay hardcoded here: a red lens is red in both
+             themes. -->
+        <rect x={x - 3} y={TOP - 30} width="6" height="11" rx="1.6" class="bs-signal" />
+        <circle cx={x} cy={TOP - 27.2} r="1.3" class="bs-signal-r" />
+        <circle cx={x} cy={TOP - 24.5} r="1.3" class="bs-signal-y" />
+        <circle cx={x} cy={TOP - 21.8} r="1.3" class="bs-signal-g" />
+        <circle cx={x} cy={bot + 4} r="5.5" class="bs-handle" />
+      </g>
+    {/each}
+
+    <!-- access points: driveway stubs below the pavement, at their stations -->
+    {#each accessPoints as { f, x } (f.id)}
+      {@const lit = highlightIds.includes(f.id)}
+      {@const opp = f.side === 'opposing'}
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <g class="bs-ap" class:lit class:opposing={opp} class:dragging={dragging === f.id}
+         data-testid="access-point-marker" data-feature-id={f.id} data-station-ft={f.stationFt}
+         data-side={f.side} data-source={f.delayS != null ? 'published' : f.approach ? 'computed' : 'planning'}
+         role="slider" tabindex="0"
+         aria-label="{opp ? 'opposing' : 'subject'}-side access point {f.label || f.id} at station {mi(f.stationFt)} mi"
+         aria-valuemin="0" aria-valuemax={Math.round(L)} aria-valuenow={f.stationFt} aria-valuetext="{mi(f.stationFt)} mi"
+         onpointerdown={(e) => startDrag(e, f)}
+         onpointermove={(e) => moveDrag(e, f)}
+         onpointerup={(e) => endDrag(e, f)}
+         onpointercancel={(e) => endDrag(e, f)}
+         onkeydown={(e) => keyNudge(e, f)}>
+        <title>{opp ? 'Opposing' : 'Subject'}-side access point {f.label || f.id} · station {mi(f.stationFt)} mi{f.delayS != null ? ` · ${f.delayS} s/veh supplied` : f.approach ? ' · approach supplied' : ''}</title>
+        <!-- Opposing-side points sit above the pavement and subject-side below,
+             so the two counts Exhibit 18-11 note c reads separately are separate
+             on the drawing too. -->
+        {#if opp}
+          <rect x={x - 2.2} y={TOP - 9} width="4.4" height="9" class="bs-drive" />
+        {:else}
+          <rect x={x - 2.2} y={bot} width="4.4" height="9" class="bs-drive" />
+        {/if}
+        <circle cx={x} cy={opp ? TOP - 11 : bot + 11} r="3.6" class="bs-ap-handle" />
       </g>
     {/each}
 
@@ -306,9 +410,15 @@
     <line x1={W - PAD - 46} y1="9" x2={W - PAD - 6} y2="9" class="bs-arrow-line" />
     <polygon points="{W - PAD - 10},{5} {W - PAD},{9} {W - PAD - 10},{13}" class="bs-arrow" />
   </svg>
-  <p class="bs-note">
-    Segments are derived from the features by the Chapter 10 rules and cannot be dragged. Drag a ramp marker, or focus it and use the arrow keys, to move its gore; stations snap to 0.1 mi and the station field is the fine adjustment. Clicking a marker without moving it opens that feature's editor in the list below.
-  </p>
+  {#if urban}
+    <p class="bs-note">
+      Segments run from one boundary signal to the next and cannot be dragged themselves. Drag a signal, or focus it and use the arrow keys, to move a boundary; stations snap to 0.1 mi and the station field is the fine adjustment. Each segment reads its timing from the signal at its downstream end, so moving a signal changes the segment before it as well as the one after. Access points hang below the pavement on the subject side and above it on the opposing side, at the stations they were placed at. Clicking a marker without moving it opens that feature's editor in the list below.
+    </p>
+  {:else}
+    <p class="bs-note">
+      Segments are derived from the features by the Chapter 10 rules and cannot be dragged. Drag a ramp marker, or focus it and use the arrow keys, to move its gore; stations snap to 0.1 mi and the station field is the fine adjustment. Clicking a marker without moving it opens that feature's editor in the list below.
+    </p>
+  {/if}
 </div>
 
 <style>
@@ -355,6 +465,33 @@
   .bs-wz-hatch { stroke: none; pointer-events: none; }
   .bs-wz-stripe { stroke: var(--warn-text); stroke-width: 1.4; opacity: 0.85; }
   .bs-wz-stripe.soft { stroke-dasharray: 2 2.2; }
+
+  /* Boundary signals. The cross street and the driveway stubs take the same
+     tokens the house urban diagrams give them, so a signal reads the same here
+     as it does on the chapter pages. */
+  .bs-sig { cursor: ew-resize; touch-action: none; }
+  .bs-cross { fill: var(--diag-pavement-alt); stroke: var(--diag-edge); stroke-width: 0.6; vector-effect: non-scaling-stroke; }
+  .bs-stop { stroke: var(--diag-lane-line); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+  .bs-signal { fill: var(--diag-edge); }
+  /* The three lens colours are the one deliberate hardcode the house urban
+     diagrams carry, and for the same reason: a red signal lens is red in both
+     themes. Everything else on this marker is a token. */
+  .bs-signal-r { fill: #dc2626; }
+  .bs-signal-y { fill: #eab308; }
+  .bs-signal-g { fill: #16a34a; }
+  .bs-sig.lit .bs-handle, .bs-sig.dragging .bs-handle { fill: var(--accent); stroke: var(--accent-strong); }
+  .bs-sig:focus-visible .bs-handle { fill: var(--accent-soft); stroke: var(--accent-strong); stroke-width: 2.5; }
+  /* A signal recovered from a fixture import has no timing of its own, because
+     no segment ended at it for the fixture to have recorded one. It is drawn
+     dashed so that it does not read as measured. */
+  .bs-sig.inferred .bs-cross { stroke-dasharray: 3 2; }
+
+  .bs-ap { cursor: ew-resize; touch-action: none; }
+  .bs-drive { fill: var(--diag-pavement-alt); stroke: var(--diag-edge); stroke-width: 0.6; vector-effect: non-scaling-stroke; }
+  .bs-ap-handle { fill: var(--surface); stroke: var(--text-secondary); stroke-width: 1.3; vector-effect: non-scaling-stroke; }
+  .bs-ap.opposing .bs-ap-handle { stroke: var(--diag-dim); stroke-dasharray: 2 1.5; }
+  .bs-ap.lit .bs-ap-handle, .bs-ap.dragging .bs-ap-handle { fill: var(--accent); stroke: var(--accent-strong); }
+  .bs-ap:focus-visible .bs-ap-handle { fill: var(--accent-soft); stroke: var(--accent-strong); stroke-width: 2.2; }
 
   .bs-lc { cursor: ew-resize; touch-action: none; }
   .bs-lc-rule { stroke: var(--accent); stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-dasharray: 2 3; }

@@ -38,6 +38,7 @@ const BASIC = 'Basic';
  * @returns {{rows: object[], sections: object[], errors: string[]}}
  */
 export function deriveRows(doc, api) {
+	if (doc.facilityType === 'urban') return deriveUrbanRows(doc);
 	if (doc.importedSegments) return importedRows(doc);
 
 	const errors = [];
@@ -395,6 +396,275 @@ function importedRows(doc) {
 		staleOverride: false
 	}));
 	return { rows: applyOverrides(doc, rows), sections: [], errors: [] };
+}
+
+// ── Urban street (HCM Chapters 16/18) ────────────────────────────────────
+//
+// The urban derivation is structural rather than engine-backed, which the design
+// settled and Chapter 18 justifies: a segment is not the output of a branch
+// table the way a freeway ramp section is, it is the stretch between two
+// boundary intersections. Chapter 18 Section 2, "Urban Street Segment": the
+// segment "extends from one boundary intersection to the next", and its through
+// control delay, cycle length and effective green all belong to the boundary
+// intersection at its DOWNSTREAM end. So the signals partition the street and
+// each segment reads its timing off the signal it runs into.
+//
+// That organization is not an invention of this module. The Chapter 29 Example
+// Problem 4 reliability fixture is built the same way, one `boundary_signals`
+// entry per segment, indexed by the segment the signal terminates.
+//
+// Nothing numerical happens here. Every value below is either copied from a
+// feature or is a distance between two stations; the free-flow speed chain, the
+// access-point delay and the aggregation are all the engines' work.
+
+/** How close two stations have to be to count as the same boundary. Stations are
+ * whole feet and the strip snaps to 528, so this only ever collapses a signal an
+ * analyst dropped exactly onto a terminus. */
+const BOUNDARY_TOL_FT = 0.5;
+
+/** The keys of the library's `UrbanSegment` serde schema that a derived row
+ * carries into `add_segment_from_config`. The list is explicit because that
+ * method ignores unknown fields silently, so a misspelling would fall back to a
+ * serde default and analyze to a plausible wrong number rather than throw. Row
+ * bookkeeping (`key`, `startFt`, `why`) is therefore never handed to it. */
+export const URBAN_SEGMENT_KEYS = [
+	'segment_length_ft',
+	'n_through_lanes',
+	'speed_limit_mph',
+	'through_demand_veh_h',
+	'control',
+	'upstream_intersection_width_ft',
+	'restrictive_median_length_ft',
+	'proportion_with_curb',
+	'proportion_on_street_parking',
+	'n_access_points_subject',
+	'n_access_points_opposing',
+	'signal_spacing_ft',
+	'midsegment_flow_veh_h',
+	'through_capacity_veh_h',
+	'through_control_delay_s',
+	'cycle_length_s',
+	'effective_green_s',
+	'platoon_ratio',
+	'sat_flow_veh_h_ln',
+	'arrival_type',
+	'full_stop_rate_override',
+	'prop_left_turn_lanes',
+	'access_point_delays_s',
+	'access_point_approaches',
+	'analysis_period_h'
+];
+
+/** The published Chapter 18 measures that make a segment a summary segment. Any
+ * of these present and `add_segment_from_config` stops treating the segment as
+ * inputs to recompute, exactly as `add_segment_summary` would. */
+export const URBAN_MEASURE_KEYS = [
+	'base_ffs_mph',
+	'travel_speed_mph',
+	'spatial_stop_rate_stops_mi',
+	'vc_ratio',
+	'los'
+];
+
+/**
+ * Boundary signals -> the Chapter 18 segment table.
+ *
+ * @param {object} doc urban builder document
+ * @returns {{rows: object[], sections: object[], errors: string[]}}
+ */
+export function deriveUrbanRows(doc) {
+	const errors = [];
+	const L = doc.mainline.lengthFt;
+	const measures = doc.analysisMode === 'measures';
+
+	const signals = [...doc.features]
+		.filter((f) => f.kind === 'signal')
+		.sort((a, b) => a.stationFt - b.stationFt || a.id.localeCompare(b.id));
+	const accessPoints = [...doc.features]
+		.filter((f) => f.kind === 'access_point')
+		.sort((a, b) => a.stationFt - b.stationFt || a.id.localeCompare(b.id));
+
+	// The two termini are boundary intersections whether or not a signal sits on
+	// them, because the facility has to end somewhere. A signal placed on a
+	// terminus supplies that boundary's timing rather than adding a boundary.
+	const stations = [0, ...signals.map((s) => clamp(s.stationFt, 0, L)), L].sort((a, b) => a - b);
+	const boundaries = [];
+	for (const st of stations) {
+		if (!boundaries.length || st - boundaries[boundaries.length - 1] > BOUNDARY_TOL_FT) boundaries.push(st);
+	}
+	const signalAt = (ft) => signals.find((s) => Math.abs(clamp(s.stationFt, 0, L) - ft) <= BOUNDARY_TOL_FT) ?? null;
+
+	// Two signals inside half a foot of each other collapse to one boundary, so
+	// the segment between them never existed. Saying so is the point: silently
+	// dropping one is how a facility loses an intersection.
+	for (let i = 1; i < signals.length; i++) {
+		const gap = signals[i].stationFt - signals[i - 1].stationFt;
+		if (gap <= BOUNDARY_TOL_FT) {
+			errors.push(
+				`signals ${signals[i - 1].id} and ${signals[i].id} sit at the same station, so there is no segment between them. Move one, or remove it.`
+			);
+		}
+	}
+
+	const rows = [];
+	for (let i = 0; i < boundaries.length - 1; i++) {
+		const startFt = boundaries[i];
+		const endFt = boundaries[i + 1];
+		const upstream = signalAt(startFt);
+		const downstream = signalAt(endFt);
+
+		if (!downstream) {
+			errors.push(
+				`the segment from ${ft(startFt)} to ${ft(endFt)} ends at a terminus with no signal on it, so Chapter 18 has no boundary intersection to take its through control delay, cycle length and effective green from. Place a signal at ${ft(endFt)}.`
+			);
+		}
+
+		// An access point exactly on a boundary belongs to the segment upstream of
+		// it, because that boundary is that segment's downstream end. Only the
+		// first segment claims one sitting on station 0, which has no segment
+		// upstream of it to belong to.
+		//
+		// The two bounds are deliberately complementary rather than both
+		// tolerant: a point is in exactly one segment. Half-open at each end with
+		// a tolerance on both would put a point just past a boundary in the
+		// segment before it and the segment after it, and the engine would then
+		// count one driveway twice.
+		const inside = accessPoints.filter(
+			(a) => (i === 0 ? a.stationFt >= startFt : a.stationFt > startFt) && a.stationFt <= endFt
+		);
+		const subject = inside.filter((a) => a.side !== 'opposing');
+		const opposing = inside.filter((a) => a.side === 'opposing');
+
+		rows.push(
+			urbanRow(doc, {
+				key: `seg:${upstream?.id ?? 'start'}:${downstream?.id ?? 'end'}`,
+				startFt,
+				endFt,
+				upstream,
+				downstream,
+				subject,
+				opposing,
+				measures,
+				index: i
+			})
+		);
+	}
+
+	if (rows.length === 0) {
+		errors.push('The street has no segments. A Chapter 18 segment runs between two boundary intersections, so place at least one signal.');
+	}
+
+	return { rows: applyOverrides(doc, rows), sections: [], errors };
+}
+
+function clamp(v, lo, hi) {
+	return Math.min(hi, Math.max(lo, v));
+}
+
+/** One derived urban segment, in the library's own `UrbanSegment` field names so
+ * that the row IS the config `add_segment_from_config` takes, less the
+ * bookkeeping keys. */
+function urbanRow(doc, { key, startFt, endFt, upstream, downstream, subject, opposing, measures, index }) {
+	const m = doc.mainline;
+	const cfg = downstream?.config ?? {};
+	const lengthFt = endFt - startFt;
+
+	const r = {
+		key,
+		startFt,
+		// The freeway chassis keys overrides, staleness and the strip off
+		// `seg_type`. For an urban row the type that can change underneath an
+		// override is the boundary's control, so that is what fills it.
+		seg_type: cfg.control ?? 'Signalized',
+		length_ft: lengthFt,
+		lanes: m.lanes,
+
+		segment_length_ft: lengthFt,
+		n_through_lanes: m.lanes,
+		speed_limit_mph: cfg.speed_limit_mph ?? m.speedLimitMph,
+		through_demand_veh_h: cfg.through_demand_veh_h,
+		control: cfg.control ?? 'Signalized',
+		// The width of the intersection at the segment's UPSTREAM end, which is
+		// the one Equation 18-3's running-time chain charges to this segment.
+		upstream_intersection_width_ft: upstream?.config?.width_ft ?? 0,
+		restrictive_median_length_ft: m.restrictiveMedianLengthFt,
+		proportion_with_curb: m.proportionWithCurb,
+		proportion_on_street_parking: m.proportionOnStreetParking,
+		n_access_points_subject: subject.length,
+		n_access_points_opposing: opposing.length,
+		// Signal spacing and segment length are the same distance here by
+		// construction: both boundaries are signals, so the spacing between them
+		// is the length between them. Equation 18-4's f_L reads it.
+		signal_spacing_ft: lengthFt,
+		midsegment_flow_veh_h: cfg.midsegment_flow_veh_h,
+		through_capacity_veh_h: cfg.through_capacity_veh_h,
+		through_control_delay_s: cfg.through_control_delay_s,
+		cycle_length_s: cfg.cycle_length_s,
+		effective_green_s: cfg.effective_green_s,
+		platoon_ratio: cfg.platoon_ratio ?? undefined,
+		sat_flow_veh_h_ln: cfg.sat_flow_veh_h_ln ?? undefined,
+		arrival_type: cfg.arrival_type ?? undefined,
+		full_stop_rate_override: cfg.full_stop_rate_override ?? undefined,
+		prop_left_turn_lanes: m.propLeftTurnLanes,
+
+		sourceIds: [upstream?.id, downstream?.id, ...subject.map((a) => a.id), ...opposing.map((a) => a.id)].filter(Boolean),
+		overridden: false,
+		staleOverride: false
+	};
+
+	// The Equation 18-7 access-point delay term, from whichever of the three
+	// sources the access points on this segment actually carry. The library picks
+	// among them in this order, so the derivation offers them in it: supplying
+	// both a published delay and an approach would otherwise silently favour one.
+	const published = subject.filter((a) => Number.isFinite(a.delayS));
+	const approaches = subject.filter((a) => a.approach);
+	if (published.length) {
+		r.access_point_delays_s = published.map((a) => a.delayS);
+		r.apDelaySource = 'published';
+	} else if (approaches.length) {
+		r.access_point_approaches = approaches.map((a) => ({ ...a.approach }));
+		r.analysis_period_h = doc.mainline.analysisPeriodH;
+		r.apDelaySource = 'computed';
+	} else {
+		r.apDelaySource = 'planning';
+	}
+
+	if (measures) {
+		const pub = downstream?.measures ?? {};
+		for (const k of URBAN_MEASURE_KEYS) if (pub[k] != null) r[k] = pub[k];
+	}
+
+	r.why = whyUrban({ index, startFt, endFt, upstream, downstream, subject, opposing, measures, source: r.apDelaySource });
+	return r;
+}
+
+function whyUrban({ index, startFt, endFt, upstream, downstream, subject, opposing, measures, source }) {
+	const ends = downstream
+		? `the signal ${downstream.label || downstream.id} at ${ft(endFt)}`
+		: `the downstream terminus at ${ft(endFt)}, which carries no signal`;
+	const begins = upstream
+		? `the signal ${upstream.label || upstream.id} at ${ft(startFt)}`
+		: `the upstream terminus at ${ft(startFt)}`;
+	const parts = [
+		`Segment ${index + 1} runs ${ft(endFt - startFt)} from ${begins} to ${ends}. A Chapter 18 segment extends from one boundary intersection to the next, and its through control delay, cycle length and effective green belong to the intersection at its downstream end, so this segment reads its timing off ${downstream ? downstream.label || downstream.id : 'nothing'} (Chapter 18, Section 2).`
+	];
+	if (subject.length || opposing.length) {
+		parts.push(
+			`${subject.length} access point${subject.length === 1 ? '' : 's'} on the subject side and ${opposing.length} on the opposing side sit inside it, which is the count Exhibit 18-11 note c reads for the f_A adjustment.`
+		);
+	}
+	if (measures) {
+		parts.push(
+			'This run is in published-measures mode, so the segment carries its Chapter 18 outputs as given and only the Chapter 16 aggregation runs over them (Exhibit 16-7, "HCM method output").'
+		);
+	} else if (source === 'published') {
+		parts.push('Its access-point delay is the per-point values supplied on the access points themselves, which is the first of the three sources Equation 18-7 accepts.');
+	} else if (source === 'computed') {
+		parts.push('Its access-point delay is computed from the access point approach volumes and geometry by the Chapter 30 Section 4 procedure (Equations 30-31 through 30-68).');
+	} else {
+		parts.push('No access point here carries a delay or an approach, so the segment falls to the Exhibit 18-13 planning estimate for its access-point delay.');
+	}
+	return parts.join(' ');
 }
 
 // ── "Why this segment?" ──────────────────────────────────────────────────
