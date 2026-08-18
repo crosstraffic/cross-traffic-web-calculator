@@ -4,9 +4,12 @@
 // suppressed and the shapes they touch were hand-written here.
 import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { inflateRawSync } from 'node:zlib';
 import { expect, test, type Page } from '@playwright/test';
+
+// The sibling library's published fixtures. tests/libCases.mjs resolves the
+// checkout, including from inside a git worktree, and says why that took a file.
+import { libCase, readCase } from './libCases.mjs';
 
 // A .docx is a zip, and the assertion worth making about one is what its
 // document part says. Reading it takes a zip reader, and adding a dependency to
@@ -3152,11 +3155,9 @@ async function expectTwoLaneOutputs(
 // The numbers come from the library's own Example Problem 1 fixture, which is
 // read off disk rather than transcribed.
 test.describe('facility builder', () => {
-  // The library checkout sits beside this repo, the same place the boundary
-  // suite looks for it.
-  const LIB_CASES: string =
-    process.env.HCM_LIB_CASES || join(process.cwd(), '..', 'transportations-library', 'tests', 'ExampleCases', 'hcm');
-  const CASE1 = join(LIB_CASES, 'FreewayFacilities', 'case1.json');
+  // Resolved per test rather than once here: a missing library checkout must
+  // fail the tests that need a fixture, not the whole spec file at collection.
+  const CASE1 = () => libCase('FreewayFacilities', 'case1.json');
 
   /** The whole editor sits behind `inert={!ready}`, so every test waits for the
    * wasm module the same way the chapter pages wait for Calculate. */
@@ -3309,7 +3310,7 @@ test.describe('facility builder', () => {
   test('Example Problem 1 loads as placed ramps and rebuilds the published eleven segments', async ({ page }) => {
     await openBuilder(page);
     await page.getByTestId('example-ep1').click();
-    const case1 = JSON.parse(readFileSync(CASE1, 'utf8'));
+    const case1 = readCase('FreewayFacilities', 'case1.json');
     expect(await typesOf(page)).toEqual(case1.segments.map((s: { seg_type: string }) => s.seg_type));
     await expect(page.getByTestId('feature-row')).toHaveCount(6);
     // The weave carries the auxiliary lane, so it is one lane wider than the
@@ -3320,11 +3321,11 @@ test.describe('facility builder', () => {
 
   test('a fixture imports as segments with no feature layer, and says so', async ({ page }) => {
     await openBuilder(page);
-    const case1 = JSON.parse(readFileSync(CASE1, 'utf8'));
+    const case1 = readCase('FreewayFacilities', 'case1.json');
     await page.locator('input[type="file"]').setInputFiles({
       name: 'case1.json',
       mimeType: 'application/json',
-      buffer: readFileSync(CASE1)
+      buffer: readFileSync(CASE1())
     });
     expect(await typesOf(page)).toEqual(case1.segments.map((s: { seg_type: string }) => s.seg_type));
     await expect(page.getByTestId('segment-row')).toHaveCount(11);
@@ -3359,7 +3360,7 @@ test.describe('facility builder', () => {
   test('Example Problem 3 shows the added lane as a step in the cross section', async ({ page }) => {
     await openBuilder(page);
     await page.getByTestId('example-ep3').click();
-    const case3 = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', 'case3.json'), 'utf8'));
+    const case3 = readCase('FreewayFacilities', 'case3.json');
     expect(await typesOf(page)).toEqual(case3.segments.map((s: { seg_type: string }) => s.seg_type));
     // The strip is the thing that has to show the step, not just the table.
     expect(await lanesOf(page)).toEqual(case3.segments.map((s: { lanes: number }) => s.lanes));
@@ -3374,7 +3375,7 @@ test.describe('facility builder', () => {
   test('Example Problem 4 codes the closure segment with the lanes that stay open', async ({ page }) => {
     await openBuilder(page);
     await page.getByTestId('example-ep4').click();
-    const case4 = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', 'case4.json'), 'utf8'));
+    const case4 = readCase('FreewayFacilities', 'case4.json');
     expect(await typesOf(page)).toEqual(case4.segments.map((s: { seg_type: string }) => s.seg_type));
     expect(await lanesOf(page)).toEqual(case4.segments.map((s: { lanes: number }) => s.lanes));
     const closure = page.locator('[data-testid="strip-seg"][data-seg-wz="yes"]');
@@ -3408,7 +3409,7 @@ test.describe('facility builder', () => {
     await page.getByTestId('example-ep2').click();
     expect(await typesOf(page)).toEqual(ep1Types);
     expect(await lanesOf(page)).toEqual(ep1Lanes);
-    const case2 = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', 'case2.json'), 'utf8'));
+    const case2 = readCase('FreewayFacilities', 'case2.json');
     await expect(page.locator('[data-testid="demand-row"][data-source="mainline"] input').first())
       .toHaveValue(String(case2.mainline_demand[0]));
   });
@@ -4074,7 +4075,7 @@ test.describe('facility builder', () => {
 
     test('an urban fixture imports as signals and exports byte-identically', async ({ page }) => {
       await openUrban(page);
-      const fixture = join(LIB_CASES, 'UrbanFacilities', 'case3.json');
+      const fixture = libCase('UrbanFacilities', 'case3.json');
       await page.getByTestId('import-file').click();
       await page.locator('input[type=file]').setInputFiles(fixture);
       await expect(page.getByTestId('builder-message')).toContainText('boundary signals were recovered');

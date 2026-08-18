@@ -22,6 +22,10 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// The sibling library's fixtures; tests/libCases.mjs resolves the checkout and
+// says why that is not a one-line join.
+import { readCase } from '../libCases.mjs';
+
 import { deriveRows } from '../../src/lib/builder/derive.js';
 import { emptyDocument, makeFeature, migrate, setPeriods, DOC_VERSION } from '../../src/lib/builder/document.js';
 import { loadUrbanExample, URBAN_EXAMPLES } from '../../src/lib/builder/urbanExamples.js';
@@ -38,14 +42,11 @@ import { urbanDiscussion, urbanReliabilityDiscussion } from '../../src/lib/build
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkgDir = join(here, '..', '..', 'HCM-middleware', 'pkg');
-const LIB_CASES =
-	process.env.HCM_LIB_CASES ||
-	join(here, '..', '..', '..', 'transportations-library', 'tests', 'ExampleCases', 'hcm');
 
 const wasm = await import(join(pkgDir, 'HCM_middleware.js'));
 await wasm.default(readFileSync(join(pkgDir, 'HCM_middleware_bg.wasm')));
 
-const loadCase = (name) => JSON.parse(readFileSync(join(LIB_CASES, 'UrbanFacilities', name)));
+const loadCase = (name) => readCase('UrbanFacilities', name);
 
 const failures = [];
 let checks = 0;
@@ -329,7 +330,7 @@ function street(stations, lengthFt = stations[stations.length - 1]) {
 	// documented default path, and it is 1.1 mi/h off the published travel speed
 	// — which is why an example loader that took it would quietly fail to
 	// reproduce its own exhibit.
-	const approaches = JSON.parse(readFileSync(join(LIB_CASES, 'UrbanSegments', 'case3.json'))).access_point_approaches;
+	const approaches = readCase('UrbanSegments', 'case3.json').access_point_approaches;
 
 	const published = loadUrbanExample('ch30ep1');
 	const pubRun = analyzeUrbanFacility(published, derive(published).rows, wasm);

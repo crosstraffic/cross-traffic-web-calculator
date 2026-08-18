@@ -7,13 +7,12 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// Library fixtures come from the sibling checkout, or from HCM_LIB_CASES.
+// tests/libCases.mjs says why that is not a one-line join.
+import { readCase } from '../libCases.mjs';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const pkgDir = join(here, '..', '..', 'HCM-middleware', 'pkg');
-// Library fixtures come from the sibling checkout (../transportations-library
-// next to this repo), overridable via HCM_LIB_CASES. CI clones the library
-// shallow to satisfy this.
-const LIB_CASES = process.env.HCM_LIB_CASES
-  || join(here, '..', '..', '..', 'transportations-library', 'tests', 'ExampleCases', 'hcm');
 
 let wasm = null;
 export async function loadWasm() {
@@ -24,9 +23,7 @@ export async function loadWasm() {
   return wasm;
 }
 
-export function loadCase(chapterDir, name) {
-  return JSON.parse(readFileSync(join(LIB_CASES, chapterDir, name)));
-}
+export const loadCase = readCase;
 
 const failures = [];
 let checks = 0;

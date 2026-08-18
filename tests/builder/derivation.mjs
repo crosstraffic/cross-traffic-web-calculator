@@ -13,6 +13,10 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// The sibling library's fixtures; tests/libCases.mjs resolves the checkout and
+// says why that is not a one-line join.
+import { readCase } from '../libCases.mjs';
+
 import { deriveRows, WEAVE_EXTENSION_FT } from '../../src/lib/builder/derive.js';
 import { emptyDocument, makeFeature, setPeriods, migrate, DOC_VERSION } from '../../src/lib/builder/document.js';
 import { loadExample } from '../../src/lib/builder/examples.js';
@@ -22,9 +26,6 @@ import { applyTemplate } from '../../src/lib/builder/templates.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkgDir = join(here, '..', '..', 'HCM-middleware', 'pkg');
-const LIB_CASES =
-	process.env.HCM_LIB_CASES ||
-	join(here, '..', '..', '..', 'transportations-library', 'tests', 'ExampleCases', 'hcm');
 
 const wasm = await import(join(pkgDir, 'HCM_middleware.js'));
 await wasm.default(readFileSync(join(pkgDir, 'HCM_middleware_bg.wasm')));
@@ -136,7 +137,7 @@ eq(
 
 // ── Example Problem 1: six ramps must rebuild eleven published segments ──
 
-const case1 = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', 'case1.json')));
+const case1 = readCase('FreewayFacilities', 'case1.json');
 const ep1 = loadExample('ep1');
 const ep1Rows = deriveRows(ep1, api).rows;
 
@@ -185,7 +186,7 @@ ok(
 // being checked is not that the loader has the right numbers in it, but that
 // the feature layer produces the published segment table.
 for (const [id, file] of [['ep2', 'case2.json'], ['ep3', 'case3.json'], ['ep4', 'case4.json']]) {
-	const want = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', file)));
+	const want = readCase('FreewayFacilities', file);
 	const doc = loadExample(id);
 	const { rows, errors } = deriveRows(doc, api);
 	eq(errors, [], `${id} derives without errors`);

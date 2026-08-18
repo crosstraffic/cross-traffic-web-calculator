@@ -18,6 +18,10 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// The sibling library's fixtures; tests/libCases.mjs resolves the checkout and
+// says why that is not a one-line join.
+import { readCase } from '../libCases.mjs';
+
 import { deriveRows } from '../../src/lib/builder/derive.js';
 import { loadExample } from '../../src/lib/builder/examples.js';
 import { emptyDocument } from '../../src/lib/builder/document.js';
@@ -29,9 +33,6 @@ import { MEASURES, RAMP, domainOf, cellStyle, cellText, rampStep } from '../../s
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkgDir = join(here, '..', '..', 'HCM-middleware', 'pkg');
-const LIB_CASES =
-	process.env.HCM_LIB_CASES ||
-	join(here, '..', '..', '..', 'transportations-library', 'tests', 'ExampleCases', 'hcm');
 
 const wasm = await import(join(pkgDir, 'HCM_middleware.js'));
 await wasm.default(readFileSync(join(pkgDir, 'HCM_middleware_bg.wasm')));
@@ -358,7 +359,7 @@ function run(id, mutate = null) {
 // pays for. The check is on the fixture rather than on the editor for that
 // reason.
 {
-	const raw = JSON.parse(readFileSync(join(LIB_CASES, 'FreewayFacilities', 'case1.json'), 'utf8'));
+	const raw = readCase('FreewayFacilities', 'case1.json');
 	raw.segments[0].ramp_metering = 900;
 	raw.segments[3].time_step_s = 30;
 	const doc = fromFixture(raw, 'case1 with unbound fields');
