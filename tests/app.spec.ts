@@ -1,22 +1,47 @@
-// The offline test below runs a throwaway HTTP proxy. @types/node is not a
-// dependency of this app, so the import has no declarations and the shapes the
-// proxy touches are described here instead.
-// @ts-expect-error missing @types/node
-import { createServer, request } from 'node:http';
-// @ts-expect-error missing @types/node
+// The offline test below runs a throwaway HTTP proxy, and the Word-export test
+// reads a zip. Both use the Node standard library, whose declarations arrive
+// with the @types/node devDependency; before it was declared these imports were
+// suppressed and the shapes they touch were hand-written here.
+import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFileSync } from 'node:fs';
-// @ts-expect-error missing @types/node
 import { join } from 'node:path';
+import { inflateRawSync } from 'node:zlib';
 import { expect, test, type Page } from '@playwright/test';
 
-type ProxyMessage = {
-  url?: string;
-  method?: string;
-  statusCode?: number;
-  headers: Record<string, unknown>;
-  socket?: { destroy: () => void } | null;
-  pipe: (destination: unknown) => void;
-};
+// A .docx is a zip, and the assertion worth making about one is what its
+// document part says. Reading it takes a zip reader, and adding a dependency to
+// get one would be a heavier change than the twenty lines the central directory
+// needs: find the end-of-central-directory record, walk the entries, and
+// inflate the one asked for. Stored (method 0) and deflated (method 8) are the
+// only methods a docx uses.
+function readZipEntry(zip: Buffer, name: string): string {
+  const EOCD = 0x06054b50;
+  let eocd = -1;
+  for (let i = zip.length - 22; i >= 0; i--) {
+    if (zip.readUInt32LE(i) === EOCD) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('not a zip file');
+  const count = zip.readUInt16LE(eocd + 10);
+  let p = zip.readUInt32LE(eocd + 16);
+  for (let i = 0; i < count; i++) {
+    const method = zip.readUInt16LE(p + 10);
+    const compressedSize = zip.readUInt32LE(p + 20);
+    const nameLen = zip.readUInt16LE(p + 28);
+    const extraLen = zip.readUInt16LE(p + 30);
+    const commentLen = zip.readUInt16LE(p + 32);
+    const localOffset = zip.readUInt32LE(p + 42);
+    const entryName = zip.toString('utf8', p + 46, p + 46 + nameLen);
+    if (entryName === name) {
+      const lNameLen = zip.readUInt16LE(localOffset + 26);
+      const lExtraLen = zip.readUInt16LE(localOffset + 28);
+      const start = localOffset + 30 + lNameLen + lExtraLen;
+      const body = zip.subarray(start, start + compressedSize);
+      return (method === 0 ? body : inflateRawSync(body)).toString('utf8');
+    }
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  throw new Error(`no ${name} in the archive`);
+}
 
 type OfflineProxy = {
   /** Point the browser here, not at baseURL. */
@@ -41,13 +66,13 @@ async function startOfflineProxy(baseURL: string): Promise<OfflineProxy> {
   let cut = false;
   let blockWasm = false;
   let seen: string[] = [];
-  const proxy = createServer((req: ProxyMessage, res: ProxyMessage & { writeHead: (status: number, headers: Record<string, unknown>) => void }) => {
+  const proxy = createServer((req: IncomingMessage, res: ServerResponse) => {
     seen.push(req.url ?? '/');
     if (cut || (blockWasm && req.url?.endsWith('.wasm'))) return req.socket?.destroy();
     const upstream = request(
       baseURL + (req.url ?? '/'),
       { method: req.method, headers: req.headers },
-      (response: ProxyMessage) => {
+      (response: IncomingMessage) => {
         res.writeHead(response.statusCode ?? 502, response.headers);
         response.pipe(res);
       }
@@ -3102,10 +3127,8 @@ async function expectTwoLaneOutputs(
 test.describe('facility builder', () => {
   // The library checkout sits beside this repo, the same place the boundary
   // suite looks for it.
-  // @ts-expect-error missing @types/node
-  const env = process as { env: Record<string, string | undefined>; cwd: () => string };
   const LIB_CASES: string =
-    env.env.HCM_LIB_CASES || join(env.cwd(), '..', 'transportations-library', 'tests', 'ExampleCases', 'hcm');
+    process.env.HCM_LIB_CASES || join(process.cwd(), '..', 'transportations-library', 'tests', 'ExampleCases', 'hcm');
   const CASE1 = join(LIB_CASES, 'FreewayFacilities', 'case1.json');
 
   /** The whole editor sits behind `inert={!ready}`, so every test waits for the
@@ -3126,7 +3149,16 @@ test.describe('facility builder', () => {
       rows.map((r) => (r as HTMLElement).dataset.segType)
     );
 
+  /** Every field a feature carries lives in the editor its row opens, so a test
+   * that edits one opens the row first, the same way a user does. */
+  async function expandFeature(page: Page, id: string) {
+    const toggle = page.getByTestId(`expand-${id}`);
+    if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+    await expect(page.locator(`[data-testid="feature-editor"][data-feature-id="${id}"]`)).toBeVisible();
+  }
+
   async function setStation(page: Page, id: string, mi: number) {
+    await expandFeature(page, id);
     const field = page.getByTestId(`station-${id}`);
     await field.fill(String(mi));
     await field.blur();
@@ -3324,6 +3356,7 @@ test.describe('facility builder', () => {
     await expect(page.getByTestId('work-zone-marker')).toHaveCount(1);
     // Opening a third lane puts the segment back to three, live.
     const id = await page.getByTestId('work-zone-marker').getAttribute('data-feature-id');
+    await expandFeature(page, id!);
     await page.getByTestId(`open-lanes-${id}`).fill('3');
     await page.getByTestId(`open-lanes-${id}`).blur();
     await expect(page.locator('[data-testid="strip-seg"][data-seg-wz="yes"]')).toHaveAttribute('data-seg-lanes', '3');
@@ -3378,6 +3411,438 @@ test.describe('facility builder', () => {
     for (let i = 0; i < 4; i++) await page.getByTestId('undo').click();
     expect(await typesOf(page)).toEqual(['Basic']);
     expect(errors).toEqual([]);
+  });
+
+  // ── Point editors (phase 1c) ───────────────────────────────────────────
+  //
+  // The claim is that the editor a row opens is the same editor the strip
+  // opens, that a field committed in it re-derives the table exactly as a drag
+  // does, and that it costs one undo step rather than one per keystroke.
+
+  test('a ramp row opens an editor whose station change re-derives, and one undo restores it', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('facility-length').fill('4');
+    await page.getByTestId('facility-length').blur();
+    await page.getByTestId('template-diamond').click();
+    const before = await typesOf(page);
+    expect(before).toEqual(['Basic', 'Merge', 'Basic', 'Diverge', 'Basic']);
+
+    const offId = (await page.getByTestId('feature-row').last().getAttribute('data-feature-id'))!;
+    // Collapsed, the row holds no editable station at all: the fields are in
+    // the panel, which is the thing that has to open.
+    await expect(page.getByTestId(`station-${offId}`)).toHaveCount(0);
+    await page.getByTestId(`expand-${offId}`).click();
+    const editor = page.locator(`[data-testid="feature-editor"][data-feature-id="${offId}"]`);
+    await expect(editor).toBeVisible();
+    await expect(page.getByTestId(`expand-${offId}`)).toHaveAttribute('aria-expanded', 'true');
+
+    // Pulling the off-ramp back inside 3,000 ft of the on-ramp turns the basic
+    // segment between them into an overlapping ramp, live.
+    const field = page.getByTestId(`station-${offId}`);
+    await field.fill('1.4');
+    await field.blur();
+    expect(await typesOf(page)).toEqual(['Basic', 'Merge', 'OverlappingRamp', 'Diverge', 'Basic']);
+
+    // One field edit committed on blur is one undo step, not one per keystroke.
+    await page.getByTestId('undo').click();
+    expect(await typesOf(page)).toEqual(before);
+  });
+
+  test('the editor carries the fields no row column fits, and they reach the derivation', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('example-ep1').click();
+    // EP1's weave is the on-ramp that carries an auxiliary lane to the next
+    // off-ramp, so its weaving geometry is live rather than dimmed.
+    const weaveOn = page.locator('[data-testid="feature-row"]').filter({ hasText: 'aux lane to next' }).first();
+    const onId = (await weaveOn.getAttribute('data-feature-id'))!;
+    await expandFeature(page, onId);
+    for (const field of ['weaving-lanes', 'lc-rf', 'lc-fr', 'ramp-ffs', 'accel']) {
+      await expect(page.getByTestId(`${field}-${onId}`)).toBeVisible();
+    }
+    // The per-ramp demand vector is in the panel as well as in the grid below,
+    // and both write to the same document.
+    await page.getByTestId(`demand-${onId}-0`).fill('999');
+    await page.getByTestId(`demand-${onId}-0`).blur();
+    await expect(page.locator(`[data-testid="demand-row"][data-source="${onId}"] input`).first()).toHaveValue('999');
+  });
+
+  test('a work zone field committed in the editor moves the segment it produced', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('example-ep4').click();
+    const id = (await page.getByTestId('work-zone-marker').getAttribute('data-feature-id'))!;
+    await expandFeature(page, id);
+    // All ten of the library's WorkZone fields are here, including the ramp
+    // density that had no editor anywhere before.
+    await expect(page.getByTestId(`wz-ramp-density-${id}`)).toBeVisible();
+    await page.getByTestId(`open-lanes-${id}`).fill('3');
+    await page.getByTestId(`open-lanes-${id}`).blur();
+    // The derived row is the assertion, not the strip: the closure segment is
+    // what the engine analyzes.
+    await expect(page.locator('[data-testid="strip-seg"][data-seg-wz="yes"]')).toHaveAttribute('data-seg-lanes', '3');
+    await expect(page.getByTestId('segment-row').filter({ hasText: 'WZ' }).first()).toBeVisible();
+    await page.getByTestId('undo').click();
+    await expect(page.locator('[data-testid="strip-seg"][data-seg-wz="yes"]')).toHaveAttribute('data-seg-lanes', '2');
+  });
+
+  test('marker and row select each other', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('template-diamond').click();
+    const offId = (await page.getByTestId('feature-row').last().getAttribute('data-feature-id'))!;
+
+    // Row to marker: expanding lights the marker on the strip.
+    await page.getByTestId(`expand-${offId}`).click();
+    await expect(page.locator(`[data-testid="feature-marker"][data-feature-id="${offId}"]`)).toHaveClass(/lit/);
+
+    // Marker to row: a click that moves nothing opens that feature's row and
+    // closes the one that was open.
+    const onId = (await page.getByTestId('feature-row').first().getAttribute('data-feature-id'))!;
+    await page.locator(`[data-testid="feature-marker"][data-feature-id="${onId}"] circle`).click();
+    await expect(page.locator(`[data-testid="feature-editor"][data-feature-id="${onId}"]`)).toBeVisible();
+    await expect(page.locator(`[data-testid="feature-editor"][data-feature-id="${offId}"]`)).toHaveCount(0);
+    await expect(page.locator(`[data-testid="feature-row"][data-feature-id="${onId}"]`)).toHaveAttribute('data-expanded', 'true');
+  });
+
+  test('the editor maximizes to the viewport and Escape restores it', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('template-diamond').click();
+    const editor = page.getByTestId('builder-editor');
+    await expect(editor).toHaveAttribute('data-maximized', 'false');
+
+    await page.getByTestId('maximize-editor').click();
+    await expect(editor).toHaveAttribute('data-maximized', 'true');
+    await expect(page.getByTestId('maximize-editor')).toHaveAttribute('aria-pressed', 'true');
+    // Actually filling the viewport, not just wearing the class.
+    const box = await editor.boundingBox();
+    const view = page.viewportSize()!;
+    expect(box!.width).toBeGreaterThan(view.width * 0.95);
+
+    // The editor keeps working inside the overlay.
+    const offId = (await page.getByTestId('feature-row').last().getAttribute('data-feature-id'))!;
+    await expandFeature(page, offId);
+    await expect(page.getByTestId(`station-${offId}`)).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(editor).toHaveAttribute('data-maximized', 'false');
+    // And the open row survived the trip, because maximizing is a layout state
+    // and not a reset.
+    await expect(page.locator(`[data-testid="feature-editor"][data-feature-id="${offId}"]`)).toBeVisible();
+  });
+
+  test('a run leaves the maximized editor alone and the results wait below it', async ({ page }) => {
+    await openBuilder(page);
+    await page.getByTestId('example-ep1').click();
+    await page.getByTestId('analyze').click();
+    await expect(page.getByTestId('heatmap')).toBeVisible();
+
+    await page.getByTestId('maximize-editor').click();
+    await expect(page.getByTestId('builder-editor')).toHaveAttribute('data-maximized', 'true');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('overall-speed')).toHaveText('56.9');
+    await expect(page.getByTestId('results-stale')).toHaveCount(0);
+  });
+
+  // ── Analysis (phase 1b) ────────────────────────────────────────────────
+  //
+  // The claim these pin is the whole point of the builder: a facility described
+  // as ramps at stations, analyzed through the page, reproduces the values the
+  // manual prints. The expected numbers are the ones
+  // tests/boundary/ch10_freeway_facilities.mjs asserts against the exhibits,
+  // read here off the rendered page rather than off the engine, so a correct
+  // engine wired to the wrong cell of the grid still fails.
+  //
+  // tests/builder/analysis.mjs pins the matrices cell by cell under node. What
+  // is worth a browser is what the page actually shows.
+
+  async function analyze(page: Page, example: string) {
+    await openBuilder(page);
+    await page.getByTestId(`example-${example}`).click();
+    await page.getByTestId('analyze').click();
+    await expect(page.getByTestId('heatmap')).toBeVisible();
+  }
+
+  /** The facility LOS row of the summary table, which is the letter sequence
+   * Exhibit 25-52 and its siblings print along the bottom. */
+  const facilityLos = (page: Page) =>
+    page.getByTestId('facility-los-row').locator('td').allInnerTexts();
+
+  /** One row of the heatmap, in segment order, as the page renders it. */
+  const heatRow = (page: Page, period: number) =>
+    page.locator(`[data-testid="heatmap-cell"][data-period="${period}"]`).evaluateAll((els) =>
+      els.map((e) => (e as HTMLElement).dataset.value)
+    );
+
+  test('Example Problem 1 analyzes to the published Exhibit 25-52 facility values', async ({ page }) => {
+    await analyze(page, 'ep1');
+
+    // Exhibit 25-52 totals: 56.9 mi/h over 6.00 mi.
+    await expect(page.getByTestId('overall-speed')).toHaveText('56.9');
+    // Exhibit 25-52 prints 28.4 veh/mi/ln; the engine computes 28.5, inside the
+    // +-0.5 the boundary file allows, so the page is pinned at what it shows.
+    await expect(page.getByTestId('overall-density')).toHaveText('28.5');
+    expect(await facilityLos(page)).toEqual(['D', 'D', 'E', 'D', 'C']);
+    await expect(page.getByTestId('oversaturated-flag')).toContainText('Undersaturated');
+
+    // The grid is the Exhibit 10-10 domain: 11 segments across, 5 periods down.
+    await expect(page.getByTestId('heatmap-col')).toHaveCount(11);
+    await expect(page.getByTestId('heatmap-row')).toHaveCount(5);
+    await expect(page.getByTestId('heatmap-cell')).toHaveCount(55);
+    // Period 3 of the segment LOS matrix (Exhibit 25-51), read off the cells.
+    expect(await heatRow(page, 3)).toEqual(['D', 'D', 'D', 'D', 'D', 'D', 'E', 'E', 'E', 'D', 'E']);
+  });
+
+  test('Example Problem 2 goes oversaturated in period 3 and holds its period-4 letters', async ({ page }) => {
+    await analyze(page, 'ep2');
+
+    const flag = page.getByTestId('oversaturated-flag');
+    await expect(flag).toContainText('Oversaturated');
+    // Exhibit 25-55 puts the first demand-to-capacity ratios above 1.0 in
+    // Analysis Period 3. The core's own first_oversat_period has no binding
+    // getter, so the page derives it and says what it means.
+    await expect(page.getByTestId('first-oversat-period')).toHaveText('period 3');
+    expect(await facilityLos(page)).toEqual(['D', 'E', 'F', 'E', 'D']);
+
+    // Exhibit 25-59 period 4, segment 4: LOS E. This cell moved onto its
+    // published value when the Equation 25-12 front-clearing test was scoped to
+    // a restored bottleneck, so it is the one worth watching.
+    await expect(
+      page.locator('[data-testid="heatmap-cell"][data-seg="4"][data-period="4"]')
+    ).toHaveAttribute('data-value', 'E');
+    // VERIFY-HCM: the residual queue-distribution gap keeps the totals off the
+    // published 50.5 mi/h and 35.6 veh/mi/ln, so the page is pinned at what the
+    // engine measures, exactly as the boundary file pins it.
+    await expect(page.getByTestId('overall-speed')).toHaveText('49.3');
+    await expect(page.getByTestId('overall-density')).toHaveText('36.5');
+  });
+
+  test('Example Problem 3 loses every bottleneck once the lane is carried on', async ({ page }) => {
+    await analyze(page, 'ep3');
+    await expect(page.getByTestId('oversaturated-flag')).toContainText('Undersaturated');
+    // Exhibit 25-68 totals: 57.5 mi/h and 27.7 veh/mi/ln. The overall space mean
+    // speed is demand-weighted across periods and computes 57.3, inside the 0.2
+    // band the boundary file allows it.
+    await expect(page.getByTestId('overall-speed')).toHaveText('57.3');
+    await expect(page.getByTestId('overall-density')).toHaveText('27.7');
+    expect(await facilityLos(page)).toEqual(['D', 'D', 'D', 'D', 'C']);
+    // The added lane is what did it, and the heatmap says which segments moved:
+    // Exhibit 25-67 period 5 puts Segments 7, 8, 10 and 11 at LOS B.
+    expect(await heatRow(page, 5)).toEqual(['C', 'C', 'C', 'C', 'C', 'C', 'B', 'B', 'C', 'B', 'B']);
+  });
+
+  test('Example Problem 4 reproduces the work zone capacity and its 1.26 ratio', async ({ page }) => {
+    await analyze(page, 'ep4');
+    await expect(page.getByTestId('oversaturated-flag')).toContainText('Oversaturated');
+    await expect(page.getByTestId('first-oversat-period')).toHaveText('period 1');
+
+    // Segment 11 in period 1 is the cell the work-zone methodology governs.
+    // Exhibit 25-71 prints 4,499 veh/h, which carries only the lane closure;
+    // the ratios of Exhibit 25-72 are taken against the post-CAF_wz 4,013, and
+    // 1.26 is the published ratio.
+    await page.locator('[data-testid="heatmap-cell"][data-seg="11"][data-period="1"]').click();
+    const detail = page.getByTestId('cell-detail');
+    await expect(detail).toContainText('Segment 11');
+    await expect(page.getByTestId('detail-capacity')).toHaveText('4014 veh/h');
+    await expect(page.getByTestId('detail-dc')).toHaveText('1.26');
+    // Exhibit 25-76: the work zone itself holds LOS E in every period, because
+    // it discharges at its own reduced capacity rather than queueing.
+    await expect(page.getByTestId('detail-los')).toHaveText('E');
+    await expect(page.getByTestId('detail-work-zone')).toBeVisible();
+    // And every queued segment upstream of it reaches F by period 3.
+    expect(await heatRow(page, 3)).toEqual(['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'E']);
+  });
+
+  test('the measure selector re-encodes the same grid without moving a cell', async ({ page }) => {
+    await analyze(page, 'ep1');
+    const cell = page.locator('[data-testid="heatmap-cell"][data-seg="8"][data-period="3"]');
+    await expect(cell).toHaveAttribute('data-value', 'E');
+
+    // Switching measure repaints and relabels every cell; it does not change
+    // which cell is which, so the LOS attribute rides along unchanged.
+    await page.getByTestId('measure-select').selectOption('density');
+    // Exhibit 25-50, Segment 8 period 3: 43.9 veh/mi/ln.
+    await expect(cell).toHaveAttribute('data-value', '43.9');
+    await expect(cell).toHaveAttribute('data-los', 'E');
+    await expect(page.getByTestId('heatmap-legend')).toContainText('veh/mi/ln');
+
+    // Speed is the measure the HCM reads the other way round, and the legend
+    // says so by running from the fast end to the slow one.
+    await page.getByTestId('measure-select').selectOption('speed');
+    await expect(cell).toHaveAttribute('data-value', '50.6');
+    const low = Number(await page.getByTestId('legend-low').innerText());
+    const high = Number(await page.getByTestId('legend-high').innerText());
+    expect(low).toBeGreaterThan(high);
+
+    await page.getByTestId('measure-select').selectOption('dc');
+    await expect(page.getByTestId('heatmap-legend')).toContainText('Demand-to-capacity');
+    await expect(page.getByTestId('heatmap-cell')).toHaveCount(55);
+  });
+
+  test('a heatmap cell opens the full segment-period detail and the grid is keyboard navigable', async ({ page }) => {
+    await analyze(page, 'ep1');
+    await expect(page.getByTestId('cell-detail')).toHaveCount(0);
+
+    await page.locator('[data-testid="heatmap-cell"][data-seg="6"][data-period="3"]').click();
+    // Exhibit 25-49/25-50, Segment 6 (the weave) in period 3: 46.2 mi/h and
+    // 34.6 veh/mi/ln at LOS D.
+    await expect(page.getByTestId('detail-speed')).toHaveText('46.2 mi/h');
+    await expect(page.getByTestId('detail-density')).toHaveText('34.6 veh/mi/ln');
+    await expect(page.getByTestId('detail-los')).toHaveText('D');
+    await expect(page.getByTestId('cell-detail')).toContainText('Weaving');
+
+    // The grid takes one tab stop and moves on the arrow keys, because 55 tab
+    // stops is not navigation. The cell is focused explicitly rather than left
+    // focused by the click above: WebKit does not focus a button on a mouse
+    // click, so relying on that would make this a chromium-only assertion.
+    await page.locator('[data-testid="heatmap-cell"][data-seg="6"][data-period="3"]').focus();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('cell-detail')).toContainText('Segment 7');
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('cell-detail')).toContainText('Period 2');
+
+    await page.getByTestId('close-detail').click();
+    await expect(page.getByTestId('cell-detail')).toHaveCount(0);
+  });
+
+  test('the reliability panel runs the same facility through Chapter 11', async ({ page }) => {
+    await analyze(page, 'ep1');
+    // The honesty note is on the panel before the run, not after it.
+    await expect(page.getByTestId('reliability-notes')).toContainText('weather matrix');
+    await expect(page.getByTestId('reliability-summary')).toHaveCount(0);
+
+    await page.getByTestId('run-reliability').click();
+    const summary = page.getByTestId('reliability-summary');
+    await expect(summary).toBeVisible();
+    // Fixed rng seed and fixed inputs, so these are deterministic. They are the
+    // values tests/builder/analysis.mjs measures for the same facility.
+    await expect(page.getByTestId('rel-tti-mean')).toHaveText('1.719');
+    await expect(page.getByTestId('rel-tti-50')).toHaveText('1.601');
+    await expect(page.getByTestId('rel-pti')).toHaveText('2.313');
+    await expect(page.getByTestId('rel-rating')).toHaveText('26.4');
+    // Chapter 11 assigns no letter, and the discussion says so rather than
+    // leaving the reader to notice.
+    await expect(page.getByTestId('reliability-panel')).toContainText('no level of service letter is assigned');
+  });
+
+  test('a work zone facility says on the reliability panel that the closure crosses', async ({ page }) => {
+    await analyze(page, 'ep4');
+    const notes = page.getByTestId('reliability-notes');
+    await expect(notes.locator('[data-note-id="work-zone-carried"]')).toContainText('crosses into the reliability run');
+    await expect(notes.locator('[data-note-id="work-zone-carried"]')).toContainText('every scenario');
+  });
+
+  test('a blocking check stops the analysis and a warning does not', async ({ page }) => {
+    await openBuilder(page);
+    // A lane change to one lane is an error: Chapter 10 needs at least two.
+    await page.getByTestId('add-lane-change').click();
+    const id = await page.getByTestId('lane-change-marker').getAttribute('data-feature-id');
+    await expandFeature(page, id!);
+    await page.getByTestId(`lanes-${id}`).fill('1');
+    await page.getByTestId(`lanes-${id}`).blur();
+    await expect(page.locator('[data-testid="validation-flag"][data-level="error"]')).not.toHaveCount(0);
+    await expect(page.getByTestId('analyze')).toBeDisabled();
+
+    // Put it back and make the facility over-long instead, which is a warning.
+    await page.getByTestId(`lanes-${id}`).fill('4');
+    await page.getByTestId(`lanes-${id}`).blur();
+    await page.getByTestId('facility-length').fill('20');
+    await page.getByTestId('facility-length').blur();
+    await expect(page.locator('[data-testid="validation-flag"][data-flag-id="facility-too-long"]')).toBeVisible();
+    await expect(page.getByTestId('analyze')).toBeEnabled();
+    await page.getByTestId('analyze').click();
+    await expect(page.getByTestId('heatmap')).toBeVisible();
+  });
+
+  test('the results belong to the run, and an edit marks them stale rather than moving them', async ({ page }) => {
+    await analyze(page, 'ep1');
+    await expect(page.getByTestId('overall-speed')).toHaveText('56.9');
+    await expect(page.getByTestId('results-stale')).toHaveCount(0);
+
+    // Editing the document leaves the finished run standing, which is what
+    // keeps the printed report from quoting numbers the form no longer holds.
+    await page.getByTestId('facility-lanes').fill('4');
+    await page.getByTestId('facility-lanes').blur();
+    await expect(page.getByTestId('results-stale')).toBeVisible();
+    await expect(page.getByTestId('overall-speed')).toHaveText('56.9');
+
+    await page.getByTestId('analyze').click();
+    await expect(page.getByTestId('results-stale')).toHaveCount(0);
+    await expect(page.getByTestId('overall-speed')).not.toHaveText('56.9');
+  });
+
+  test('the run joins the printable report with the heatmap as a table of letters', async ({ page }) => {
+    await analyze(page, 'ep1');
+    await page.getByTestId('open-report').click();
+    await expect(page).toHaveURL(/\/report$/);
+
+    await expect(page.locator('.report-page')).toContainText('Example Problem 1');
+    // The per-period table, then the time-space domain as letters rather than
+    // colours, because a fill does not survive a print.
+    const matrix = page.getByTestId('report-matrix');
+    await expect(matrix).toBeVisible();
+    await expect(matrix.locator('thead th')).toHaveCount(12);
+    await expect(matrix.locator('tbody tr')).toHaveCount(5);
+    expect(await matrix.locator('tbody tr').nth(2).locator('td').allInnerTexts())
+      .toEqual(['3', 'D', 'D', 'D', 'D', 'D', 'D', 'E', 'E', 'E', 'D', 'E']);
+    // The discussion rides under the same opt-out toggle every chapter uses.
+    await expect(page.getByTestId('report-discussion')).toContainText('governing cell');
+  });
+
+  // ── Word export ────────────────────────────────────────────────────────
+  //
+  // The claim is that the file is a real Word document carrying the whole
+  // session's report, built from the frozen run rather than from the form, and
+  // that the discussion toggle reaches it. A .docx is a zip, so the assertion
+  // reads its document part rather than trusting the byte count.
+
+  test('the report exports every held analysis as a Word file, and the toggle reaches it', async ({ page }) => {
+    // One builder run: Example Problem 1, whose published facility speed is
+    // 56.9 mi/h (Exhibit 25-52).
+    await analyze(page, 'ep1');
+    await expect(page.getByTestId('overall-speed')).toHaveText('56.9');
+
+    // One chapter analysis, so the export has two reports to carry.
+    await page.goto('/hcm10');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+    await calculate.click();
+    await page.getByRole('link', { name: 'Open printable report' }).click();
+    await expect(page).toHaveURL(/\/report$/);
+    // Both runs are held side by side, and the page says the Word file carries
+    // both while the print carries the one on screen.
+    await expect(page.locator('.report-tabs button')).toHaveCount(2);
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('download-docx').click()
+    ]);
+    expect(download.suggestedFilename()).toMatch(/\.docx$/);
+    const path = await download.path();
+    const bytes = readFileSync(path);
+    // A Word file this size is a document, not an empty skeleton.
+    expect(bytes.length).toBeGreaterThan(8_000);
+
+    const xml = readZipEntry(bytes, 'word/document.xml');
+    // Both analyses are in it, and the builder's numbers are the published ones.
+    expect(xml).toContain('56.9');
+    expect(xml).toContain('Facility Builder');
+    expect(xml).toContain('Chapter 10');
+    // The time-space domain rides along as letters.
+    expect(xml).toContain('Time-space domain');
+    expect(xml).toContain('>Discussion<');
+
+    // Clearing the toggle takes the discussion out of the file as well as off
+    // the page, which is the whole point of one control for both.
+    await page.getByTestId('include-discussion').uncheck();
+    await expect(page.getByTestId('report-discussion')).toHaveCount(0);
+    const [second] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('download-docx').click()
+    ]);
+    const withoutDiscussion = readZipEntry(readFileSync(await second.path()), 'word/document.xml');
+    expect(withoutDiscussion).not.toContain('>Discussion<');
+    // And nothing else went with it.
+    expect(withoutDiscussion).toContain('56.9');
   });
 
   test('the builder link is in both navigation menus', async ({ page }) => {

@@ -39,10 +39,47 @@
   // The discussion is the one section a reader may not want in a deliverable, so it is opt-out
   // rather than opt-in: it prints unless the box is cleared. The choice is per view, not stored
   // with the report, because it belongs to this printing rather than to the analysis.
+  //
+  // One toggle covers both outputs. The printed page shows one analysis and the Word export
+  // carries all of them, so the box is offered whenever ANY held report has a discussion; the
+  // page section still appears only when the report on screen has one.
   let includeDiscussion = $state(true);
-  let hasDiscussion = $derived(Boolean(current && current.discussion && current.discussion.length));
+  let hasDiscussion = $derived(keys.some((k) => $reports[k].discussion && $reports[k].discussion.length));
+  let currentHasDiscussion = $derived(Boolean(current && current.discussion && current.discussion.length));
 
   function printReport() { window.print(); }
+
+  // The docx builder is loaded on demand, so the ~400 kB library sits in its own chunk and the
+  // page costs nothing until someone asks for a Word file. It is still build output, so the
+  // service worker precaches it and the export works offline like everything else here.
+  let exporting = $state(false);
+  let exportError = $state('');
+  async function downloadDocx() {
+    exporting = true;
+    exportError = '';
+    try {
+      const { downloadReportDocx } = await import('$lib/reportDocx');
+      // Every held analysis, in the order the tabs show them, off the frozen report objects
+      // rather than off anything the page is currently rendering.
+      const list = keys.map((k) => $reports[k]);
+      await downloadReportDocx(list, {
+        includeDiscussion,
+        generatedAt: new Date().toLocaleString(),
+        filename: `${docxSlug()}.docx`
+      });
+    } catch (e) {
+      exportError = `Could not build the Word file: ${e?.message ?? e}`;
+    } finally {
+      exporting = false;
+    }
+  }
+
+  const docxSlug = () =>
+    (keys.length === 1 ? `hcm-report-${$reports[keys[0]].chapter}` : 'hcm-report')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 80);
 
   function losClass(v) {
     if (v === 'A' || v === 'B') return 'los-badge los-good';
@@ -82,9 +119,21 @@
             Include discussion
           </label>
         {/if}
+        <button class="btn btn-outline btn-sm report-docx" type="button" onclick={downloadDocx}
+                disabled={exporting} data-testid="download-docx">
+          {exporting ? 'Building…' : 'Download Word (.docx)'}
+        </button>
         <button class="btn btn-primary btn-sm" type="button" onclick={printReport}>Print / Save as PDF</button>
       </div>
     </div>
+    {#if exportError}
+      <p class="report-export-error no-print" role="alert" data-testid="docx-error">{exportError}</p>
+    {/if}
+    {#if keys.length > 1}
+      <p class="report-export-note no-print">
+        The Word file carries all {keys.length} analyses held this session. The printed page carries the one on screen.
+      </p>
+    {/if}
 
     <article class="report-sheet">
       <header class="report-head">
@@ -137,6 +186,30 @@
               {/each}
             </tbody>
           </table>
+        {/if}
+
+        <!-- An optional second table, for a result that is a matrix rather than a list of
+             periods: the facility builder's time-space domain. It prints the values
+             themselves rather than a colour encoding, because a fill is unreliable on paper
+             and a greyscale ramp is unreadable at cell size. Reports that publish no
+             matrixTable are unaffected. -->
+        {#if current.matrixTable}
+          <h3 class="report-subhead">{current.matrixTable.title}</h3>
+          <div class="report-table-scroll">
+            <table class="report-table report-matrix" data-testid="report-matrix">
+              <thead>
+                <tr>{#each current.matrixTable.columns as c}<th>{c}</th>{/each}</tr>
+              </thead>
+              <tbody>
+                {#each current.matrixTable.rows as r}
+                  <tr>{#each r as cell, ci}<td class:label={ci === 0}>{cell}</td>{/each}</tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+          {#if current.matrixTable.caption}
+            <p class="report-caption">{current.matrixTable.caption}</p>
+          {/if}
         {/if}
       </section>
 
@@ -206,7 +279,7 @@
         </section>
       {/if}
 
-      {#if hasDiscussion && includeDiscussion}
+      {#if currentHasDiscussion && includeDiscussion}
         <section class="report-section" data-testid="report-discussion">
           <h2>Discussion</h2>
           <div class="report-discussion">
@@ -307,8 +380,19 @@
   .report-table td:not(.label) { text-align: right; font-variant-numeric: tabular-nums; }
   .report-summary { margin-top: 0.6rem; }
   .report-summary th { font-weight: 700; }
+  .report-subhead { font-size: 0.9rem; font-weight: 700; margin: 1rem 0 0.35rem; }
+  .report-matrix td:not(.label) { text-align: center; font-weight: 600; }
+  .report-caption { font-size: 0.75rem; color: #64748b; margin: 0.35rem 0 0; line-height: 1.45; max-width: 78ch; }
   .report-diagram { max-width: 560px; margin: 0 auto; }
   .report-options { display: inline-flex; align-items: center; gap: 0.9rem; }
+  /* A ghost button reads as disabled text against the dark page, so the
+     secondary action is outlined. The colour comes from the theme rather than
+     from a literal, since this control sits outside the printed sheet and so
+     follows the app's palette rather than the sheet's. */
+  .report-docx { font-weight: 500; }
+  .report-docx:disabled { opacity: 0.6; }
+  .report-export-note { font-size: 0.75rem; color: var(--text-muted); margin: -0.5rem 0 0.75rem; }
+  .report-export-error { font-size: 0.8rem; color: var(--warn-text); background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 4px; padding: 0.35rem 0.5rem; margin: -0.5rem 0 0.75rem; }
   .report-toggle {
     display: inline-flex;
     align-items: center;
