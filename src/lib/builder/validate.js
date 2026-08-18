@@ -14,6 +14,11 @@ const ERROR = 'error';
 const WARN = 'warn';
 const NOTE = 'note';
 
+/** The two-lane feature kinds that occupy a stretch of highway. A demand change
+ * is a point and cannot be sub-foot or half-outside, so it is not here. */
+const TWOLANE_INTERVAL_KINDS = ['grade', 'passing', 'curve'];
+const TWOLANE_KIND_LABEL = { grade: 'grade', passing: 'passing feature', curve: 'curve' };
+
 /**
  * @param {object} doc
  * @param {object[]} rows derived rows
@@ -449,20 +454,38 @@ export function validateTwoLaneFacility(doc, rows, deriveErrors = []) {
 		}
 	}
 
-	// A curve that reaches nothing. Both halves are silent: geometry outside the
-	// highway is simply never visited, and Step 5d ignores the entire subsegment
-	// list on a segment whose is_hc is unset, which the derivation sets from the
-	// curves themselves so the second half cannot happen from this editor.
-	for (const c of (doc.features ?? []).filter((f) => f.kind === 'curve')) {
-		if (c.endFt <= 0 || c.stationFt >= m.lengthFt) {
+	// A feature that reaches nothing, which is silent for all four kinds. The
+	// derivation clamps every station into the highway, so a feature past a
+	// terminus collapses onto that terminus: it bounds nothing, covers nothing,
+	// and simply stops classifying. It is drawn on the strip either way, which is
+	// what makes the silence expensive.
+	//
+	// A sub-foot one is the same failure by a different route. Stations are
+	// rounded to whole feet before they become boundaries, so an interval whose
+	// two ends round to the same foot passes the derivation's own degeneracy
+	// check and then bounds nothing.
+	for (const f of (doc.features ?? []).filter((x) => TWOLANE_INTERVAL_KINDS.includes(x.kind))) {
+		const kind = TWOLANE_KIND_LABEL[f.kind];
+		if (f.endFt <= 0 || f.stationFt >= m.lengthFt) {
 			add(
-				NOTE,
-				'curve-outside',
-				`The curve ${c.label || c.id} lies outside the ${Math.round(m.lengthFt)} ft highway, so it belongs to no segment and reaches no analysis.`,
-				'HCM Chapter 15, Section 3 Step 5d',
-				{ featureId: c.id }
+				f.kind === 'curve' ? NOTE : WARN,
+				'feature-outside',
+				`The ${kind} ${f.label || f.id} lies outside the ${Math.round(m.lengthFt)} ft highway, so it belongs to no segment and reaches no analysis.`,
+				'HCM Chapter 15, Section 3 Step 1',
+				{ featureId: f.id }
+			);
+		} else if (Math.round(f.endFt) === Math.round(f.stationFt)) {
+			add(
+				WARN,
+				'feature-sub-foot',
+				`The ${kind} ${f.label || f.id} is under a foot long, and stations become segment boundaries at whole feet, so it bounds nothing and reaches no analysis.`,
+				'HCM Chapter 15, Section 3 Step 1',
+				{ featureId: f.id }
 			);
 		}
+	}
+
+	for (const c of (doc.features ?? []).filter((f) => f.kind === 'curve')) {
 		if (!(c.designRadiusFt > 0)) {
 			add(
 				WARN,

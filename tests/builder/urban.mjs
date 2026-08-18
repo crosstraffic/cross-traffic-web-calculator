@@ -298,6 +298,25 @@ function street(stations, lengthFt = stations[stations.length - 1]) {
 	ok(flagIds(measures).includes('no-stop-rate'), 'a summary segment missing its stop rate is a warning, since it leaves Equation 16-4 undefined');
 }
 
+{
+	// The override layer's join between the chassis and the Chapter 18 schema.
+	// The chassis reads `length_ft`, `lanes` and `seg_type`; the ENGINE reads
+	// `segment_length_ft`, `n_through_lanes` and `control`. A pin that moved only
+	// the chassis half changed the table and left the analysis alone, silently.
+	const doc = street([0, 1000, 2000]);
+	const key = derive(doc).rows[0].key;
+	doc.overrides = {
+		[key]: { fields: { length_ft: 1500, lanes: 3, seg_type: 'AllWayStop' }, appliedTo: 'Signalized' }
+	};
+	const r = derive(doc).rows[0];
+	eq(r.segment_length_ft, 1500, 'a pinned length reaches the Chapter 18 segment length');
+	eq(r.signal_spacing_ft, 1500, 'and the signal spacing Equation 18-4 reads, which is the same distance');
+	eq(r.n_through_lanes, 3, 'a pinned lane count reaches the through lanes');
+	eq(r.control, 'AllWayStop', 'and a pinned type reaches the boundary control');
+	doc.overrides = {};
+	eq(derive(doc).rows[0].segment_length_ft, 1000, 'clearing the override restores the derived length');
+}
+
 // ── 2. The published values, through the page's own engine calls ────────
 
 {

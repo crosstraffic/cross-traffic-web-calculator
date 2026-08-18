@@ -404,7 +404,9 @@
       if (!f) return;
       const next = Math.round(stationFt);
       // An interval feature is dragged whole: its length is a property of the
-      // work zone, not of where it happens to sit.
+      // feature itself and not of where it happens to sit. Work zones, grades,
+      // passing features and curves all take this path, and the two-lane editor
+      // routes its station field through here for the same reason.
       if (f.endFt != null) f.endFt += next - f.stationFt;
       f.stationFt = next;
     }, `drag:${id}`);
@@ -982,7 +984,7 @@
 
 <svelte:head>
   <title>Facility Builder — HCM Calculator</title>
-  <meta name="description" content="Build an HCM Chapter 10 freeway facility by placing ramps, and let the Chapter 10 segmentation rules derive the segment table." />
+  <meta name="description" content="Build an HCM freeway, urban street or two-lane highway facility by placing the features an engineer knows, and let each chapter's own segmentation rules derive the segment table." />
 </svelte:head>
 
 <svelte:window on:keydown={onKey} />
@@ -994,6 +996,8 @@
       <p class="bd-lede">
         {#if isUrban}
           Place boundary signals along a street and the Chapter 18 segment definition derives the analysis segments: a segment runs from one boundary intersection to the next, and reads its timing from the one at its downstream end. Access points attach to the segment that contains them.
+        {:else if isTwoLane}
+          Place grades, passing lanes and zones, horizontal curves and demand changes along a highway and the Chapter 15 segmentation rules derive the analysis segments. A segment breaks where the ability to pass, the grade, the demand or the posted limit changes, all of which Section 2 asks to be homogeneous within one. A curve is the exception and breaks nothing: Step 1 sends varying curvature to the Step 5d subsegment adjustment inside a single segment.
         {:else}
           Place ramps along a mainline and the HCM Chapter 10 segmentation rules derive the analysis segments. The derivation calls the library's own <code>segment_ramp_section</code>, so the table here and the table the engines analyze cannot disagree.
         {/if}

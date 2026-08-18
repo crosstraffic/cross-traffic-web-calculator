@@ -53,13 +53,17 @@ function resolveLibCases() {
 	// An explicit override always wins, including over a path that exists, so a
 	// run can be pointed at a second checkout without moving the first.
 	if (process.env.HCM_LIB_CASES) return process.env.HCM_LIB_CASES;
+	const main = mainWorkingTree();
 	const candidates = [
 		// A plain clone, and the layout CI builds: the library is cloned beside
 		// this repo. Tried first so a normal checkout resolves without shelling
 		// out to git at all.
 		siblingOf(join(here, '..')),
-		// A worktree of that clone.
-		siblingOf(mainWorkingTree() ?? '')
+		// A worktree of that clone. Dropped rather than defaulted when git is
+		// absent, because `siblingOf('')` builds a RELATIVE path and `existsSync`
+		// would then resolve it against the current directory and could match
+		// something unrelated.
+		...(main ? [siblingOf(main)] : [])
 	];
 	for (const c of candidates) if (existsSync(c)) return c;
 	// Nothing found. Return the plain-clone candidate so the message a caller

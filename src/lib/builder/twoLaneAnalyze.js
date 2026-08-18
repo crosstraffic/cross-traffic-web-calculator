@@ -118,10 +118,10 @@ export function analyzeTwoLaneFacility(doc, rows, wasm) {
 
 	for (let i = 0; i < rows.length; i++) {
 		const r = rows[i];
-		// Step 1. The return is Exhibit 15-10's recommended minimum and maximum
-		// segment length in miles for this segment's class and passing type. The
-		// library computes it and then consumes it nowhere, so reading it here is
-		// the only way the recommendation reaches anyone.
+		// Step 1. Its return, Exhibit 15-10's recommended segment length band, is
+		// deliberately dropped here and re-read after Step 3, because Step 3 can
+		// change the class the band is looked up on. The call still has to happen
+		// in its own place in the sequence.
 		fac.identify_vertical_class(i);
 		// Step 2.
 		const [flowRate, opposingFlow, capacity] = fac.determine_demand_flow(i);
@@ -129,6 +129,10 @@ export function analyzeTwoLaneFacility(doc, rows, wasm) {
 		// imply a different one, so the bounds are re-read after it rather than
 		// before, and the class the later steps used is the one reported.
 		const verticalAlignment = fac.determine_vertical_alignment(i);
+		// Exhibit 15-10's recommended minimum and maximum segment length in miles,
+		// for the class Step 3 settled on. The library computes this band and then
+		// consumes it nowhere, so reading it here is the only way the chapter's own
+		// recommendation reaches anyone.
 		const [minLengthMi, maxLengthMi] = fac.identify_vertical_class(i);
 		// Step 4. BFFS is 1.14 x the POSTED limit inside here.
 		const ffs = fac.determine_free_flow_speed(i);

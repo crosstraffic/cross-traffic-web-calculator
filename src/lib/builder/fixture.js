@@ -10,7 +10,13 @@
 // features can be re-derived.
 
 import { emptyDocument, setPeriods, defaultSignalConfig } from './document.js';
-import { URBAN_SEGMENT_KEYS, URBAN_MEASURE_KEYS, TWOLANE_SEGMENT_KEYS, deriveUrbanRows } from './derive.js';
+import {
+	URBAN_SEGMENT_KEYS,
+	URBAN_MEASURE_KEYS,
+	TWOLANE_SEGMENT_KEYS,
+	deriveUrbanRows,
+	deriveTwoLaneRows
+} from './derive.js';
 
 const FACILITY_KEYS = [
 	['mainline_demand', (m) => m.demand],
@@ -304,8 +310,13 @@ export function fromTwoLaneFixture(raw, name = 'imported fixture') {
 
 	// MILES to FEET, once, here. Everything on the document side of this call is
 	// feet, and a subsegment's length is already feet and is not touched.
-	m.lengthFt = Math.round(raw.segments.reduce((a, s) => a + (s.length ?? 0) * 5280, 0));
-
+	//
+	// The highway length is the LAST STATION rather than the rounded sum, and the
+	// two are different numbers. Rounding the sum and rounding each segment
+	// separately can disagree by up to half a foot per segment, and both end up as
+	// marks in the derivation, so the shortfall would appear as a sliver segment
+	// past the last one and an overshoot would collapse the final boundary. It is
+	// set below, once the stations have been walked.
 	doc.features = [];
 	let stationFt = 0;
 	raw.segments.forEach((s, i) => {
@@ -384,6 +395,7 @@ export function fromTwoLaneFixture(raw, name = 'imported fixture') {
 
 		stationFt = endFt;
 	});
+	m.lengthFt = stationFt;
 
 	doc.importedRaw = JSON.parse(JSON.stringify(raw));
 	return setPeriods(doc, 1);
@@ -401,13 +413,22 @@ export function toTwoLaneFixture(doc, rows) {
 	if (doc.importedRaw) {
 		const out = JSON.parse(JSON.stringify(doc.importedRaw));
 		for (const [key, get] of TWOLANE_FACILITY_MAP) if (key in out) out[key] = get(doc.mainline);
+		// A key the fixture never wrote meant "take the serde default", and the
+		// derivation fills all twenty regardless, so writing them all back would
+		// turn a hand-written segment into a full one and no such import would
+		// round-trip. The test for whether an absent key has become worth writing
+		// is whether the user changed it, which is the comparison against what this
+		// same fixture derived to on arrival. Same arrangement the urban export
+		// uses, and the reason the published fixtures did not catch this is that
+		// all four of them state every key.
+		const baseline = twoLaneImportBaseline(doc.importedRaw);
 		out.segments = out.segments.map((orig, i) => {
 			const r = rows[i];
 			if (!r) return orig;
 			const merged = { ...orig };
 			for (const k of TWOLANE_SEGMENT_KEYS) {
 				if (k in orig) merged[k] = cloneVal(r[k] ?? orig[k]);
-				else if (r[k] != null) merged[k] = cloneVal(r[k]);
+				else if (r[k] != null && !same(r[k], baseline[i]?.[k])) merged[k] = cloneVal(r[k]);
 			}
 			return merged;
 		});
@@ -434,6 +455,14 @@ const TWOLANE_FACILITY_MAP = [
 	['pmhvfl', (m) => m.pctHeavyVehInPassingLane],
 	['l_de', (m) => m.effectiveDownstreamLengthMi]
 ];
+
+/** What a Chapter 15 fixture's segments derive to the moment it is imported,
+ * before any edit. Pure in `raw` for the same reason the urban one is, and
+ * cheap for the same reason: a two-lane facility is a handful of segments. */
+function twoLaneImportBaseline(raw) {
+	const doc = fromTwoLaneFixture(raw, 'baseline');
+	return deriveTwoLaneRows(doc).rows;
+}
 
 export function fromFixture(raw, name = 'imported fixture') {
 	if (!raw || typeof raw !== 'object') throw new Error('not a JSON object');

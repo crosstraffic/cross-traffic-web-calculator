@@ -10,6 +10,8 @@
   // station under the pointer. A 360-ft overlapping ramp is therefore genuinely
   // thin, which is what a 360-ft segment is.
 
+  import { PASSING_TYPE_NAMES } from '$lib/builder/document.js';
+
   let {
     doc,
     rows = [],
@@ -129,12 +131,13 @@
   // that the two that are not constrained are the ones that stand out, which is
   // how an analyst reads a two-lane highway: as a constrained road with
   // opportunities placed along it.
+  const [PC, PZ, PL] = PASSING_TYPE_NAMES;
   const FILL_TL = {
-    'Passing Constrained': 'var(--diag-pavement)',
-    'Passing Zone': 'var(--diag-infl-soft)',
-    'Passing Lane': 'var(--diag-scl-active)'
+    [PC]: 'var(--diag-pavement)',
+    [PZ]: 'var(--diag-infl-soft)',
+    [PL]: 'var(--diag-scl-active)'
   };
-  const SHORT_TL = { 'Passing Constrained': 'PC', 'Passing Zone': 'PZ', 'Passing Lane': 'PL' };
+  const SHORT_TL = { [PC]: 'PC', [PZ]: 'PZ', [PL]: 'PL' };
 
   let laid = $derived(
     rows.map((r, i) => {

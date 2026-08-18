@@ -144,10 +144,11 @@ function emptyUrbanDocument() {
  * `Segment.length` is MILES and a `SubSegment.length` is FEET, and the footguns
  * note calls mixing them the classic error because the results stay plausible.
  * So this document keeps every length in feet, like the freeway and urban
- * documents and like the strip that draws all three, and the conversion happens
- * once, at the fixture boundary in `toTwoLaneFixture`, where `length_ft / 5280`
- * becomes the segment's `length` and a subsegment's feet are written through
- * unchanged. Nothing between here and there divides by 5,280.
+ * documents and like the strip that draws all three. Exactly one place turns a
+ * length into an engine input in miles, `twoLaneRow` in derive.js, where a
+ * derived row's `length_ft / 5280` becomes the segment's `length`; a subsegment
+ * stays in feet from here to the engine and is never divided at all. Nothing
+ * between this document and that line converts anything.
  *
  * Chapter 15 is single-period, so `periods` is pinned at 1 the way the urban
  * document pins it. `WasmTwoLaneHighways` takes one demand volume per segment
@@ -314,9 +315,11 @@ export const isTwoLane = (doc) => doc?.facilityType === 'twolane';
  * other, so every feature in every document sorts by one key. */
 export const TWOLANE_INTERVALS = ['grade', 'passing', 'curve'];
 
-/** The passing types, in the library's own `passing_type` order. Index is the
- * value the engine takes; the names are Chapter 15's. */
-export const PASSING_TYPES = ['Passing Constrained', 'Passing Zone', 'Passing Lane'];
+/** The passing types, in the library's own `passing_type` order: the index is
+ * the value the engine takes and the name is Chapter 15's. One list, because
+ * four copies of three strings is how a strip fill, a table row and a result
+ * column start disagreeing about what a segment is. */
+export const PASSING_TYPE_NAMES = ['Passing Constrained', 'Passing Zone', 'Passing Lane'];
 
 /** A feature is a point on the mainline. `stationFt` is the gore point: the
  * downstream end of an on-ramp's gore area and the upstream end of an

@@ -7,6 +7,8 @@
   // rule in words) and its override state, and an overridden cell shows what the
   // derivation would have said beside what the analyst pinned.
 
+  import { PASSING_TYPE_NAMES } from '$lib/builder/document.js';
+
   let {
     rows = [],
     doc,
@@ -17,7 +19,20 @@
     interactive = true
   } = $props();
 
-  const TYPES =['Basic', 'Merge', 'Diverge', 'Weaving', 'OverlappingRamp'];
+  /** What a row's type can be pinned to, per chapter. The freeway list was the
+   * only one until phase 2, and offering it on an urban or a two-lane row let an
+   * analyst pin a segment to a type its own chapter has no such thing as. The
+   * derivation's `syncOverrideTwins` carries the pinned value through to the
+   * schema field the engine reads. */
+  const TYPES_BY_FACILITY = {
+    freeway: ['Basic', 'Merge', 'Diverge', 'Weaving', 'OverlappingRamp'],
+    urban: ['Signalized', 'AllWayStop', 'TwoWayStop', 'Roundabout', 'Uncontrolled'],
+    twolane: PASSING_TYPE_NAMES
+  };
+  let TYPES = $derived(TYPES_BY_FACILITY[doc?.facilityType] ?? TYPES_BY_FACILITY.freeway);
+  // Chapter 10 needs two lanes and Chapter 18 one; a two-lane highway carries one
+  // in the analysis direction and two through a passing lane.
+  let minLanes = $derived(doc?.facilityType === 'freeway' ? 2 : 1);
 
   let overrideCount = $derived(rows.filter((r) => r.overridden).length);
   let totalMi = $derived(rows.reduce((a, r) => a + r.length_ft, 0) / 5280);
@@ -77,7 +92,7 @@
             </td>
             <td>
               {#if interactive}
-                <input type="number" step="1" min="2" value={r.lanes}
+                <input type="number" step="1" min={minLanes} value={r.lanes}
                        onchange={(e) => edit(r, 'lanes', e.currentTarget.value)}
                        aria-label="segment {i + 1} lanes" />
               {:else}{r.lanes}{/if}

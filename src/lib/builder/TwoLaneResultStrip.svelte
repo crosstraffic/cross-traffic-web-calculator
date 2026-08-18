@@ -77,6 +77,8 @@
 
   const n = (v, d) => (Number.isFinite(v) ? v.toFixed(d) : '–');
   const mi = (v) => (Number.isFinite(v) ? v.toFixed(2) : '–');
+  // Indexed by `passing_type`, which is what the result carries, so this is an
+  // abbreviation of PASSING_TYPE_NAMES rather than a second list of types.
   const SHORT = ['PC', 'PZ', 'PL'];
 </script>
 

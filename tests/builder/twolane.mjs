@@ -293,6 +293,44 @@ const demand = (id, stationFt, config) => ({
 	eq(d.rows[0].subsegments.map((ss) => ss.design_rad), [0, 600, 0, 900, 0], 'in the order they sit on the highway');
 }
 
+{
+	// The override layer, which the segment table writes and which is the one
+	// place a number reaches the engine without passing through the derivation.
+	//
+	// A row is two things at once, and this is the join that has to hold: the
+	// chassis reads `length_ft` and `seg_type`, and the ENGINE reads `length` in
+	// miles and `passing_type`. An override that moved only the chassis half
+	// would change the segment table, the strip and the reported facility length
+	// while the engine analyzed whatever the derivation last said, and nothing
+	// would error.
+	const doc = highway(3 * MI, [passing('ps1', 1, 2, 2)]);
+	const key = derive(doc).rows[1].key;
+
+	doc.overrides = { [key]: { fields: { length_ft: 3000 }, appliedTo: 'Passing Lane' } };
+	const pinnedLength = derive(doc).rows[1];
+	eq(pinnedLength.length_ft, 3000, 'a pinned length reaches the chassis in feet');
+	near(pinnedLength.length, 3000 / 5280, 1e-12, 'and the engine in miles, off the same pin');
+	ok(pinnedLength.overridden, 'and the row is marked');
+	// Through the engine, so the claim is about the answer and not about a field.
+	const pinnedRun = analyzeTwoLaneFacility(doc, derive(doc).rows, wasm);
+	near(pinnedRun.segments[1].lengthMi, 3000 / 5280, 1e-12, 'the analysis reports the pinned length');
+	near(pinnedRun.lengthFt, 5280 + 3000 + 5280, 1e-9, 'and the facility length is the pinned sum');
+
+	doc.overrides = { [key]: { fields: { seg_type: 'Passing Zone' }, appliedTo: 'Passing Lane' } };
+	const pinnedType = derive(doc).rows[1];
+	eq(pinnedType.seg_type, 'Passing Zone', 'a pinned type reaches the chassis');
+	eq(pinnedType.passing_type, 1, 'and the engine, as the index Chapter 15 takes');
+	eq(pinnedType.lanes, 1, 'and the drawn cross section follows it, since a passing zone adds no lane');
+
+	doc.overrides = { [key]: { fields: { seg_type: 'Passing Zone', lanes: 2 }, appliedTo: 'Passing Lane' } };
+	eq(derive(doc).rows[1].lanes, 2, 'unless the lane count was pinned too, in which case the analyst said both');
+
+	// And clearing it restores the derivation.
+	doc.overrides = {};
+	eq(derive(doc).rows[1].passing_type, 2, 'clearing the override restores the derived type');
+	eq(derive(doc).rows[1].length, 1, 'and the derived length');
+}
+
 // ── 2. Units ────────────────────────────────────────────────────────────
 
 {
@@ -551,6 +589,46 @@ const demand = (id, stationFt, config) => ({
 }
 
 {
+	// A hand-written fixture that states only what it has to. The four published
+	// ones all state every key, so they cannot catch an export that writes the
+	// derivation's placeholders back onto a segment that omitted them, and that
+	// is exactly what an unguarded export does: `flow_rate`, `capacity`, `ffs`,
+	// `pf`, `fd`, `hor_class` and an empty `subsegments` would all appear.
+	const minimal = {
+		lane_width: 12.0,
+		shoulder_width: 6.0,
+		apd: 0.0,
+		pmhvfl: 0.0,
+		segments: [
+			{ passing_type: 0, length: 1.0, grade: 0.0, spl: 55.0, volume: 800.0, phf: 0.95, phv: 5.0 },
+			{ passing_type: 1, length: 0.5, grade: 0.0, spl: 55.0, volume: 800.0, volume_op: 400.0, phf: 0.95, phv: 5.0 }
+		]
+	};
+	const doc = fromTwoLaneFixture(minimal, 'minimal.json');
+	const d = derive(doc);
+	eq(d.errors, [], 'a minimal fixture imports and derives without errors');
+	eq(d.rows.map((r) => r.length), [1, 0.5], 'at its own segment lengths');
+	eq(toTwoLaneFixture(doc, d.rows), minimal,
+		'and an untouched minimal fixture re-exports exactly, without gaining the derivation\'s placeholders');
+
+	// And a key it omitted appears once, and only once, the user changes it.
+	const edited = fromTwoLaneFixture(minimal, 'minimal.json');
+	edited.features.find((f) => f.kind === 'grade' || f.kind === 'demand');
+	edited.features.push({
+		id: 'gr9', kind: 'grade', stationFt: 0, endFt: 5280, label: '', gradePct: 4, verticalClass: 4
+	});
+	const de = derive(edited);
+	const out = toTwoLaneFixture(edited, de.rows);
+	eq(out.segments[0].grade, 4, 'a changed key the fixture stated is updated');
+	eq(out.segments[0].vertical_class, 4, 'and the key it omitted appears, because the change brought it');
+	ok(!('capacity' in out.segments[0]), 'while the placeholders it did not change stay absent');
+	ok(!('subsegments' in out.segments[0]), 'including the empty subsegment list');
+	eq(Object.keys(out.segments[1]), Object.keys(minimal.segments[1]),
+		'and the segment nothing changed on keeps exactly the keys it arrived with');
+	eq(out.segments[1], minimal.segments[1], 'with exactly the values it arrived with');
+}
+
+{
 	// The carried/dropped honesty. Chapter 15's segment schema is twenty keys and
 	// the derivation fills all twenty, so nothing is dropped, and the export from
 	// a facility built out of features is the full schema rather than a subset.
@@ -641,6 +719,29 @@ const demand = (id, stationFt, config) => ({
 	const noRadius = highway(2 * MI, [curve('hc1', 100, 200, 0, 2)]);
 	ok(flagIds(noRadius).includes('curve-no-radius'),
 		'a curve with no radius is flagged, because Step 5d treats it as a tangent');
+}
+
+{
+	// A feature that reaches nothing, for each of the three interval kinds. All
+	// three are drawn on the strip either way, so the silence is what costs.
+	for (const [kind, f] of [
+		['passing', passing('ps1', 3, 4, 2)],
+		['grade', grade('gr1', 3, 4, 5, 3)],
+		['curve', curve('hc1', 3 * MI, 400, 600, 2)]
+	]) {
+		const doc = highway(2 * MI, [f]);
+		ok(flagIds(doc).includes('feature-outside'), `a ${kind} past the end of the highway is flagged`);
+		const inside = highway(6 * MI, [f]);
+		ok(!flagIds(inside).includes('feature-outside'), `and one inside it is not, which is the control for ${kind}`);
+	}
+
+	// Sub-foot: it survives the derivation's own degeneracy check, because that
+	// works in real feet, and then both of its ends round to the same boundary.
+	const tiny = highway(2 * MI, [{ ...curve('hc1', 100.6, 0.8, 600, 2) }]);
+	eq(derive(tiny).errors, [], 'a sub-foot interval is not a derivation error');
+	ok(flagIds(tiny).includes('feature-sub-foot'), 'but it is flagged, because it bounds nothing');
+	const notTiny = highway(2 * MI, [curve('hc1', 100, 200, 600, 2)]);
+	ok(!flagIds(notTiny).includes('feature-sub-foot'), 'and a real one is not');
 }
 
 {
