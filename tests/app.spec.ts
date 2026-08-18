@@ -4304,6 +4304,28 @@ test.describe('facility builder', () => {
       expect(await readMeasure(page, 'avgSpeed', 1)).toEqual([58.8, 57.8, 58.9, 59.2, 58.9]);
       expect(await readMeasure(page, 'percentFollowers', 1)).toEqual([69.7, 60.7, 68.0, 67.8, 67.7]);
 
+      // The centerline is the house two-lane language, the same RoadDiagram.svelte
+      // uses on the chapter pages: solid where passing is not permitted, dashed
+      // through a passing zone. Read off the rendered style rather than off the
+      // source, because a class that never reaches the element looks identical in
+      // the markup and identical in a screenshot at strip scale.
+      const centerlines = await page.getByTestId('strip-seg').evaluateAll((segs) =>
+        segs.map((sg) => {
+          const line = sg.querySelector('.bs-tl-center');
+          return [
+            (sg as HTMLElement).dataset.segType,
+            line ? getComputedStyle(line).strokeDasharray : 'missing'
+          ];
+        })
+      );
+      expect(centerlines).toEqual([
+        ['Passing Constrained', 'none'],
+        ['Passing Lane', 'none'],
+        ['Passing Constrained', 'none'],
+        ['Passing Zone', '6px, 5px'],
+        ['Passing Constrained', 'none']
+      ]);
+
       // The passing lane's cell is marked, because its value is a midpoint
       // density and its neighbours' are endpoint ones.
       await page.getByTestId('twolane-measure').selectOption('followerDensity');

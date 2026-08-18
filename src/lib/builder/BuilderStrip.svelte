@@ -38,9 +38,22 @@
   // points hang above it too, which together would otherwise print through the
   // station ruler's labels.
   const TOP_URBAN = 74;
-  // Two-lane needs headroom for the opposing lane and its centerline, which sit
-  // above the analysis direction, plus the grade bracket above those.
-  const TOP_TWOLANE = 62;
+  /**
+   * Two-lane stacks where the other two modes have one band. Upward from the
+   * analysis direction: the centerline, the opposing lane, the station ruler,
+   * then a row each for the passing brackets, the demand values and the grade
+   * brackets. These are the three row offsets, measured from the ruler.
+   *
+   * They are named rather than inlined because they have to stay in this order
+   * and clear of each other, and the collision they exist to avoid is legibility
+   * rather than correctness: a mile label under a bracket bar is still there, it
+   * is just unreadable. The ruler's own labels reach 18 px above it, which is
+   * what sets the first offset. `rulerY` below is the other half of this, and it
+   * is why the ruler clears the opposing lane instead of printing over it.
+   *
+   * Which rows are reserved depends on which features exist; see `tlRows`.
+   */
+  const TL_ROW = { pass: 24, demand: 36, grade: 50 };
   const RAMP_H = 26;       // how far the ramp stubs reach below the mainline
   const PAD = 24;         // left room for the "mi" axis label beside the zero tick
   const SNAP_FT = 528;     // 0.1 mi, per the design; the numeric field is the fine adjustment
@@ -63,9 +76,32 @@
   // addition. On a two-lane highway that is two: one lane in the analysis
   // direction, and the second is the passing lane.
   let maxLanes = $derived(Math.max(twolane ? 2 : 3, ...laid.map((s) => s.pav)));
-  let TOP = $derived(twolane ? TOP_TWOLANE : urban ? TOP_URBAN : TOP_FREEWAY);
+  /** Two-lane headroom is the rows that are actually in use, not all of them.
+   * Example Problem 2 places five curves and nothing else, and reserving the
+   * grade and passing rows for it would print an inch of empty sky above a
+   * one-segment highway. The floor is the freeway headroom, so a highway with no
+   * features at all draws at the same height as an empty freeway rather than
+   * collapsing onto the direction arrow. */
+  let tlRows = $derived(
+    Math.max(
+      gradeSpans.length ? TL_ROW.grade : 0,
+      passingSpans.length ? TL_ROW.pass : 0,
+      demandMarks.length ? TL_ROW.demand : 0
+    )
+  );
+  // The 28 is the direction arrow's row: it is drawn at y 5 to 13 and the topmost
+  // bracket's chip sits 8 px above its bar, so the topmost bar has to start at
+  // 20 or the two print through each other on a facility with grades.
+  let TOP = $derived(
+    twolane ? LANE + Math.max(TOP_FREEWAY - LANE, tlRows + 28) : urban ? TOP_URBAN : TOP_FREEWAY
+  );
   let H = $derived(TOP + maxLanes * LANE + RAMP_H + 30);
   let bot = $derived(TOP + maxLanes * LANE);
+  // Where the station ruler sits. On a two-lane highway the opposing lane
+  // occupies the band immediately above the pavement, so the ruler moves up by
+  // one lane; on the other two the pavement starts at TOP and the ruler sits on
+  // it as before.
+  let rulerY = $derived(twolane ? TOP - LANE : TOP);
 
   const xOf = (ft) => PAD + (ft / L) * plotW;
   const ftOf = (x) => ((x - PAD) / plotW) * L;
@@ -286,10 +322,10 @@
 
     <!-- station ruler -->
     {#each ticks as t}
-      <line x1={t.x} y1={TOP - 8} x2={t.x} y2={TOP} class="bs-tick" />
-      <text x={t.x} y={TOP - 11} class="bs-tick-label" text-anchor="middle">{t.mi.toFixed(t.mi % 1 ? 1 : 0)}</text>
+      <line x1={t.x} y1={rulerY - 8} x2={t.x} y2={rulerY} class="bs-tick" />
+      <text x={t.x} y={rulerY - 11} class="bs-tick-label" text-anchor="middle">{t.mi.toFixed(t.mi % 1 ? 1 : 0)}</text>
     {/each}
-    <text x="2" y={TOP - 9} class="bs-axis-label">mi</text>
+    <text x="2" y={rulerY - 9} class="bs-axis-label">mi</text>
 
     <!-- Edge of the widest cross section on the facility, drawn under the
          segments so that anything narrower visibly falls short of it. Without a
@@ -494,10 +530,10 @@
          onpointercancel={(e) => endDrag(e, f)}
          onkeydown={(e) => keyNudge(e, f)}>
         <title>{f.gradePct > 0 ? '+' : ''}{f.gradePct}% grade, vertical class {f.verticalClass} &middot; {mi(f.stationFt)}&ndash;{mi(f.endFt)} mi</title>
-        <line x1={x} y1={TOP - 22} x2={x + w} y2={TOP - 22} class="bs-grade-bar" />
-        <line x1={x} y1={TOP - 26} x2={x} y2={TOP - 18} class="bs-grade-bar" />
-        <line x1={x + w} y1={TOP - 26} x2={x + w} y2={TOP - 18} class="bs-grade-bar" />
-        <text x={x + w / 2} y={TOP - 25} class="bs-grade-chip" text-anchor="middle">{f.gradePct > 0 ? '+' : ''}{f.gradePct}% &middot; VC{f.verticalClass}</text>
+        <line x1={x} y1={rulerY - TL_ROW.grade} x2={x + w} y2={rulerY - TL_ROW.grade} class="bs-grade-bar" />
+        <line x1={x} y1={rulerY - TL_ROW.grade - 4} x2={x} y2={rulerY - TL_ROW.grade + 4} class="bs-grade-bar" />
+        <line x1={x + w} y1={rulerY - TL_ROW.grade - 4} x2={x + w} y2={rulerY - TL_ROW.grade + 4} class="bs-grade-bar" />
+        <text x={x + w / 2} y={rulerY - TL_ROW.grade - 3} class="bs-grade-chip" text-anchor="middle">{f.gradePct > 0 ? '+' : ''}{f.gradePct}% &middot; VC{f.verticalClass}</text>
       </g>
     {/each}
 
@@ -516,12 +552,16 @@
          onpointercancel={(e) => endDrag(e, f)}
          onkeydown={(e) => keyNudge(e, f)}>
         <title>{lane ? 'Passing lane' : 'Passing zone'} &middot; {mi(f.stationFt)}&ndash;{mi(f.endFt)} mi</title>
-        <!-- On the centerline, because a passing feature is a statement about
-             the centerline: a zone dashes it, a lane makes it irrelevant by
-             adding a lane on the near side of it. -->
-        <line x1={x} y1={TOP - 2} x2={x + w} y2={TOP - 2} class="bs-pass-bar" />
-        <text x={x + w / 2} y={TOP - 5} class="bs-pass-chip" text-anchor="middle">{lane ? 'PL' : 'PZ'}</text>
-        <circle cx={x} cy={TOP - 2} r="3.4" class="bs-pass-handle" />
+        <!-- On its own row above the ruler rather than on the centerline, even
+             though the centerline is what a passing feature changes. A bar drawn
+             along the centerline would cover the dashes that ARE the passing
+             zone, so the extent is bracketed up here and the centerline below is
+             left to carry the meaning. -->
+        <line x1={x} y1={rulerY - TL_ROW.pass} x2={x + w} y2={rulerY - TL_ROW.pass} class="bs-pass-bar" />
+        <line x1={x} y1={rulerY - TL_ROW.pass - 4} x2={x} y2={rulerY - TL_ROW.pass + 4} class="bs-pass-bar" />
+        <line x1={x + w} y1={rulerY - TL_ROW.pass - 4} x2={x + w} y2={rulerY - TL_ROW.pass + 4} class="bs-pass-bar" />
+        <text x={x + w / 2} y={rulerY - TL_ROW.pass - 3} class="bs-pass-chip" text-anchor="middle">{lane ? 'PL' : 'PZ'}</text>
+        <circle cx={x} cy={rulerY - TL_ROW.pass} r="3.4" class="bs-pass-handle" />
       </g>
     {/each}
 
@@ -565,8 +605,12 @@
          onpointercancel={(e) => endDrag(e, f)}
          onkeydown={(e) => keyNudge(e, f)}>
         <title>Demand change to {Math.round(f.config?.volume ?? 0)} veh/h at {mi(f.stationFt)} mi</title>
-        <line x1={x} y1={TOP - LANE - 4} x2={x} y2={bot + 4} class="bs-demand-rule" />
-        <text x={x} y={TOP - LANE - 6} class="bs-demand-chip" text-anchor="middle">{Math.round(f.config?.volume ?? 0)}</text>
+        <line x1={x} y1={rulerY - 4} x2={x} y2={bot + 4} class="bs-demand-rule" />
+        <!-- Its own row above the passing bracket. Beside the ruler it would sit
+             on a mile label, and a demand change usually lands on a whole tenth
+             of a mile, so the two collide more often than not. -->
+        <text x={x} y={rulerY - TL_ROW.demand} class="bs-demand-chip" text-anchor="middle">{Math.round(f.config?.volume ?? 0)}</text>
+        <line x1={x} y1={rulerY - TL_ROW.demand + 2} x2={x} y2={rulerY - 4} class="bs-demand-rule" />
         <circle cx={x} cy={bot + 4} r="4.4" class="bs-demand-handle" />
       </g>
     {/each}
@@ -690,8 +734,8 @@
   .bs-grade:focus-visible .bs-grade-bar { stroke: var(--accent-strong); stroke-width: 3; }
 
   .bs-pass { cursor: ew-resize; touch-action: none; }
-  .bs-pass-bar { stroke: var(--accent); stroke-width: 3; vector-effect: non-scaling-stroke; }
-  .bs-pass.lane .bs-pass-bar { stroke: var(--accent-strong); stroke-width: 4; }
+  .bs-pass-bar { stroke: var(--accent); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+  .bs-pass.lane .bs-pass-bar { stroke: var(--accent-strong); stroke-width: 2.4; }
   .bs-pass-chip { font-size: 7px; font-weight: 700; fill: var(--accent-strong); paint-order: stroke; stroke: var(--surface); stroke-width: 2.5px; }
   .bs-pass-handle { fill: var(--surface); stroke: var(--accent); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
   .bs-pass.lit .bs-pass-handle, .bs-pass.dragging .bs-pass-handle { fill: var(--accent); stroke: var(--accent-strong); }
