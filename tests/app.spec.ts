@@ -1207,6 +1207,33 @@ test.describe('chapter 12 basic freeway calculator', () => {
     await page.getByRole('button', { name: 'Reset Params' }).click();
     await expect(page.locator('.los-badge')).toHaveCount(0);
   });
+
+  test('the 3D segment view renders from the page inputs and again in the report', async ({ page }) => {
+    // The 3D slab is a shared component used by this page and by /report. It has
+    // no route of its own, so nothing renders it with default props; both call
+    // sites have to pass the analysis inputs through. One divider per interior
+    // lane line, so four lanes draw three.
+    await page.goto('/hcm12');
+    const calculate = page.getByRole('button', { name: 'Calculate' });
+    await expect(calculate).toBeEnabled({ timeout: 30_000 });
+
+    // Load example fetches the fixture, so wait for its lane count to land
+    // before overwriting it or the fetch resolves on top of the edit.
+    await page.getByRole('button', { name: 'Load example' }).click();
+    await expect(page.locator('#LC_input')).toHaveValue('3');
+    await page.locator('#LC_input').fill('4');
+    await calculate.click();
+
+    await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
+    const svg3d = page.locator('.fw3d svg');
+    await expect(svg3d).toHaveAttribute('aria-label', /Basic freeway segment/);
+    await expect(svg3d.locator('polyline.r-lane')).toHaveCount(3);
+
+    await page.goto('/report');
+    const reported = page.locator('.report-diagram .fw3d svg');
+    await expect(reported).toBeVisible();
+    await expect(reported.locator('polyline.r-lane')).toHaveCount(3);
+  });
 });
 
 test.describe('chapter 12 mixed-flow mode', () => {

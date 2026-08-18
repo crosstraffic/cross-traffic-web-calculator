@@ -7,7 +7,7 @@
 
   import { onMount } from 'svelte';
   import { reports, lastKey, loadReports } from '$lib/report';
-  import FreewaySegment3D from '../FreewaySegment3D/+page.svelte';
+  import FreewaySegment3D from '$lib/FreewaySegment3D.svelte';
   import TwoLaneStrip from '$lib/TwoLaneStrip.svelte';
   import WeavingDiagram from '$lib/WeavingDiagram.svelte';
   import RampDiagram from '$lib/RampDiagram.svelte';

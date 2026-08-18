@@ -10,7 +10,7 @@
   import SpeedFlowCurve from '$lib/SpeedFlowCurve.svelte';
   import init, { WasmBasicFreeways } from "HCM-middleware";
   import { onMount } from "svelte";
-  import FreewaySegment3D from '../FreewaySegment3D/+page.svelte';
+  import FreewaySegment3D from '$lib/FreewaySegment3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import MixedFlowMode from '$lib/MixedFlowMode.svelte';
   import Discussion from '$lib/Discussion.svelte';
