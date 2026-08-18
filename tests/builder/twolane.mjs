@@ -258,6 +258,32 @@ const demand = (id, stationFt, config) => ({
 }
 
 {
+	// Overlapping curves. The tiling gives the overlap to whichever curve reached
+	// it first, so the second one is partly or wholly discarded, and a discarded
+	// curve is a silently faster highway. Both shapes are checked, and the
+	// swallowed one is the dangerous one: before it was guarded it emitted a
+	// NEGATIVE subsegment length, which the engine weights like any other.
+	const partial = highway(1 * MI, [curve('hc1', 500, 600, 600), curve('hc2', 900, 500, 900)]);
+	const dp2 = derive(partial);
+	ok(dp2.errors.some((e) => /overlap/.test(e)), 'partly overlapping curves are reported');
+	ok(dp2.rows[0].subsegments.every((ss) => ss.length > 0), 'and no subsegment comes out zero or negative');
+	near(dp2.rows[0].subsegments.reduce((a, ss) => a + ss.length, 0), MI, 1e-6, 'and the segment still tiles');
+	eq(dp2.rows[0].subsegments.map((ss) => [ss.length, ss.design_rad]),
+		[[500, 0], [600, 600], [300, 900], [3880, 0]],
+		'the overlap goes to the upstream curve and the second contributes only its remainder');
+
+	const swallowed = highway(1 * MI, [curve('hc1', 500, 1000, 600), curve('hc2', 700, 200, 900)]);
+	const ds2 = derive(swallowed);
+	ok(ds2.errors.some((e) => /overlap/.test(e)), 'a curve inside another is reported');
+	ok(ds2.rows[0].subsegments.every((ss) => ss.length > 0),
+		'and contributes no subsegment at all rather than a negative-length one');
+	near(ds2.rows[0].subsegments.reduce((a, ss) => a + ss.length, 0), MI, 1e-6, 'so the segment still tiles');
+	eq(ds2.rows[0].subsegments.map((ss) => [ss.length, ss.design_rad]), [[500, 0], [1000, 600], [3780, 0]],
+		'the swallowed curve leaves the tiling exactly as the outer one alone would');
+	ok(blockingOf(swallowed).length > 0, 'and an overlap blocks the analysis rather than analyzing a discarded curve');
+}
+
+{
 	// Two curves in one segment, so the middle tangent is produced rather than
 	// the two curves being run together.
 	const doc = highway(1 * MI, [curve('hc1', 500, 400, 600), curve('hc2', 1500, 300, 900)]);

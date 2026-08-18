@@ -837,6 +837,19 @@ export function deriveTwoLaneRows(doc) {
 			);
 		}
 	}
+	// Curves overlap differently from the other two, and worse. A subsegment has
+	// one horizontal class, so two curves over one stretch of road is not a
+	// geometry Exhibit 15-22 describes, and the tiling below resolves it by
+	// giving the overlap to whichever curve reached it first. That silently
+	// discards part of the second curve, and a curve entirely inside another
+	// disappears completely, so it is blocked rather than resolved quietly.
+	for (let i = 1; i < curves.length; i++) {
+		if (curves[i].stationFt < curves[i - 1].endFt - TL_TOL_FT) {
+			errors.push(
+				`${curves[i - 1].label || curves[i - 1].id} and ${curves[i].label || curves[i].id} overlap. A Step 5d subsegment carries one horizontal class, so a stretch of road cannot be on two curves at once, and the overlap would be given to the upstream curve alone.`
+			);
+		}
+	}
 
 	// Every station where one of the homogeneity properties changes, with what
 	// changed there kept so the row key names its provenance rather than its
@@ -1061,9 +1074,19 @@ function subsegmentsFor(curves, startFt, endFt) {
 		});
 	let cursor = startFt;
 	for (const c of curvesOn) {
-		if (c.a > cursor + TL_TOL_FT) tangent(c.a - cursor);
+		// Where this curve actually starts contributing, which is not where it
+		// starts when an earlier curve already covered part of it.
+		const from = Math.max(cursor, c.a);
+		// A curve entirely swallowed by the one before it contributes nothing.
+		// Emitting it anyway would push a NEGATIVE length, and a negative
+		// subsegment length is the worst shape available here: nothing in the
+		// engine checks the tiling, the Step 5d weights are lengths, and the sum
+		// would still be arithmetically consistent with a shorter segment. The
+		// overlap itself is reported by the caller.
+		if (c.b <= from + TL_TOL_FT) continue;
+		if (from > cursor + TL_TOL_FT) tangent(from - cursor);
 		out.push({
-			length: round4(c.b - Math.max(cursor, c.a)),
+			length: round4(c.b - from),
 			avg_speed: 0,
 			hor_class: c.f.horClassEntered ?? 0,
 			design_rad: c.f.designRadiusFt,
@@ -1073,7 +1096,7 @@ function subsegmentsFor(curves, startFt, endFt) {
 			// PERCENT, per Exhibit 15-22's own column headings.
 			sup_ele: c.f.superelevationPct
 		});
-		cursor = Math.max(cursor, c.b);
+		cursor = c.b;
 	}
 	if (endFt > cursor + TL_TOL_FT) tangent(endFt - cursor);
 	return { subsegments: out, curvesOn };
