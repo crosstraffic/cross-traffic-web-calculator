@@ -4424,14 +4424,21 @@ test.describe('facility builder', () => {
 
       // The segments under it are a different story, and a useful one. Example
       // Problem 3's demand change at 2.25 mi now falls INSIDE the lane, and a
-      // demand change bounds a segment wherever it lands, so the lane is carried
-      // by two segments of 6,600 and 1,320 ft. The second is under the 0.5 mi
-      // Exhibit 15-10 minimum and is therefore analyzed as Passing Constrained,
-      // which is the rule applied to a segment rather than to a feature.
+      // demand change bounds a segment wherever it lands, so one 1.5 mi lane is
+      // carried by two segments of 6,600 and 1,320 ft. Both stay Passing Lane:
+      // the Exhibit 15-10 minimum is a property of the lane, so a boundary cutting
+      // through one does not turn it into two lanes that are each too short.
       expect(after.filter((l) => l.includes('Passing Lane'))).toEqual([
-        'segment 3, Passing Lane, 6600 feet, 2 lanes'
+        'segment 3, Passing Lane, 6600 feet, 2 lanes',
+        'segment 4, Passing Lane, 1320 feet, 2 lanes'
       ]);
-      expect(after.some((l) => l.includes('Passing Constrained, 1320 feet'))).toBe(true);
+
+      // But it is refused, and on its own terms. Step 9 measures downstream
+      // distance from the LAST passing-lane segment in the facility, so a split
+      // lane would be measured from its own far end rather than from its start.
+      const flags = page.getByTestId('validation-flag');
+      await expect(flags.filter({ hasText: 'is split into 2 segments' }).first()).toBeVisible();
+      await expect(page.getByTestId('analyze')).toBeDisabled();
       await expect(page.getByTestId('undo')).toBeEnabled();
       await page.getByTestId('undo').click();
       await expect(page.getByTestId('station-ps1')).toHaveValue('0.75');
