@@ -12,6 +12,8 @@
   import { setReport } from '$lib/report';
   import { discussion } from './discussion.js';
   import Discussion from '$lib/Discussion.svelte';
+  import OpenInBuilder from '$lib/OpenInBuilder.svelte';
+  import { urbanSegmentHandoff } from '$lib/builder/handoff.js';
   import { onMount } from "svelte";
 
   let diagramMode = $state('2d');
@@ -329,6 +331,25 @@
     }
   }
 
+  /** This form to the builder, through the library's own fixture schema, as the
+   * one-segment urban facility a single Chapter 18 segment is. The builder puts
+   * a boundary signal at each end, so this segment's own travel speed and LOS
+   * come back unchanged and a Chapter 16 aggregation over the one segment is
+   * added on top. */
+  function handoff() {
+    return urbanSegmentHandoff({
+      segment_length, n_through_lanes, speed_limit, upstream_width,
+      restrictive_median_length, pct_curb, pct_parking, access_points_subject,
+      access_points_opposing, pct_opposing_left_accessible, signal_spacing,
+      ffs_override, through_demand, midsegment_flow, control, through_delay,
+      through_capacity, cycle_length, effective_green, platoon_ratio, sat_flow,
+      stop_rate_override, pct_left_turn_lanes, ap_source, ap_delays,
+      n_influential_access_points, pct_left_turns_access, pct_right_turns_access,
+      access_left_bay_adequate, access_right_bay_adequate, analysis_period,
+      ap_approaches
+    });
+  }
+
   function resetParams() {
     segment_length = 1800;
     n_through_lanes = 2;
@@ -375,6 +396,8 @@
       Estimate free-flow speed, travel speed, stop rate, and level of service
       for one direction of travel on an urban street segment.
     </p>
+    <OpenInBuilder build={handoff}
+      note="Takes this segment to the facility builder as a one-segment Chapter 16 facility. It arrives between two boundary signals with its own travel speed and LOS unchanged, and gains the facility aggregation over that one segment." />
   </header>
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">

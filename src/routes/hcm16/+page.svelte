@@ -12,6 +12,8 @@
   import { setReport } from '$lib/report';
   import { discussion } from './discussion.js';
   import Discussion from '$lib/Discussion.svelte';
+  import OpenInBuilder from '$lib/OpenInBuilder.svelte';
+  import { urbanFacilityHandoff, SUMMARY_MODE_MISSING } from '$lib/builder/handoff.js';
   import { onMount } from "svelte";
 
   let diagramMode = $state('2d');
@@ -305,6 +307,13 @@
     });
   }
 
+  /** This form to the builder, through the library's own fixture schema. Only
+   * segment-inputs mode; the handoff module refuses summary mode and says why,
+   * and the header below offers no link there. */
+  function handoff() {
+    return urbanFacilityHandoff({ mode, inputSegments, inputs_pct_left_turn_lanes });
+  }
+
   function resetParams() {
     inputSegments = [defaultInputSegment(), defaultInputSegment(), defaultInputSegment()];
     measureSegments = defaultMeasureSegments();
@@ -351,6 +360,17 @@
       Aggregate urban street segments into facility travel speed, spatial stop
       rate, and level of service for one direction of travel.
     </p>
+    {#if mode === 'measures'}
+      <p class="oib-unavailable">
+        Summary mode does not open in the facility builder. It holds each segment's length and
+        its published measures and no cross-section, and a segment in the library schema needs
+        {SUMMARY_MODE_MISSING}. Those would have to be invented, so switch to segment inputs to
+        carry a facility across.
+      </p>
+    {:else}
+      <OpenInBuilder build={handoff}
+        note="Takes this form to the facility builder as a Chapter 16 fixture. The builder recovers a boundary signal at each segment end, so the facility arrives editable as placed features." />
+    {/if}
   </header>
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
@@ -813,4 +833,11 @@
   .seg-panel.seg-selected { outline: 2px solid var(--accent); outline-offset: 2px; }
   tr.seg-selected { background: color-mix(in srgb, var(--accent) 12%, transparent); }
   .fixture-note { margin-top: 0.6rem; }
+  .oib-unavailable {
+    margin-top: 1rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    max-width: 46rem;
+  }
 </style>

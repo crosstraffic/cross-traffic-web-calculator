@@ -13,6 +13,8 @@
   import { setReport } from '$lib/report';
   import { discussion } from './discussion.js';
   import Discussion from '$lib/Discussion.svelte';
+  import OpenInBuilder from '$lib/OpenInBuilder.svelte';
+  import { twoLaneHandoff } from '$lib/builder/handoff.js';
   import { onMount } from "svelte";
 
   let ready = $state(false);
@@ -230,6 +232,13 @@
     hasError = false;
   }
 
+  /** This form to the builder, through the library's own fixture schema. That is
+   * the same schema the Import panel reads and Export as JSON writes, so all
+   * three agree on what a Chapter 15 highway is. */
+  function handoff() {
+    return twoLaneHandoff({ lane_width, shoulder_width, apd, pmhvfl, rows: localRows });
+  }
+
   const r3 = (v) => Math.round(v * 1000) / 1000;
   const r2 = (v) => Math.round(v * 100) / 100;
 
@@ -394,6 +403,8 @@
       Estimate free-flow speed, follower density, average speed, and level of
       service for two-lane highway facilities, segment by segment.
     </p>
+    <OpenInBuilder build={handoff}
+      note="Takes this form to the facility builder as a Chapter 15 fixture. That schema states the passing type, the grade and its class, and the subsegments a curve produced, so the builder recovers them as placed features." />
   </header>
 
   {#if hasError}
