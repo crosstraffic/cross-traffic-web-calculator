@@ -1415,8 +1415,13 @@
           {/each}
         </ul>
       {/if}
-      <p class="bd-uncarried">
-        Exporting to the fixture schema carries the facility parameters above and every per-segment field this editor shows. It does not carry {uncarried.join(', ')}, which have no editor here. A fixture that was imported keeps those fields verbatim through a round trip{#if isUrban}, and a key the fixture never wrote stays absent unless it has been changed here, so an untouched import re-exports to the file it came from{/if}.
+      <p class="bd-uncarried" data-testid="uncarried-note">
+        Exporting to the fixture schema carries the facility parameters above and every per-segment field this editor shows.
+        {#if uncarried.length}
+          It does not carry {uncarried.join(', ')}, which have no editor here. A fixture that was imported keeps those fields verbatim through a round trip{#if isUrban}, and a key the fixture never wrote stays absent unless it has been changed here, so an untouched import re-exports to the file it came from{/if}.
+        {:else}
+          There is nothing it does not carry: the Chapter 15 segment schema is twenty keys wide and the derivation fills every one of them, so an export from here is the whole schema rather than a subset and an untouched import re-exports to the file it came from.
+        {/if}
       </p>
     </section>
 

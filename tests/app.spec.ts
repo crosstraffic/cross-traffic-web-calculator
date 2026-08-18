@@ -4245,6 +4245,12 @@ test.describe('facility builder', () => {
       // is, so it analyzes rather than blocking.
       await expect(page.getByTestId('twolane-empty-note')).toBeVisible();
       await expect(page.getByTestId('analyze')).toBeEnabled();
+      // The uncarried-fields note has an empty list here, because the Chapter 15
+      // schema is fully covered. It has to read as a sentence rather than as the
+      // other two facility types' sentence with the list cut out of the middle.
+      const uncarried = page.getByTestId('uncarried-note');
+      await expect(uncarried).toContainText('There is nothing it does not carry');
+      await expect(uncarried).not.toContainText('carry ,');
     });
 
     test('Example Problem 1 is a highway with no features at all, and reproduces its Step 11 value', async ({ page }) => {
