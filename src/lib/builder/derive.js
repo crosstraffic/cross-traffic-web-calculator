@@ -505,6 +505,29 @@ export const URBAN_SEGMENT_KEYS = [
 	'analysis_period_h'
 ];
 
+/** The `UrbanSegment` keys a boundary signal carries OPTIONALLY: the library has
+ * a default for each, and a blank field on the editor means that default rather
+ * than a number this builder chose.
+ *
+ * The list exists because these nine are the keys where "absent" and "null" mean
+ * different things. A signal that never carried the key has not been touched; a
+ * signal carrying null had the key and the analyst cleared it. Both analyze
+ * identically, because `segmentConfig` drops either, and they export
+ * differently: see the round-trip contract on `mergeSegment` in fixture.js.
+ * `fromUrbanFixture` sets one only when the fixture states it, and `urbanRow`
+ * passes whichever it finds through unchanged. */
+export const URBAN_OPTIONAL_SIGNAL_KEYS = [
+	'platoon_ratio',
+	'sat_flow_veh_h_ln',
+	'arrival_type',
+	'full_stop_rate_override',
+	'n_influential_access_points',
+	'pct_left_turns_access',
+	'pct_right_turns_access',
+	'access_left_bay_adequate',
+	'access_right_bay_adequate'
+];
+
 /** The published Chapter 18 measures that make a segment a summary segment. Any
  * of these present and `add_segment_from_config` stops treating the segment as
  * inputs to recompute, exactly as `add_segment_summary` would. */
@@ -672,26 +695,25 @@ function urbanRow(doc, { key, startFt, endFt, upstream, downstream, subject, opp
 		through_control_delay_s: cfg.through_control_delay_s,
 		cycle_length_s: cfg.cycle_length_s,
 		effective_green_s: cfg.effective_green_s,
-		platoon_ratio: cfg.platoon_ratio ?? undefined,
-		sat_flow_veh_h_ln: cfg.sat_flow_veh_h_ln ?? undefined,
-		arrival_type: cfg.arrival_type ?? undefined,
-		full_stop_rate_override: cfg.full_stop_rate_override ?? undefined,
-		// Carried whatever source the segment ends up on. The library reads them
-		// only on the Exhibit 18-13 fall-through, so on a segment with per-point
-		// delays they are inert, and dropping them here instead would lose an
-		// analyst's numbers out of the document the moment a delay was supplied
-		// and not give them back when it was cleared.
-		n_influential_access_points: cfg.n_influential_access_points ?? undefined,
-		pct_left_turns_access: cfg.pct_left_turns_access ?? undefined,
-		pct_right_turns_access: cfg.pct_right_turns_access ?? undefined,
-		access_left_bay_adequate: cfg.access_left_bay_adequate ?? undefined,
-		access_right_bay_adequate: cfg.access_right_bay_adequate ?? undefined,
 		prop_left_turn_lanes: m.propLeftTurnLanes,
 
 		sourceIds: [upstream?.id, downstream?.id, ...subject.map((a) => a.id), ...opposing.map((a) => a.id)].filter(Boolean),
 		overridden: false,
 		staleOverride: false
 	};
+
+	// The nine optional keys, passed through exactly as the signal holds them so
+	// that a key the signal never carried stays undefined and a key the analyst
+	// cleared stays null. Collapsing the two with `?? undefined` was the export
+	// defect: a cleared field analyzed as cleared and exported as the value the
+	// fixture was imported with, so the document and its export disagreed.
+	//
+	// The five planning parameters are carried whatever source the segment ends up
+	// on. The library reads them only on the Exhibit 18-13 fall-through, so on a
+	// segment with per-point delays they are inert, and dropping them here instead
+	// would lose an analyst's numbers out of the document the moment a delay was
+	// supplied and not give them back when it was cleared.
+	for (const k of URBAN_OPTIONAL_SIGNAL_KEYS) if (k in cfg) r[k] = cfg[k];
 
 	// The Equation 18-7 access-point delay term, from whichever of the three
 	// sources the access points on this segment actually carry. The library picks
@@ -712,7 +734,10 @@ function urbanRow(doc, { key, startFt, endFt, upstream, downstream, subject, opp
 
 	if (measures) {
 		const pub = downstream?.measures ?? {};
-		for (const k of URBAN_MEASURE_KEYS) if (pub[k] != null) r[k] = pub[k];
+		// Presence rather than nullness, for the same reason the optional inputs
+		// above use it: a measure the signal never carried is untouched and a
+		// measure cleared to null is cleared, and the export tells them apart.
+		for (const k of URBAN_MEASURE_KEYS) if (k in pub) r[k] = pub[k];
 	}
 
 	r.why = whyUrban({ index, startFt, endFt, upstream, downstream, subject, opposing, measures, source: r.apDelaySource });

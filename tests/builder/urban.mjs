@@ -439,22 +439,47 @@ function street(stations, lengthFt = stations[stations.length - 1]) {
 	const bayRun = analyzeUrbanFacility(bays, derive(bays).rows, wasm);
 	ok(bayRun.travelSpeed > planRun.travelSpeed, 'two adequate turn bays take the Exhibit 18-13 delay to zero and raise the travel speed');
 
-	// The five are nullable, so a facility nobody touched exports exactly what it
+	// The five are optional, so a facility nobody touched exports exactly what it
 	// did before they existed. This is the claim that adding them cost the
 	// round trip nothing.
+	//
+	// ABSENT rather than merely blank, which is the distinction the export's
+	// round-trip contract rests on: `undefined` is "never touched" and `null` is
+	// "the analyst cleared it", and the two export differently. A default of null
+	// would satisfy "blank" and would tell the export that every new signal had
+	// had all five cleared.
 	const untouched = loadUrbanExample('ch30ep1');
 	const untouchedRows = derive(untouched).rows;
+	const planningKeys = [
+		'n_influential_access_points',
+		'pct_left_turns_access',
+		'pct_right_turns_access',
+		'access_left_bay_adequate',
+		'access_right_bay_adequate'
+	];
 	ok(
-		untouchedRows.every((r) =>
-			[
-				'n_influential_access_points',
-				'pct_left_turns_access',
-				'pct_right_turns_access',
-				'access_left_bay_adequate',
-				'access_right_bay_adequate'
-			].every((k) => r[k] === undefined)
-		),
+		untouchedRows.every((r) => planningKeys.every((k) => r[k] === undefined && !(k in r))),
 		'an untouched facility carries none of the five, so a blank field stays the engine\'s own default'
+	);
+
+	// And a cleared one is null on the row rather than undefined, which is the
+	// other half of the same distinction. Both analyze identically; only the
+	// export tells them apart.
+	const cleared = loadUrbanExample('ch30ep1');
+	for (const f of cleared.features) {
+		if (f.kind !== 'signal' || f.stationFt === 0) continue;
+		f.config.n_influential_access_points = 2;
+		f.config.full_stop_rate_override = null;
+	}
+	const clearedRows = derive(cleared).rows;
+	ok(
+		clearedRows.every((r) => r.full_stop_rate_override === null && r.n_influential_access_points === 2),
+		'a cleared optional input reaches the row as null, distinct from an untouched one'
+	);
+	eq(
+		segmentConfig(clearedRows[0]).full_stop_rate_override,
+		undefined,
+		'and the engine config drops it, so a cleared field analyzes as cleared'
 	);
 }
 
@@ -581,6 +606,117 @@ for (const name of ['case1.json', 'case2.json', 'case3.json']) {
 		JSON.stringify(toUrbanFixture(edited, derive(edited).rows)) !== JSON.stringify(raw),
 		`${name} re-exports differently once a signal is edited`
 	);
+}
+
+// ── 3b. The round-trip contract: absent, cleared, changed ───────────────
+//
+// The three states a key can be in on its way back out, checked per affected
+// field class. The middle one is the fix: `merged[k] = r[k] ?? orig[k]` read a
+// cleared field as untouched, so a field the analyst had cleared analyzed as
+// cleared and exported as the value the fixture was imported with, and the
+// document and its export disagreed about the facility. The first state is the
+// half that must NOT move, and it is pinned byte-for-byte above.
+
+{
+	/** The signal that terminates segment `i` of an imported urban fixture. */
+	const terminator = (doc, i) => doc.features.filter((f) => f.kind === 'signal')[i + 1];
+
+	// Chapter 30 Example Problem 1, which states `full_stop_rate_override` on
+	// every segment. One of the four phase-2 optional inputs, on a fixture that
+	// actually carries it, so clearing it has something to remove.
+	{
+		const raw = loadCase('case3.json');
+		const doc = fromUrbanFixture(raw, 'case3');
+		ok('full_stop_rate_override' in raw.segments[0], 'case3 states the field being cleared');
+		terminator(doc, 0).config.full_stop_rate_override = null;
+		const out = toUrbanFixture(doc, derive(doc).rows);
+		ok(
+			!('full_stop_rate_override' in out.segments[0]),
+			'a cleared optional urban input is absent from the export rather than exported as the imported value'
+		);
+		eq(
+			out.segments.slice(1).map((s) => s.full_stop_rate_override),
+			raw.segments.slice(1).map((s) => s.full_stop_rate_override),
+			'and the segments whose signals were not touched keep theirs'
+		);
+		eq(
+			JSON.stringify({ ...out, segments: out.segments.slice(1) }),
+			JSON.stringify({ ...raw, segments: raw.segments.slice(1) }),
+			'so the clear is the only difference in the whole file'
+		);
+
+		// The analysis half of the contract, which is what makes the export half a
+		// correction rather than a preference: the cleared facility already ran
+		// without the override, and now it exports as a facility that runs without
+		// the override.
+		const asCleared = JSON.parse(JSON.stringify(raw));
+		for (const s of asCleared.segments) delete s.full_stop_rate_override;
+		const never = fromUrbanFixture(asCleared, 'never stated');
+		eq(
+			segmentConfig(derive(doc).rows[0]).full_stop_rate_override,
+			segmentConfig(derive(never).rows[0]).full_stop_rate_override,
+			'a cleared field and a field the fixture never stated hand the engine the same config'
+		);
+	}
+
+	// A field set to a NEW value exports the new value, whether or not the fixture
+	// stated it. Without this the "absent from the export" check above would also
+	// pass if the export had simply stopped writing the field.
+	{
+		const raw = loadCase('case3.json');
+		const doc = fromUrbanFixture(raw, 'case3');
+		terminator(doc, 0).config.full_stop_rate_override = 0.42;
+		terminator(doc, 0).config.platoon_ratio = 1.333;
+		const out = toUrbanFixture(doc, derive(doc).rows);
+		eq(out.segments[0].full_stop_rate_override, 0.42, 'a stated field set to a new value exports the new value');
+		eq(out.segments[0].platoon_ratio, 1.333, 'and a field the fixture never stated is added once it is set');
+		ok(!('platoon_ratio' in out.segments[1]), 'only on the segment whose signal carries it');
+	}
+
+	// The five Exhibit 18-13 planning fields, on a fixture that states them. No
+	// published case does, so case3 is augmented with them; the point being
+	// checked is the merge, and the merge cannot tell where a stated key came
+	// from. The boolean is included deliberately: unchecking a bay is the only
+	// way the editor can express "clear", so the checkbox and the numeric field
+	// have to clear the same way.
+	{
+		const raw = JSON.parse(JSON.stringify(loadCase('case3.json')));
+		Object.assign(raw.segments[0], {
+			n_influential_access_points: 2,
+			pct_left_turns_access: 6.5,
+			pct_right_turns_access: 8.1,
+			access_left_bay_adequate: true,
+			access_right_bay_adequate: true
+		});
+		const doc = fromUrbanFixture(raw, 'case3+planning');
+		eq(
+			JSON.stringify(toUrbanFixture(doc, derive(doc).rows)),
+			JSON.stringify(raw),
+			'a fixture stating the five planning fields still re-exports byte-identically when untouched'
+		);
+
+		const edited = fromUrbanFixture(raw, 'case3+planning');
+		terminator(edited, 0).config.n_influential_access_points = null;
+		terminator(edited, 0).config.access_left_bay_adequate = null;
+		const out = toUrbanFixture(edited, derive(edited).rows);
+		ok(!('n_influential_access_points' in out.segments[0]), 'a cleared planning count is absent from the export');
+		ok(!('access_left_bay_adequate' in out.segments[0]), 'and so is an unchecked turn bay');
+		eq(out.segments[0].pct_left_turns_access, 6.5, 'while the planning fields left alone are untouched');
+		eq(out.segments[0].access_right_bay_adequate, true, 'the other bay included');
+	}
+
+	// The published measures are the third class of optional key on a signal and
+	// they clear through the same path, so they are pinned here rather than left
+	// to be discovered.
+	{
+		const raw = loadCase('case1.json');
+		const doc = fromUrbanFixture(raw, 'case1');
+		eq(doc.analysisMode, 'measures', 'case1 imports in measures mode');
+		terminator(doc, 0).measures.spatial_stop_rate_stops_mi = null;
+		const out = toUrbanFixture(doc, derive(doc).rows);
+		ok(!('spatial_stop_rate_stops_mi' in out.segments[0]), 'a cleared published measure is absent from the export');
+		eq(out.segments[0].travel_speed_mph, raw.segments[0].travel_speed_mph, 'and the measures beside it survive');
+	}
 }
 
 {

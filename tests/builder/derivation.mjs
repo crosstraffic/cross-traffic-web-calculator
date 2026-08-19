@@ -307,6 +307,20 @@ for (const [id, file] of [['ep2', 'case2.json'], ['ep3', 'case3.json'], ['ep4', 
 	// the file's own bytes cannot be reproduced by any serializer.
 	eq(JSON.stringify(back), JSON.stringify(case1), 'case1 round-trips to identical canonical JSON');
 	ok(back._comment === case1._comment, 'the fixture comment survives a round trip');
+
+	// The freeway half of the round-trip contract the urban export is the
+	// reachable case of: an absent row value is "untouched, export the original"
+	// and a null one is "cleared, omit it". The segment table refuses a non-finite
+	// edit, so no editor here produces a null today; the rule is shared across all
+	// three exports and this pins that it is in force in this one.
+	const stated = case1.segments.findIndex((s) => s.accel_lane_ft != null);
+	ok(stated >= 0, 'case1 states an acceleration lane length somewhere');
+	const cleared = toFixture(doc, rows.map((r, i) => (i === stated ? { ...r, accel_lane_ft: null } : r)));
+	ok(!('accel_lane_ft' in cleared.segments[stated]), 'a null row value clears the key out of the freeway export');
+	eq(
+		JSON.stringify(cleared.segments.filter((_, i) => i !== stated)),
+		JSON.stringify(case1.segments.filter((_, i) => i !== stated)),
+		'and reaches no other segment');
 }
 
 // An override survives re-derivation, and the row it pins is marked.
