@@ -153,7 +153,7 @@
                   onchange={(e) => cfgSet('control', e.currentTarget.value)}>
             <option>Signalized</option>
             <option>AllWayStop</option>
-            <option>TwoWayStop</option>
+            <option>YieldControlled</option>
             <option>Roundabout</option>
             <option>Uncontrolled</option>
           </select>

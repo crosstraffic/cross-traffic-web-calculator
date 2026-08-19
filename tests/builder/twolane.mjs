@@ -655,6 +655,19 @@ const demand = (id, stationFt, config) => ({
 	throws(() => migrate({ version: 4, facilityType: 'monorail' }), 'unsupported facility type',
 		'an unknown facility type is still refused');
 
+	// Early urban builds offered "TwoWayStop", which is not a
+	// BoundaryControlType serde variant; a stored draft carrying it maps to
+	// Uncontrolled (the variant whose own doc covers the TWSC through
+	// movement), on the signal config and on a seg_type override alike.
+	{
+		const legacy = { ...emptyDocument('urban'), version: 3 };
+		legacy.features = [{ id: 's1', kind: 'signal', stationFt: 1000, config: { control: 'TwoWayStop' } }];
+		legacy.overrides = { 'gap:start': { fields: { seg_type: 'TwoWayStop' }, appliedTo: 'Uncontrolled' } };
+		const up2 = migrate(JSON.parse(JSON.stringify(legacy)));
+		eq(up2.features[0].config.control, 'Uncontrolled', 'a legacy TwoWayStop signal maps to Uncontrolled');
+		eq(up2.overrides['gap:start'].fields.seg_type, 'Uncontrolled', 'and so does a legacy seg_type override');
+	}
+
 	// makeFeature produces the four kinds with the shapes the derivation reads.
 	for (const kind of ['grade', 'passing', 'curve', 'demand']) {
 		const f = makeFeature(doc, kind, 1000);

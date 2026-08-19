@@ -26,7 +26,7 @@
    * schema field the engine reads. */
   const TYPES_BY_FACILITY = {
     freeway: ['Basic', 'Merge', 'Diverge', 'Weaving', 'OverlappingRamp'],
-    urban: ['Signalized', 'AllWayStop', 'TwoWayStop', 'Roundabout', 'Uncontrolled'],
+    urban: ['Signalized', 'AllWayStop', 'YieldControlled', 'Roundabout', 'Uncontrolled'],
     twolane: PASSING_TYPE_NAMES
   };
   let TYPES = $derived(TYPES_BY_FACILITY[doc?.facilityType] ?? TYPES_BY_FACILITY.freeway);
