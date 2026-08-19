@@ -4181,6 +4181,44 @@ test.describe('facility builder', () => {
       expect(exported).toEqual(JSON.parse(readFileSync(fixture, 'utf8')));
     });
 
+    test('clearing an optional field on an imported fixture omits it from the export', async ({ page }) => {
+      // The other half of the round-trip contract, driven through the real
+      // editor. Untouched, the fixture above re-exports byte-identically;
+      // cleared, the field has to LEAVE the file, because the run that produced
+      // the numbers on the page ran without it. tests/builder/urban.mjs pins the
+      // merge itself; what this adds is that the editor's own clear reaches it,
+      // which is where `?? orig[k]` used to swallow it.
+      await openUrban(page);
+      const fixture = libCase('UrbanFacilities', 'case3.json');
+      const raw = JSON.parse(readFileSync(fixture, 'utf8'));
+      expect(raw.segments[0].full_stop_rate_override).toBeDefined();
+
+      await page.getByTestId('import-file').click();
+      await page.locator('input[type=file]').setInputFiles(fixture);
+      await expect(page.getByTestId('builder-message')).toContainText('boundary signals were recovered');
+
+      // Segment 1 reads its timing off the signal at its downstream end, which
+      // is the second one.
+      await page.getByTestId('expand-sig2').click();
+      const stopRate = page.getByTestId('stoprate-sig2');
+      await expect(stopRate).toHaveValue(String(raw.segments[0].full_stop_rate_override));
+      await stopRate.fill('');
+      await stopRate.blur();
+      await expect(stopRate).toHaveValue('');
+
+      const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        page.getByTestId('download-fixture').click()
+      ]);
+      const exported = JSON.parse(readFileSync(await download.path(), 'utf8'));
+      expect(exported.segments[0]).not.toHaveProperty('full_stop_rate_override');
+      // And only there. The clear is one signal's, not the facility's.
+      expect(exported.segments[1].full_stop_rate_override).toBe(raw.segments[1].full_stop_rate_override);
+      expect(exported.segments[2].full_stop_rate_override).toBe(raw.segments[2].full_stop_rate_override);
+      expect({ ...exported.segments[0], full_stop_rate_override: raw.segments[0].full_stop_rate_override })
+        .toEqual(raw.segments[0]);
+    });
+
     test('the report and the Word export carry the urban run', async ({ page }) => {
       await loadUrbanExample(page, 'ch30ep1');
       await page.getByTestId('analyze').click();

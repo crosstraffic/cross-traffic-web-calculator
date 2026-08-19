@@ -626,6 +626,19 @@ const demand = (id, stationFt, config) => ({
 	eq(Object.keys(out.segments[1]), Object.keys(minimal.segments[1]),
 		'and the segment nothing changed on keeps exactly the keys it arrived with');
 	eq(out.segments[1], minimal.segments[1], 'with exactly the values it arrived with');
+
+	// The third state of the round-trip contract, which the urban export is where
+	// it is reachable from an editor and this export shares the rule for: a row
+	// value of null is the analyst clearing the key, so the key leaves the export
+	// rather than falling back to what the fixture stated. Nothing in the Chapter
+	// 15 derivation produces a null today (it fills every key structurally, and
+	// the segment table refuses a non-finite edit), so this is checked against the
+	// export directly. It is what keeps the rule shared if this schema ever grows
+	// an optional control of its own.
+	const rows = derive(fromTwoLaneFixture(minimal, 'minimal.json')).rows;
+	const withCleared = toTwoLaneFixture(doc, [{ ...rows[0], spl: null }, rows[1]]);
+	ok(!('spl' in withCleared.segments[0]), 'a null row value clears the key out of the two-lane export');
+	eq(withCleared.segments[1], minimal.segments[1], 'and reaches no other segment');
 }
 
 {

@@ -13,6 +13,7 @@ import { emptyDocument, setPeriods, defaultSignalConfig } from './document.js';
 import {
 	URBAN_SEGMENT_KEYS,
 	URBAN_MEASURE_KEYS,
+	URBAN_OPTIONAL_SIGNAL_KEYS,
 	TWOLANE_SEGMENT_KEYS,
 	deriveUrbanRows,
 	deriveTwoLaneRows
@@ -136,38 +137,46 @@ export function fromUrbanFixture(raw, name = 'imported fixture') {
 	let station = 0;
 	raw.segments.forEach((s, i) => {
 		station += s.segment_length_ft ?? 0;
+		const config = {
+			...defaultSignalConfig(doc),
+			control: s.control ?? 'Signalized',
+			speed_limit_mph: s.speed_limit_mph ?? null,
+			through_demand_veh_h: s.through_demand_veh_h,
+			midsegment_flow_veh_h: s.midsegment_flow_veh_h,
+			through_capacity_veh_h: s.through_capacity_veh_h,
+			through_control_delay_s: s.through_control_delay_s,
+			cycle_length_s: s.cycle_length_s,
+			effective_green_s: s.effective_green_s,
+			// The width of the intersection at the NEXT segment's upstream end,
+			// which is this one. The last signal has no segment after it to have
+			// recorded its width, so it keeps the default.
+			width_ft: raw.segments[i + 1]?.upstream_intersection_width_ft ?? defaultSignalConfig(doc).width_ft
+		};
+		// The nine optional inputs, the Exhibit 18-13 planning parameters among
+		// them, recovered so a fixture that states them round-trips and shows them
+		// in the editor rather than carrying them invisibly through `importedRaw`.
+		//
+		// Set only when the fixture states one, because the key's ABSENCE is what
+		// the export reads as "the analyst never touched this" (see the round-trip
+		// contract on `mergeSegment`). A fixture that states an explicit null means
+		// the library's default, which is what an absent key means too, so it
+		// arrives here as absent and re-exports off `orig` unchanged.
+		//
+		// The `delete` is not redundant. `full_stop_rate_override` has a real
+		// default on a newly placed signal (0.547, Chapter 30 Example Problem 1),
+		// and an imported fixture that does not state it must analyze without an
+		// override rather than inherit that number.
+		for (const k of URBAN_OPTIONAL_SIGNAL_KEYS) {
+			if (s[k] != null) config[k] = s[k];
+			else delete config[k];
+		}
+
 		doc.features.push({
 			id: `sig${i + 2}`,
 			kind: 'signal',
 			stationFt: Math.round(station),
 			label: `Signal ${i + 2}`,
-			config: {
-				...defaultSignalConfig(doc),
-				control: s.control ?? 'Signalized',
-				speed_limit_mph: s.speed_limit_mph ?? null,
-				through_demand_veh_h: s.through_demand_veh_h,
-				midsegment_flow_veh_h: s.midsegment_flow_veh_h,
-				through_capacity_veh_h: s.through_capacity_veh_h,
-				through_control_delay_s: s.through_control_delay_s,
-				cycle_length_s: s.cycle_length_s,
-				effective_green_s: s.effective_green_s,
-				platoon_ratio: s.platoon_ratio ?? null,
-				sat_flow_veh_h_ln: s.sat_flow_veh_h_ln ?? null,
-				arrival_type: s.arrival_type ?? null,
-				full_stop_rate_override: s.full_stop_rate_override ?? null,
-				// The Exhibit 18-13 planning parameters, recovered so a fixture that
-				// states them round-trips and shows them in the editor rather than
-				// carrying them invisibly through `importedRaw`.
-				n_influential_access_points: s.n_influential_access_points ?? null,
-				pct_left_turns_access: s.pct_left_turns_access ?? null,
-				pct_right_turns_access: s.pct_right_turns_access ?? null,
-				access_left_bay_adequate: s.access_left_bay_adequate ?? null,
-				access_right_bay_adequate: s.access_right_bay_adequate ?? null,
-				// The width of the intersection at the NEXT segment's upstream end,
-				// which is this one. The last signal has no segment after it to have
-				// recorded its width, so it keeps the default.
-				width_ft: raw.segments[i + 1]?.upstream_intersection_width_ft ?? defaultSignalConfig(doc).width_ft
-			},
+			config,
 			measures: URBAN_MEASURE_KEYS.some((k) => s[k] != null)
 				? Object.fromEntries(URBAN_MEASURE_KEYS.filter((k) => s[k] != null).map((k) => [k, s[k]]))
 				: null
@@ -223,16 +232,9 @@ export function toUrbanFixture(doc, rows) {
 		// is whether the user changed it, which is the comparison against what
 		// this same fixture derived to on arrival.
 		const baseline = importBaseline(doc.importedRaw);
-		out.segments = out.segments.map((orig, i) => {
-			const r = rows[i];
-			if (!r) return orig;
-			const merged = { ...orig };
-			for (const k of keys) {
-				if (k in orig) merged[k] = cloneVal(r[k] ?? orig[k]);
-				else if (r[k] != null && !same(r[k], baseline[i]?.[k])) merged[k] = cloneVal(r[k]);
-			}
-			return merged;
-		});
+		out.segments = out.segments.map((orig, i) =>
+			rows[i] ? mergeSegment(orig, rows[i], keys, (r, k) => !same(r[k], baseline[i]?.[k])) : orig
+		);
 		return out;
 	}
 
@@ -243,6 +245,48 @@ export function toUrbanFixture(doc, rows) {
 		return s;
 	});
 	return out;
+}
+
+/**
+ * One derived row merged onto the fixture segment it was imported from.
+ *
+ * THE ROUND-TRIP CONTRACT. All three exports here (urban, two-lane, freeway)
+ * merge a derived row onto the original parse rather than writing the row out
+ * whole, because a fixture that stated five keys meant the serde defaults for
+ * the rest and rewriting all twenty would mean no import ever round-tripped. The
+ * merge therefore has to say, per key, whether the analyst has touched it, and a
+ * row value carries that in three states:
+ *
+ *   absent (undefined)  the analyst never touched this key. Export whatever the
+ *                       fixture had, which for an untouched import is every key,
+ *                       so an untouched import re-exports byte-identically.
+ *   null                the analyst CLEARED this key. The engine runs without it
+ *                       (`segmentConfig` drops null and undefined alike), so the
+ *                       export omits it too and the document and its export
+ *                       agree. This half is the fix: `r[k] ?? orig[k]` read a
+ *                       cleared field as untouched and exported the imported
+ *                       value back, so a cleared field analyzed one way and
+ *                       exported the other.
+ *   anything else       the analyst's value. Export it.
+ *
+ * A key the fixture never wrote is added only when `worthAdding` says the value
+ * has moved off what this same fixture derived to on arrival, so filling in the
+ * derivation's own defaults does not fatten the file.
+ *
+ * `URBAN_OPTIONAL_SIGNAL_KEYS` in derive.js is where the null state is currently
+ * reachable. The two-lane derivation fills every key of its schema structurally
+ * and the freeway segment table refuses a non-finite edit, so neither can
+ * produce a null row value today; they share the rule so that the first optional
+ * control either of them grows is right by construction rather than by review.
+ */
+function mergeSegment(orig, r, keys, worthAdding) {
+	const merged = { ...orig };
+	for (const k of keys) {
+		if (r[k] === null) delete merged[k];
+		else if (k in orig) merged[k] = cloneVal(r[k] === undefined ? orig[k] : r[k]);
+		else if (r[k] !== undefined && worthAdding(r, k)) merged[k] = cloneVal(r[k]);
+	}
+	return merged;
 }
 
 /** What this fixture's segments derive to the moment it is imported, before any
@@ -422,16 +466,11 @@ export function toTwoLaneFixture(doc, rows) {
 		// uses, and the reason the published fixtures did not catch this is that
 		// all four of them state every key.
 		const baseline = twoLaneImportBaseline(doc.importedRaw);
-		out.segments = out.segments.map((orig, i) => {
-			const r = rows[i];
-			if (!r) return orig;
-			const merged = { ...orig };
-			for (const k of TWOLANE_SEGMENT_KEYS) {
-				if (k in orig) merged[k] = cloneVal(r[k] ?? orig[k]);
-				else if (r[k] != null && !same(r[k], baseline[i]?.[k])) merged[k] = cloneVal(r[k]);
-			}
-			return merged;
-		});
+		out.segments = out.segments.map((orig, i) =>
+			rows[i]
+				? mergeSegment(orig, rows[i], TWOLANE_SEGMENT_KEYS, (r, k) => !same(r[k], baseline[i]?.[k]))
+				: orig
+		);
 		return out;
 	}
 
@@ -507,16 +546,9 @@ export function toFixture(doc, rows) {
 	if (doc.importedRaw) {
 		const out = JSON.parse(JSON.stringify(doc.importedRaw));
 		out.mainline_demand = [...doc.mainline.demand];
-		out.segments = out.segments.map((orig, i) => {
-			const r = rows[i];
-			if (!r) return orig;
-			const merged = { ...orig };
-			for (const k of SEGMENT_KEYS) {
-				if (k in orig) merged[k] = cloneVal(r[k] ?? orig[k]);
-				else if (isCarried(r, k)) merged[k] = cloneVal(r[k]);
-			}
-			return merged;
-		});
+		out.segments = out.segments.map((orig, i) =>
+			rows[i] ? mergeSegment(orig, rows[i], SEGMENT_KEYS, isCarried) : orig
+		);
 		return out;
 	}
 

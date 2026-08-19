@@ -252,27 +252,26 @@ export function defaultSignalConfig(doc) {
 		through_control_delay_s: 18.31,
 		cycle_length_s: 100,
 		effective_green_s: 48.63,
-		platoon_ratio: null,
-		sat_flow_veh_h_ln: null,
-		arrival_type: null,
+		// The one of the nine optional inputs (`URBAN_OPTIONAL_SIGNAL_KEYS` in
+		// derive.js) that a new signal is given a value for, because the published
+		// segment this whole config is taken from states one. `fromUrbanFixture`
+		// deletes it again on an import that does not, or an imported facility
+		// would silently analyze at this number.
 		full_stop_rate_override: 0.547,
-		// The Exhibit 18-13 planning estimate's own parameters, for the segment
-		// ending here. They are read only when no access point on the segment
-		// carries a per-point delay or an approach, because those are the two
-		// sources Equation 18-7 prefers.
+		// The other eight are deliberately ABSENT rather than null. A blank field
+		// means the engine's own default either way, but the export's round-trip
+		// contract (see `mergeSegment` in fixture.js) reads an absent key as "never
+		// touched" and a null one as "the analyst cleared it", and a new signal has
+		// not had anything cleared.
 		//
-		// All five are null rather than the library's serde defaults, so that a
-		// blank field means the engine's own value rather than a number this
-		// builder chose. The count is the important one: left blank the library
-		// uses N_ap = N_ap,s + p_ap,lt N_ap,o, every driveway counted, and the
-		// estimate is at its coarsest. Chapter 30 Example Problem 1 is what that
-		// costs, 22.55 mi/h against 23.60 with the segment's own two influential
-		// approaches and its own turn percentages.
-		n_influential_access_points: null,
-		pct_left_turns_access: null,
-		pct_right_turns_access: null,
-		access_left_bay_adequate: null,
-		access_right_bay_adequate: null,
+		// Five of them are the Exhibit 18-13 planning parameters, read only when no
+		// access point on the segment carries a per-point delay or an approach,
+		// because those are the two sources Equation 18-7 prefers. The count is the
+		// important one: left blank the library uses N_ap = N_ap,s + p_ap,lt N_ap,o,
+		// every driveway counted, and the estimate is at its coarsest. Chapter 30
+		// Example Problem 1 is what that costs, 22.55 mi/h against 23.60 with the
+		// segment's own two influential approaches and its own turn percentages.
+
 		// The width of THIS intersection, which Chapter 18 charges to the segment
 		// on its far side as `upstream_intersection_width_ft`.
 		width_ft: 50,
