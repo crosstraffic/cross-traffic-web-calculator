@@ -20,7 +20,7 @@ export const LOS_COLORS = {
   C: '#fab219',
   D: '#ef9a3c',
   E: '#ec835a',
-  F: '#d03b3b'
+  F: '#d03b3b',
 };
 
 export const LOS_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -39,7 +39,7 @@ export const SERVICE_MEASURES = {
     direction: 'higher-is-worse',
     edges: [11, 18, 26, 35, 45],
     source: 'HCM Exhibit 12-15',
-    note: 'Basic freeway segments. Passenger cars per mile per lane.'
+    note: 'Basic freeway segments. Passenger cars per mile per lane.',
   },
   density_weaving_v7: {
     label: 'Density',
@@ -47,7 +47,7 @@ export const SERVICE_MEASURES = {
     direction: 'higher-is-worse',
     edges: [10, 20, 28, 35, 43],
     source: 'HCM Exhibit 13-6',
-    note: 'Weaving segments, 7th Edition.'
+    note: 'Weaving segments, 7th Edition.',
   },
   density_v7_1: {
     label: 'Density',
@@ -55,7 +55,7 @@ export const SERVICE_MEASURES = {
     direction: 'higher-is-worse',
     edges: [11, 18, 25, 30, 35],
     source: 'HCM Edition 7.1, Exhibits 13-7 and 14-2',
-    note: 'Weaving, merge, and diverge segments under Edition 7.1. Tighter than the 7th Edition at every letter.'
+    note: 'Weaving, merge, and diverge segments under Edition 7.1. Tighter than the 7th Edition at every letter.',
   },
   density_ramp_v7: {
     label: 'Density',
@@ -63,7 +63,7 @@ export const SERVICE_MEASURES = {
     direction: 'higher-is-worse',
     edges: [10, 20, 28, 35, Infinity],
     source: 'HCM Exhibit 14-3',
-    note: 'Ramp influence areas, 7th Edition. LOS F is assigned only when demand exceeds capacity, never by density alone.'
+    note: 'Ramp influence areas, 7th Edition. LOS F is assigned only when demand exceeds capacity, never by density alone.',
   },
   follower_density: {
     label: 'Follower density',
@@ -71,7 +71,7 @@ export const SERVICE_MEASURES = {
     direction: 'higher-is-worse',
     edges: [2, 4, 8, 12, 16],
     source: 'HCM Exhibit 15-6',
-    note: 'Two-lane highways, higher-speed class.'
+    note: 'Two-lane highways, higher-speed class.',
   },
   control_delay_signal: {
     label: 'Control delay',
@@ -79,7 +79,7 @@ export const SERVICE_MEASURES = {
     direction: 'higher-is-worse',
     edges: [10, 20, 35, 55, 80],
     source: 'HCM Exhibit 19-8',
-    note: 'Signalized intersections. A volume-to-capacity ratio above 1.0 forces LOS F whatever the delay.'
+    note: 'Signalized intersections. A volume-to-capacity ratio above 1.0 forces LOS F whatever the delay.',
   },
   control_delay_unsignalized: {
     label: 'Control delay',
@@ -87,7 +87,7 @@ export const SERVICE_MEASURES = {
     direction: 'higher-is-worse',
     edges: [10, 15, 25, 35, 50],
     source: 'HCM Exhibit 20-2',
-    note: 'Two-way and all-way STOP control, and roundabouts.'
+    note: 'Two-way and all-way STOP control, and roundabouts.',
   },
   los_score: {
     label: 'LOS score',
@@ -95,7 +95,7 @@ export const SERVICE_MEASURES = {
     direction: 'higher-is-worse',
     edges: [1.5, 2.5, 3.5, 4.5, 5.5],
     source: 'HCM Exhibits 15-8 and 19-9',
-    note: 'Traveler-perception score for two-lane highway and signalized-intersection bicycle and pedestrian modes. A lower score is better.'
+    note: 'Traveler-perception score for two-lane highway and signalized-intersection bicycle and pedestrian modes. A lower score is better.',
   },
   segment_los_score: {
     label: 'LOS score',
@@ -103,7 +103,7 @@ export const SERVICE_MEASURES = {
     direction: 'higher-is-worse',
     edges: [2.0, 2.75, 3.5, 4.25, 5.0],
     source: 'HCM Exhibits 16-4, 16-5, 18-2, and 18-3',
-    note: 'Urban street segment and facility scores. Note these bands differ from the intersection ones.'
+    note: 'Urban street segment and facility scores. Note these bands differ from the intersection ones.',
   },
   blos_score_path: {
     label: 'BLOS score',
@@ -111,7 +111,7 @@ export const SERVICE_MEASURES = {
     direction: 'higher-is-better',
     edges: [4.0, 3.5, 3.0, 2.5, 2.0],
     source: 'HCM Exhibit 24-5',
-    note: 'Shared-use and exclusive paths. This scale runs the other way from the Chapter 15 and 19 scores: here a higher score is better.'
+    note: 'Shared-use and exclusive paths. This scale runs the other way from the Chapter 15 and 19 scores: here a higher score is better.',
   },
   pedestrian_space: {
     label: 'Pedestrian space',
@@ -119,8 +119,8 @@ export const SERVICE_MEASURES = {
     direction: 'higher-is-better',
     edges: [60, 40, 24, 15, 8],
     source: 'HCM Exhibit 16-4',
-    note: 'More space is better, so the bands run downward.'
-  }
+    note: 'More space is better, so the bands run downward.',
+  },
 };
 
 /** The letter a value earns on a given measure, ignoring any capacity override. */
@@ -159,7 +159,7 @@ export function bandsFor(measureKey) {
       letter: LOS_LETTERS[i],
       from: lower,
       to: upper,
-      rangeLabel: rangeLabel(lower, upper, worseHigher, i === 0)
+      rangeLabel: rangeLabel(lower, upper, worseHigher, i === 0),
     });
     lower = upper;
   }
@@ -168,7 +168,7 @@ export function bandsFor(measureKey) {
     from: lower,
     to: Infinity,
     rangeLabel: worseHigher ? `> ${fmt(lower)}` : `≤ ${fmt(lower)}`,
-    openEnded: true
+    openEnded: true,
   });
   return bands;
 }
@@ -192,5 +192,5 @@ export const FAMILIES = {
   freeway: { label: 'Freeway & highway', accent: '#256abf', icon: '🛣' },
   urban: { label: 'Urban street', accent: '#7a5bc7', icon: '🏙' },
   intersection: { label: 'Intersection', accent: '#b8542a', icon: '🚦' },
-  activeTransport: { label: 'Pedestrian & bicycle', accent: '#0f8a72', icon: '🚲' }
+  activeTransport: { label: 'Pedestrian & bicycle', accent: '#0f8a72', icon: '🚲' },
 };

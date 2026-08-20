@@ -1,11 +1,7 @@
-<svelte:head>
-  <title>Freeway Weaving Segments · HCM Calculator</title>
-</svelte:head>
-
 <script>
   import { preventDefault } from 'svelte/legacy';
 
-  import init, { WasmWeavingSegment } from "HCM-middleware";
+  import init, { WasmWeavingSegment } from 'HCM-middleware';
   import WeavingDiagram from '$lib/WeavingDiagram.svelte';
   import WeavingDiagram3D from '$lib/WeavingDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
@@ -14,11 +10,11 @@
   import Discussion from '$lib/Discussion.svelte';
 
   let diagramMode = $state('2d');
-  import { onMount } from "svelte";
+  import { onMount } from 'svelte';
 
   let ready = $state(false);
 
-  onMount(async() => {
+  onMount(async () => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
     ready = true;
   });
@@ -72,7 +68,7 @@
         Number(v_rf),
         Number(v_rr),
         Number(phf),
-        Number(phv) / 100.0,   // UI takes percent, the engine takes a decimal
+        Number(phv) / 100.0, // UI takes percent, the engine takes a decimal
         terrain,
         Number(lc_rf),
         Number(lc_fr),
@@ -84,7 +80,7 @@
         Number(nw_rf),
         Number(nw_fr),
         Number(nw_rr),
-        version
+        version,
       );
 
       const los = ws.run_analysis();
@@ -107,7 +103,7 @@
           speed_weaving: ws.get_speed_weaving(),
           speed_nonweaving: ws.get_speed_nonweaving(),
           speed_avg: ws.get_speed_avg(),
-          density: ws.get_density()
+          density: ws.get_density(),
         };
       }
 
@@ -119,7 +115,7 @@
       } else {
         results.discussion = discussion(results, {
           facilityType: facility_type,
-          lengthShort: Number(length_short)
+          lengthShort: Number(length_short),
         });
       }
       setReport({
@@ -127,12 +123,18 @@
         chapterRef: 'HCM Chapter 13',
         href: '/hcm13',
         generatedAt: new Date().toLocaleString(),
-        headline: { label: is71 ? 'Segment LOS (Edition 7.1)' : 'Segment LOS', value: is71 ? results71.los : results.los },
+        headline: {
+          label: is71 ? 'Segment LOS (Edition 7.1)' : 'Segment LOS',
+          value: is71 ? results71.los : results.los,
+        },
         discussion: is71 ? results71.discussion : results.discussion,
         inputs: [
           { label: 'HCM edition', value: is71 ? 'Edition 7.1 (2025)' : '7th Edition' },
           { label: 'Weaving type', value: weaving_type === 'two_sided' ? 'Two-sided' : 'One-sided' },
-          { label: 'Facility type', value: facility_type === 'multilane' ? 'Multilane highway or C-D roadway' : 'Freeway' },
+          {
+            label: 'Facility type',
+            value: facility_type === 'multilane' ? 'Multilane highway or C-D roadway' : 'Freeway',
+          },
           { label: 'Short length, L_S', value: `${length_short} ft` },
           { label: 'Lanes, N', value: num_lanes },
           is71
@@ -150,40 +152,63 @@
         ],
         resultTable: {
           columns: ['Quantity', 'Value'],
-          rows: is71 ? [
-            ['Configuration class', results71.class],
-            ['Total flow rate', `${results71.flow_total.toFixed(0)} pc/h`],
-            ['Equivalent basic segment speed', `${results71.speed_basic.toFixed(1)} mi/h`],
-            ['Speed impedance', `${results71.speed_impedance.toFixed(2)} mi/h`],
-            ['Overall speed', results71.speed_avg == null ? 'not defined (demand far past capacity)' : `${results71.speed_avg.toFixed(1)} mi/h`],
-            ['Capacity', results71.capacity_per_lane == null ? 'not defined for these inputs' : `${results71.capacity_per_lane.toFixed(0)} pc/h/ln`],
-            ['Demand-to-capacity ratio', results71.dc_ratio == null ? 'not defined' : results71.dc_ratio.toFixed(2)],
-            ['Density', Number.isFinite(results71.density) ? `${results71.density.toFixed(1)} pc/mi/ln` : 'over capacity'],
-            ['Level of service (Exhibit 13-7, Edition 7.1 bands)', results71.los],
-          ] : [
-            ['Weaving flow rate', `${results.flow_weaving.toFixed(0)} pc/h`],
-            ['Nonweaving flow rate', `${results.flow_nonweaving.toFixed(0)} pc/h`],
-            ['Total flow rate', `${results.flow_total.toFixed(0)} pc/h`],
-            ['Volume ratio, VR', results.volume_ratio.toFixed(3)],
-            ['Maximum weaving length, L_MAX', `${results.l_max.toFixed(0)} ft`],
-            ['Operates as a weaving segment', results.is_weaving ? 'Yes' : 'No, analyze as separate segments'],
-            ['Capacity', `${results.capacity.toFixed(0)} veh/h`],
-            ['Volume-to-capacity ratio', results.vc_ratio.toFixed(2)],
-            ['Weaving speed, S_W', `${results.speed_weaving.toFixed(1)} mi/h`],
-            ['Nonweaving speed, S_NW', `${results.speed_nonweaving.toFixed(1)} mi/h`],
-            ['Average speed, S', `${results.speed_avg.toFixed(1)} mi/h`],
-            ['Density, D', `${results.density.toFixed(1)} pc/mi/ln`],
-            ['Level of service', results.los],
-          ],
+          rows: is71
+            ? [
+                ['Configuration class', results71.class],
+                ['Total flow rate', `${results71.flow_total.toFixed(0)} pc/h`],
+                ['Equivalent basic segment speed', `${results71.speed_basic.toFixed(1)} mi/h`],
+                ['Speed impedance', `${results71.speed_impedance.toFixed(2)} mi/h`],
+                [
+                  'Overall speed',
+                  results71.speed_avg == null
+                    ? 'not defined (demand far past capacity)'
+                    : `${results71.speed_avg.toFixed(1)} mi/h`,
+                ],
+                [
+                  'Capacity',
+                  results71.capacity_per_lane == null
+                    ? 'not defined for these inputs'
+                    : `${results71.capacity_per_lane.toFixed(0)} pc/h/ln`,
+                ],
+                [
+                  'Demand-to-capacity ratio',
+                  results71.dc_ratio == null ? 'not defined' : results71.dc_ratio.toFixed(2),
+                ],
+                [
+                  'Density',
+                  Number.isFinite(results71.density) ? `${results71.density.toFixed(1)} pc/mi/ln` : 'over capacity',
+                ],
+                ['Level of service (Exhibit 13-7, Edition 7.1 bands)', results71.los],
+              ]
+            : [
+                ['Weaving flow rate', `${results.flow_weaving.toFixed(0)} pc/h`],
+                ['Nonweaving flow rate', `${results.flow_nonweaving.toFixed(0)} pc/h`],
+                ['Total flow rate', `${results.flow_total.toFixed(0)} pc/h`],
+                ['Volume ratio, VR', results.volume_ratio.toFixed(3)],
+                ['Maximum weaving length, L_MAX', `${results.l_max.toFixed(0)} ft`],
+                ['Operates as a weaving segment', results.is_weaving ? 'Yes' : 'No, analyze as separate segments'],
+                ['Capacity', `${results.capacity.toFixed(0)} veh/h`],
+                ['Volume-to-capacity ratio', results.vc_ratio.toFixed(2)],
+                ['Weaving speed, S_W', `${results.speed_weaving.toFixed(1)} mi/h`],
+                ['Nonweaving speed, S_NW', `${results.speed_nonweaving.toFixed(1)} mi/h`],
+                ['Average speed, S', `${results.speed_avg.toFixed(1)} mi/h`],
+                ['Density, D', `${results.density.toFixed(1)} pc/mi/ln`],
+                ['Level of service', results.los],
+              ],
         },
         summary: [],
-        methodology: is71 ? [
-          'Edition 7.1 methodology: overall speed from an equivalent basic segment less a speed impedance, capacity from the 35 pc/mi/ln breakdown density.',
-          'LOS from the Edition 7.1 Exhibit 13-7 bands. Weaving LOS F begins at 35 pc/mi/ln under 7.1.',
-        ] : [
-          '7th Edition methodology: lane-changing rates (Equations 13-11 through 13-17), weaving and nonweaving speeds (Equations 13-18 through 13-22), density and LOS (Exhibit 13-6).',
-        ],
-        diagram: { kind: 'weaving', props: { weavingType: weaving_type, numLanes: num_lanes, vFF: v_ff, vFR: v_fr, vRF: v_rf, vRR: v_rr } },
+        methodology: is71
+          ? [
+              'Edition 7.1 methodology: overall speed from an equivalent basic segment less a speed impedance, capacity from the 35 pc/mi/ln breakdown density.',
+              'LOS from the Edition 7.1 Exhibit 13-7 bands. Weaving LOS F begins at 35 pc/mi/ln under 7.1.',
+            ]
+          : [
+              '7th Edition methodology: lane-changing rates (Equations 13-11 through 13-17), weaving and nonweaving speeds (Equations 13-18 through 13-22), density and LOS (Exhibit 13-6).',
+            ],
+        diagram: {
+          kind: 'weaving',
+          props: { weavingType: weaving_type, numLanes: num_lanes, vFF: v_ff, vFR: v_fr, vRF: v_rf, vRR: v_rr },
+        },
       });
     } catch (err) {
       console.error('Chapter 13 analysis failed:', err);
@@ -223,24 +248,28 @@
   }
 </script>
 
+<svelte:head>
+  <title>Freeway Weaving Segments · HCM Calculator</title>
+</svelte:head>
+
 <div class="hcm-page">
   <header class="page-header">
     <span class="badge badge-outline page-badge">HCM Chapter 13</span>
     <h1 class="page-title">Freeway Weaving Segments</h1>
     <p class="page-sub">
-      Estimate capacity, weaving and nonweaving speeds, density, and level of
-      service for a freeway weaving segment.
+      Estimate capacity, weaving and nonweaving speeds, density, and level of service for a freeway weaving segment.
     </p>
   </header>
 
   <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">
     <span>
-      The compute engine reproduces the published HCM worked examples for this
-      chapter under both editions. The 7th Edition and Edition 7.1 are different models. The same
-      segment can land a full LOS letter apart between them, and weaving LOS F
-      begins at 35 rather than 43 pc/mi/ln under 7.1, so results are only
-      comparable within one edition. Please
-      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      The compute engine reproduces the published HCM worked examples for this chapter under both editions. The 7th
+      Edition and Edition 7.1 are different models. The same segment can land a full LOS letter apart between them, and
+      weaving LOS F begins at 35 rather than 43 pc/mi/ln under 7.1, so results are only comparable within one edition.
+      Please
+      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer"
+        >report discrepancies on GitHub</a
+      >.
     </span>
   </div>
 
@@ -266,7 +295,9 @@
             <option value="7">7th Edition</option>
             <option value="7.1">Edition 7.1 (2025)</option>
           </select>
-          <p class="param-hint">Edition 7.1 replaces this chapter's methodology; the editions report different speeds, capacities, and LOS.</p>
+          <p class="param-hint">
+            Edition 7.1 replaces this chapter's methodology; the editions report different speeds, capacities, and LOS.
+          </p>
         </div>
 
         <div class="param-field">
@@ -288,7 +319,15 @@
         <div class="param-field">
           <label for="LS_input">Short Length (L_S)</label>
           <div class="cell-field">
-            <input id="LS_input" type="number" min="0" class="input input-bordered input-sm" bind:value={length_short} placeholder="1500" required />
+            <input
+              id="LS_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={length_short}
+              placeholder="1500"
+              required
+            />
             <span class="unit">ft</span>
           </div>
           <p class="param-hint">Distance between the barrier markings of the entry and exit gores.</p>
@@ -297,14 +336,30 @@
         <div class="param-field">
           <label for="N_input">Lanes in Weaving Segment (N)</label>
           <div class="cell-field">
-            <input id="N_input" type="number" min="2" max="6" class="input input-bordered input-sm" bind:value={num_lanes} required />
+            <input
+              id="N_input"
+              type="number"
+              min="2"
+              max="6"
+              class="input input-bordered input-sm"
+              bind:value={num_lanes}
+              required
+            />
           </div>
         </div>
 
         <div class="param-field">
           <label for="NWL_input">Weaving Lanes (N_WL)</label>
           <div class="cell-field">
-            <input id="NWL_input" type="number" min="0" max="3" class="input input-bordered input-sm" bind:value={num_weaving_lanes} required />
+            <input
+              id="NWL_input"
+              type="number"
+              min="0"
+              max="3"
+              class="input input-bordered input-sm"
+              bind:value={num_weaving_lanes}
+              required
+            />
           </div>
           <p class="param-hint">2 or 3 for one-sided segments, 0 for two-sided segments.</p>
         </div>
@@ -312,7 +367,14 @@
         <div class="param-field">
           <label for="LCRF_input">Min. Lane Changes, Ramp to Freeway (LC_RF)</label>
           <div class="cell-field">
-            <input id="LCRF_input" type="number" min="0" class="input input-bordered input-sm" bind:value={lc_rf} required />
+            <input
+              id="LCRF_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={lc_rf}
+              required
+            />
             <span class="unit">lc/veh</span>
           </div>
         </div>
@@ -320,7 +382,14 @@
         <div class="param-field">
           <label for="LCFR_input">Min. Lane Changes, Freeway to Ramp (LC_FR)</label>
           <div class="cell-field">
-            <input id="LCFR_input" type="number" min="0" class="input input-bordered input-sm" bind:value={lc_fr} required />
+            <input
+              id="LCFR_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={lc_fr}
+              required
+            />
             <span class="unit">lc/veh</span>
           </div>
         </div>
@@ -328,7 +397,14 @@
         <div class="param-field">
           <label for="LCRR_input">Min. Lane Changes, Ramp to Ramp (two-sided only)</label>
           <div class="cell-field">
-            <input id="LCRR_input" type="number" min="0" class="input input-bordered input-sm" bind:value={lc_rr} required />
+            <input
+              id="LCRR_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={lc_rr}
+              required
+            />
             <span class="unit">lc/veh</span>
           </div>
         </div>
@@ -337,7 +413,14 @@
           <div class="param-field">
             <label for="NWRF_input">Weaving Lanes, Ramp to Freeway (N_W,RF)</label>
             <div class="cell-field">
-              <input id="NWRF_input" type="number" min="0" class="input input-bordered input-sm" bind:value={nw_rf} required />
+              <input
+                id="NWRF_input"
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={nw_rf}
+                required
+              />
             </div>
             <p class="param-hint">Lanes from which the ramp-to-freeway movement can weave. Edition 7.1 only.</p>
           </div>
@@ -345,14 +428,28 @@
           <div class="param-field">
             <label for="NWFR_input">Weaving Lanes, Freeway to Ramp (N_W,FR)</label>
             <div class="cell-field">
-              <input id="NWFR_input" type="number" min="0" class="input input-bordered input-sm" bind:value={nw_fr} required />
+              <input
+                id="NWFR_input"
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={nw_fr}
+                required
+              />
             </div>
           </div>
 
           <div class="param-field">
             <label for="NWRR_input">Weaving Lanes, Ramp to Ramp (two-sided only)</label>
             <div class="cell-field">
-              <input id="NWRR_input" type="number" min="0" class="input input-bordered input-sm" bind:value={nw_rr} required />
+              <input
+                id="NWRR_input"
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={nw_rr}
+                required
+              />
             </div>
           </div>
         {/if}
@@ -360,7 +457,16 @@
         <div class="param-field">
           <label for="ID_input">Interchange Density</label>
           <div class="cell-field">
-            <input id="ID_input" type="number" step="0.1" min="0" class="input input-bordered input-sm" bind:value={interchange_density} placeholder="0.8" required />
+            <input
+              id="ID_input"
+              type="number"
+              step="0.1"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={interchange_density}
+              placeholder="0.8"
+              required
+            />
             <span class="unit">int/mi</span>
           </div>
         </div>
@@ -414,7 +520,15 @@
         <div class="param-field">
           <label for="VFF_input">Freeway to Freeway Demand (v_FF)</label>
           <div class="cell-field">
-            <input id="VFF_input" type="number" min="0" class="input input-bordered input-sm" bind:value={v_ff} placeholder="3000" required />
+            <input
+              id="VFF_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={v_ff}
+              placeholder="3000"
+              required
+            />
             <span class="unit">veh/h</span>
           </div>
         </div>
@@ -422,7 +536,15 @@
         <div class="param-field">
           <label for="VFR_input">Freeway to Ramp Demand (v_FR)</label>
           <div class="cell-field">
-            <input id="VFR_input" type="number" min="0" class="input input-bordered input-sm" bind:value={v_fr} placeholder="500" required />
+            <input
+              id="VFR_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={v_fr}
+              placeholder="500"
+              required
+            />
             <span class="unit">veh/h</span>
           </div>
         </div>
@@ -430,7 +552,15 @@
         <div class="param-field">
           <label for="VRF_input">Ramp to Freeway Demand (v_RF)</label>
           <div class="cell-field">
-            <input id="VRF_input" type="number" min="0" class="input input-bordered input-sm" bind:value={v_rf} placeholder="500" required />
+            <input
+              id="VRF_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={v_rf}
+              placeholder="500"
+              required
+            />
             <span class="unit">veh/h</span>
           </div>
         </div>
@@ -438,7 +568,15 @@
         <div class="param-field">
           <label for="VRR_input">Ramp to Ramp Demand (v_RR)</label>
           <div class="cell-field">
-            <input id="VRR_input" type="number" min="0" class="input input-bordered input-sm" bind:value={v_rr} placeholder="100" required />
+            <input
+              id="VRR_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={v_rr}
+              placeholder="100"
+              required
+            />
             <span class="unit">veh/h</span>
           </div>
         </div>
@@ -446,7 +584,15 @@
         <div class="param-field">
           <label for="FFS_input">Free-Flow Speed</label>
           <div class="cell-field">
-            <input id="FFS_input" type="number" min="0" class="input input-bordered input-sm" bind:value={ffs} placeholder="70" required />
+            <input
+              id="FFS_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={ffs}
+              placeholder="70"
+              required
+            />
             <span class="unit">mph</span>
           </div>
         </div>
@@ -454,14 +600,34 @@
         <div class="param-field">
           <label for="PHF_input">Peak Hour Factor</label>
           <div class="cell-field">
-            <input id="PHF_input" type="number" step="0.01" min="0.25" max="1" class="input input-bordered input-sm" bind:value={phf} placeholder="0.94" required />
+            <input
+              id="PHF_input"
+              type="number"
+              step="0.01"
+              min="0.25"
+              max="1"
+              class="input input-bordered input-sm"
+              bind:value={phf}
+              placeholder="0.94"
+              required
+            />
           </div>
         </div>
 
         <div class="param-field">
           <label for="PHV_input">Heavy Vehicles</label>
           <div class="cell-field">
-            <input id="PHV_input" type="number" step="0.01" min="0" max="100" class="input input-bordered input-sm" bind:value={phv} placeholder="5" required />
+            <input
+              id="PHV_input"
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              class="input input-bordered input-sm"
+              bind:value={phv}
+              placeholder="5"
+              required
+            />
             <span class="unit">%</span>
           </div>
         </div>
@@ -469,7 +635,15 @@
         <div class="param-field">
           <label for="CIFL_input">Basic Freeway Capacity (c_IFL)</label>
           <div class="cell-field">
-            <input id="CIFL_input" type="number" min="0" class="input input-bordered input-sm" bind:value={basic_freeway_capacity} placeholder="2400" required />
+            <input
+              id="CIFL_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={basic_freeway_capacity}
+              placeholder="2400"
+              required
+            />
             <span class="unit">pc/h/ln</span>
           </div>
           <p class="param-hint">Capacity of an equivalent basic freeway segment at the same FFS.</p>
@@ -478,7 +652,17 @@
         <div class="param-field">
           <label for="CAF_input">Capacity Adjustment Factor</label>
           <div class="cell-field">
-            <input id="CAF_input" type="number" step="0.01" min="0" max="1" class="input input-bordered input-sm" bind:value={caf} placeholder="1.00" required />
+            <input
+              id="CAF_input"
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              class="input input-bordered input-sm"
+              bind:value={caf}
+              placeholder="1.00"
+              required
+            />
           </div>
           <p class="param-hint">Use 1.00 for base conditions.</p>
         </div>
@@ -486,7 +670,17 @@
         <div class="param-field">
           <label for="SAF_input">Speed Adjustment Factor</label>
           <div class="cell-field">
-            <input id="SAF_input" type="number" step="0.01" min="0" max="1" class="input input-bordered input-sm" bind:value={saf} placeholder="1.00" required />
+            <input
+              id="SAF_input"
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              class="input input-bordered input-sm"
+              bind:value={saf}
+              placeholder="1.00"
+              required
+            />
           </div>
           <p class="param-hint">Use 1.00 for base conditions.</p>
         </div>
@@ -514,7 +708,10 @@
     </div>
     {#if results71}
       <div class="los overflow-x-auto">
-        <p class="panel-sub">Edition 7.1 methodology: overall speed from an equivalent basic segment less a speed impedance, capacity from the 35 pc/mi/ln breakdown density.</p>
+        <p class="panel-sub">
+          Edition 7.1 methodology: overall speed from an equivalent basic segment less a speed impedance, capacity from
+          the 35 pc/mi/ln breakdown density.
+        </p>
         <table class="table w-full">
           <tbody>
             <tr>
@@ -535,11 +732,19 @@
             </tr>
             <tr>
               <th>Overall Speed (mi/hr):</th>
-              <td>{results71.speed_avg == null ? 'not defined (demand far past capacity)' : results71.speed_avg.toFixed(1)}</td>
+              <td
+                >{results71.speed_avg == null
+                  ? 'not defined (demand far past capacity)'
+                  : results71.speed_avg.toFixed(1)}</td
+              >
             </tr>
             <tr>
               <th>Capacity (pc/hr/ln):</th>
-              <td>{results71.capacity_per_lane == null ? 'not defined for these inputs' : results71.capacity_per_lane.toFixed(0)}</td>
+              <td
+                >{results71.capacity_per_lane == null
+                  ? 'not defined for these inputs'
+                  : results71.capacity_per_lane.toFixed(0)}</td
+              >
             </tr>
             <tr>
               <th>Demand-to-Capacity Ratio:</th>

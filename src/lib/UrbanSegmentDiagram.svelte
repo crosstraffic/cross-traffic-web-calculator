@@ -21,16 +21,19 @@
     pctParking = 0,
     control = 'signalized',
     los = null,
-    editable = true
+    editable = true,
   } = $props();
 
-  const W = 520, H = 320;
+  const W = 520,
+    H = 320;
   const LANE = 13;
-  const cy = 137;                      // arterial centerline
-  const xW = 74, xE = 446;             // boundary intersection centers
-  const CROSS = 24;                    // cross-street half width
-  const CROSS_N = 28, CROSS_S = 246;   // cross-street stub extent
-  const DW = 16;                       // driveway stub length beyond the curb
+  const cy = 137; // arterial centerline
+  const xW = 74,
+    xE = 446; // boundary intersection centers
+  const CROSS = 24; // cross-street half width
+  const CROSS_N = 28,
+    CROSS_S = 246; // cross-street stub extent
+  const DW = 16; // driveway stub length beyond the curb
   const DIM_Y = 262;
 
   let nLanes = $derived(Math.max(1, Math.min(4, Number(nThroughLanes) || 1)));
@@ -51,7 +54,7 @@
   let spans = $derived([
     [0, xW - CROSS],
     [xW + CROSS, xE - CROSS],
-    [xE + CROSS, W]
+    [xE + CROSS, W],
   ]);
   let linkA = $derived(xW + CROSS);
   let linkB = $derived(xE - CROSS);
@@ -74,35 +77,37 @@
 
   let ariaLabel = $derived(
     `urban street segment, ${nLanes} through lane${nLanes === 1 ? '' : 's'} each direction, ` +
-    `${nSub} subject and ${nOpp} opposing access points, ${signalized ? 'signalized' : control} downstream boundary` +
-    (los ? `, segment LOS ${los}` : '')
+      `${nSub} subject and ${nOpp} opposing access points, ${signalized ? 'signalized' : control} downstream boundary` +
+      (los ? `, segment LOS ${los}` : ''),
   );
 
   // ── illustrative traffic on the subject through movement ──
   let animating = $state(false);
   const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
   const LOS_FLEET = { A: 1, B: 1, C: 1.15, D: 1.35, E: 1.7, F: 2.2 };
-  let vehiclePlan = $derived((() => {
-    if (!animating) return [];
-    const demand = Math.max(0, Number(throughDemand) || 0);
-    const slow = LOS_SPEED[los] ?? 1;
-    const crowd = LOS_FLEET[los] ?? 1;
-    const perLane = Math.max(2, Math.min(9, Math.round((demand * crowd) / (220 * nLanes))));
-    const dur = 6 / slow;
-    const items = [];
-    for (let i = 0; i < nLanes; i++) {
-      const y = subLane(i);
-      for (let j = 0; j < perLane; j++) {
-        items.push({
-          id: `${i}-${j}`,
-          d: `M -14,${y.toFixed(1)} L ${W + 14},${y.toFixed(1)}`,
-          dur,
-          begin: (-(j + 0.45 * (i % 2)) / perLane) * dur
-        });
+  let vehiclePlan = $derived(
+    (() => {
+      if (!animating) return [];
+      const demand = Math.max(0, Number(throughDemand) || 0);
+      const slow = LOS_SPEED[los] ?? 1;
+      const crowd = LOS_FLEET[los] ?? 1;
+      const perLane = Math.max(2, Math.min(9, Math.round((demand * crowd) / (220 * nLanes))));
+      const dur = 6 / slow;
+      const items = [];
+      for (let i = 0; i < nLanes; i++) {
+        const y = subLane(i);
+        for (let j = 0; j < perLane; j++) {
+          items.push({
+            id: `${i}-${j}`,
+            d: `M -14,${y.toFixed(1)} L ${W + 14},${y.toFixed(1)}`,
+            dur,
+            begin: (-(j + 0.45 * (i % 2)) / perLane) * dur,
+          });
+        }
       }
-    }
-    return items;
-  })());
+      return items;
+    })(),
+  );
 
   function bump(which, delta) {
     if (which === 'sub') accessSubject = Math.max(0, nSub + delta);
@@ -112,7 +117,6 @@
 
 <div class="us-diagram">
   <svg viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label={ariaLabel}>
-
     <!-- ══ pavement (fills only) ══ -->
     <rect x="0" y={edgeN} width={W} height={half * 2} class="us-pavement" />
     <rect x={xW - CROSS} y={CROSS_N} width={CROSS * 2} height={CROSS_S - CROSS_N} class="us-cross" />
@@ -209,7 +213,9 @@
     <line x1={xE} y1={DIM_Y - 5} x2={xE} y2={DIM_Y + 5} class="us-dim" />
     <text x={(xW + xE) / 2} y={DIM_Y - 8} class="us-label mid">{lengthLabel} between boundary intersections</text>
     <text x={xW} y={DIM_Y + 18} class="us-label mid">Upstream boundary</text>
-    <text x={xE} y={DIM_Y + 18} class="us-label mid">{signalized ? 'Downstream (signalized)' : 'Downstream boundary'}</text>
+    <text x={xE} y={DIM_Y + 18} class="us-label mid"
+      >{signalized ? 'Downstream (signalized)' : 'Downstream boundary'}</text
+    >
 
     <!-- ══ on-diagram editors ══ -->
     {#if editable}
@@ -217,8 +223,13 @@
         <div class="us-edit" xmlns="http://www.w3.org/1999/xhtml">
           <span class="us-edit-title">Opp. access pts</span>
           <button type="button" aria-label="One fewer opposing access point" onclick={() => bump('opp', -1)}>−</button>
-          <input type="number" min="0" aria-label="Opposing access points" value={nOpp}
-                 oninput={(e) => (accessOpposing = Math.max(0, Number(e.currentTarget.value) || 0))} />
+          <input
+            type="number"
+            min="0"
+            aria-label="Opposing access points"
+            value={nOpp}
+            oninput={(e) => (accessOpposing = Math.max(0, Number(e.currentTarget.value) || 0))}
+          />
           <button type="button" aria-label="One more opposing access point" onclick={() => bump('opp', 1)}>+</button>
         </div>
       </foreignObject>
@@ -227,8 +238,13 @@
         <div class="us-edit" xmlns="http://www.w3.org/1999/xhtml">
           <span class="us-edit-title">Subj. access pts</span>
           <button type="button" aria-label="One fewer subject access point" onclick={() => bump('sub', -1)}>−</button>
-          <input type="number" min="0" aria-label="Subject access points" value={nSub}
-                 oninput={(e) => (accessSubject = Math.max(0, Number(e.currentTarget.value) || 0))} />
+          <input
+            type="number"
+            min="0"
+            aria-label="Subject access points"
+            value={nSub}
+            oninput={(e) => (accessSubject = Math.max(0, Number(e.currentTarget.value) || 0))}
+          />
           <button type="button" aria-label="One more subject access point" onclick={() => bump('sub', 1)}>+</button>
         </div>
       </foreignObject>
@@ -236,8 +252,14 @@
       <foreignObject x={W - 168} y={H - 32} width="164" height="20">
         <div class="us-edit" xmlns="http://www.w3.org/1999/xhtml">
           <span class="us-edit-title">Through demand</span>
-          <input type="number" min="0" class="wide" aria-label="Through demand" value={throughDemand}
-                 oninput={(e) => (throughDemand = e.currentTarget.value === '' ? '' : Number(e.currentTarget.value))} />
+          <input
+            type="number"
+            min="0"
+            class="wide"
+            aria-label="Through demand"
+            value={throughDemand}
+            oninput={(e) => (throughDemand = e.currentTarget.value === '' ? '' : Number(e.currentTarget.value))}
+          />
           <span class="us-edit-unit">veh/h</span>
         </div>
       </foreignObject>
@@ -246,8 +268,13 @@
 
   {#if editable}
     <div class="us-legend">
-      <button type="button" class="us-chip us-animate" class:active={animating}
-              aria-pressed={animating} onclick={() => (animating = !animating)}>
+      <button
+        type="button"
+        class="us-chip us-animate"
+        class:active={animating}
+        aria-pressed={animating}
+        onclick={() => (animating = !animating)}
+      >
         {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
       </button>
       {#if los}
@@ -255,9 +282,9 @@
       {/if}
     </div>
     <p class="us-note">
-      Plan view of the segment between its boundary intersections, drawn from the geometry inputs.
-      Driveway positions are spaced evenly for legibility; the method uses only the counts. Animated
-      traffic slows as segment LOS worsens. An illustration, not a simulation.
+      Plan view of the segment between its boundary intersections, drawn from the geometry inputs. Driveway positions
+      are spaced evenly for legibility; the method uses only the counts. Animated traffic slows as segment LOS worsens.
+      An illustration, not a simulation.
     </p>
   {/if}
 </div>
@@ -269,30 +296,93 @@
     display: block;
     margin: 0 auto;
   }
-  .us-pavement { fill: var(--diag-pavement); }
-  .us-cross { fill: var(--diag-pavement-alt); }
-  .us-drive { fill: var(--diag-pavement-alt); }
-  .us-parking { fill: var(--diag-pavement-alt); }
-  .us-park-tick { stroke: var(--diag-edge); stroke-width: 0.8; vector-effect: non-scaling-stroke; }
-  .us-los-tint { opacity: 0.32; }
-  .us-edge { stroke: var(--diag-edge); stroke-width: 1.5; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-  .us-curb { stroke: var(--diag-wall-edge); stroke-width: 3.5; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-  .us-center { stroke: var(--diag-center); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-  .us-lane-line { stroke: var(--diag-lane-line); stroke-width: 1.25; stroke-dasharray: 8 6; vector-effect: non-scaling-stroke; }
-  .us-stop { stroke: var(--diag-lane-line); stroke-width: 3.5; vector-effect: non-scaling-stroke; }
-  .us-dim { stroke: var(--diag-dim); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .us-pavement {
+    fill: var(--diag-pavement);
+  }
+  .us-cross {
+    fill: var(--diag-pavement-alt);
+  }
+  .us-drive {
+    fill: var(--diag-pavement-alt);
+  }
+  .us-parking {
+    fill: var(--diag-pavement-alt);
+  }
+  .us-park-tick {
+    stroke: var(--diag-edge);
+    stroke-width: 0.8;
+    vector-effect: non-scaling-stroke;
+  }
+  .us-los-tint {
+    opacity: 0.32;
+  }
+  .us-edge {
+    stroke: var(--diag-edge);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .us-curb {
+    stroke: var(--diag-wall-edge);
+    stroke-width: 3.5;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .us-center {
+    stroke: var(--diag-center);
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+  }
+  .us-lane-line {
+    stroke: var(--diag-lane-line);
+    stroke-width: 1.25;
+    stroke-dasharray: 8 6;
+    vector-effect: non-scaling-stroke;
+  }
+  .us-stop {
+    stroke: var(--diag-lane-line);
+    stroke-width: 3.5;
+    vector-effect: non-scaling-stroke;
+  }
+  .us-dim {
+    stroke: var(--diag-dim);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
 
-  .us-signal { fill: var(--diag-edge); }
-  .us-signal-r { fill: #dc2626; }
-  .us-signal-y { fill: #eab308; }
-  .us-signal-g { fill: #16a34a; }
+  .us-signal {
+    fill: var(--diag-edge);
+  }
+  .us-signal-r {
+    fill: #dc2626;
+  }
+  .us-signal-y {
+    fill: #eab308;
+  }
+  .us-signal-g {
+    fill: #16a34a;
+  }
 
-  .us-veh rect { fill: #2563eb; stroke: rgba(15, 23, 42, 0.35); stroke-width: 0.6; }
+  .us-veh rect {
+    fill: #2563eb;
+    stroke: rgba(15, 23, 42, 0.35);
+    stroke-width: 0.6;
+  }
 
-  .us-label { font-size: 9px; fill: var(--text-muted); }
-  .us-label.mid { text-anchor: middle; }
+  .us-label {
+    font-size: 9px;
+    fill: var(--text-muted);
+  }
+  .us-label.mid {
+    text-anchor: middle;
+  }
 
-  .us-legend { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+  .us-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+  }
   .us-chip {
     display: inline-flex;
     align-items: center;
@@ -304,10 +394,24 @@
     background: transparent;
     cursor: default;
   }
-  .us-animate { cursor: pointer; font-weight: 600; }
-  .us-animate.active { border-color: var(--diag-edge); }
-  .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
-  .us-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; }
+  .us-animate {
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .us-animate.active {
+    border-color: var(--diag-edge);
+  }
+  .swatch {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .us-note {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.35rem;
+  }
 
   .us-edit {
     box-sizing: border-box;
@@ -325,8 +429,15 @@
     padding: 2px 3px;
     overflow: hidden;
   }
-  .us-edit-title { font-size: 7px; font-weight: 600; flex: none; }
-  .us-edit-unit { font-size: 7px; flex: none; }
+  .us-edit-title {
+    font-size: 7px;
+    font-weight: 600;
+    flex: none;
+  }
+  .us-edit-unit {
+    font-size: 7px;
+    flex: none;
+  }
   .us-edit button {
     flex: none;
     width: 11px;
@@ -354,6 +465,12 @@
     text-align: center;
   }
   .us-edit input::-webkit-outer-spin-button,
-  .us-edit input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .us-edit input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
+  .us-edit input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .us-edit input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
 </style>

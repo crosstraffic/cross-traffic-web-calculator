@@ -6,7 +6,7 @@
   // state and the pointer interactions (drag = rotate, Alt-drag = pan,
   // scroll/pinch = zoom), and hands the camera values to the slot so each
   // diagram only writes its own projection model. Same interaction contract
-  
+
   /**
    * @typedef {Object} Props
    * @property {number} [viewW] - as FreewaySegment3D and the two-lane facility view.
@@ -18,17 +18,13 @@
    */
 
   /** @type {Props} */
-  let {
-    viewW = 520,
-    viewH = 340,
-    ariaLabel = '3D view',
-    defYaw = 24,
-    defPitch = 42,
-    children
-  } = $props();
+  let { viewW = 520, viewH = 340, ariaLabel = '3D view', defYaw = 24, defPitch = 42, children } = $props();
 
-  let yaw = $state(defYaw), pitch = $state(defPitch);
-  let zoom = $state(1), panX = $state(0), panY = $state(0);
+  let yaw = $state(defYaw),
+    pitch = $state(defPitch);
+  let zoom = $state(1),
+    panX = $state(0),
+    panY = $state(0);
   let dragging = $state(false);
   let svgEl = $state();
 
@@ -60,7 +56,8 @@
     if (mode === 'pinch' && pointers.size === 2) {
       const [a, b] = [...pointers.values()];
       const d = Math.hypot(a.x - b.x, a.y - b.y);
-      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      const mx = (a.x + b.x) / 2,
+        my = (a.y + b.y) / 2;
       zoom = clamp(pinch0.zoom * (d / pinch0.d), 0.3, 6);
       panX = pinch0.panX + (mx - pinch0.mx) * s;
       panY = pinch0.panY + (my - pinch0.my) * s;
@@ -75,8 +72,11 @@
 
   function onUp(e) {
     pointers.delete(e.pointerId);
-    if (pointers.size === 0) { dragging = false; mode = null; pinch0 = null; }
-    else if (pointers.size === 1) {
+    if (pointers.size === 0) {
+      dragging = false;
+      mode = null;
+      pinch0 = null;
+    } else if (pointers.size === 1) {
       const pt = [...pointers.values()][0];
       mode = 'rotate';
       start = { x: pt.x, y: pt.y, yaw, pitch, panX, panY };
@@ -97,17 +97,32 @@
     zoom = newZoom;
   }
 
-  function resetView() { yaw = defYaw; pitch = defPitch; zoom = 1; panX = 0; panY = 0; }
+  function resetView() {
+    yaw = defYaw;
+    pitch = defPitch;
+    zoom = 1;
+    panX = 0;
+    panY = 0;
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<svg bind:this={svgEl} viewBox="0 0 {viewW} {viewH}" preserveAspectRatio="xMidYMid meet" role="img"
-     aria-label={ariaLabel}
-     class="cam3d"
-     class:dragging
-     onpointerdown={onDown} onpointermove={onMove} onpointerup={onUp}
-     onpointercancel={onUp} onwheel={onWheel} oncontextmenu={preventDefault(bubble('contextmenu'))}>
-  {@render children?.({ yaw, pitch, zoom, panX, panY, })}
+<svg
+  bind:this={svgEl}
+  viewBox="0 0 {viewW} {viewH}"
+  preserveAspectRatio="xMidYMid meet"
+  role="img"
+  aria-label={ariaLabel}
+  class="cam3d"
+  class:dragging
+  onpointerdown={onDown}
+  onpointermove={onMove}
+  onpointerup={onUp}
+  onpointercancel={onUp}
+  onwheel={onWheel}
+  oncontextmenu={preventDefault(bubble('contextmenu'))}
+>
+  {@render children?.({ yaw, pitch, zoom, panX, panY })}
 </svg>
 
 <div class="cam3d-bar">
@@ -124,12 +139,17 @@
     touch-action: none;
     cursor: grab;
   }
-  svg.cam3d.dragging { cursor: grabbing; }
+  svg.cam3d.dragging {
+    cursor: grabbing;
+  }
   .cam3d-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-top: 0.25rem;
   }
-  .cam3d-hint { font-size: 0.7rem; color: #64748b; }
+  .cam3d-hint {
+    font-size: 0.7rem;
+    color: #64748b;
+  }
 </style>

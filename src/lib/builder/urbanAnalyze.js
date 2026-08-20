@@ -27,17 +27,17 @@ import { URBAN_SEGMENT_KEYS, URBAN_MEASURE_KEYS } from './derive.js';
  * default and produce a finished-looking wrong answer.
  */
 export function segmentConfig(row, { measures = false } = {}) {
-	const cfg = {};
-	for (const k of URBAN_SEGMENT_KEYS) if (row[k] != null) cfg[k] = clone(row[k]);
-	if (measures) {
-		for (const k of URBAN_MEASURE_KEYS) if (row[k] != null) cfg[k] = row[k];
-	}
-	return cfg;
+  const cfg = {};
+  for (const k of URBAN_SEGMENT_KEYS) if (row[k] != null) cfg[k] = clone(row[k]);
+  if (measures) {
+    for (const k of URBAN_MEASURE_KEYS) if (row[k] != null) cfg[k] = row[k];
+  }
+  return cfg;
 }
 
 function clone(v) {
-	if (Array.isArray(v)) return v.map((x) => (x && typeof x === 'object' ? { ...x } : x));
-	return v && typeof v === 'object' ? { ...v } : v;
+  if (Array.isArray(v)) return v.map((x) => (x && typeof x === 'object' ? { ...x } : x));
+  return v && typeof v === 'object' ? { ...v } : v;
 }
 
 /**
@@ -59,59 +59,59 @@ function clone(v) {
  * @param {object} wasm the module namespace (WasmUrbanFacility)
  */
 export function analyzeUrbanFacility(doc, rows, wasm) {
-	const measures = doc.analysisMode === 'measures';
-	const fac = new wasm.WasmUrbanFacility(doc.mainline.propLeftTurnLanes);
-	for (const r of rows) fac.add_segment_from_config(segmentConfig(r, { measures }));
+  const measures = doc.analysisMode === 'measures';
+  const fac = new wasm.WasmUrbanFacility(doc.mainline.propLeftTurnLanes);
+  for (const r of rows) fac.add_segment_from_config(segmentConfig(r, { measures }));
 
-	// The facility LOS is the return value of the call, not a field of
-	// `results_to_js_value()`. Reading it off the results object alone yields
-	// undefined, which is the mistake the hcm16 page's spread guards against.
-	const los = measures ? fac.aggregate() : fac.analyze();
-	const res = fac.results_to_js_value();
-	const segs = fac.segments_to_js_value() ?? [];
+  // The facility LOS is the return value of the call, not a field of
+  // `results_to_js_value()`. Reading it off the results object alone yields
+  // undefined, which is the mistake the hcm16 page's spread guards against.
+  const los = measures ? fac.aggregate() : fac.analyze();
+  const res = fac.results_to_js_value();
+  const segs = fac.segments_to_js_value() ?? [];
 
-	return deepFreeze({
-		mode: measures ? 'measures' : 'inputs',
-		los,
-		lengthFt: res.length_ft,
-		baseFfs: res.base_ffs,
-		travelSpeed: res.travel_speed,
-		travelTime: res.travel_time,
-		baseFreeFlowTravelTime: res.base_free_flow_travel_time,
-		spatialStopRate: res.spatial_stop_rate,
-		criticalVcRatio: res.critical_vc_ratio,
-		perceptionScore: res.perception_score,
-		poorestSegmentLos: res.poorest_segment_los,
-		// Row identity snapshotted with the run, so re-deriving or relabelling the
-		// document afterwards cannot retitle a column of finished results.
-		segments: rows.map((r, i) => ({
-			index: i,
-			key: r.key,
-			startFt: r.startFt,
-			lengthFt: r.length_ft,
-			lanes: r.lanes,
-			control: r.control,
-			apDelaySource: r.apDelaySource,
-			overridden: !!r.overridden,
-			baseFfs: segs[i]?.base_ffs,
-			travelSpeed: segs[i]?.travel_speed,
-			spatialStopRate: segs[i]?.spatial_stop_rate,
-			vcRatio: segs[i]?.vc_ratio,
-			los: segs[i]?.los
-		})),
-		facilityName: doc.meta?.name ?? 'Untitled urban street',
-		// The urban engines take a scalar demand and expose no period axis, so the
-		// result has one column of time and the grid collapses to it. Carried on
-		// the result rather than assumed by the view, so the view has one thing to
-		// read and phase 3 can set it differently without touching the component.
-		numPeriods: 1
-	});
+  return deepFreeze({
+    mode: measures ? 'measures' : 'inputs',
+    los,
+    lengthFt: res.length_ft,
+    baseFfs: res.base_ffs,
+    travelSpeed: res.travel_speed,
+    travelTime: res.travel_time,
+    baseFreeFlowTravelTime: res.base_free_flow_travel_time,
+    spatialStopRate: res.spatial_stop_rate,
+    criticalVcRatio: res.critical_vc_ratio,
+    perceptionScore: res.perception_score,
+    poorestSegmentLos: res.poorest_segment_los,
+    // Row identity snapshotted with the run, so re-deriving or relabelling the
+    // document afterwards cannot retitle a column of finished results.
+    segments: rows.map((r, i) => ({
+      index: i,
+      key: r.key,
+      startFt: r.startFt,
+      lengthFt: r.length_ft,
+      lanes: r.lanes,
+      control: r.control,
+      apDelaySource: r.apDelaySource,
+      overridden: !!r.overridden,
+      baseFfs: segs[i]?.base_ffs,
+      travelSpeed: segs[i]?.travel_speed,
+      spatialStopRate: segs[i]?.spatial_stop_rate,
+      vcRatio: segs[i]?.vc_ratio,
+      los: segs[i]?.los,
+    })),
+    facilityName: doc.meta?.name ?? 'Untitled urban street',
+    // The urban engines take a scalar demand and expose no period axis, so the
+    // result has one column of time and the grid collapses to it. Carried on
+    // the result rather than assumed by the view, so the view has one thing to
+    // read and phase 3 can set it differently without touching the component.
+    numPeriods: 1,
+  });
 }
 
 function deepFreeze(v) {
-	if (v && typeof v === 'object' && !Object.isFrozen(v)) {
-		Object.freeze(v);
-		for (const k of Object.keys(v)) deepFreeze(v[k]);
-	}
-	return v;
+  if (v && typeof v === 'object' && !Object.isFrozen(v)) {
+    Object.freeze(v);
+    for (const k of Object.keys(v)) deepFreeze(v[k]);
+  }
+  return v;
 }

@@ -33,27 +33,38 @@
     odLos = {},
     spacingFt = 800,
     loopDist = 1200,
-    loopSpeed = 25
+    loopSpeed = 25,
   } = $props();
 
   let hovered = $state(null); // 'NBOFF' | 'SBOFF' | 'EB' | 'WB' | null
 
-  const W = 620, H = 460;
-  const cx = 310, cy = 230;          // freeway centre / arterial centre
-  const xW = 165, xE = 455;          // signalized terminal nodes
+  const W = 620,
+    H = 460;
+  const cx = 310,
+    cy = 230; // freeway centre / arterial centre
+  const xW = 165,
+    xE = 455; // signalized terminal nodes
   const LANE = 13;
-  const FWY = 36, GAP = 10;          // carriageway width and median
-  const sbW = cx - GAP / 2 - FWY, sbE = cx - GAP / 2;   // SB carriageway (west)
-  const nbW = cx + GAP / 2, nbE = cx + GAP / 2 + FWY;   // NB carriageway (east)
+  const FWY = 36,
+    GAP = 10; // carriageway width and median
+  const sbW = cx - GAP / 2 - FWY,
+    sbE = cx - GAP / 2; // SB carriageway (west)
+  const nbW = cx + GAP / 2,
+    nbE = cx + GAP / 2 + FWY; // NB carriageway (east)
 
   // Three through lanes each way on every arterial approach (Exhibit 34-17).
   const nLanes = 3;
   const half = nLanes * LANE;
-  const edgeN = cy - half, edgeS = cy + half;
-  const ebLane = (i) => cy + half - (i + 0.5) * LANE;   // i = 0 at the south curb
-  const wbLane = (i) => cy - half + (i + 0.5) * LANE;   // i = 0 at the north curb
-  const ebOut = ebLane(0), ebMid = ebLane(1), ebIn = ebLane(2);
-  const wbOut = wbLane(0), wbMid = wbLane(1), wbIn = wbLane(2);
+  const edgeN = cy - half,
+    edgeS = cy + half;
+  const ebLane = (i) => cy + half - (i + 0.5) * LANE; // i = 0 at the south curb
+  const wbLane = (i) => cy - half + (i + 0.5) * LANE; // i = 0 at the north curb
+  const ebOut = ebLane(0),
+    ebMid = ebLane(1),
+    ebIn = ebLane(2);
+  const wbOut = wbLane(0),
+    wbMid = wbLane(1),
+    wbIn = wbLane(2);
 
   // ── centrelines, offset exactly ─────────────────────────────────────────
   // A ramp centreline is a list of straight runs and circular arcs, and only
@@ -68,9 +79,11 @@
 
   function offsetSeg(s, h) {
     if (s.k === 'l') {
-      const dx = s.x1 - s.x0, dy = s.y1 - s.y0;
+      const dx = s.x1 - s.x0,
+        dy = s.y1 - s.y0;
       const len = Math.hypot(dx, dy) || 1;
-      const nx = (-dy / len) * h, ny = (dx / len) * h;
+      const nx = (-dy / len) * h,
+        ny = (dx / len) * h;
       return L(s.x0 + nx, s.y0 + ny, s.x1 + nx, s.y1 + ny);
     }
     // Travelling with increasing angle puts the left-hand normal on the inside
@@ -87,12 +100,10 @@
       .map((s) => (s.k === 'l' ? L(s.x1, s.y1, s.x0, s.y0) : A(s.acx, s.acy, s.r, s.a1, s.a0)));
   }
 
-  const startOf = (s) => (s.k === 'l'
-    ? [s.x0, s.y0]
-    : [s.acx + s.r * Math.cos(rad(s.a0)), s.acy + s.r * Math.sin(rad(s.a0))]);
-  const endOf = (s) => (s.k === 'l'
-    ? [s.x1, s.y1]
-    : [s.acx + s.r * Math.cos(rad(s.a1)), s.acy + s.r * Math.sin(rad(s.a1))]);
+  const startOf = (s) =>
+    s.k === 'l' ? [s.x0, s.y0] : [s.acx + s.r * Math.cos(rad(s.a0)), s.acy + s.r * Math.sin(rad(s.a0))];
+  const endOf = (s) =>
+    s.k === 'l' ? [s.x1, s.y1] : [s.acx + s.r * Math.cos(rad(s.a1)), s.acy + s.r * Math.sin(rad(s.a1))];
 
   function pathOf(segs, moveTo = true) {
     const [sx, sy] = startOf(segs[0]);
@@ -111,27 +122,22 @@
 
   // Reversing travel flips the normal, so offsetting the reversed list by the
   // same amount traces the opposite edge backwards, which closes the band.
-  const bandFill = (segs, h) =>
-    `${pathOf(offsetAll(segs, h))} ${pathOf(offsetAll(reverseSegs(segs), h), false)} Z`;
+  const bandFill = (segs, h) => `${pathOf(offsetAll(segs, h))} ${pathOf(offsetAll(reverseSegs(segs), h), false)} Z`;
   const bandEdges = (segs, h) => [pathOf(offsetAll(segs, h)), pathOf(offsetAll(segs, -h))];
   // A lane inside a band, as a path a movement can follow.
   const lane = (segs, h) => pathOf(offsetAll(segs, h));
 
   const mirror = (segs) =>
-    segs.map((s) => (s.k === 'l'
-      ? L(W - s.x0, H - s.y0, W - s.x1, H - s.y1)
-      : A(W - s.acx, H - s.acy, s.r, s.a0 + 180, s.a1 + 180)));
+    segs.map((s) =>
+      s.k === 'l' ? L(W - s.x0, H - s.y0, W - s.x1, H - s.y1) : A(W - s.acx, H - s.acy, s.r, s.a0 + 180, s.a1 + 180),
+    );
 
   // ── the northwest quadrant ──────────────────────────────────────────────
   // Loop on-ramp to the southbound carriageway. Entered heading north out of
   // the terminal's north leg, 180 degrees around, merging southbound north of
   // the arterial and crossing it on the freeway structure.
   const LOOP_H = 9;
-  const nwLoop = [
-    L(182, edgeN, 182, 120),
-    A(230.5, 120, 48.5, 180, 360),
-    L(279, 120, 279, 168),
-  ];
+  const nwLoop = [L(182, edgeN, 182, 120), A(230.5, 120, 48.5, 180, 360), L(279, 120, 279, 168)];
   // Outer off-ramp from the southbound carriageway. It passes above the loop
   // rather than through it, which is the whole geometry of a parclo A: the
   // outer ramp and the loop share a quadrant without crossing.
@@ -153,7 +159,10 @@
   // Ramp lane centres, as offsets from each centreline. On a two-way ramp the
   // off-ramp keeps right, so its two lanes sit on the same side throughout and
   // the left-turn lane is the inner one.
-  const OFF_LEFT = -6, OFF_RIGHT = 6, LOOP_A = -4, LOOP_B = 4;
+  const OFF_LEFT = -6,
+    OFF_RIGHT = 6,
+    LOOP_A = -4,
+    LOOP_B = 4;
 
   // ── O-D paths ───────────────────────────────────────────────────────────
   // Each is one continuous path so the animation can run a vehicle along it.
@@ -186,7 +195,18 @@
     { key: 'EB', label: 'EB arterial (E, F, I)', ods: ['e', 'f', 'i'], cls: 'ebg' },
     { key: 'WB', label: 'WB arterial (G, H, J)', ods: ['g', 'h', 'j'], cls: 'wbg' },
   ];
-  const groupOf = { a: 'NBOFF', b: 'NBOFF', c: 'SBOFF', d: 'SBOFF', e: 'EB', f: 'EB', i: 'EB', g: 'WB', h: 'WB', j: 'WB' };
+  const groupOf = {
+    a: 'NBOFF',
+    b: 'NBOFF',
+    c: 'SBOFF',
+    d: 'SBOFF',
+    e: 'EB',
+    f: 'EB',
+    i: 'EB',
+    g: 'WB',
+    h: 'WB',
+    j: 'WB',
+  };
   const BASE_COLOR = { NBOFF: '#2563eb', SBOFF: '#16a34a', EB: '#ea7317', WB: '#dc2626' };
 
   let volOf = $derived(Object.fromEntries((odDemands || []).map((d) => [d.key, Number(d.value) || 0])));
@@ -197,9 +217,7 @@
   // A chip stands for two or three O-Ds, so after a run it takes the colour and
   // the letter of the poorest of them rather than picking one arbitrarily.
   const WORST = (a, b) => (a && b ? (a > b ? a : b) : a || b);
-  let groupLos = $derived((g) => g.ods
-    .map((k) => losOf[k.toUpperCase()])
-    .reduce((acc, x) => WORST(acc, x), null));
+  let groupLos = $derived((g) => g.ods.map((k) => losOf[k.toUpperCase()]).reduce((acc, x) => WORST(acc, x), null));
   let groupColorOf = $derived((g) => LOS_COLORS[groupLos(g)] ?? BASE_COLOR[g.key]);
   // Built here rather than inline, because a leading space inside a template
   // block is trimmed away and the separator goes with it.
@@ -221,9 +239,7 @@
 
   // Equation 23-50 on the loop ramp, with the 5 s deceleration/acceleration
   // term a loop movement always carries.
-  let loopEdtt = $derived(Number(loopSpeed) > 0
-    ? Number(loopDist) / (1.47 * Number(loopSpeed)) + 5
-    : 0);
+  let loopEdtt = $derived(Number(loopSpeed) > 0 ? Number(loopDist) / (1.47 * Number(loopSpeed)) + 5 : 0);
   // Split across short lines because the only column of the drawing with no
   // pavement in it is narrower than one run of this text.
   let loopNote = $derived((dir) => `${dir} loop on-ramp`);
@@ -231,43 +247,50 @@
   let loopEdttNote = $derived(`EDTT ${loopEdtt.toFixed(1)} s`);
 
   let ariaLabel = $derived(
-    'Parclo A-2Q interchange, plan view. Freeway north-south with separate carriageways crossing '
-    + 'the east-west arterial between two signalized ramp terminals '
-    + `${Math.round(Number(spacingFt)).toLocaleString()} feet apart. `
-    + 'Ramps occupy the northwest and southeast quadrants, each with an outer off-ramp and a loop on-ramp.'
+    'Parclo A-2Q interchange, plan view. Freeway north-south with separate carriageways crossing ' +
+      'the east-west arterial between two signalized ramp terminals ' +
+      `${Math.round(Number(spacingFt)).toLocaleString()} feet apart. ` +
+      'Ramps occupy the northwest and southeast quadrants, each with an outer off-ramp and a loop on-ramp.',
   );
 
   // ── illustrative traffic, per-O-D LOS ──
   let animating = $state(false);
   const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
   const LOS_FLEET = { A: 1, B: 1, C: 1.1, D: 1.3, E: 1.7, F: 2.3 };
-  let vehiclePlan = $derived((() => {
-    if (!animating) return [];
-    const raw = [];
-    let total = 0;
-    for (const [k, group] of Object.entries(groupOf)) {
-      const vol = volOf[k] || 0;
-      if (vol <= 0) continue;
-      const letter = k.toUpperCase();
-      const slow = LOS_SPEED[losOf[letter]] ?? 1;
-      const crowd = LOS_FLEET[losOf[letter]] ?? 1;
-      raw.push({ k, letter, group, d: P[letter], vol, dur: 9 / slow, crowd });
-      total += vol;
-    }
-    const items = [];
-    for (const it of raw) {
-      const n = Math.max(1, Math.min(7, Math.round((26 * it.vol * it.crowd) / (total || 1))));
-      for (let j = 0; j < n; j++) {
-        items.push({
-          id: it.k + j, letter: it.letter, group: it.group, d: it.d,
-          dur: it.dur, begin: (-(j + 0.4 * (j % 2)) / n) * it.dur,
-        });
+  let vehiclePlan = $derived(
+    (() => {
+      if (!animating) return [];
+      const raw = [];
+      let total = 0;
+      for (const [k, group] of Object.entries(groupOf)) {
+        const vol = volOf[k] || 0;
+        if (vol <= 0) continue;
+        const letter = k.toUpperCase();
+        const slow = LOS_SPEED[losOf[letter]] ?? 1;
+        const crowd = LOS_FLEET[losOf[letter]] ?? 1;
+        raw.push({ k, letter, group, d: P[letter], vol, dur: 9 / slow, crowd });
+        total += vol;
       }
-    }
-    return items;
-  })());
+      const items = [];
+      for (const it of raw) {
+        const n = Math.max(1, Math.min(7, Math.round((26 * it.vol * it.crowd) / (total || 1))));
+        for (let j = 0; j < n; j++) {
+          items.push({
+            id: it.k + j,
+            letter: it.letter,
+            group: it.group,
+            d: it.d,
+            dur: it.dur,
+            begin: (-(j + 0.4 * (j % 2)) / n) * it.dur,
+          });
+        }
+      }
+      return items;
+    })(),
+  );
 
-  const CW = 118, CH = 24;
+  const CW = 118,
+    CH = 24;
   const clusterPos = {
     SBOFF: { x: 4, y: 4 },
     WB: { x: W - CW - 4, y: 4 },
@@ -278,7 +301,6 @@
 
 <div class="pc-diagram">
   <svg viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label={ariaLabel}>
-
     <!-- ══ pavement (fills only) ══ -->
     <rect x="0" y={edgeN} width={W} height={half * 2} class="pc-pavement" />
     <rect x={legN.x} y={legN.y} width={legN.w} height={legN.h} class="pc-pavement" />
@@ -336,8 +358,8 @@
     <text x={(nbW + nbE) / 2} y="50" class="pc-label mid">I-75 NB</text>
 
     <!-- signalized terminal nodes -->
-    <circle cx={xW} cy={cy} r="5" class="pc-signal" />
-    <circle cx={xE} cy={cy} r="5" class="pc-signal" />
+    <circle cx={xW} {cy} r="5" class="pc-signal" />
+    <circle cx={xE} {cy} r="5" class="pc-signal" />
 
     <!-- terminal spacing D -->
     <line x1={xW} y1={edgeN - 18} x2={xE} y2={edgeN - 18} class="pc-dim" />
@@ -349,7 +371,13 @@
     {#each Object.entries(P) as [letter, d]}
       {@const group = groupOf[letter.toLowerCase()]}
       {#if (volOf[letter.toLowerCase()] || 0) > 0}
-        <path {d} class={cls(group)} data-od={letter} data-los={losOf[letter] ?? ''} style="stroke: {colorOf(letter)}" />
+        <path
+          {d}
+          class={cls(group)}
+          data-od={letter}
+          data-los={losOf[letter] ?? ''}
+          style="stroke: {colorOf(letter)}"
+        />
       {/if}
     {/each}
 
@@ -378,16 +406,22 @@
     {#each editable ? GROUPS : [] as g (g.key)}
       <foreignObject x={clusterPos[g.key].x} y={clusterPos[g.key].y} width={CW} height={CH}>
         <div class="pc-cluster" xmlns="http://www.w3.org/1999/xhtml">
-          <span class="pc-cluster-title"><span class="swatch" style="background: {groupColorOf(g)}"></span>{clusterTitle(g)}</span>
+          <span class="pc-cluster-title"
+            ><span class="swatch" style="background: {groupColorOf(g)}"></span>{clusterTitle(g)}</span
+          >
           {#each g.ods as k}
-            <input type="number" min="0" title="O-D {k.toUpperCase()} demand (veh/h)"
-                   aria-label="O-D {k.toUpperCase()} demand"
-                   value={volOf[k] ?? 0}
-                   onmouseenter={() => (hovered = g.key)}
-                   onmouseleave={() => (hovered = null)}
-                   onfocus={() => (hovered = g.key)}
-                   onblur={() => (hovered = null)}
-                   oninput={(e) => setOd(k, e.currentTarget.value)} />
+            <input
+              type="number"
+              min="0"
+              title="O-D {k.toUpperCase()} demand (veh/h)"
+              aria-label="O-D {k.toUpperCase()} demand"
+              value={volOf[k] ?? 0}
+              onmouseenter={() => (hovered = g.key)}
+              onmouseleave={() => (hovered = null)}
+              onfocus={() => (hovered = g.key)}
+              onblur={() => (hovered = null)}
+              oninput={(e) => setOd(k, e.currentTarget.value)}
+            />
           {/each}
         </div>
       </foreignObject>
@@ -395,8 +429,13 @@
   </svg>
 
   <div class="pc-legend">
-    <button type="button" class="pc-chip pc-animate" class:active={animating}
-            aria-pressed={animating} onclick={() => (animating = !animating)}>
+    <button
+      type="button"
+      class="pc-chip pc-animate"
+      class:active={animating}
+      aria-pressed={animating}
+      onclick={() => (animating = !animating)}
+    >
       {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
     </button>
     {#each GROUPS as g (g.key)}
@@ -414,7 +453,12 @@
       </button>
     {/each}
   </div>
-  <p class="pc-note">Both loop on-ramps are entered from the arterial, which is what makes this a parclo A: O-Ds F and G turn left at the near terminal, and O-Ds E and H run the full arterial and turn right at the far terminal. Both pay the Equation 23-50 extra distance travel time shown on the quadrant. Demands are editable on the picture, movement colour carries O-D LOS after a run, and animated traffic slows with it. An illustration, not a simulation.</p>
+  <p class="pc-note">
+    Both loop on-ramps are entered from the arterial, which is what makes this a parclo A: O-Ds F and G turn left at the
+    near terminal, and O-Ds E and H run the full arterial and turn right at the far terminal. Both pay the Equation
+    23-50 extra distance travel time shown on the quadrant. Demands are editable on the picture, movement colour carries
+    O-D LOS after a run, and animated traffic slows with it. An illustration, not a simulation.
+  </p>
 </div>
 
 <style>
@@ -424,36 +468,93 @@
     display: block;
     margin: 0 auto;
   }
-  .pc-pavement { fill: var(--diag-pavement); }
-  .pc-freeway { fill: var(--diag-pavement-alt); }
-  .pc-edge { stroke: var(--diag-edge); stroke-width: 1.5; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-  .pc-edge.under { stroke: var(--diag-dim); stroke-dasharray: 4 4; }
-  .pc-center { stroke: var(--diag-center); stroke-width: 1.25; vector-effect: non-scaling-stroke; }
-  .pc-lane-line { stroke: var(--diag-lane-line); stroke-width: 1.25; stroke-dasharray: 8 6; vector-effect: non-scaling-stroke; }
-  .pc-dim { stroke: var(--diag-dim); stroke-width: 1; vector-effect: non-scaling-stroke; }
-  .pc-arrow { fill: var(--diag-center); }
-  .pc-signal { fill: var(--diag-center); stroke: var(--diag-edge); stroke-width: 1.25; }
+  .pc-pavement {
+    fill: var(--diag-pavement);
+  }
+  .pc-freeway {
+    fill: var(--diag-pavement-alt);
+  }
+  .pc-edge {
+    stroke: var(--diag-edge);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .pc-edge.under {
+    stroke: var(--diag-dim);
+    stroke-dasharray: 4 4;
+  }
+  .pc-center {
+    stroke: var(--diag-center);
+    stroke-width: 1.25;
+    vector-effect: non-scaling-stroke;
+  }
+  .pc-lane-line {
+    stroke: var(--diag-lane-line);
+    stroke-width: 1.25;
+    stroke-dasharray: 8 6;
+    vector-effect: non-scaling-stroke;
+  }
+  .pc-dim {
+    stroke: var(--diag-dim);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  .pc-arrow {
+    fill: var(--diag-center);
+  }
+  .pc-signal {
+    fill: var(--diag-center);
+    stroke: var(--diag-edge);
+    stroke-width: 1.25;
+  }
 
   .pc-move {
     fill: none;
     stroke-width: 2.25;
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
-    transition: opacity 120ms ease, stroke-width 120ms ease;
+    transition:
+      opacity 120ms ease,
+      stroke-width 120ms ease;
     opacity: 0.78;
   }
-  .pc-move.dim { opacity: 0.08; }
-  .pc-move.active { stroke-width: 4; opacity: 1; }
+  .pc-move.dim {
+    opacity: 0.08;
+  }
+  .pc-move.active {
+    stroke-width: 4;
+    opacity: 1;
+  }
 
-  .pc-veh rect { stroke: rgba(15, 23, 42, 0.35); stroke-width: 0.6; }
-  .pc-veh { transition: opacity 120ms ease; }
-  .pc-veh.dim { opacity: 0.08; }
+  .pc-veh rect {
+    stroke: rgba(15, 23, 42, 0.35);
+    stroke-width: 0.6;
+  }
+  .pc-veh {
+    transition: opacity 120ms ease;
+  }
+  .pc-veh.dim {
+    opacity: 0.08;
+  }
 
-  .pc-label { font-size: 9px; fill: var(--text-muted); }
-  .pc-label.mid { text-anchor: middle; }
-  .pc-label.end { text-anchor: end; }
+  .pc-label {
+    font-size: 9px;
+    fill: var(--text-muted);
+  }
+  .pc-label.mid {
+    text-anchor: middle;
+  }
+  .pc-label.end {
+    text-anchor: end;
+  }
 
-  .pc-legend { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+  .pc-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+  }
   .pc-chip {
     display: inline-flex;
     align-items: center;
@@ -465,10 +566,24 @@
     background: transparent;
     cursor: default;
   }
-  .pc-chip.active { border-color: var(--diag-edge); }
-  .pc-animate { cursor: pointer; font-weight: 600; }
-  .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
-  .pc-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; }
+  .pc-chip.active {
+    border-color: var(--diag-edge);
+  }
+  .pc-animate {
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .swatch {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .pc-note {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.35rem;
+  }
 
   .pc-cluster {
     box-sizing: border-box;
@@ -487,7 +602,14 @@
     padding: 2px 3px;
     overflow: hidden;
   }
-  .pc-cluster-title { display: inline-flex; align-items: center; gap: 2px; font-size: 7px; font-weight: 600; flex: none; }
+  .pc-cluster-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 7px;
+    font-weight: 600;
+    flex: none;
+  }
   .pc-cluster input {
     box-sizing: border-box;
     width: 100%;
@@ -503,7 +625,16 @@
     text-align: center;
   }
   .pc-cluster input::-webkit-outer-spin-button,
-  .pc-cluster input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .pc-cluster input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
-  .pc-cluster .swatch { width: 6px; height: 6px; }
+  .pc-cluster input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .pc-cluster input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  .pc-cluster .swatch {
+    width: 6px;
+    height: 6px;
+  }
 </style>

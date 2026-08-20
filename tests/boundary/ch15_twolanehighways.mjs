@@ -25,66 +25,23 @@ const CASE_FILES = ['case1.json', 'case2.json', 'case3.json', 'case4.json'];
 // Expected values copied verbatim from twolanehighways_test.rs (rows =
 // case1..case4 in sorted order, columns = segments).
 const EXPECTED = {
-  vcMin: [
-    [0.25], [0.25],
-    [0.25, 0.5, 0.25, 0.25, 0.25],
-    [0.5, 0.5, 0.5, 0.5, 0.5, 0.25],
-  ],
-  vcMax: [
-    [3.0], [3.0],
-    [3.0, 3.0, 3.0, 2.0, 3.0],
-    [3.0, 3.0, 3.0, 3.0, 3.0, 3.0],
-  ],
-  flowI: [
-    [800.0], [800.0],
-    [904.0, 868.0, 863.0, 851.0, 850.0],
-    [1222.0, 1222.0, 1222.0, 1222.0, 1222.0, 1222.0],
-  ],
-  flowO: [
-    [1500.0], [1500.0],
-    [1500.0, 0.0, 1500.0, 532.0, 1500.0],
-    [1500.0, 1500.0, 1500.0, 1500.0, 0.0, 1500.0],
-  ],
+  vcMin: [[0.25], [0.25], [0.25, 0.5, 0.25, 0.25, 0.25], [0.5, 0.5, 0.5, 0.5, 0.5, 0.25]],
+  vcMax: [[3.0], [3.0], [3.0, 3.0, 3.0, 2.0, 3.0], [3.0, 3.0, 3.0, 3.0, 3.0, 3.0]],
+  flowI: [[800.0], [800.0], [904.0, 868.0, 863.0, 851.0, 850.0], [1222.0, 1222.0, 1222.0, 1222.0, 1222.0, 1222.0]],
+  flowO: [[1500.0], [1500.0], [1500.0, 0.0, 1500.0, 532.0, 1500.0], [1500.0, 1500.0, 1500.0, 1500.0, 0.0, 1500.0]],
   capacity: [
-    [1700.0], [1700.0],
+    [1700.0],
+    [1700.0],
     [1700.0, 1500.0, 1700.0, 1700.0, 1700.0],
     [1700.0, 1700.0, 1700.0, 1700.0, 1500.0, 1700.0],
   ],
-  verAlign: [
-    [1], [1],
-    [1, 1, 1, 1, 1],
-    [4, 5, 4, 4, 1, 1],
-  ],
-  ffs: [
-    [56.83], [56.83],
-    [62.43, 62.43, 62.43, 62.45, 62.43],
-    [60.02, 59.04, 60.07, 60.02, 62.43, 62.43],
-  ],
-  avgSpeed: [
-    [53.7], [49.5],
-    [58.8, 57.8, 58.9, 59.2, 58.9],
-    [47.9, 43.9, 50.8, 49.2, 56.0, 58.3],
-  ],
-  pf: [
-    [67.7], [67.7],
-    [69.7, 60.7, 68.0, 67.8, 67.7],
-    [86.9, 89.3, 83.9, 86.9, 78.2, 78.4],
-  ],
-  fd: [
-    [10.1], [10.9],
-    [10.7, 9.1, 10.0, 9.7, 9.8],
-    [22.2, 24.9, 20.2, 21.6, 17.1, 16.4],
-  ],
-  fdAdj: [
-    [0.0], [0.0],
-    [0.0, 10.3, 8.3, 8.2, 8.8],
-    [0.0, 0.0, 0.0, 0.0, 18.0, 13.2],
-  ],
-  segLos: [
-    ['D'], ['D'],
-    ['D', 'B', 'D', 'D', 'D'],
-    ['E', 'E', 'E', 'E', 'C', 'E'],
-  ],
+  verAlign: [[1], [1], [1, 1, 1, 1, 1], [4, 5, 4, 4, 1, 1]],
+  ffs: [[56.83], [56.83], [62.43, 62.43, 62.43, 62.45, 62.43], [60.02, 59.04, 60.07, 60.02, 62.43, 62.43]],
+  avgSpeed: [[53.7], [49.5], [58.8, 57.8, 58.9, 59.2, 58.9], [47.9, 43.9, 50.8, 49.2, 56.0, 58.3]],
+  pf: [[67.7], [67.7], [69.7, 60.7, 68.0, 67.8, 67.7], [86.9, 89.3, 83.9, 86.9, 78.2, 78.4]],
+  fd: [[10.1], [10.9], [10.7, 9.1, 10.0, 9.7, 9.8], [22.2, 24.9, 20.2, 21.6, 17.1, 16.4]],
+  fdAdj: [[0.0], [0.0], [0.0, 10.3, 8.3, 8.2, 8.8], [0.0, 0.0, 0.0, 0.0, 18.0, 13.2]],
+  segLos: [['D'], ['D'], ['D', 'B', 'D', 'D', 'D'], ['E', 'E', 'E', 'E', 'C', 'E']],
   // Equation 15-39, from `determine_facility_follower_density`. Same values
   // twolanehighways_test.rs asserts in determine_facility_los_test. case3 is
   // Chapter 26 Example Problem 3, published in Exhibit 26-27 as 7.3
@@ -107,18 +64,32 @@ function buildHighway(c) {
     // miles. WasmSubSegment reorders (design_rad, central_angle, hor_class)
     // into the core's (hor_class, design_rad, central_angle) internally.
     const subs = (s.subsegments || []).map(
-      (ss) => new m.WasmSubSegment(
-        ss.length, ss.avg_speed, ss.design_rad, ss.central_angle,
-        ss.hor_class, ss.sup_ele)
+      (ss) => new m.WasmSubSegment(ss.length, ss.avg_speed, ss.design_rad, ss.central_angle, ss.hor_class, ss.sup_ele),
     );
     return new m.WasmSegment(
-      s.passing_type, s.length, s.grade, s.spl, s.is_hc,
-      s.volume, s.volume_op, s.flow_rate, s.flow_rate_o, s.capacity,
-      s.ffs, s.avg_speed, s.vertical_class, subs,
-      s.phf, s.phv, s.pf, s.fd, s.fd_mid, s.hor_class);
+      s.passing_type,
+      s.length,
+      s.grade,
+      s.spl,
+      s.is_hc,
+      s.volume,
+      s.volume_op,
+      s.flow_rate,
+      s.flow_rate_o,
+      s.capacity,
+      s.ffs,
+      s.avg_speed,
+      s.vertical_class,
+      subs,
+      s.phf,
+      s.phv,
+      s.pf,
+      s.fd,
+      s.fd_mid,
+      s.hor_class,
+    );
   });
-  return new m.WasmTwoLaneHighways(
-    segments, c.lane_width, c.shoulder_width, c.apd, c.pmhvfl, c.l_de);
+  return new m.WasmTwoLaneHighways(segments, c.lane_width, c.shoulder_width, c.apd, c.pmhvfl, c.l_de);
 }
 
 const cases = CASE_FILES.map((f) => loadCase('TwoLaneHighways', f));
@@ -153,8 +124,7 @@ for (let ci = 0; ci < cases.length; ci++) {
   {
     const hw = buildHighway(c);
     for (let i = 0; i < nSeg; i++) {
-      exact(hw.determine_vertical_alignment(i), EXPECTED.verAlign[ci][i],
-        `${tag} seg${i} vertical alignment`);
+      exact(hw.determine_vertical_alignment(i), EXPECTED.verAlign[ci][i], `${tag} seg${i} vertical alignment`);
     }
   }
 
@@ -163,8 +133,7 @@ for (let ci = 0; ci < cases.length; ci++) {
     const hw = buildHighway(c);
     for (let i = 0; i < nSeg; i++) {
       hw.determine_demand_flow(i);
-      approx(hw.determine_free_flow_speed(i), EXPECTED.ffs[ci][i], 0.005,
-        `${tag} seg${i} FFS`);
+      approx(hw.determine_free_flow_speed(i), EXPECTED.ffs[ci][i], 0.005, `${tag} seg${i} FFS`);
     }
   }
 
@@ -187,8 +156,7 @@ for (let ci = 0; ci < cases.length; ci++) {
     for (let i = 0; i < nSeg; i++) {
       hw.determine_demand_flow(i);
       hw.determine_free_flow_speed(i);
-      approx(hw.estimate_percent_followers(i), EXPECTED.pf[ci][i], 0.05,
-        `${tag} seg${i} percent followers`);
+      approx(hw.estimate_percent_followers(i), EXPECTED.pf[ci][i], 0.05, `${tag} seg${i} percent followers`);
     }
   }
 
@@ -221,8 +189,12 @@ for (let ci = 0; ci < cases.length; ci++) {
       hw.estimate_average_speed(i);
       hw.estimate_percent_followers(i);
       hw.determine_follower_density_pc_pz(i);
-      approx(hw.determine_adjustment_to_follower_density(i),
-        EXPECTED.fdAdj[ci][i], 0.05, `${tag} seg${i} FD adjustment`);
+      approx(
+        hw.determine_adjustment_to_follower_density(i),
+        EXPECTED.fdAdj[ci][i],
+        0.05,
+        `${tag} seg${i} FD adjustment`,
+      );
     }
   }
 
@@ -239,8 +211,7 @@ for (let ci = 0; ci < cases.length; ci++) {
       } else {
         hw.determine_follower_density_pc_pz(i);
       }
-      exact(hw.determine_segment_los(i, s, cap), EXPECTED.segLos[ci][i],
-        `${tag} seg${i} LOS`);
+      exact(hw.determine_segment_los(i, s, cap), EXPECTED.segLos[ci][i], `${tag} seg${i} LOS`);
     }
   }
 
@@ -271,7 +242,8 @@ for (let ci = 0; ci < cases.length; ci++) {
   // six, otherwise returns 14.936 instead of 19.897.
   {
     const hw = buildHighway(c);
-    let totLen = 0, splTot = 0;
+    let totLen = 0,
+      splTot = 0;
     for (let i = 0; i < nSeg; i++) {
       hw.determine_demand_flow(i);
       hw.determine_free_flow_speed(i);
@@ -293,13 +265,16 @@ for (let ci = 0; ci < cases.length; ci++) {
     // passed, matching the library's corrected callers. All four fixtures
     // post 55 uniformly, so this cannot move a letter here; it prevents the
     // latent case (posted >= 50, average speed < 50, FD between the bands).
-    exact(hw.determine_facility_los(fdF, splTot / totLen),
-      EXPECTED.facilityLos[ci], `${tag} facility LOS`);
+    exact(hw.determine_facility_los(fdF, splTot / totLen), EXPECTED.facilityLos[ci], `${tag} facility LOS`);
 
     // Same facility, after the caller's own per-segment Step 9 loop.
     for (let i = 0; i < nSeg; i++) hw.determine_adjustment_to_follower_density(i);
-    approx(hw.determine_facility_follower_density(), EXPECTED.facilityFd[ci], 0.0005,
-      `${tag} facility follower density after a Step 9 loop`);
+    approx(
+      hw.determine_facility_follower_density(),
+      EXPECTED.facilityFd[ci],
+      0.0005,
+      `${tag} facility follower density after a Step 9 loop`,
+    );
   }
 }
 

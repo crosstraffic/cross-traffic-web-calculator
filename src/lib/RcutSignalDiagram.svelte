@@ -26,39 +26,38 @@
    */
 
   /** @type {Props} */
-  let {
-    demands = $bindable({}),
-    dist = 800,
-    losByMovement = {},
-    editable = true
-  } = $props();
+  let { demands = $bindable({}), dist = 800, losByMovement = {}, editable = true } = $props();
 
   let hovered = $state(null);
 
-  const W = 540, H = 560;
+  const W = 540,
+    H = 560;
   const LANE = 16;
-  const GAP = 40;                        // 40 ft median, wide enough to hold a left turn between the two mains
-  const cx = 250, jy = 310;              // median centreline, minor-street centreline
+  const GAP = 40; // 40 ft median, wide enough to hold a left turn between the two mains
+  const cx = 250,
+    jy = 310; // median centreline, minor-street centreline
 
-  const sbW = cx - GAP / 2 - 2 * LANE;   // 198, west curb of the southbound carriageway
-  const sbE = cx - GAP / 2;              // 230
-  const nbW = cx + GAP / 2;              // 270
-  const nbE = cx + GAP / 2 + 2 * LANE;   // 302, east curb of the northbound carriageway
-  const bayW = sbW - LANE;               // 182, exclusive right-turn bay on the southbound approach
-  const bayE = nbE + LANE;               // 318, and on the northbound approach
-  const MINOR = 2 * LANE;                // two lanes each way on the minor street
-  const minN = jy - MINOR, minS = jy + MINOR;
+  const sbW = cx - GAP / 2 - 2 * LANE; // 198, west curb of the southbound carriageway
+  const sbE = cx - GAP / 2; // 230
+  const nbW = cx + GAP / 2; // 270
+  const nbE = cx + GAP / 2 + 2 * LANE; // 302, east curb of the northbound carriageway
+  const bayW = sbW - LANE; // 182, exclusive right-turn bay on the southbound approach
+  const bayE = nbE + LANE; // 318, and on the northbound approach
+  const MINOR = 2 * LANE; // two lanes each way on the minor street
+  const minN = jy - MINOR,
+    minS = jy + MINOR;
 
-  const OPEN = 36;                       // half-length of a crossover median opening
-  const LOON = 42;                       // loon radius, sized to wrap the swept U-turn path rather than to look decorative
-  const BAY = 70;                        // right-turn bay, 40 of full width plus a 30 taper. Kept short so its
-                                         // taper never runs into the crossover loon at the closest spacing the input allows.
-  const DIM_X = 130;                     // both dimension lines run down the west side, clear of the north loon
+  const OPEN = 36; // half-length of a crossover median opening
+  const LOON = 42; // loon radius, sized to wrap the swept U-turn path rather than to look decorative
+  const BAY = 70; // right-turn bay, 40 of full width plus a 30 taper. Kept short so its
+  // taper never runs into the crossover loon at the closest spacing the input allows.
+  const DIM_X = 130; // both dimension lines run down the west side, clear of the north loon
 
   // The crossovers move with the dimensioned distance so the picture responds
   // to the input, clamped to what the canvas can show at either extreme.
   let sep = $derived(Math.min(200, Math.max(165, 138 + (Math.max(0, Number(dist) || 0) - 100) * 0.046)));
-  let xyN = $derived(jy - sep), xyS = $derived(jy + sep);
+  let xyN = $derived(jy - sep),
+    xyS = $derived(jy + sep);
 
   let distLabel = $derived(`${Math.round(Number(dist) || 0).toLocaleString('en-US')} ft`);
 
@@ -78,29 +77,43 @@
   // Southbound carriageway, curb side first. A movement about to turn right
   // sits curb side and one about to cross the median sits inner, which is what
   // decides these offsets; where two share a value they never share a segment.
-  const SBR = 201, SBR_BAY = 187;   // southbound right, moving into its bay before the west main
-  const SBT = 208;                  // southbound through
-  const WBT_S = 214, WBT_BAY = 193; // WB through, back from the crossover and out of the bay
-  const WBL_S = 221;                // WB left, back from the crossover and on south
-  const SBL = 227;                  // southbound left, inner lane to the median
-  const EBR_S = 201;                // EB right, running south out of the west main
-  const EBL_S = 214, EBT_S = 227;   // EB left and through, running south to the crossover
+  const SBR = 201,
+    SBR_BAY = 187; // southbound right, moving into its bay before the west main
+  const SBT = 208; // southbound through
+  const WBT_S = 214,
+    WBT_BAY = 193; // WB through, back from the crossover and out of the bay
+  const WBL_S = 221; // WB left, back from the crossover and on south
+  const SBL = 227; // southbound left, inner lane to the median
+  const EBR_S = 201; // EB right, running south out of the west main
+  const EBL_S = 214,
+    EBT_S = 227; // EB left and through, running south to the crossover
 
   // Northbound carriageway, the mirror, curb side last.
-  const NBL = 273;                  // northbound left, inner lane to the median
-  const EBL_N = 279, EBT_N = 286;   // EB left and through, back from the crossover
-  const NBT = 292;                  // northbound through
-  const NBR = 299, NBR_BAY = 308;   // northbound right, moving into its bay before the east main
-  const EBT_BAY = 314;              // EB through, right out of the bay at the east main
-  const WBL_N = 273, WBT_N = 286;   // WB left and through, running north to the crossover
-  const WBR_N = 299;                // WB right, running north out of the east main
+  const NBL = 273; // northbound left, inner lane to the median
+  const EBL_N = 279,
+    EBT_N = 286; // EB left and through, back from the crossover
+  const NBT = 292; // northbound through
+  const NBR = 299,
+    NBR_BAY = 308; // northbound right, moving into its bay before the east main
+  const EBT_BAY = 314; // EB through, right out of the bay at the east main
+  const WBL_N = 273,
+    WBT_N = 286; // WB left and through, running north to the crossover
+  const WBR_N = 299; // WB right, running north out of the east main
 
   // Minor-street centerlines, entering movements on the near half and exiting
   // movements on the far half of each leg.
-  const ebl = jy + 9, ebt = jy + 17, ebr = jy + 25;      // eastbound approach, from the west
-  const wbl = jy - 9, wbt = jy - 17, wbr = jy - 25;      // westbound approach, from the east
-  const outW_sbr = jy - 9, outW_wbt = jy - 17, outW_nbl = jy - 23;   // west leg departures
-  const outE_sbl = jy + 8, outE_ebt = jy + 17, outE_nbr = jy + 25;   // east leg departures
+  const ebl = jy + 9,
+    ebt = jy + 17,
+    ebr = jy + 25; // eastbound approach, from the west
+  const wbl = jy - 9,
+    wbt = jy - 17,
+    wbr = jy - 25; // westbound approach, from the east
+  const outW_sbr = jy - 9,
+    outW_wbt = jy - 17,
+    outW_nbl = jy - 23; // west leg departures
+  const outE_sbl = jy + 8,
+    outE_ebt = jy + 17,
+    outE_nbr = jy + 25; // east leg departures
 
   // Movement paths. Turns are quarter curves whose control point sits at the
   // intersection of the two lane centerlines, which keeps each curve inside the
@@ -115,18 +128,21 @@
     nbt: `M ${NBT},${H} L ${NBT},0`,
 
     // Southbound right: into the bay, then right out of the west main.
-    sbr: `M ${SBR},0 L ${SBR},${minN - 58} C ${SBR},${minN - 46} ${SBR_BAY},${minN - 46} ${SBR_BAY},${minN - 30}`
-      + ` L ${SBR_BAY},${minN - 7} Q ${SBR_BAY},${outW_sbr} ${sbW - 40},${outW_sbr} L 0,${outW_sbr}`,
+    sbr:
+      `M ${SBR},0 L ${SBR},${minN - 58} C ${SBR},${minN - 46} ${SBR_BAY},${minN - 46} ${SBR_BAY},${minN - 30}` +
+      ` L ${SBR_BAY},${minN - 7} Q ${SBR_BAY},${outW_sbr} ${sbW - 40},${outW_sbr} L 0,${outW_sbr}`,
     // Northbound right: the mirror, out of the east main.
-    nbr: `M ${NBR},${H} L ${NBR},${minS + 58} C ${NBR},${minS + 46} ${NBR_BAY},${minS + 46} ${NBR_BAY},${minS + 30}`
-      + ` L ${NBR_BAY},${minS + 7} Q ${NBR_BAY},${outE_nbr} ${nbE + 40},${outE_nbr} L ${W},${outE_nbr}`,
+    nbr:
+      `M ${NBR},${H} L ${NBR},${minS + 58} C ${NBR},${minS + 46} ${NBR_BAY},${minS + 46} ${NBR_BAY},${minS + 30}` +
+      ` L ${NBR_BAY},${minS + 7} Q ${NBR_BAY},${outE_nbr} ${nbE + 40},${outE_nbr} L ${W},${outE_nbr}`,
 
     // Major-street lefts are made at the mains. They turn at one signal, wait
     // in the median, and cross the other carriageway at the second signal,
     // which is why Exhibit 34-132 books their delay at the far main.
     sbl: `M ${SBL},0 L ${SBL},${minN + 10} Q ${SBL},${outE_sbl} ${SBL + 30},${outE_sbl} L ${W},${outE_sbl}`,
-    nbl: `M ${NBL},${H} L ${NBL},${minS - 10} Q ${NBL},${outW_nbl + 14} ${NBL - 30},${outW_nbl + 14}`
-      + ` L ${sbE - 4},${outW_nbl + 14} C ${sbE - 20},${outW_nbl + 14} ${sbW + 10},${outW_nbl} ${sbW - 4},${outW_nbl} L 0,${outW_nbl}`,
+    nbl:
+      `M ${NBL},${H} L ${NBL},${minS - 10} Q ${NBL},${outW_nbl + 14} ${NBL - 30},${outW_nbl + 14}` +
+      ` L ${sbE - 4},${outW_nbl + 14} C ${sbE - 20},${outW_nbl + 14} ${sbW + 10},${outW_nbl} ${sbW - 4},${outW_nbl} L 0,${outW_nbl}`,
 
     // Minor-street rights are the only minor movement served at a main.
     ebr: `M 0,${ebr} L ${sbW - 18},${ebr} Q ${EBR_S},${ebr} ${EBR_S},${ebr + 30} L ${EBR_S},${H}`,
@@ -137,22 +153,26 @@
     // and off at the leg they wanted. The eastbound pair uses the south
     // crossover, the westbound pair the north one. Each teardrop nests inside
     // the other so the two swept paths at one crossover never cross.
-    ebl: `M 0,${ebl} L ${sbW - 18},${ebl} Q ${EBL_S},${ebl} ${EBL_S},${ebl + 42} L ${EBL_S},${xyS}`
-      + ` C ${EBL_S},${xyS + 40} 328,${xyS + 40} 328,${xyS}`
-      + ` C 328,${xyS - 30} ${EBL_N},${xyS - 22} ${EBL_N},${xyS - 52} L ${EBL_N},0`,
-    ebt: `M 0,${ebt} L ${sbW - 18},${ebt} Q ${EBT_S},${ebt} ${EBT_S},${ebt + 42} L ${EBT_S},${xyS - 8}`
-      + ` C ${EBT_S},${xyS + 36} 332,${xyS + 36} 332,${xyS - 8}`
-      + ` C 332,${xyS - 34} ${EBT_N},${xyS - 24} ${EBT_N},${xyS - 56} L ${EBT_N},${minS + 70}`
-      + ` C ${EBT_N},${minS + 45} ${EBT_BAY},${minS + 45} ${EBT_BAY},${minS + 7}`
-      + ` Q ${EBT_BAY},${outE_ebt} ${EBT_BAY + 20},${outE_ebt} L ${W},${outE_ebt}`,
-    wbl: `M ${W},${wbl} L ${nbE + 42},${wbl} Q ${WBL_N},${wbl} ${WBL_N},${wbl - 30} L ${WBL_N},${xyN}`
-      + ` C ${WBL_N},${xyN - 40} 172,${xyN - 40} 172,${xyN}`
-      + ` C 172,${xyN + 30} ${WBL_S},${xyN + 22} ${WBL_S},${xyN + 52} L ${WBL_S},${H}`,
-    wbt: `M ${W},${wbt} L ${nbE + 42},${wbt} Q ${WBT_N},${wbt} ${WBT_N},${wbt - 30} L ${WBT_N},${xyN + 8}`
-      + ` C ${WBT_N},${xyN - 36} 168,${xyN - 36} 168,${xyN + 8}`
-      + ` C 168,${xyN + 38} ${WBT_S},${xyN + 28} ${WBT_S},${xyN + 60} L ${WBT_S},${minN - 70}`
-      + ` C ${WBT_S},${minN - 45} ${WBT_BAY},${minN - 45} ${WBT_BAY},${minN - 7}`
-      + ` Q ${WBT_BAY},${outW_wbt} ${WBT_BAY - 20},${outW_wbt} L 0,${outW_wbt}`,
+    ebl:
+      `M 0,${ebl} L ${sbW - 18},${ebl} Q ${EBL_S},${ebl} ${EBL_S},${ebl + 42} L ${EBL_S},${xyS}` +
+      ` C ${EBL_S},${xyS + 40} 328,${xyS + 40} 328,${xyS}` +
+      ` C 328,${xyS - 30} ${EBL_N},${xyS - 22} ${EBL_N},${xyS - 52} L ${EBL_N},0`,
+    ebt:
+      `M 0,${ebt} L ${sbW - 18},${ebt} Q ${EBT_S},${ebt} ${EBT_S},${ebt + 42} L ${EBT_S},${xyS - 8}` +
+      ` C ${EBT_S},${xyS + 36} 332,${xyS + 36} 332,${xyS - 8}` +
+      ` C 332,${xyS - 34} ${EBT_N},${xyS - 24} ${EBT_N},${xyS - 56} L ${EBT_N},${minS + 70}` +
+      ` C ${EBT_N},${minS + 45} ${EBT_BAY},${minS + 45} ${EBT_BAY},${minS + 7}` +
+      ` Q ${EBT_BAY},${outE_ebt} ${EBT_BAY + 20},${outE_ebt} L ${W},${outE_ebt}`,
+    wbl:
+      `M ${W},${wbl} L ${nbE + 42},${wbl} Q ${WBL_N},${wbl} ${WBL_N},${wbl - 30} L ${WBL_N},${xyN}` +
+      ` C ${WBL_N},${xyN - 40} 172,${xyN - 40} 172,${xyN}` +
+      ` C 172,${xyN + 30} ${WBL_S},${xyN + 22} ${WBL_S},${xyN + 52} L ${WBL_S},${H}`,
+    wbt:
+      `M ${W},${wbt} L ${nbE + 42},${wbt} Q ${WBT_N},${wbt} ${WBT_N},${wbt - 30} L ${WBT_N},${xyN + 8}` +
+      ` C ${WBT_N},${xyN - 36} 168,${xyN - 36} 168,${xyN + 8}` +
+      ` C 168,${xyN + 38} ${WBT_S},${xyN + 28} ${WBT_S},${xyN + 60} L ${WBT_S},${minN - 70}` +
+      ` C ${WBT_S},${minN - 45} ${WBT_BAY},${minN - 45} ${WBT_BAY},${minN - 7}` +
+      ` Q ${WBT_BAY},${outW_wbt} ${WBT_BAY - 20},${outW_wbt} L 0,${outW_wbt}`,
   });
 
   const GROUPS = [
@@ -162,8 +182,18 @@
     { key: 'WB', label: 'WB (L, T, R)', moves: ['wbl', 'wbt', 'wbr'], cls: 'wb' },
   ];
   const groupOf = {
-    nbl: 'NB', nbt: 'NB', nbr: 'NB', sbl: 'SB', sbt: 'SB', sbr: 'SB',
-    ebl: 'EB', ebt: 'EB', ebr: 'EB', wbl: 'WB', wbt: 'WB', wbr: 'WB',
+    nbl: 'NB',
+    nbt: 'NB',
+    nbr: 'NB',
+    sbl: 'SB',
+    sbt: 'SB',
+    sbr: 'SB',
+    ebl: 'EB',
+    ebt: 'EB',
+    ebr: 'EB',
+    wbl: 'WB',
+    wbt: 'WB',
+    wbr: 'WB',
   };
   const GROUP_COLOR = { NB: '#2563eb', SB: '#16a34a', EB: '#ea7317', WB: '#dc2626' };
   const KEYS = Object.keys(groupOf);
@@ -180,13 +210,13 @@
   });
 
   let ariaLabel = $derived(
-    'restricted crossing U-turn intersection, four-legged with signals, plan view. '
-    + 'Main street north-south on two separate carriageways either side of a 40 foot median, '
-    + 'minor street east-west with two lanes on each approach. '
-    + 'Four signalized junctions: the west main intersection on the southbound carriageway, '
-    + 'the east main intersection on the northbound carriageway, '
-    + `and U-turn crossovers with loons ${distLabel} north and south of them. `
-    + 'Minor-street left and through movements are served by a crossover rather than at a main intersection'
+    'restricted crossing U-turn intersection, four-legged with signals, plan view. ' +
+      'Main street north-south on two separate carriageways either side of a 40 foot median, ' +
+      'minor street east-west with two lanes on each approach. ' +
+      'Four signalized junctions: the west main intersection on the southbound carriageway, ' +
+      'the east main intersection on the northbound carriageway, ' +
+      `and U-turn crossovers with loons ${distLabel} north and south of them. ` +
+      'Minor-street left and through movements are served by a crossover rather than at a main intersection',
   );
 
   function setDemand(key, raw) {
@@ -204,27 +234,29 @@
   let animating = $state(false);
   const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
   const LOS_FLEET = { A: 1, B: 1, C: 1.1, D: 1.3, E: 1.7, F: 2.3 };
-  let vehiclePlan = $derived((() => {
-    if (!animating) return [];
-    const raw = [];
-    let total = 0;
-    for (const k of KEYS) {
-      const vol = volOf[k];
-      if (vol <= 0) continue;
-      const slow = LOS_SPEED[losOf[k]] ?? 1;
-      const crowd = LOS_FLEET[losOf[k]] ?? 1;
-      raw.push({ k, d: P[k], vol, dur: 10 / slow, crowd });
-      total += vol;
-    }
-    const items = [];
-    for (const it of raw) {
-      const n = Math.max(1, Math.min(6, Math.round((26 * it.vol * it.crowd) / (total || 1))));
-      for (let j = 0; j < n; j++) {
-        items.push({ id: it.k + j, key: it.k, d: it.d, dur: it.dur, begin: (-(j + 0.4 * (j % 2)) / n) * it.dur });
+  let vehiclePlan = $derived(
+    (() => {
+      if (!animating) return [];
+      const raw = [];
+      let total = 0;
+      for (const k of KEYS) {
+        const vol = volOf[k];
+        if (vol <= 0) continue;
+        const slow = LOS_SPEED[losOf[k]] ?? 1;
+        const crowd = LOS_FLEET[losOf[k]] ?? 1;
+        raw.push({ k, d: P[k], vol, dur: 10 / slow, crowd });
+        total += vol;
       }
-    }
-    return items;
-  })());
+      const items = [];
+      for (const it of raw) {
+        const n = Math.max(1, Math.min(6, Math.round((26 * it.vol * it.crowd) / (total || 1))));
+        for (let j = 0; j < n; j++) {
+          items.push({ id: it.k + j, key: it.k, d: it.d, dur: it.dur, begin: (-(j + 0.4 * (j % 2)) / n) * it.dur });
+        }
+      }
+      return items;
+    })(),
+  );
 
   // Signal heads. The two crossover signals stand on the median island between
   // the carriageways; the two main-intersection signals stand outside the curb
@@ -236,7 +268,8 @@
     { x: nbE + 22, y: minN - 26, title: 'East main intersection signal' },
   ]);
 
-  const CW = 116, CH = 24;
+  const CW = 116,
+    CH = 24;
   const clusterPos = {
     SB: { x: 6, y: 6 },
     WB: { x: W - CW - 6, y: 6 },
@@ -247,7 +280,6 @@
 
 <div class="rs-diagram">
   <svg viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label={ariaLabel}>
-
     <!-- ══ pavement (fills only) ══ -->
     <rect x={sbW} y="0" width={nbE - sbW} height={H} class="rs-pavement" />
     <rect x="0" y={minN} width={W} height={minS - minN} class="rs-pavement" />
@@ -367,15 +399,22 @@
     <!-- ══ on-diagram demand editors ══ -->
     {#each editable ? GROUPS : [] as g (g.key)}
       <foreignObject x={clusterPos[g.key].x} y={clusterPos[g.key].y} width={CW} height={CH}>
-        <div class="rs-cluster" xmlns="http://www.w3.org/1999/xhtml"
-             onmouseenter={() => (hovered = g.key)} onmouseleave={() => (hovered = null)}>
+        <div
+          class="rs-cluster"
+          xmlns="http://www.w3.org/1999/xhtml"
+          onmouseenter={() => (hovered = g.key)}
+          onmouseleave={() => (hovered = null)}
+        >
           <span class="rs-cluster-title"><span class="swatch {g.cls}"></span>{g.key}</span>
           {#each g.moves as k}
-            <input type="number" min="0"
-                   title="{k.toUpperCase()} demand (veh/h)"
-                   aria-label="{k.toUpperCase()} demand"
-                   value={volOf[k]}
-                   oninput={(e) => setDemand(k, e.currentTarget.value)} />
+            <input
+              type="number"
+              min="0"
+              title="{k.toUpperCase()} demand (veh/h)"
+              aria-label="{k.toUpperCase()} demand"
+              value={volOf[k]}
+              oninput={(e) => setDemand(k, e.currentTarget.value)}
+            />
           {/each}
         </div>
       </foreignObject>
@@ -383,8 +422,13 @@
   </svg>
 
   <div class="rs-legend">
-    <button type="button" class="rs-chip rs-animate" class:active={animating}
-            aria-pressed={animating} onclick={() => (animating = !animating)}>
+    <button
+      type="button"
+      class="rs-chip rs-animate"
+      class:active={animating}
+      aria-pressed={animating}
+      onclick={() => (animating = !animating)}
+    >
       {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
     </button>
     {#each GROUPS as g (g.key)}
@@ -402,7 +446,13 @@
       </button>
     {/each}
   </div>
-  <p class="rs-note">Major-street left turns are made at the mains, but they cross the median between the two signals, so their delay is booked at the far one. Minor-street left and through movements take the long way round: right onto the near carriageway, U-turn at the crossover, then back to the leg they wanted, which is where their extra distance travel time comes from. Paths sharing a lane are drawn slightly apart to stay readable, and both crossovers track the dimensioned distance. Animated traffic slows per movement LOS after a run. An illustration, not a simulation.</p>
+  <p class="rs-note">
+    Major-street left turns are made at the mains, but they cross the median between the two signals, so their delay is
+    booked at the far one. Minor-street left and through movements take the long way round: right onto the near
+    carriageway, U-turn at the crossover, then back to the leg they wanted, which is where their extra distance travel
+    time comes from. Paths sharing a lane are drawn slightly apart to stay readable, and both crossovers track the
+    dimensioned distance. Animated traffic slows per movement LOS after a run. An illustration, not a simulation.
+  </p>
 </div>
 
 <style>
@@ -412,41 +462,114 @@
     display: block;
     margin: 0 auto;
   }
-  .rs-pavement { fill: var(--diag-pavement); }
-  .rs-island { fill: var(--diag-wall); }
-  .rs-island-edge { stroke: var(--diag-wall-edge); stroke-width: 1; vector-effect: non-scaling-stroke; }
-  .rs-edge { stroke: var(--diag-edge); stroke-width: 1.5; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-  .rs-center { stroke: var(--diag-center); stroke-width: 1.25; vector-effect: non-scaling-stroke; }
-  .rs-lane-line { stroke: var(--diag-lane-line); stroke-width: 1.25; stroke-dasharray: 8 6; vector-effect: non-scaling-stroke; }
-  .rs-stop { stroke: var(--diag-lane-line); stroke-width: 3; vector-effect: non-scaling-stroke; }
-  .rs-signal rect { fill: var(--diag-wall); stroke: var(--diag-edge); stroke-width: 1; }
-  .rs-signal-r { fill: #dc2626; }
-  .rs-signal-y { fill: #eab308; }
-  .rs-signal-g { fill: #16a34a; }
-  .rs-dim { stroke: var(--diag-dim); stroke-width: 1; vector-effect: non-scaling-stroke; }
-  .rs-ext { stroke: var(--diag-dim); stroke-width: 0.8; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
-  .rs-compass polygon { fill: var(--diag-dim); }
+  .rs-pavement {
+    fill: var(--diag-pavement);
+  }
+  .rs-island {
+    fill: var(--diag-wall);
+  }
+  .rs-island-edge {
+    stroke: var(--diag-wall-edge);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  .rs-edge {
+    stroke: var(--diag-edge);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .rs-center {
+    stroke: var(--diag-center);
+    stroke-width: 1.25;
+    vector-effect: non-scaling-stroke;
+  }
+  .rs-lane-line {
+    stroke: var(--diag-lane-line);
+    stroke-width: 1.25;
+    stroke-dasharray: 8 6;
+    vector-effect: non-scaling-stroke;
+  }
+  .rs-stop {
+    stroke: var(--diag-lane-line);
+    stroke-width: 3;
+    vector-effect: non-scaling-stroke;
+  }
+  .rs-signal rect {
+    fill: var(--diag-wall);
+    stroke: var(--diag-edge);
+    stroke-width: 1;
+  }
+  .rs-signal-r {
+    fill: #dc2626;
+  }
+  .rs-signal-y {
+    fill: #eab308;
+  }
+  .rs-signal-g {
+    fill: #16a34a;
+  }
+  .rs-dim {
+    stroke: var(--diag-dim);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  .rs-ext {
+    stroke: var(--diag-dim);
+    stroke-width: 0.8;
+    stroke-dasharray: 3 3;
+    vector-effect: non-scaling-stroke;
+  }
+  .rs-compass polygon {
+    fill: var(--diag-dim);
+  }
 
   .rs-move {
     fill: none;
     stroke-width: 2.25;
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
-    transition: opacity 120ms ease, stroke-width 120ms ease;
+    transition:
+      opacity 120ms ease,
+      stroke-width 120ms ease;
     opacity: 0.78;
   }
-  .rs-move.dim { opacity: 0.07; }
-  .rs-move.active { stroke-width: 3.5; opacity: 1; }
+  .rs-move.dim {
+    opacity: 0.07;
+  }
+  .rs-move.active {
+    stroke-width: 3.5;
+    opacity: 1;
+  }
 
-  .rs-veh rect { stroke: rgba(15, 23, 42, 0.35); stroke-width: 0.6; }
-  .rs-veh { transition: opacity 120ms ease; }
-  .rs-veh.dim { opacity: 0.07; }
+  .rs-veh rect {
+    stroke: rgba(15, 23, 42, 0.35);
+    stroke-width: 0.6;
+  }
+  .rs-veh {
+    transition: opacity 120ms ease;
+  }
+  .rs-veh.dim {
+    opacity: 0.07;
+  }
 
-  .rs-label { font-size: 9px; fill: var(--text-muted); }
-  .rs-label.mid { text-anchor: middle; }
-  .rs-label.end { text-anchor: end; }
+  .rs-label {
+    font-size: 9px;
+    fill: var(--text-muted);
+  }
+  .rs-label.mid {
+    text-anchor: middle;
+  }
+  .rs-label.end {
+    text-anchor: end;
+  }
 
-  .rs-legend { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+  .rs-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+  }
   .rs-chip {
     display: inline-flex;
     align-items: center;
@@ -458,14 +581,36 @@
     background: transparent;
     cursor: default;
   }
-  .rs-chip.active { border-color: var(--diag-edge); }
-  .rs-animate { cursor: pointer; font-weight: 600; }
-  .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
-  .swatch.nb { background: #2563eb; }
-  .swatch.sb { background: #16a34a; }
-  .swatch.eb { background: #ea7317; }
-  .swatch.wb { background: #dc2626; }
-  .rs-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; }
+  .rs-chip.active {
+    border-color: var(--diag-edge);
+  }
+  .rs-animate {
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .swatch {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .swatch.nb {
+    background: #2563eb;
+  }
+  .swatch.sb {
+    background: #16a34a;
+  }
+  .swatch.eb {
+    background: #ea7317;
+  }
+  .swatch.wb {
+    background: #dc2626;
+  }
+  .rs-note {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.35rem;
+  }
 
   .rs-cluster {
     box-sizing: border-box;
@@ -484,7 +629,14 @@
     padding: 2px 3px;
     overflow: hidden;
   }
-  .rs-cluster-title { display: inline-flex; align-items: center; gap: 2px; font-size: 7px; font-weight: 600; flex: none; }
+  .rs-cluster-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 7px;
+    font-weight: 600;
+    flex: none;
+  }
   .rs-cluster input {
     box-sizing: border-box;
     width: 100%;
@@ -500,7 +652,16 @@
     text-align: center;
   }
   .rs-cluster input::-webkit-outer-spin-button,
-  .rs-cluster input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .rs-cluster input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
-  .rs-cluster .swatch { width: 6px; height: 6px; }
+  .rs-cluster input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .rs-cluster input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  .rs-cluster .swatch {
+    width: 6px;
+    height: 6px;
+  }
 </style>

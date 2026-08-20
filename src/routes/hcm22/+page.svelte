@@ -1,24 +1,20 @@
-<svelte:head>
-  <title>Roundabouts · HCM Calculator</title>
-</svelte:head>
-
 <script>
   import { preventDefault } from 'svelte/legacy';
 
-  import init, { WasmRoundabouts } from "HCM-middleware";
+  import init, { WasmRoundabouts } from 'HCM-middleware';
   import RoundaboutDiagram from '$lib/RoundaboutDiagram.svelte';
   import RoundaboutDiagram3D from '$lib/RoundaboutDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
   import { discussion } from './discussion.js';
   import Discussion from '$lib/Discussion.svelte';
-  import { onMount } from "svelte";
+  import { onMount } from 'svelte';
 
   let diagramMode = $state('2d');
 
   let ready = $state(false);
 
-  onMount(async() => {
+  onMount(async () => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
     ready = true;
   });
@@ -27,7 +23,7 @@
     { key: 'nb', label: 'Northbound (NB)', note: 'south leg' },
     { key: 'sb', label: 'Southbound (SB)', note: 'north leg' },
     { key: 'eb', label: 'Eastbound (EB)', note: 'west leg' },
-    { key: 'wb', label: 'Westbound (WB)', note: 'east leg' }
+    { key: 'wb', label: 'Westbound (WB)', note: 'east leg' },
   ];
 
   // Defaults follow HCM Chapter 33 Roundabout Example Problem 1, a four-leg
@@ -35,10 +31,58 @@
   // bypass, plus 50 p/h crossing the NB entry.
   function defaultEntries() {
     return {
-      nb: { u: 30, l: 105, t: 210, r: 50, hv: 2, entryLanes: 1, circLanes: 1, exitLanes: 1, bypass: 'none', laneAssignment: 'lt_tr', nped: 50 },
-      sb: { u: 20, l: 175, t: 95, r: 580, hv: 2, entryLanes: 1, circLanes: 1, exitLanes: 1, bypass: 'nonyielding', laneAssignment: 'lt_tr', nped: 0 },
-      eb: { u: 50, l: 190, t: 280, r: 85, hv: 2, entryLanes: 1, circLanes: 1, exitLanes: 1, bypass: 'none', laneAssignment: 'lt_tr', nped: 0 },
-      wb: { u: 20, l: 110, t: 395, r: 610, hv: 2, entryLanes: 1, circLanes: 1, exitLanes: 1, bypass: 'yielding', laneAssignment: 'lt_tr', nped: 0 }
+      nb: {
+        u: 30,
+        l: 105,
+        t: 210,
+        r: 50,
+        hv: 2,
+        entryLanes: 1,
+        circLanes: 1,
+        exitLanes: 1,
+        bypass: 'none',
+        laneAssignment: 'lt_tr',
+        nped: 50,
+      },
+      sb: {
+        u: 20,
+        l: 175,
+        t: 95,
+        r: 580,
+        hv: 2,
+        entryLanes: 1,
+        circLanes: 1,
+        exitLanes: 1,
+        bypass: 'nonyielding',
+        laneAssignment: 'lt_tr',
+        nped: 0,
+      },
+      eb: {
+        u: 50,
+        l: 190,
+        t: 280,
+        r: 85,
+        hv: 2,
+        entryLanes: 1,
+        circLanes: 1,
+        exitLanes: 1,
+        bypass: 'none',
+        laneAssignment: 'lt_tr',
+        nped: 0,
+      },
+      wb: {
+        u: 20,
+        l: 110,
+        t: 395,
+        r: 610,
+        hv: 2,
+        entryLanes: 1,
+        circLanes: 1,
+        exitLanes: 1,
+        bypass: 'yielding',
+        laneAssignment: 'lt_tr',
+        nped: 0,
+      },
     };
   }
 
@@ -51,9 +95,9 @@
   let errMessage = $state('');
 
   // Approach LOS map for the diagram's congestion-responsive animation.
-  let losByApproach = $derived(results
-    ? Object.fromEntries(results.approachRows.filter((a) => a.los).map((a) => [a.label, a.los]))
-    : {});
+  let losByApproach = $derived(
+    results ? Object.fromEntries(results.approachRows.filter((a) => a.los).map((a) => [a.label, a.los])) : {},
+  );
 
   function fmt(v, digits = 1) {
     return v === null || v === undefined ? '' : Number(v).toFixed(digits);
@@ -70,9 +114,15 @@
       const flat = (key) => {
         const e = entries[key];
         return new Float64Array([
-          Number(e.u), Number(e.l), Number(e.t), Number(e.r),
-          Number(e.hv), Number(e.entryLanes), Number(e.circLanes),
-          Number(e.exitLanes), Number(e.nped)
+          Number(e.u),
+          Number(e.l),
+          Number(e.t),
+          Number(e.r),
+          Number(e.hv),
+          Number(e.entryLanes),
+          Number(e.circLanes),
+          Number(e.exitLanes),
+          Number(e.nped),
         ]);
       };
 
@@ -90,7 +140,7 @@
         entries.eb.laneAssignment,
         entries.wb.laneAssignment,
         phf === '' || phf === null ? undefined : Number(phf),
-        Number(analysis_period)
+        Number(analysis_period),
       );
 
       r.analyze();
@@ -113,7 +163,7 @@
         laneRows,
         approachRows,
         intersectionDelay: res.intersection_delay,
-        intersectionLos: res.intersection_los
+        intersectionLos: res.intersection_los,
       };
       // Generated once, off the run that produced these numbers, and carried on the result so the
       // page and the printable report can never drift apart or restate a since-edited input.
@@ -140,11 +190,19 @@
         resultTable: {
           columns: ['Entry lane', 'Flow (veh/h)', 'Capacity (veh/h)', 'v/c', 'Delay (s/veh)', 'LOS', '95% queue (veh)'],
           rows: results.laneRows.map((l) => [
-            `${l.entry} ${l.label}`, fmt(l.flow_veh, 0), fmt(l.capacity_veh, 0), fmt(l.v_c_ratio, 2), fmt(l.control_delay), l.los ?? '', fmt(l.queue_95),
+            `${l.entry} ${l.label}`,
+            fmt(l.flow_veh, 0),
+            fmt(l.capacity_veh, 0),
+            fmt(l.v_c_ratio, 2),
+            fmt(l.control_delay),
+            l.los ?? '',
+            fmt(l.queue_95),
           ]),
         },
         summary: [
-          ...results.approachRows.filter((a) => a.delay != null).map((a) => ({ label: `Approach delay, ${a.label}`, value: `${fmt(a.delay)} s/veh (LOS ${a.los})` })),
+          ...results.approachRows
+            .filter((a) => a.delay != null)
+            .map((a) => ({ label: `Approach delay, ${a.label}`, value: `${fmt(a.delay)} s/veh (LOS ${a.los})` })),
           { label: 'Intersection delay (Equation 22-19)', value: `${fmt(results.intersectionDelay)} s/veh` },
           { label: 'Intersection LOS (Exhibit 22-8)', value: results.intersectionLos },
         ],
@@ -170,22 +228,29 @@
   }
 </script>
 
+<svelte:head>
+  <title>Roundabouts · HCM Calculator</title>
+</svelte:head>
+
 <div class="hcm-page">
   <header class="page-header">
     <span class="badge badge-outline page-badge">HCM Chapter 22</span>
     <h1 class="page-title">Roundabouts</h1>
     <p class="page-sub">
-      Estimate entry capacities, control delay, queues, and level of service
-      for each entry lane and for the roundabout as a whole.
+      Estimate entry capacities, control delay, queues, and level of service for each entry lane and for the roundabout
+      as a whole.
     </p>
   </header>
 
   <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">
     <span>
-      The compute engine reproduces the published HCM worked examples for this
-      chapter, including right-turn bypass lanes and the pedestrian entry
-      adjustment. Verify results independently before relying on them in
-      engineering work, and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      The compute engine reproduces the published HCM worked examples for this chapter, including right-turn bypass
+      lanes and the pedestrian entry adjustment. Verify results independently before relying on them in engineering
+      work, and please <a
+        href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues"
+        target="_blank"
+        rel="noreferrer">report discrepancies on GitHub</a
+      >.
     </span>
   </div>
 
@@ -200,7 +265,10 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Roundabout</h2>
-          <p class="panel-sub">Circulation is counterclockwise; entries yield at the dashed line. Hover the legend to highlight an entry's movements, and in the 2D view the movement volumes can be edited directly on the diagram.</p>
+          <p class="panel-sub">
+            Circulation is counterclockwise; entries yield at the dashed line. Hover the legend to highlight an entry's
+            movements, and in the 2D view the movement volumes can be edited directly on the diagram.
+          </p>
         </div>
         <div class="panel-actions">
           <ViewToggle bind:mode={diagramMode} label="Roundabout view mode" />
@@ -225,7 +293,14 @@
           <div class="param-field">
             <label for="U_{leg.key}_input">U-Turn Volume</label>
             <div class="cell-field">
-              <input id="U_{leg.key}_input" type="number" min="0" class="input input-bordered input-sm" bind:value={entries[leg.key].u} required />
+              <input
+                id="U_{leg.key}_input"
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={entries[leg.key].u}
+                required
+              />
               <span class="unit">veh/h</span>
             </div>
           </div>
@@ -233,7 +308,14 @@
           <div class="param-field">
             <label for="L_{leg.key}_input">Left-Turn Volume</label>
             <div class="cell-field">
-              <input id="L_{leg.key}_input" type="number" min="0" class="input input-bordered input-sm" bind:value={entries[leg.key].l} required />
+              <input
+                id="L_{leg.key}_input"
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={entries[leg.key].l}
+                required
+              />
               <span class="unit">veh/h</span>
             </div>
           </div>
@@ -241,7 +323,14 @@
           <div class="param-field">
             <label for="T_{leg.key}_input">Through Volume</label>
             <div class="cell-field">
-              <input id="T_{leg.key}_input" type="number" min="0" class="input input-bordered input-sm" bind:value={entries[leg.key].t} required />
+              <input
+                id="T_{leg.key}_input"
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={entries[leg.key].t}
+                required
+              />
               <span class="unit">veh/h</span>
             </div>
           </div>
@@ -249,7 +338,14 @@
           <div class="param-field">
             <label for="R_{leg.key}_input">Right-Turn Volume</label>
             <div class="cell-field">
-              <input id="R_{leg.key}_input" type="number" min="0" class="input input-bordered input-sm" bind:value={entries[leg.key].r} required />
+              <input
+                id="R_{leg.key}_input"
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={entries[leg.key].r}
+                required
+              />
               <span class="unit">veh/h</span>
             </div>
           </div>
@@ -257,14 +353,28 @@
           <div class="param-field">
             <label for="HV_{leg.key}_input">Heavy Vehicles</label>
             <div class="cell-field">
-              <input id="HV_{leg.key}_input" type="number" step="0.01" min="0" max="100" class="input input-bordered input-sm" bind:value={entries[leg.key].hv} placeholder="2" required />
+              <input
+                id="HV_{leg.key}_input"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                class="input input-bordered input-sm"
+                bind:value={entries[leg.key].hv}
+                placeholder="2"
+                required
+              />
               <span class="unit">%</span>
             </div>
           </div>
 
           <div class="param-field">
             <label for="EL_{leg.key}_input">Entry Lanes</label>
-            <select id="EL_{leg.key}_input" class="select select-bordered select-sm" bind:value={entries[leg.key].entryLanes}>
+            <select
+              id="EL_{leg.key}_input"
+              class="select select-bordered select-sm"
+              bind:value={entries[leg.key].entryLanes}
+            >
               <option value={1}>1</option>
               <option value={2}>2</option>
             </select>
@@ -272,7 +382,11 @@
 
           <div class="param-field">
             <label for="CL_{leg.key}_input">Circulating Lanes</label>
-            <select id="CL_{leg.key}_input" class="select select-bordered select-sm" bind:value={entries[leg.key].circLanes}>
+            <select
+              id="CL_{leg.key}_input"
+              class="select select-bordered select-sm"
+              bind:value={entries[leg.key].circLanes}
+            >
               <option value={1}>1</option>
               <option value={2}>2</option>
             </select>
@@ -280,7 +394,11 @@
 
           <div class="param-field">
             <label for="XL_{leg.key}_input">Exiting Lanes</label>
-            <select id="XL_{leg.key}_input" class="select select-bordered select-sm" bind:value={entries[leg.key].exitLanes}>
+            <select
+              id="XL_{leg.key}_input"
+              class="select select-bordered select-sm"
+              bind:value={entries[leg.key].exitLanes}
+            >
               <option value={1}>1</option>
               <option value={2}>2</option>
             </select>
@@ -288,7 +406,11 @@
 
           <div class="param-field">
             <label for="BP_{leg.key}_input">Right-Turn Bypass</label>
-            <select id="BP_{leg.key}_input" class="select select-bordered select-sm" bind:value={entries[leg.key].bypass}>
+            <select
+              id="BP_{leg.key}_input"
+              class="select select-bordered select-sm"
+              bind:value={entries[leg.key].bypass}
+            >
               <option value="none">None</option>
               <option value="yielding">Yielding</option>
               <option value="nonyielding">Nonyielding</option>
@@ -297,7 +419,11 @@
 
           <div class="param-field">
             <label for="LA_{leg.key}_input">Lane Assignment</label>
-            <select id="LA_{leg.key}_input" class="select select-bordered select-sm" bind:value={entries[leg.key].laneAssignment}>
+            <select
+              id="LA_{leg.key}_input"
+              class="select select-bordered select-sm"
+              bind:value={entries[leg.key].laneAssignment}
+            >
               <option value="lt_tr">LT, TR (shared)</option>
               <option value="l_tr">L, TR</option>
               <option value="lt_r">LT, R</option>
@@ -310,7 +436,15 @@
           <div class="param-field">
             <label for="PED_{leg.key}_input">Conflicting Pedestrians</label>
             <div class="cell-field">
-              <input id="PED_{leg.key}_input" type="number" min="0" class="input input-bordered input-sm" bind:value={entries[leg.key].nped} placeholder="0" required />
+              <input
+                id="PED_{leg.key}_input"
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={entries[leg.key].nped}
+                placeholder="0"
+                required
+              />
               <span class="unit">p/h</span>
             </div>
           </div>
@@ -330,7 +464,16 @@
         <div class="param-field">
           <label for="PHF_input">Peak Hour Factor</label>
           <div class="cell-field">
-            <input id="PHF_input" type="number" step="0.01" min="0.25" max="1" class="input input-bordered input-sm" bind:value={phf} placeholder="0.94" />
+            <input
+              id="PHF_input"
+              type="number"
+              step="0.01"
+              min="0.25"
+              max="1"
+              class="input input-bordered input-sm"
+              bind:value={phf}
+              placeholder="0.94"
+            />
           </div>
           <p class="param-hint">Leave blank if the demand values are already peak 15-min flow rates.</p>
         </div>
@@ -338,7 +481,17 @@
         <div class="param-field">
           <label for="TP_input">Analysis Period</label>
           <div class="cell-field">
-            <input id="TP_input" type="number" step="0.05" min="0.05" max="1" class="input input-bordered input-sm" bind:value={analysis_period} placeholder="0.25" required />
+            <input
+              id="TP_input"
+              type="number"
+              step="0.05"
+              min="0.05"
+              max="1"
+              class="input input-bordered input-sm"
+              bind:value={analysis_period}
+              placeholder="0.25"
+              required
+            />
             <span class="unit">h</span>
           </div>
         </div>

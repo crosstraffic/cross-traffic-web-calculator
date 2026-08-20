@@ -19,15 +19,15 @@ export function discussion(results, inputs) {
     out.push(
       earned === results.los
         ? positionSentence('pedestrian_space', results.pedestrian_space, { digits: 0, label: 'Pedestrian space' })
-        : `Pedestrian space of ${n(results.pedestrian_space, 0)} ft²/p gives LOS ${results.los}.`
+        : `Pedestrian space of ${n(results.pedestrian_space, 0)} ft²/p gives LOS ${results.los}.`,
     );
     out.push(
-      `The ${totalWidth} ft walkway loses ${objectWidth} ft to fixed objects and shy distance, leaving an effective width of ${n(results.effective_width, 1)} ft, and the unit flow rate of ${n(results.unit_flow_rate, 2)} p/ft/min is taken over that width rather than the built one.`
+      `The ${totalWidth} ft walkway loses ${objectWidth} ft to fixed objects and shy distance, leaving an effective width of ${n(results.effective_width, 1)} ft, and the unit flow rate of ${n(results.unit_flow_rate, 2)} p/ft/min is taken over that width rather than the built one.`,
     );
     out.push(
       flowType === 'platoon'
         ? 'The platooned-flow criteria were applied, which read the same space against tighter bands because pedestrians arriving in groups need more room for the same comfort.'
-        : 'Random arrivals were assumed, so the average space above is read against the Exhibit 24-1 criteria rather than the tighter platooned ones.'
+        : 'Random arrivals were assumed, so the average space above is read against the Exhibit 24-1 criteria rather than the tighter platooned ones.',
     );
     return out.filter(Boolean);
   }
@@ -39,7 +39,7 @@ export function discussion(results, inputs) {
       `That total is ${n(results.passing_events, 0)} passings and ${n(results.meeting_events, 0)} meetings per hour, and ${results.passing_events >= results.meeting_events ? 'passings from behind dominate' : 'meetings from the opposing direction dominate'} what a pedestrian on this path experiences.`,
       oneWay
         ? 'The path is one-way, so opposing bicycle traffic contributes nothing and every event is an overtaking.'
-        : 'The path carries bicycles in both directions, so the opposing stream produces meetings the same-direction stream cannot.'
+        : 'The path carries bicycles in both directions, so the opposing stream produces meetings the same-direction stream cannot.',
     ];
   }
 
@@ -49,13 +49,13 @@ export function discussion(results, inputs) {
   out.push(
     earned === results.los
       ? positionSentence('blos_score_path', results.blos_score, { digits: 2, label: 'BLOS score' })
-      : `A BLOS score of ${n(results.blos_score, 2)} gives LOS ${results.los} against the Exhibit 24-5 bands, on a scale where a higher score is better.`
+      : `A BLOS score of ${n(results.blos_score, 2)} gives LOS ${results.los} against the Exhibit 24-5 bands, on a scale where a higher score is better.`,
   );
   out.push(
-    `The score comes from ${n(results.active_passings_per_minute, 2)} active passings and ${n(results.meetings_per_minute, 2)} meetings per minute over ${segmentLength} mi, of which ${n(results.delayed_passings_per_minute, 2)} per minute are delayed.`
+    `The score comes from ${n(results.active_passings_per_minute, 2)} active passings and ${n(results.meetings_per_minute, 2)} meetings per minute over ${segmentLength} mi, of which ${n(results.delayed_passings_per_minute, 2)} per minute are delayed.`,
   );
   out.push(
-    `The ${pathWidth} ft path works out to ${results.effective_lanes} effective lane${results.effective_lanes === 1 ? '' : 's'}${centerline ? ' with a centerline' : ' without a centerline'}, and that lane count is what sets the ${n(results.probability_delayed_passing * 100, 1)}% chance a passing is delayed.`
+    `The ${pathWidth} ft path works out to ${results.effective_lanes} effective lane${results.effective_lanes === 1 ? '' : 's'}${centerline ? ' with a centerline' : ' without a centerline'}, and that lane count is what sets the ${n(results.probability_delayed_passing * 100, 1)}% chance a passing is delayed.`,
   );
   return out.filter(Boolean);
 }

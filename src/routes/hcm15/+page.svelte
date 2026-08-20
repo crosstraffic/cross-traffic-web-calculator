@@ -1,11 +1,7 @@
-<svelte:head>
-  <title>Two-Lane Highways · HCM Calculator</title>
-</svelte:head>
-
 <script>
   import { preventDefault } from 'svelte/legacy';
 
-  import init, { WasmSegment, WasmSubSegment, WasmTwoLaneHighways } from "HCM-middleware";
+  import init, { WasmSegment, WasmSubSegment, WasmTwoLaneHighways } from 'HCM-middleware';
   import RoadDiagram from '$lib/RoadDiagram.svelte';
   import TwoLaneStrip from '$lib/TwoLaneStrip.svelte';
   import TwoLaneFacility3D from '$lib/TwoLaneFacility3D.svelte';
@@ -15,11 +11,11 @@
   import Discussion from '$lib/Discussion.svelte';
   import OpenInBuilder from '$lib/OpenInBuilder.svelte';
   import { twoLaneHandoff } from '$lib/builder/handoff.js';
-  import { onMount } from "svelte";
+  import { onMount } from 'svelte';
 
   let ready = $state(false);
 
-  onMount(async() => {
+  onMount(async () => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
     ready = true;
   });
@@ -114,10 +110,10 @@
       fillInJsonValue(json);
       hasError = false;
     } catch (err) {
-      console.error("Error reading JSON file:", err);
+      console.error('Error reading JSON file:', err);
       json = null;
       hasError = true;
-      errMessage = "Invalid JSON file. Please upload a valid file.";
+      errMessage = 'Invalid JSON file. Please upload a valid file.';
     }
   }
 
@@ -129,11 +125,11 @@
         try {
           resolve(JSON.parse(reader.result));
         } catch (err) {
-          reject(new Error("Invalid JSON structure."));
+          reject(new Error('Invalid JSON structure.'));
         }
       };
 
-      reader.onerror = () => reject(new Error("File reading error."));
+      reader.onerror = () => reject(new Error('File reading error.'));
       reader.readAsText(file);
     });
   }
@@ -143,7 +139,7 @@
     shoulder_width = json.shoulder_width;
     apd = json.apd;
     pmhvfl = json.pmhvfl;
-    const passTypes = ["Passing Constrained", "Passing Zone", "Passing Lane"];
+    const passTypes = ['Passing Constrained', 'Passing Zone', 'Passing Lane'];
 
     localRows = json.segments.map((segment, index) => ({
       seg_num: index + 1,
@@ -160,7 +156,7 @@
       vertical_class: String(segment.vertical_class),
       phf: segment.phf,
       phv: segment.phv,
-      passing_type: passTypes[segment.passing_type] ?? "",
+      passing_type: passTypes[segment.passing_type] ?? '',
       // The library's SubSegment schema names these design_rad and sup_ele
       // (see tests/ExampleCases/hcm/TwoLaneHighways/case2.json); this page's
       // own older exports wrote design_radius and superelevation, so both
@@ -184,7 +180,7 @@
       pmhvfl,
       l_de: 0.0,
       segments: localRows.map((row) => ({
-        passing_type: ["Passing Constrained", "Passing Zone", "Passing Lane"].indexOf(row.passing_type),
+        passing_type: ['Passing Constrained', 'Passing Zone', 'Passing Lane'].indexOf(row.passing_type),
         length: row.seg_length,
         grade: row.seg_grade,
         spl: row.seg_spl,
@@ -252,29 +248,50 @@
         // reaches the engine the same way it always has rather than as a
         // plausible-looking index.
         let passing_type;
-        if (row.passing_type === "Passing Constrained") passing_type = 0;
-        else if (row.passing_type === "Passing Zone") passing_type = 1;
-        else if (row.passing_type === "Passing Lane") passing_type = 2;
+        if (row.passing_type === 'Passing Constrained') passing_type = 0;
+        else if (row.passing_type === 'Passing Zone') passing_type = 1;
+        else if (row.passing_type === 'Passing Lane') passing_type = 2;
 
         // The subsegment constructor order is (length, avg_speed, design_rad,
         // central_angle, hor_class, sup_ele), which is NOT the core
         // SubSegment::new order. Lengths here are feet.
-        const wasmSubSegment = (row.is_hc && row.subrows.length > 0)
-          ? row.subrows.map((subrow) => new WasmSubSegment(
-              parseFloat(String(subrow.subseg_length)),
-              0,
-              parseFloat(String(subrow.design_radius)),
-              0,
-              0,
-              parseFloat(String(subrow.superelevation))
-            ))
-          : [new WasmSubSegment()];
+        const wasmSubSegment =
+          row.is_hc && row.subrows.length > 0
+            ? row.subrows.map(
+                (subrow) =>
+                  new WasmSubSegment(
+                    parseFloat(String(subrow.subseg_length)),
+                    0,
+                    parseFloat(String(subrow.design_radius)),
+                    0,
+                    0,
+                    parseFloat(String(subrow.superelevation)),
+                  ),
+              )
+            : [new WasmSubSegment()];
 
         // spl is the POSTED speed limit, not the free-flow speed.
         return new WasmSegment(
-          parseInt(passing_type), row.seg_length, row.seg_grade, row.seg_spl, row.is_hc,
-          row.vi, row.vo, 0.0, 0.0, 0, 0.0, 0.0, row.vertical_class, wasmSubSegment,
-          row.phf, row.phv, 0.0, 0.0, 0.0, 0
+          parseInt(passing_type),
+          row.seg_length,
+          row.seg_grade,
+          row.seg_spl,
+          row.is_hc,
+          row.vi,
+          row.vo,
+          0.0,
+          0.0,
+          0,
+          0.0,
+          0.0,
+          row.vertical_class,
+          wasmSubSegment,
+          row.phf,
+          row.phv,
+          0.0,
+          0.0,
+          0.0,
+          0,
         );
       });
 
@@ -388,23 +405,31 @@
     } catch (err) {
       console.error('Chapter 15 analysis failed:', err);
       hasError = true;
-      errMessage = typeof err === 'string'
-        ? err
-        : (err && err.message) || 'The analysis could not be completed with the given inputs. Check the values and try again.';
+      errMessage =
+        typeof err === 'string'
+          ? err
+          : (err && err.message) ||
+            'The analysis could not be completed with the given inputs. Check the values and try again.';
     }
   }
 </script>
+
+<svelte:head>
+  <title>Two-Lane Highways · HCM Calculator</title>
+</svelte:head>
 
 <div class="hcm-page">
   <header class="page-header">
     <span class="badge badge-outline page-badge">HCM Chapter 15</span>
     <h1 class="page-title">Two-Lane Highways</h1>
     <p class="page-sub">
-      Estimate free-flow speed, follower density, average speed, and level of
-      service for two-lane highway facilities, segment by segment.
+      Estimate free-flow speed, follower density, average speed, and level of service for two-lane highway facilities,
+      segment by segment.
     </p>
-    <OpenInBuilder build={handoff}
-      note="Takes this form to the facility builder as a Chapter 15 fixture. That schema states the passing type, the grade and its class, and the subsegments a curve produced, so the builder recovers them as placed features." />
+    <OpenInBuilder
+      build={handoff}
+      note="Takes this form to the facility builder as a Chapter 15 fixture. That schema states the passing type, the grade and its class, and the subsegments a curve produced, so the builder recovers them as placed features."
+    />
   </header>
 
   {#if hasError}
@@ -491,7 +516,8 @@
                       class="input input-bordered input-sm seg_length"
                       pattern="[+]?([0-9]|[0-9]*([.][0-9][0-9]*)|[1-9]|[1-9][0-9])$"
                       autocomplete="off"
-                      required />
+                      required
+                    />
                     <span class="unit">mi</span>
                   </div>
                 </td>
@@ -506,7 +532,8 @@
                       class="input input-bordered input-sm seg_grade"
                       pattern="[+\-]?([0-9]|[0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
                       autocomplete="off"
-                      required />
+                      required
+                    />
                     <span class="unit">%</span>
                   </div>
                 </td>
@@ -521,7 +548,8 @@
                       class="input input-bordered input-sm seg_spl"
                       pattern="[+]?([1-9]|[1-9][0-9]|[1-9][0-9][0-9])$"
                       autocomplete="off"
-                      required />
+                      required
+                    />
                     <span class="unit">mph</span>
                   </div>
                 </td>
@@ -545,7 +573,8 @@
                       class="input input-bordered input-sm vi_input"
                       pattern="[+]?([0-9]*|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
                       autocomplete="off"
-                      required />
+                      required
+                    />
                     <span class="unit">veh/h</span>
                   </div>
                 </td>
@@ -560,12 +589,19 @@
                       class="input input-bordered input-sm vo_input"
                       pattern="[+]?([0-9]*|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
                       autocomplete="off"
-                      required />
+                      required
+                    />
                     <span class="unit">veh/h</span>
                   </div>
                 </td>
                 <td>
-                  <select class="select select-bordered select-sm" id="vc_select{row.seg_num}" name="ver_cls" bind:value={localRows[i].vertical_class} required>
+                  <select
+                    class="select select-bordered select-sm"
+                    id="vc_select{row.seg_num}"
+                    name="ver_cls"
+                    bind:value={localRows[i].vertical_class}
+                    required
+                  >
                     <option>1</option>
                     <option>2</option>
                     <option>3</option>
@@ -583,7 +619,8 @@
                       bind:value={localRows[i].phf}
                       pattern="[+]?([0-9]*([.][0-9]*))$"
                       autocomplete="off"
-                      required />
+                      required
+                    />
                   </div>
                 </td>
                 <td>
@@ -596,7 +633,8 @@
                       bind:value={localRows[i].phv}
                       pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9])$"
                       autocomplete="off"
-                      required />
+                      required
+                    />
                     <span class="unit">%</span>
                   </div>
                 </td>
@@ -690,8 +728,12 @@
               <div class="hc-card-head">
                 <h3>Segment {row.seg_num} · Horizontal Curves</h3>
                 <div class="flex gap-2">
-                  <button class="btn btn-outline btn-sm" onclick={() => addSubSegment(row.seg_num)} type="button">Add</button>
-                  <button class="btn btn-ghost btn-sm" onclick={() => removeSubSegment(row.seg_num)} type="button">Remove</button>
+                  <button class="btn btn-outline btn-sm" onclick={() => addSubSegment(row.seg_num)} type="button"
+                    >Add</button
+                  >
+                  <button class="btn btn-ghost btn-sm" onclick={() => removeSubSegment(row.seg_num)} type="button"
+                    >Remove</button
+                  >
                 </div>
               </div>
 
@@ -718,7 +760,8 @@
                             class="subseg_len{subrow.subseg_num} input input-bordered input-sm"
                             pattern="[+]?([0-9]*([.][0-9]*)|[1-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
                             bind:value={localRows[i].subrows[si].subseg_length}
-                            autocomplete="off" />
+                            autocomplete="off"
+                          />
                           <!-- feet, unlike the segment length above -->
                           <span class="unit">ft</span>
                         </div>
@@ -732,7 +775,8 @@
                             class="design_radius{subrow.subseg_num} input input-bordered input-sm"
                             pattern="[+]?([0-9]*([.][0-9]*)|[0-9]|[1-9][0-9]|[1-9][0-9][0-9]|[1-9][0-9][0-9][0-9])$"
                             bind:value={localRows[i].subrows[si].design_radius}
-                            autocomplete="off" />
+                            autocomplete="off"
+                          />
                           <span class="unit">ft</span>
                         </div>
                       </td>
@@ -745,7 +789,8 @@
                             class="superelevation{subrow.subseg_num} input input-bordered input-sm"
                             pattern="[+\-]?([0-9]*([.][0-9]*)|[0-9]|[1-9][0-9])$"
                             bind:value={localRows[i].subrows[si].superelevation}
-                            autocomplete="off" />
+                            autocomplete="off"
+                          />
                           <span class="unit">%</span>
                         </div>
                       </td>
@@ -789,8 +834,13 @@
 
       <div class="facility-overview" class:flat={facilityMode === '2d'}>
         {#if facilityMode === '3d'}
-          <TwoLaneFacility3D rows={localRows} laneWidth={lane_width} {results}
-                             selected={selectedSeg} onselect={selectSeg} />
+          <TwoLaneFacility3D
+            rows={localRows}
+            laneWidth={lane_width}
+            {results}
+            selected={selectedSeg}
+            onselect={selectSeg}
+          />
         {:else}
           <TwoLaneStrip rows={localRows} {results} selected={selectedSeg} onselect={selectSeg} />
         {/if}
@@ -822,21 +872,36 @@
                 <label class="ff">
                   <span>Length</span>
                   <span class="cell-field">
-                    <input class="input input-bordered input-sm" bind:value={localRows[i].seg_length} placeholder="0.0" autocomplete="off" />
+                    <input
+                      class="input input-bordered input-sm"
+                      bind:value={localRows[i].seg_length}
+                      placeholder="0.0"
+                      autocomplete="off"
+                    />
                     <span class="unit">mi</span>
                   </span>
                 </label>
                 <label class="ff">
                   <span>Grade</span>
                   <span class="cell-field">
-                    <input class="input input-bordered input-sm" bind:value={localRows[i].seg_grade} placeholder="0" autocomplete="off" />
+                    <input
+                      class="input input-bordered input-sm"
+                      bind:value={localRows[i].seg_grade}
+                      placeholder="0"
+                      autocomplete="off"
+                    />
                     <span class="unit">%</span>
                   </span>
                 </label>
                 <label class="ff">
                   <span>Posted Speed</span>
                   <span class="cell-field">
-                    <input class="input input-bordered input-sm" bind:value={localRows[i].seg_spl} placeholder="0" autocomplete="off" />
+                    <input
+                      class="input input-bordered input-sm"
+                      bind:value={localRows[i].seg_spl}
+                      placeholder="0"
+                      autocomplete="off"
+                    />
                     <span class="unit">mph</span>
                   </span>
                 </label>
@@ -849,27 +914,47 @@
                 <label class="ff">
                   <span>Demand Vol.</span>
                   <span class="cell-field">
-                    <input class="input input-bordered input-sm" bind:value={localRows[i].vi} placeholder="0" autocomplete="off" />
+                    <input
+                      class="input input-bordered input-sm"
+                      bind:value={localRows[i].vi}
+                      placeholder="0"
+                      autocomplete="off"
+                    />
                     <span class="unit">veh/h</span>
                   </span>
                 </label>
                 <label class="ff">
                   <span>Opposing Vol.</span>
                   <span class="cell-field">
-                    <input class="input input-bordered input-sm" bind:value={localRows[i].vo} placeholder="0" autocomplete="off" />
+                    <input
+                      class="input input-bordered input-sm"
+                      bind:value={localRows[i].vo}
+                      placeholder="0"
+                      autocomplete="off"
+                    />
                     <span class="unit">veh/h</span>
                   </span>
                 </label>
                 <label class="ff">
                   <span>PHF</span>
                   <span class="cell-field">
-                    <input class="input input-bordered input-sm" bind:value={localRows[i].phf} placeholder="0.95" autocomplete="off" />
+                    <input
+                      class="input input-bordered input-sm"
+                      bind:value={localRows[i].phf}
+                      placeholder="0.95"
+                      autocomplete="off"
+                    />
                   </span>
                 </label>
                 <label class="ff">
                   <span>% Heavy Veh.</span>
                   <span class="cell-field">
-                    <input class="input input-bordered input-sm" bind:value={localRows[i].phv} placeholder="5" autocomplete="off" />
+                    <input
+                      class="input input-bordered input-sm"
+                      bind:value={localRows[i].phv}
+                      placeholder="5"
+                      autocomplete="off"
+                    />
                     <span class="unit">%</span>
                   </span>
                 </label>
@@ -929,7 +1014,7 @@
             {/each}
           </tr>
           <tr>
-            <th id="pf">Percent followers in the <br> analysis direction (%): </th>
+            <th id="pf">Percent followers in the <br /> analysis direction (%): </th>
             {#each localRows as row, i}
               <td id="pf{row.seg_num}">{results && results.segs[i] ? results.segs[i].pf : ''}</td>
             {/each}

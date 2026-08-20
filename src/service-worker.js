@@ -68,7 +68,7 @@ self.addEventListener('install', (event) => {
         await cache.addAll(ASSETS);
         await precacheRoutes(cache);
       })
-      .then(() => self.skipWaiting())
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -77,7 +77,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then(async (keys) => {
       for (const key of keys) if (key !== CACHE) await caches.delete(key);
       await self.clients.claim();
-    })
+    }),
   );
 });
 
@@ -89,9 +89,7 @@ self.addEventListener('fetch', (event) => {
 
   // Immutable build assets and static files: cache-first.
   if (ASSETS.includes(url.pathname)) {
-    event.respondWith(
-      caches.match(url.pathname).then((hit) => hit || fetch(request))
-    );
+    event.respondWith(caches.match(url.pathname).then((hit) => hit || fetch(request)));
     return;
   }
 
@@ -116,6 +114,6 @@ self.addEventListener('fetch', (event) => {
           (await caches.match(request, { ignoreVary: true })) ||
           (await caches.match(url.pathname, { ignoreVary: true }));
         return hit || caches.match(SHELL, { ignoreVary: true });
-      })
+      }),
   );
 });

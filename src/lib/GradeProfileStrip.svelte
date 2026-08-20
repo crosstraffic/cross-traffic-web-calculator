@@ -17,8 +17,8 @@
   const H = 150;
   const PAD_X = 26;
   const TOP = 30;
-  const BAND = 9;        // pavement thickness, px
-  const RISE = 62;       // px available to the elevation range
+  const BAND = 9; // pavement thickness, px
+  const RISE = 62; // px available to the elevation range
 
   const lengthOf = (s) => {
     const n = Number(s.length);
@@ -68,8 +68,10 @@
     const a = nodes[governing];
     const b = nodes[governing + 1];
     if (!a || !b) return '';
-    return `M ${x(a.mi).toFixed(2)},${y(a.ft).toFixed(2)} L ${x(b.mi).toFixed(2)},${y(b.ft).toFixed(2)} `
-      + `L ${x(b.mi).toFixed(2)},${(y(b.ft) + BAND).toFixed(2)} L ${x(a.mi).toFixed(2)},${(y(a.ft) + BAND).toFixed(2)} Z`;
+    return (
+      `M ${x(a.mi).toFixed(2)},${y(a.ft).toFixed(2)} L ${x(b.mi).toFixed(2)},${y(b.ft).toFixed(2)} ` +
+      `L ${x(b.mi).toFixed(2)},${(y(b.ft) + BAND).toFixed(2)} L ${x(a.mi).toFixed(2)},${(y(a.ft) + BAND).toFixed(2)} Z`
+    );
   });
 
   // Label a segment only where its own width can hold the text.
@@ -86,14 +88,14 @@
         length: lengthOf(s),
         room: w > 44,
       };
-    })
+    }),
   );
 
   let exaggeration = $derived.by(() => {
     const span = maxFt - minFt;
     if (span <= 0 || totalMi <= 0) return 0;
     const runPx = W - 2 * PAD_X;
-    return (RISE / span) / (runPx / (totalMi * 5280));
+    return RISE / span / (runPx / (totalMi * 5280));
   });
 </script>
 
@@ -123,7 +125,8 @@
       <!-- Direction of travel, pointing into the first grade: the segment order is an input,
            not a drawing choice, so the profile has to say which end the vehicle enters. -->
       <polygon
-        points="{PAD_X - 20},{y(nodes[0].ft) + BAND / 2 - 4} {PAD_X - 20},{y(nodes[0].ft) + BAND / 2 + 4} {PAD_X - 8},{y(nodes[0].ft) + BAND / 2}"
+        points="{PAD_X - 20},{y(nodes[0].ft) + BAND / 2 - 4} {PAD_X - 20},{y(nodes[0].ft) + BAND / 2 + 4} {PAD_X -
+          8},{y(nodes[0].ft) + BAND / 2}"
         class="gp-arrow"
       />
 
@@ -133,7 +136,9 @@
           <text x={l.mid} y={l.yMid + BAND + 16} class="gp-len" text-anchor="middle">{l.length} mi</text>
         {/if}
         {#if l.i === governing}
-          <text x={l.mid} y={l.yMid + BAND + (l.room ? 28 : 16)} class="gp-gov-label" text-anchor="middle">governs capacity</text>
+          <text x={l.mid} y={l.yMid + BAND + (l.room ? 28 : 16)} class="gp-gov-label" text-anchor="middle"
+            >governs capacity</text
+          >
         {/if}
       {/each}
 
@@ -149,16 +154,58 @@
 </div>
 
 <style>
-  .grade-profile svg { width: 100%; height: auto; display: block; }
-  .gp-pavement { fill: var(--diag-pavement); }
-  .gp-governing { fill: color-mix(in srgb, var(--diag-center) 45%, var(--diag-pavement-alt)); }
-  .gp-governing-edge { stroke: var(--diag-center); stroke-width: 2; vector-effect: non-scaling-stroke; }
-  .gp-edge { stroke: var(--diag-edge); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
-  .gp-edge-soft { opacity: 0.5; }
-  .gp-tick { stroke: var(--diag-edge); stroke-width: 1; opacity: 0.45; vector-effect: non-scaling-stroke; }
-  .gp-arrow { fill: var(--diag-edge); opacity: 0.7; }
-  .gp-grade { font-size: 11px; font-weight: 600; fill: var(--diag-edge); }
-  .gp-len { font-size: 9px; fill: var(--diag-dim); }
-  .gp-gov-label { font-size: 9px; font-weight: 600; fill: var(--diag-center); }
-  .gp-caption { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; text-align: center; }
+  .grade-profile svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .gp-pavement {
+    fill: var(--diag-pavement);
+  }
+  .gp-governing {
+    fill: color-mix(in srgb, var(--diag-center) 45%, var(--diag-pavement-alt));
+  }
+  .gp-governing-edge {
+    stroke: var(--diag-center);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+  }
+  .gp-edge {
+    stroke: var(--diag-edge);
+    stroke-width: 1.6;
+    vector-effect: non-scaling-stroke;
+  }
+  .gp-edge-soft {
+    opacity: 0.5;
+  }
+  .gp-tick {
+    stroke: var(--diag-edge);
+    stroke-width: 1;
+    opacity: 0.45;
+    vector-effect: non-scaling-stroke;
+  }
+  .gp-arrow {
+    fill: var(--diag-edge);
+    opacity: 0.7;
+  }
+  .gp-grade {
+    font-size: 11px;
+    font-weight: 600;
+    fill: var(--diag-edge);
+  }
+  .gp-len {
+    font-size: 9px;
+    fill: var(--diag-dim);
+  }
+  .gp-gov-label {
+    font-size: 9px;
+    font-weight: 600;
+    fill: var(--diag-center);
+  }
+  .gp-caption {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.35rem;
+    text-align: center;
+  }
 </style>

@@ -32,8 +32,8 @@
   const VIEW_H = 330;
   // The 3D plan compresses segment lengths and widens lanes relative to the
   // 2D strip, otherwise a several-mile facility projects as a thin stick.
-  const LW = 14;        // plan lane width
-  const RAMP_D = 24;    // how far ramps drop below the deck edge
+  const LW = 14; // plan lane width
+  const RAMP_D = 24; // how far ramps drop below the deck edge
   const THICK = 10;
 
   const LOS_COLOR = { A: '#22c55e', B: '#84cc16', C: '#eab308', D: '#f97316', E: '#ef4444', F: '#b91c1c' };
@@ -56,10 +56,15 @@
       const closed = wz ? total - wzOpen : 0;
       const pav = wz ? Math.max(lanes, total) : lanes;
       const item = {
-        x0: x, x1: x + w, lanes,
-        open: pav - closed, pav, closed,
+        x0: x,
+        x1: x + w,
+        lanes,
+        open: pav - closed,
+        pav,
+        closed,
         soft: wz ? !!wz.soft_barrier : false,
-        type: s.seg_type, num: s.seg_num,
+        type: s.seg_type,
+        num: s.seg_num,
       };
       x += w;
       return item;
@@ -117,20 +122,75 @@
     const RL = LW * 0.75;
     const out = [];
     if (p.type === 'Merge') {
-      out.push([[p.x0 - 18, yBot - RAMP_D], [p.x0 - 6, yBot - RAMP_D], [p.x0 + 12, yBot - RL], [p.x0, yBot - RL]]);
-      out.push([[p.x0, yBot], [p.x0 + w * 0.78, yBot], [p.x0 + w * 0.55, yBot - RL], [p.x0, yBot - RL]]);
+      out.push([
+        [p.x0 - 18, yBot - RAMP_D],
+        [p.x0 - 6, yBot - RAMP_D],
+        [p.x0 + 12, yBot - RL],
+        [p.x0, yBot - RL],
+      ]);
+      out.push([
+        [p.x0, yBot],
+        [p.x0 + w * 0.78, yBot],
+        [p.x0 + w * 0.55, yBot - RL],
+        [p.x0, yBot - RL],
+      ]);
     } else if (p.type === 'Diverge') {
-      out.push([[p.x0 + w * 0.22, yBot], [p.x1, yBot], [p.x1, yBot - RL], [p.x0 + w * 0.45, yBot - RL]]);
-      out.push([[p.x1, yBot - RL], [p.x1 + 12, yBot - RL], [p.x1 + 18, yBot - RAMP_D], [p.x1 + 6, yBot - RAMP_D]]);
+      out.push([
+        [p.x0 + w * 0.22, yBot],
+        [p.x1, yBot],
+        [p.x1, yBot - RL],
+        [p.x0 + w * 0.45, yBot - RL],
+      ]);
+      out.push([
+        [p.x1, yBot - RL],
+        [p.x1 + 12, yBot - RL],
+        [p.x1 + 18, yBot - RAMP_D],
+        [p.x1 + 6, yBot - RAMP_D],
+      ]);
     } else if (p.type === 'Weaving') {
-      out.push([[p.x0, yBot - RL], [p.x1, yBot - RL], [p.x1, yBot], [p.x0, yBot]]);
-      out.push([[p.x0 - 18, yBot - RAMP_D], [p.x0 - 6, yBot - RAMP_D], [p.x0 + 12, yBot - RL], [p.x0, yBot - RL]]);
-      out.push([[p.x1, yBot - RL], [p.x1 + 12, yBot - RL], [p.x1 + 18, yBot - RAMP_D], [p.x1 + 6, yBot - RAMP_D]]);
+      out.push([
+        [p.x0, yBot - RL],
+        [p.x1, yBot - RL],
+        [p.x1, yBot],
+        [p.x0, yBot],
+      ]);
+      out.push([
+        [p.x0 - 18, yBot - RAMP_D],
+        [p.x0 - 6, yBot - RAMP_D],
+        [p.x0 + 12, yBot - RL],
+        [p.x0, yBot - RL],
+      ]);
+      out.push([
+        [p.x1, yBot - RL],
+        [p.x1 + 12, yBot - RL],
+        [p.x1 + 18, yBot - RAMP_D],
+        [p.x1 + 6, yBot - RAMP_D],
+      ]);
     } else if (p.type === 'OverlappingRamp') {
-      out.push([[p.x0 - 15, yBot - RAMP_D], [p.x0 - 3, yBot - RAMP_D], [p.x0 + 10, yBot - RL], [p.x0, yBot - RL]]);
-      out.push([[p.x0, yBot], [p.x0 + w * 0.62, yBot], [p.x0 + w * 0.62, yBot - RL], [p.x0, yBot - RL]]);
-      out.push([[p.x0 + w * 0.38, yBot], [p.x1, yBot], [p.x1, yBot - RL], [p.x0 + w * 0.38, yBot - RL]]);
-      out.push([[p.x1, yBot - RL], [p.x1 + 10, yBot - RL], [p.x1 + 15, yBot - RAMP_D], [p.x1 + 3, yBot - RAMP_D]]);
+      out.push([
+        [p.x0 - 15, yBot - RAMP_D],
+        [p.x0 - 3, yBot - RAMP_D],
+        [p.x0 + 10, yBot - RL],
+        [p.x0, yBot - RL],
+      ]);
+      out.push([
+        [p.x0, yBot],
+        [p.x0 + w * 0.62, yBot],
+        [p.x0 + w * 0.62, yBot - RL],
+        [p.x0, yBot - RL],
+      ]);
+      out.push([
+        [p.x0 + w * 0.38, yBot],
+        [p.x1, yBot],
+        [p.x1, yBot - RL],
+        [p.x0 + w * 0.38, yBot - RL],
+      ]);
+      out.push([
+        [p.x1, yBot - RL],
+        [p.x1 + 10, yBot - RL],
+        [p.x1 + 15, yBot - RAMP_D],
+        [p.x1 + 3, yBot - RAMP_D],
+      ]);
     }
     return out;
   }
@@ -143,14 +203,24 @@
       if (wz) pts.push(...wz);
       for (const r of ramps(p)) pts.push(...r);
     }
-    return pts.length ? pts : [[0, 0], [1, 1]];
+    return pts.length
+      ? pts
+      : [
+          [0, 0],
+          [1, 1],
+        ];
   });
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="fd3-wrap" onpointerup={release} onpointercancel={() => (pendingTap = null)}>
-  <Camera3DSvg viewW={VIEW_W} viewH={VIEW_H} defYaw={18} defPitch={44}
-               ariaLabel="freeway facility 3D view, {segments.length} segments">
+  <Camera3DSvg
+    viewW={VIEW_W}
+    viewH={VIEW_H}
+    defYaw={18}
+    defPitch={44}
+    ariaLabel="freeway facility 3D view, {segments.length} segments"
+  >
     {#snippet children({ yaw, pitch, zoom, panX, panY })}
       {@const project = planProjector(yaw, pitch)}
       {@const tf = fitTransform(project, planPts, VIEW_W, VIEW_H, 26, zoom, panX, panY, THICK)}
@@ -186,8 +256,14 @@
           {/each}
         {/each}
         {#each ramps(p) as r}
-          <path d={d.polygon(r)} fill={topFill(i)} class="fd3-top" class:scored={losFor(i) != null}
-                class:selected={selected === i} onpointerdown={(e) => pressTop(e, i)} />
+          <path
+            d={d.polygon(r)}
+            fill={topFill(i)}
+            class="fd3-top"
+            class:scored={losFor(i) != null}
+            class:selected={selected === i}
+            onpointerdown={(e) => pressTop(e, i)}
+          />
         {/each}
       {/each}
 
@@ -203,10 +279,19 @@
         {/if}
       {/each}
       {#each plan as p, i}
-        <path d={d.polygon(slab(p))} fill={topFill(i)} class="fd3-top fd3-deck" class:scored={losFor(i) != null}
-              class:selected={selected === i} onpointerdown={(e) => pressTop(e, i)} />
+        <path
+          d={d.polygon(slab(p))}
+          fill={topFill(i)}
+          class="fd3-top fd3-deck"
+          class:scored={losFor(i) != null}
+          class:selected={selected === i}
+          onpointerdown={(e) => pressTop(e, i)}
+        />
         {#each Array.from({ length: p.open - 1 }) as _, li}
-          <path d={d.seg([p.x0, maxLanes * LW - LW * (li + 1)], [p.x1, maxLanes * LW - LW * (li + 1)])} class="fd3-lane-line" />
+          <path
+            d={d.seg([p.x0, maxLanes * LW - LW * (li + 1)], [p.x1, maxLanes * LW - LW * (li + 1)])}
+            class="fd3-lane-line"
+          />
         {/each}
         {#if wzSlab(p)}
           {@const wz = wzSlab(p)}
@@ -241,33 +326,107 @@
   {#if periods > 0}
     <div class="fd3-periods" role="group" aria-label="Analysis period">
       {#each Array.from({ length: periods }) as _, p}
-        <button type="button" class="fd3-chip" class:active={period === p} onclick={() => (period = p)}>P{p + 1}</button>
+        <button type="button" class="fd3-chip" class:active={period === p} onclick={() => (period = p)}>P{p + 1}</button
+        >
       {/each}
     </div>
   {/if}
 </div>
 
 <style>
-  .fd3-shadow { fill: var(--text); opacity: 0.08; }
-  .fd3-wall { fill: var(--diag-wall, #94a3b8); stroke: var(--diag-edge); stroke-width: 0.5; }
-  .fd3-top { stroke: var(--diag-edge); stroke-width: 1; vector-effect: non-scaling-stroke; transition: fill 150ms ease; }
-  .fd3-top.scored { stroke: rgba(15, 23, 42, 0.4); }
-  .fd3-top.selected { stroke: var(--accent); stroke-width: 2.5; }
-  .fd3-lane-line { stroke: var(--diag-lane-line); stroke-width: 1; stroke-dasharray: 5 4; fill: none; vector-effect: non-scaling-stroke; opacity: 0.8; }
+  .fd3-shadow {
+    fill: var(--text);
+    opacity: 0.08;
+  }
+  .fd3-wall {
+    fill: var(--diag-wall, #94a3b8);
+    stroke: var(--diag-edge);
+    stroke-width: 0.5;
+  }
+  .fd3-top {
+    stroke: var(--diag-edge);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+    transition: fill 150ms ease;
+  }
+  .fd3-top.scored {
+    stroke: rgba(15, 23, 42, 0.4);
+  }
+  .fd3-top.selected {
+    stroke: var(--accent);
+    stroke-width: 2.5;
+  }
+  .fd3-lane-line {
+    stroke: var(--diag-lane-line);
+    stroke-width: 1;
+    stroke-dasharray: 5 4;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+    opacity: 0.8;
+  }
   /* Closure deck, on the warning tokens rather than the LOS colours. */
-  .fd3-wz { fill: var(--warn-bg); stroke: var(--diag-edge); stroke-width: 1; vector-effect: non-scaling-stroke; }
-  .fd3-wz-hatch { stroke: none; }
-  .fd3-wz-stripe { stroke: var(--warn-text); stroke-width: 1.4; opacity: 0.85; }
-  .fd3-wz-stripe.soft { stroke-dasharray: 2 2.2; }
-  .fd3-wz-label { font-size: 6.5px; font-weight: 700; fill: var(--warn-text); paint-order: stroke; stroke: var(--warn-bg); stroke-width: 2px; }
+  .fd3-wz {
+    fill: var(--warn-bg);
+    stroke: var(--diag-edge);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  .fd3-wz-hatch {
+    stroke: none;
+  }
+  .fd3-wz-stripe {
+    stroke: var(--warn-text);
+    stroke-width: 1.4;
+    opacity: 0.85;
+  }
+  .fd3-wz-stripe.soft {
+    stroke-dasharray: 2 2.2;
+  }
+  .fd3-wz-label {
+    font-size: 6.5px;
+    font-weight: 700;
+    fill: var(--warn-text);
+    paint-order: stroke;
+    stroke: var(--warn-bg);
+    stroke-width: 2px;
+  }
   /* Labels and markings must not swallow slab taps. */
-  .fd3-los, .fd3-num, .fd3-lane-line, .fd3-arrow, .fd3-wz-hatch, .fd3-wz-label { pointer-events: none; }
-  .fd3-los { font-size: 9px; fill: #fff; font-weight: 700; paint-order: stroke; stroke: rgba(15, 23, 42, 0.45); stroke-width: 2px; }
-  .fd3-num { font-size: 7.5px; fill: var(--text-muted); font-weight: 600; }
-  .fd3-arrow { stroke: var(--diag-dim); stroke-width: 2; }
-  .fd3-arrow-head { fill: var(--diag-dim); }
+  .fd3-los,
+  .fd3-num,
+  .fd3-lane-line,
+  .fd3-arrow,
+  .fd3-wz-hatch,
+  .fd3-wz-label {
+    pointer-events: none;
+  }
+  .fd3-los {
+    font-size: 9px;
+    fill: #fff;
+    font-weight: 700;
+    paint-order: stroke;
+    stroke: rgba(15, 23, 42, 0.45);
+    stroke-width: 2px;
+  }
+  .fd3-num {
+    font-size: 7.5px;
+    fill: var(--text-muted);
+    font-weight: 600;
+  }
+  .fd3-arrow {
+    stroke: var(--diag-dim);
+    stroke-width: 2;
+  }
+  .fd3-arrow-head {
+    fill: var(--diag-dim);
+  }
 
-  .fd3-periods { display: flex; gap: 0.25rem; flex-wrap: wrap; justify-content: center; margin-top: 0.3rem; }
+  .fd3-periods {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 0.3rem;
+  }
   .fd3-chip {
     font-size: 0.72rem;
     font-weight: 600;
@@ -278,5 +437,9 @@
     color: var(--text-secondary);
     cursor: pointer;
   }
-  .fd3-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .fd3-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
 </style>

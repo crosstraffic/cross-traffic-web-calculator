@@ -1,16 +1,15 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import init from 'HCM-middleware';
+
+  onMount(async () => {
+    await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
+  });
+</script>
+
 <svelte:head>
   <title>HCM Calculator</title>
 </svelte:head>
-
-<script lang="ts">
-  import { onMount } from "svelte";
-  import init from "HCM-middleware";
-
-  onMount(async() => {
-    await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
-  })
-
-</script>
 
 <div id="routes-container" class="home-page">
   <!-- Hero -->
@@ -20,12 +19,10 @@
         <p class="eyebrow">Highway Capacity Manual · 7th Edition</p>
         <h1 class="hero-title">HCM Calculator</h1>
         <p class="hero-lead">
-          A browser-based implementation of HCM analysis procedures across
-          fourteen chapters: freeways, urban streets, signalized and
-          stop-controlled intersections, roundabouts, interchanges, and multiuse
-          paths. Every chapter reproduces its published HCM worked examples, computed by a
-          WebAssembly engine that also works offline. Interactive 2D and 3D
-          diagrams, traffic animation, and printable run reports included.
+          A browser-based implementation of HCM analysis procedures across fourteen chapters: freeways, urban streets,
+          signalized and stop-controlled intersections, roundabouts, interchanges, and multiuse paths. Every chapter
+          reproduces its published HCM worked examples, computed by a WebAssembly engine that also works offline.
+          Interactive 2D and 3D diagrams, traffic animation, and printable run reports included.
         </p>
         <div class="hero-actions">
           <a href="#chapters" class="btn-cta">Browse chapters <span aria-hidden="true">→</span></a>
@@ -33,8 +30,8 @@
             href="https://nap.nationalacademies.org/catalog/26432/highway-capacity-manual-7th-edition-a-guide-for-multimodal-mobility"
             target="_blank"
             rel="noreferrer"
-            class="btn-link"
-          >HCM 7th Edition reference</a>
+            class="btn-link">HCM 7th Edition reference</a
+          >
         </div>
       </div>
 
@@ -46,8 +43,8 @@
               <a
                 href="https://nap.nationalacademies.org/catalog/26432/highway-capacity-manual-7th-edition-a-guide-for-multimodal-mobility"
                 target="_blank"
-                rel="noreferrer"
-              >+ See</a>
+                rel="noreferrer">+ See</a
+              >
             </div>
           </div>
         </div>
@@ -59,7 +56,15 @@
   <!-- Capabilities -->
   <section class="capabilities">
     <div class="cap">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
         <rect x="6" y="6" width="12" height="12" rx="1.5" />
         <path d="M9 1.5v3M15 1.5v3M9 19.5v3M15 19.5v3M1.5 9h3M1.5 15h3M19.5 9h3M19.5 15h3" />
       </svg>
@@ -67,7 +72,15 @@
       <p>Calculations run locally in a compiled Rust core. Fast, offline, and identical on every run.</p>
     </div>
     <div class="cap">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
         <path d="M5 3h10l4 4v14H5z" />
         <path d="M14 3v5h5" />
         <path d="M8.5 14.5l2 2 4-4.5" />
@@ -76,7 +89,15 @@
       <p>Follows the manual step by step, including vertical and horizontal alignment effects on each segment.</p>
     </div>
     <div class="cap">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
         <path d="M8 4H6a2 2 0 0 0-2 2v3c0 1-.5 3-2 3 1.5 0 2 2 2 3v3a2 2 0 0 0 2 2h2" />
         <path d="M16 4h2a2 2 0 0 1 2 2v3c0 1 .5 3 2 3-1.5 0-2 2-2 3v3a2 2 0 0 1-2 2h-2" />
       </svg>
@@ -96,7 +117,9 @@
       <span class="chapter-no">10</span>
       <span class="chapter-body">
         <span class="chapter-name">Freeway Facilities Core Methodology</span>
-        <span class="chapter-desc">Whole-facility analysis over 15-min periods, composing basic, merge, diverge, and weaving segments</span>
+        <span class="chapter-desc"
+          >Whole-facility analysis over 15-min periods, composing basic, merge, diverge, and weaving segments</span
+        >
       </span>
       <span class="chapter-status available">Available</span>
     </a>
@@ -105,7 +128,8 @@
       <span class="chapter-no">11</span>
       <span class="chapter-body">
         <span class="chapter-name">Freeway Reliability Analysis</span>
-        <span class="chapter-desc">Whole-year travel time reliability with demand variation and incident scenarios</span>
+        <span class="chapter-desc">Whole-year travel time reliability with demand variation and incident scenarios</span
+        >
       </span>
       <span class="chapter-status available">Available</span>
     </a>
@@ -114,7 +138,9 @@
       <span class="chapter-no">12</span>
       <span class="chapter-body">
         <span class="chapter-name">Basic Freeway and Multilane Highway Segments</span>
-        <span class="chapter-desc">Free-flow speed, capacity, density, and level of service for basic freeway segments</span>
+        <span class="chapter-desc"
+          >Free-flow speed, capacity, density, and level of service for basic freeway segments</span
+        >
       </span>
       <span class="chapter-status available">Available</span>
     </a>
@@ -123,7 +149,10 @@
       <span class="chapter-no chapter-no-sub">12ML</span>
       <span class="chapter-body">
         <span class="chapter-name">Basic Managed Lane Segments</span>
-        <span class="chapter-desc">Capacity, speed, density, and level of service for a managed lane, including the friction effect of the adjacent general purpose lanes</span>
+        <span class="chapter-desc"
+          >Capacity, speed, density, and level of service for a managed lane, including the friction effect of the
+          adjacent general purpose lanes</span
+        >
       </span>
       <span class="chapter-status available">Available</span>
     </a>
@@ -132,7 +161,9 @@
       <span class="chapter-no">13</span>
       <span class="chapter-body">
         <span class="chapter-name">Freeway Weaving Segments</span>
-        <span class="chapter-desc">Weaving and nonweaving speeds, capacity, and LOS, under the 7th Edition or Edition 7.1</span>
+        <span class="chapter-desc"
+          >Weaving and nonweaving speeds, capacity, and LOS, under the 7th Edition or Edition 7.1</span
+        >
       </span>
       <span class="chapter-status available">Available</span>
     </a>
@@ -141,7 +172,9 @@
       <span class="chapter-no">14</span>
       <span class="chapter-body">
         <span class="chapter-name">Freeway Merge and Diverge Segments</span>
-        <span class="chapter-desc">Ramp influence area density, speeds, and LOS, under the 7th Edition or Edition 7.1</span>
+        <span class="chapter-desc"
+          >Ramp influence area density, speeds, and LOS, under the 7th Edition or Edition 7.1</span
+        >
       </span>
       <span class="chapter-status available">Available</span>
     </a>
@@ -159,7 +192,9 @@
       <span class="chapter-no">16</span>
       <span class="chapter-body">
         <span class="chapter-name">Urban Street Facilities</span>
-        <span class="chapter-desc">Facility travel speed, spatial stop rate, and LOS aggregated over a chain of urban street segments</span>
+        <span class="chapter-desc"
+          >Facility travel speed, spatial stop rate, and LOS aggregated over a chain of urban street segments</span
+        >
       </span>
       <span class="chapter-status available">Available</span>
     </a>
@@ -168,7 +203,10 @@
       <span class="chapter-no">17</span>
       <span class="chapter-body">
         <span class="chapter-name">Urban Street Reliability and ATDM</span>
-        <span class="chapter-desc">Travel time distribution, travel time index percentiles, and reliability rating over a year of generated weather, demand, and incident scenarios</span>
+        <span class="chapter-desc"
+          >Travel time distribution, travel time index percentiles, and reliability rating over a year of generated
+          weather, demand, and incident scenarios</span
+        >
       </span>
       <span class="chapter-status available">Available</span>
     </a>
@@ -177,7 +215,9 @@
       <span class="chapter-no">18</span>
       <span class="chapter-body">
         <span class="chapter-name">Urban Street Segments</span>
-        <span class="chapter-desc">Free-flow speed, running time, travel speed, stop rate, and LOS for one direction of an arterial segment</span>
+        <span class="chapter-desc"
+          >Free-flow speed, running time, travel speed, stop rate, and LOS for one direction of an arterial segment</span
+        >
       </span>
       <span class="chapter-status available">Available</span>
     </a>
@@ -195,7 +235,9 @@
       <span class="chapter-no">20</span>
       <span class="chapter-body">
         <span class="chapter-name">Two-Way STOP-Controlled Intersections</span>
-        <span class="chapter-desc">Gap-acceptance capacities, delay, and LOS by movement rank, with the December 2022 corrections</span>
+        <span class="chapter-desc"
+          >Gap-acceptance capacities, delay, and LOS by movement rank, with the December 2022 corrections</span
+        >
       </span>
       <span class="chapter-status available">Available</span>
     </a>
@@ -222,7 +264,10 @@
       <span class="chapter-no">23</span>
       <span class="chapter-body">
         <span class="chapter-name">Interchange Ramp Terminals</span>
-        <span class="chapter-desc">O-D experienced travel time and LOS for diamond and DDI interchanges and RCUT, MUT, and DLT alternative intersections</span>
+        <span class="chapter-desc"
+          >O-D experienced travel time and LOS for diamond and DDI interchanges and RCUT, MUT, and DLT alternative
+          intersections</span
+        >
       </span>
       <span class="chapter-status available">Available</span>
     </a>
@@ -241,13 +286,14 @@
   <section class="about-section">
     <p>
       Built by
-      <a href="https://reis-portfolio.vercel.app" target="_blank" rel="noreferrer">Rei Tamaru</a>,
-      an ITS Engineer at HNTB. This is an independent, personally built tool and is
-      not affiliated with any organization or corporation.
+      <a href="https://reis-portfolio.vercel.app" target="_blank" rel="noreferrer">Rei Tamaru</a>, an ITS Engineer at
+      HNTB. This is an independent, personally built tool and is not affiliated with any organization or corporation.
     </p>
     <p>
       Questions or issues? Feel free to
-      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">open an issue on GitHub</a>.
+      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer"
+        >open an issue on GitHub</a
+      >.
     </p>
   </section>
 </div>

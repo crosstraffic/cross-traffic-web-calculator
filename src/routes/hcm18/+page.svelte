@@ -1,11 +1,7 @@
-<svelte:head>
-  <title>Urban Street Segments · HCM Calculator</title>
-</svelte:head>
-
 <script>
   import { preventDefault } from 'svelte/legacy';
 
-  import init, { WasmUrbanSegment } from "HCM-middleware";
+  import init, { WasmUrbanSegment } from 'HCM-middleware';
   import UrbanSegmentDiagram from '$lib/UrbanSegmentDiagram.svelte';
   import UrbanSegmentDiagram3D from '$lib/UrbanSegmentDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
@@ -14,13 +10,13 @@
   import Discussion from '$lib/Discussion.svelte';
   import OpenInBuilder from '$lib/OpenInBuilder.svelte';
   import { urbanSegmentHandoff } from '$lib/builder/handoff.js';
-  import { onMount } from "svelte";
+  import { onMount } from 'svelte';
 
   let diagramMode = $state('2d');
 
   let ready = $state(false);
 
-  onMount(async() => {
+  onMount(async () => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
     ready = true;
   });
@@ -81,8 +77,34 @@
   // is zero or false.
   function defaultApproaches() {
     return [
-      { v_lt: 74.80, v_th: 981.71, v_rt: 93.50, n_sl: 0, n_t: 2, n_sr: 0, opposing_flow_veh_h: 1086.15, left_turn_bay: false, right_turn_bay: false, n_lt_lanes: 0, left_bay_storage_ft: 0, pct_heavy_veh: 0 },
-      { v_lt: 75.56, v_th: 991.70, v_rt: 94.45, n_sl: 0, n_t: 2, n_sr: 0, opposing_flow_veh_h: 1075.21, left_turn_bay: false, right_turn_bay: false, n_lt_lanes: 0, left_bay_storage_ft: 0, pct_heavy_veh: 0 }
+      {
+        v_lt: 74.8,
+        v_th: 981.71,
+        v_rt: 93.5,
+        n_sl: 0,
+        n_t: 2,
+        n_sr: 0,
+        opposing_flow_veh_h: 1086.15,
+        left_turn_bay: false,
+        right_turn_bay: false,
+        n_lt_lanes: 0,
+        left_bay_storage_ft: 0,
+        pct_heavy_veh: 0,
+      },
+      {
+        v_lt: 75.56,
+        v_th: 991.7,
+        v_rt: 94.45,
+        n_sl: 0,
+        n_t: 2,
+        n_sr: 0,
+        opposing_flow_veh_h: 1075.21,
+        left_turn_bay: false,
+        right_turn_bay: false,
+        n_lt_lanes: 0,
+        left_bay_storage_ft: 0,
+        pct_heavy_veh: 0,
+      },
     ];
   }
 
@@ -100,7 +122,7 @@
     allwaystop: 'All-Way STOP',
     yield: 'YIELD controlled',
     roundabout: 'Roundabout',
-    uncontrolled: 'Uncontrolled'
+    uncontrolled: 'Uncontrolled',
   };
 
   // Blank optional inputs become undefined so the engine applies its defaults.
@@ -110,7 +132,9 @@
 
   // Comma- or space-separated per-point delays, one per active access point.
   function parseDelays(text) {
-    const parts = String(text).split(/[,\s]+/).filter((s) => s !== '');
+    const parts = String(text)
+      .split(/[,\s]+/)
+      .filter((s) => s !== '');
     const nums = parts.map(Number);
     if (!nums.length || nums.some((n) => !Number.isFinite(n) || n < 0)) return null;
     return Float64Array.from(nums);
@@ -121,7 +145,23 @@
   }
 
   function addApproach() {
-    ap_approaches = [...ap_approaches, { v_lt: 0, v_th: 0, v_rt: 0, n_sl: 0, n_t: 2, n_sr: 0, opposing_flow_veh_h: 0, left_turn_bay: false, right_turn_bay: false, n_lt_lanes: 0, left_bay_storage_ft: 0, pct_heavy_veh: 0 }];
+    ap_approaches = [
+      ...ap_approaches,
+      {
+        v_lt: 0,
+        v_th: 0,
+        v_rt: 0,
+        n_sl: 0,
+        n_t: 2,
+        n_sr: 0,
+        opposing_flow_veh_h: 0,
+        left_turn_bay: false,
+        right_turn_bay: false,
+        n_lt_lanes: 0,
+        left_bay_storage_ft: 0,
+        pct_heavy_veh: 0,
+      },
+    ];
   }
 
   function removeApproach(index) {
@@ -145,7 +185,7 @@
       right_turn_bay: Boolean(a.right_turn_bay),
       n_lt_lanes: Number(a.n_lt_lanes),
       left_bay_storage_ft: Number(a.left_bay_storage_ft),
-      pct_heavy_veh: Number(a.pct_heavy_veh)
+      pct_heavy_veh: Number(a.pct_heavy_veh),
     };
   }
 
@@ -167,7 +207,7 @@
         control,
         Number(upstream_width),
         Number(restrictive_median_length),
-        Number(pct_curb) / 100.0,              // UI takes percent, the engine takes a decimal
+        Number(pct_curb) / 100.0, // UI takes percent, the engine takes a decimal
         Number(pct_parking) / 100.0,
         Number(access_points_subject),
         Number(access_points_opposing),
@@ -179,23 +219,23 @@
         control === 'uncontrolled' ? undefined : opt(through_delay),
         control === 'signalized' ? opt(cycle_length) : undefined,
         control === 'signalized' ? opt(effective_green) : undefined,
-        undefined,                             // arrival type (platoon ratio is used instead)
+        undefined, // arrival type (platoon ratio is used instead)
         control === 'signalized' ? opt(platoon_ratio) : undefined,
         control === 'signalized' ? opt(sat_flow) : undefined,
-        undefined,                             // stopped vehicles N_f (Chapter 31 output)
-        undefined,                             // back-of-queue Q2 (Chapter 31 output)
-        undefined,                             // back-of-queue Q3 (Chapter 31 output)
+        undefined, // stopped vehicles N_f (Chapter 31 output)
+        undefined, // back-of-queue Q2 (Chapter 31 output)
+        undefined, // back-of-queue Q3 (Chapter 31 output)
         opt(stop_rate_override),
-        undefined,                             // stop rate from other midsegment sources
+        undefined, // stop rate from other midsegment sources
         Number(pct_left_turn_lanes) / 100.0,
-        delays ?? undefined,                   // Exhibit 30-35 per-point delays
+        delays ?? undefined, // Exhibit 30-35 per-point delays
         ap_source === 'planning' ? opt(n_influential_access_points) : undefined,
         ap_source === 'planning' ? opt(pct_left_turns_access) : undefined,
         ap_source === 'planning' ? opt(pct_right_turns_access) : undefined,
         ap_source === 'planning' ? access_left_bay_adequate : undefined,
         ap_source === 'planning' ? access_right_bay_adequate : undefined,
-        undefined,                             // other midsegment delay (Equation 18-7)
-        ap_source === 'computed' ? opt(analysis_period) : undefined
+        undefined, // other midsegment delay (Equation 18-7)
+        ap_source === 'computed' ? opt(analysis_period) : undefined,
       );
 
       // The engine enters the Chapter 30, Section 4 branch only when at least
@@ -219,20 +259,21 @@
         full_stop_rate: seg.get_full_stop_rate(),
         spatial_stop_rate: seg.get_spatial_stop_rate(),
         vc_ratio: seg.get_vc_ratio(),
-        perception_score: seg.get_perception_score()
+        perception_score: seg.get_perception_score(),
       };
       // Generated once, off the run that produced these numbers, and carried on the result so the
       // page and the printable report can never drift apart or restate a since-edited input.
       results.discussion = discussion(results, {
         apSource: ap_source,
-        segmentLength: Number(segment_length)
+        segmentLength: Number(segment_length),
       });
 
-      const apSourceLabel = ap_source === 'measured'
-        ? `measured or published per-point delays (${ap_delays})`
-        : ap_source === 'computed'
-          ? `Chapter 30, Section 4 procedure computed from ${ap_approaches.length} access-point approach${ap_approaches.length === 1 ? '' : 'es'}`
-          : 'Exhibit 18-13 planning estimate';
+      const apSourceLabel =
+        ap_source === 'measured'
+          ? `measured or published per-point delays (${ap_delays})`
+          : ap_source === 'computed'
+            ? `Chapter 30, Section 4 procedure computed from ${ap_approaches.length} access-point approach${ap_approaches.length === 1 ? '' : 'es'}`
+            : 'Exhibit 18-13 planning estimate';
 
       setReport({
         chapter: 'Urban Street Segments',
@@ -249,40 +290,72 @@
           { label: 'Restrictive median length', value: `${restrictive_median_length} ft` },
           { label: 'Link length with curb', value: `${pct_curb}%` },
           { label: 'Link length with on-street parking', value: `${pct_parking}%` },
-          { label: 'Access points, subject / opposing side', value: `${access_points_subject} / ${access_points_opposing}` },
+          {
+            label: 'Access points, subject / opposing side',
+            value: `${access_points_subject} / ${access_points_opposing}`,
+          },
           { label: 'Opposing points reachable by left turn', value: `${pct_opposing_left_accessible}%` },
           { label: 'Signal spacing', value: signal_spacing === '' ? 'segment length' : `${signal_spacing} ft` },
           { label: 'Measured free-flow speed', value: ffs_override === '' ? 'predicted' : `${ffs_override} mi/h` },
           { label: 'Through demand flow rate', value: `${through_demand} veh/h` },
-          { label: 'Midsegment flow rate', value: midsegment_flow === '' ? 'through demand' : `${midsegment_flow} veh/h` },
+          {
+            label: 'Midsegment flow rate',
+            value: midsegment_flow === '' ? 'through demand' : `${midsegment_flow} veh/h`,
+          },
           { label: 'Boundary intersection control', value: CONTROL_LABEL[control] },
-          { label: 'Through control delay', value: control === 'uncontrolled' ? 'not applicable' : `${through_delay} s/veh` },
+          {
+            label: 'Through control delay',
+            value: control === 'uncontrolled' ? 'not applicable' : `${through_delay} s/veh`,
+          },
           { label: 'Through capacity', value: through_capacity === '' ? 'not supplied' : `${through_capacity} veh/h` },
-          ...(control === 'signalized' ? [
-            { label: 'Cycle length', value: `${cycle_length} s` },
-            { label: 'Effective green time', value: `${effective_green} s` },
-            { label: 'Platoon ratio', value: platoon_ratio === '' ? 'uniform arrivals, P = g/C' : platoon_ratio },
-            { label: 'Adjusted saturation flow rate', value: sat_flow === '' ? 'HCM default' : `${sat_flow} veh/h/ln` },
-          ] : []),
-          { label: 'Full stop rate', value: stop_rate_override === '' ? 'HCM default' : `${stop_rate_override} stops/veh` },
+          ...(control === 'signalized'
+            ? [
+                { label: 'Cycle length', value: `${cycle_length} s` },
+                { label: 'Effective green time', value: `${effective_green} s` },
+                { label: 'Platoon ratio', value: platoon_ratio === '' ? 'uniform arrivals, P = g/C' : platoon_ratio },
+                {
+                  label: 'Adjusted saturation flow rate',
+                  value: sat_flow === '' ? 'HCM default' : `${sat_flow} veh/h/ln`,
+                },
+              ]
+            : []),
+          {
+            label: 'Full stop rate',
+            value: stop_rate_override === '' ? 'HCM default' : `${stop_rate_override} stops/veh`,
+          },
           { label: 'Intersections with left-turn lanes', value: `${pct_left_turn_lanes}%` },
           { label: 'Access-point delay source', value: apSourceLabel },
-          ...(ap_source === 'computed' ? [
-            { label: 'Analysis period T', value: `${analysis_period} h` },
-            ...ap_approaches.map((a, i) => ({
-              label: `Access point ${i + 1} approach`,
-              value: `${a.v_lt} L / ${a.v_th} T / ${a.v_rt} R veh/h, lanes ${a.n_sl}+${a.n_t}+${a.n_sr}, opposing ${a.opposing_flow_veh_h} veh/h, bays ${a.left_turn_bay ? 'L' : '-'}${a.right_turn_bay ? 'R' : '-'}, ${a.pct_heavy_veh}% heavy`
-            })),
-            ...(results.ap_computed ? results.ap_computed.map((d, i) => ({
-              label: `Access point ${i + 1} computed delay`,
-              value: `${fmt(d.delay_total_s, 4)} s/veh (left ${fmt(d.delay_left_s, 4)}, right ${fmt(d.delay_right_s, 4)}, p_ov ${fmt(d.prob_inside_lane_blocked, 3)})`
-            })) : []),
-          ] : []),
-          ...(ap_source === 'planning' ? [
-            { label: 'Influential access points N_ap', value: n_influential_access_points === '' ? 'N_ap,s + p_ap,lt × N_ap,o' : n_influential_access_points },
-            { label: 'Access left / right turn percentages', value: `${pct_left_turns_access === '' ? '10' : pct_left_turns_access}% / ${pct_right_turns_access === '' ? '10' : pct_right_turns_access}%` },
-            { label: 'Adequate left / right turn bays', value: `${access_left_bay_adequate ? 'yes' : 'no'} / ${access_right_bay_adequate ? 'yes' : 'no'}` },
-          ] : []),
+          ...(ap_source === 'computed'
+            ? [
+                { label: 'Analysis period T', value: `${analysis_period} h` },
+                ...ap_approaches.map((a, i) => ({
+                  label: `Access point ${i + 1} approach`,
+                  value: `${a.v_lt} L / ${a.v_th} T / ${a.v_rt} R veh/h, lanes ${a.n_sl}+${a.n_t}+${a.n_sr}, opposing ${a.opposing_flow_veh_h} veh/h, bays ${a.left_turn_bay ? 'L' : '-'}${a.right_turn_bay ? 'R' : '-'}, ${a.pct_heavy_veh}% heavy`,
+                })),
+                ...(results.ap_computed
+                  ? results.ap_computed.map((d, i) => ({
+                      label: `Access point ${i + 1} computed delay`,
+                      value: `${fmt(d.delay_total_s, 4)} s/veh (left ${fmt(d.delay_left_s, 4)}, right ${fmt(d.delay_right_s, 4)}, p_ov ${fmt(d.prob_inside_lane_blocked, 3)})`,
+                    }))
+                  : []),
+              ]
+            : []),
+          ...(ap_source === 'planning'
+            ? [
+                {
+                  label: 'Influential access points N_ap',
+                  value: n_influential_access_points === '' ? 'N_ap,s + p_ap,lt × N_ap,o' : n_influential_access_points,
+                },
+                {
+                  label: 'Access left / right turn percentages',
+                  value: `${pct_left_turns_access === '' ? '10' : pct_left_turns_access}% / ${pct_right_turns_access === '' ? '10' : pct_right_turns_access}%`,
+                },
+                {
+                  label: 'Adequate left / right turn bays',
+                  value: `${access_left_bay_adequate ? 'yes' : 'no'} / ${access_right_bay_adequate ? 'yes' : 'no'}`,
+                },
+              ]
+            : []),
         ],
         resultTable: {
           columns: ['Measure', 'Value', 'Unit'],
@@ -320,8 +393,8 @@
             pctCurb: Number(pct_curb),
             pctParking: Number(pct_parking),
             control,
-            los: results.los
-          }
+            los: results.los,
+          },
         },
       });
     } catch (err) {
@@ -338,15 +411,38 @@
    * added on top. */
   function handoff() {
     return urbanSegmentHandoff({
-      segment_length, n_through_lanes, speed_limit, upstream_width,
-      restrictive_median_length, pct_curb, pct_parking, access_points_subject,
-      access_points_opposing, pct_opposing_left_accessible, signal_spacing,
-      ffs_override, through_demand, midsegment_flow, control, through_delay,
-      through_capacity, cycle_length, effective_green, platoon_ratio, sat_flow,
-      stop_rate_override, pct_left_turn_lanes, ap_source, ap_delays,
-      n_influential_access_points, pct_left_turns_access, pct_right_turns_access,
-      access_left_bay_adequate, access_right_bay_adequate, analysis_period,
-      ap_approaches
+      segment_length,
+      n_through_lanes,
+      speed_limit,
+      upstream_width,
+      restrictive_median_length,
+      pct_curb,
+      pct_parking,
+      access_points_subject,
+      access_points_opposing,
+      pct_opposing_left_accessible,
+      signal_spacing,
+      ffs_override,
+      through_demand,
+      midsegment_flow,
+      control,
+      through_delay,
+      through_capacity,
+      cycle_length,
+      effective_green,
+      platoon_ratio,
+      sat_flow,
+      stop_rate_override,
+      pct_left_turn_lanes,
+      ap_source,
+      ap_delays,
+      n_influential_access_points,
+      pct_left_turns_access,
+      pct_right_turns_access,
+      access_left_bay_adequate,
+      access_right_bay_adequate,
+      analysis_period,
+      ap_approaches,
     });
   }
 
@@ -388,26 +484,33 @@
   }
 </script>
 
+<svelte:head>
+  <title>Urban Street Segments · HCM Calculator</title>
+</svelte:head>
+
 <div class="hcm-page">
   <header class="page-header">
     <span class="badge badge-outline page-badge">HCM Chapter 18</span>
     <h1 class="page-title">Urban Street Segments</h1>
     <p class="page-sub">
-      Estimate free-flow speed, travel speed, stop rate, and level of service
-      for one direction of travel on an urban street segment.
+      Estimate free-flow speed, travel speed, stop rate, and level of service for one direction of travel on an urban
+      street segment.
     </p>
-    <OpenInBuilder build={handoff}
-      note="Takes this segment to the facility builder as a one-segment Chapter 16 facility. It arrives between two boundary signals with its own travel speed and LOS unchanged, and gains the facility aggregation over that one segment." />
+    <OpenInBuilder
+      build={handoff}
+      note="Takes this segment to the facility builder as a one-segment Chapter 16 facility. It arrives between two boundary signals with its own travel speed and LOS unchanged, and gains the facility aggregation over that one segment."
+    />
   </header>
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Scope.</strong> The compute engine is boundary-validated against HCM
-      Chapter 30, Example Problem 1 (Exhibits 30-26 through 30-36), which the page
-      defaults reproduce, and against all three access-point delay sources the
-      method allows. The page itself is in beta pending final inspection. Verify
-      results independently before relying on them in engineering work, and please
-      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      <strong>Scope.</strong> The compute engine is boundary-validated against HCM Chapter 30, Example Problem 1
+      (Exhibits 30-26 through 30-36), which the page defaults reproduce, and against all three access-point delay
+      sources the method allows. The page itself is in beta pending final inspection. Verify results independently
+      before relying on them in engineering work, and please
+      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer"
+        >report discrepancies on GitHub</a
+      >.
     </span>
   </div>
 
@@ -423,7 +526,10 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Segment</h2>
-          <p class="panel-sub">The subject direction of travel runs left to right between the two boundary intersections. In the 2D view the through demand and the access-point counts can be edited directly on the diagram.</p>
+          <p class="panel-sub">
+            The subject direction of travel runs left to right between the two boundary intersections. In the 2D view
+            the through demand and the access-point counts can be edited directly on the diagram.
+          </p>
         </div>
         <div class="panel-actions">
           <ViewToggle bind:mode={diagramMode} label="Segment view mode" />
@@ -435,7 +541,8 @@
           accessSubject={access_points_subject}
           accessOpposing={access_points_opposing}
           {control}
-          los={results ? results.los : null} />
+          los={results ? results.los : null}
+        />
       {:else}
         <UrbanSegmentDiagram
           segmentLength={segment_length}
@@ -446,7 +553,8 @@
           pctCurb={pct_curb}
           pctParking={pct_parking}
           {control}
-          los={results ? results.los : null} />
+          los={results ? results.los : null}
+        />
       {/if}
     </section>
 
@@ -462,7 +570,15 @@
         <div class="param-field">
           <label for="LEN_input">Segment Length</label>
           <div class="cell-field">
-            <input id="LEN_input" type="number" min="1" class="input input-bordered input-sm" bind:value={segment_length} placeholder="1800" required />
+            <input
+              id="LEN_input"
+              type="number"
+              min="1"
+              class="input input-bordered input-sm"
+              bind:value={segment_length}
+              placeholder="1800"
+              required
+            />
             <span class="unit">ft</span>
           </div>
           <p class="param-hint">Stop line to stop line.</p>
@@ -471,7 +587,15 @@
         <div class="param-field">
           <label for="NTH_input">Through Lanes (subject direction)</label>
           <div class="cell-field">
-            <input id="NTH_input" type="number" min="1" max="6" class="input input-bordered input-sm" bind:value={n_through_lanes} required />
+            <input
+              id="NTH_input"
+              type="number"
+              min="1"
+              max="6"
+              class="input input-bordered input-sm"
+              bind:value={n_through_lanes}
+              required
+            />
             <span class="unit">ln</span>
           </div>
         </div>
@@ -479,7 +603,15 @@
         <div class="param-field">
           <label for="SPL_input">Posted Speed Limit</label>
           <div class="cell-field">
-            <input id="SPL_input" type="number" min="1" class="input input-bordered input-sm" bind:value={speed_limit} placeholder="35" required />
+            <input
+              id="SPL_input"
+              type="number"
+              min="1"
+              class="input input-bordered input-sm"
+              bind:value={speed_limit}
+              placeholder="35"
+              required
+            />
             <span class="unit">mph</span>
           </div>
         </div>
@@ -487,7 +619,15 @@
         <div class="param-field">
           <label for="UPW_input">Upstream Intersection Width</label>
           <div class="cell-field">
-            <input id="UPW_input" type="number" min="0" class="input input-bordered input-sm" bind:value={upstream_width} placeholder="50" required />
+            <input
+              id="UPW_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={upstream_width}
+              placeholder="50"
+              required
+            />
             <span class="unit">ft</span>
           </div>
         </div>
@@ -495,7 +635,15 @@
         <div class="param-field">
           <label for="RML_input">Restrictive Median Length</label>
           <div class="cell-field">
-            <input id="RML_input" type="number" min="0" class="input input-bordered input-sm" bind:value={restrictive_median_length} placeholder="0" required />
+            <input
+              id="RML_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={restrictive_median_length}
+              placeholder="0"
+              required
+            />
             <span class="unit">ft</span>
           </div>
         </div>
@@ -503,7 +651,16 @@
         <div class="param-field">
           <label for="CURB_input">Link Length with Curb</label>
           <div class="cell-field">
-            <input id="CURB_input" type="number" min="0" max="100" class="input input-bordered input-sm" bind:value={pct_curb} placeholder="70" required />
+            <input
+              id="CURB_input"
+              type="number"
+              min="0"
+              max="100"
+              class="input input-bordered input-sm"
+              bind:value={pct_curb}
+              placeholder="70"
+              required
+            />
             <span class="unit">%</span>
           </div>
         </div>
@@ -511,7 +668,16 @@
         <div class="param-field">
           <label for="PARK_input">Link Length with On-Street Parking</label>
           <div class="cell-field">
-            <input id="PARK_input" type="number" min="0" max="100" class="input input-bordered input-sm" bind:value={pct_parking} placeholder="0" required />
+            <input
+              id="PARK_input"
+              type="number"
+              min="0"
+              max="100"
+              class="input input-bordered input-sm"
+              bind:value={pct_parking}
+              placeholder="0"
+              required
+            />
             <span class="unit">%</span>
           </div>
         </div>
@@ -519,7 +685,15 @@
         <div class="param-field">
           <label for="APS_input">Access Points (subject side)</label>
           <div class="cell-field">
-            <input id="APS_input" type="number" min="0" class="input input-bordered input-sm" bind:value={access_points_subject} placeholder="4" required />
+            <input
+              id="APS_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={access_points_subject}
+              placeholder="4"
+              required
+            />
             <span class="unit">pts</span>
           </div>
         </div>
@@ -527,7 +701,15 @@
         <div class="param-field">
           <label for="APO_input">Access Points (opposing side)</label>
           <div class="cell-field">
-            <input id="APO_input" type="number" min="0" class="input input-bordered input-sm" bind:value={access_points_opposing} placeholder="4" required />
+            <input
+              id="APO_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={access_points_opposing}
+              placeholder="4"
+              required
+            />
             <span class="unit">pts</span>
           </div>
         </div>
@@ -535,7 +717,16 @@
         <div class="param-field">
           <label for="POL_input">Opposing Points Reachable by Left Turn</label>
           <div class="cell-field">
-            <input id="POL_input" type="number" min="0" max="100" class="input input-bordered input-sm" bind:value={pct_opposing_left_accessible} placeholder="100" required />
+            <input
+              id="POL_input"
+              type="number"
+              min="0"
+              max="100"
+              class="input input-bordered input-sm"
+              bind:value={pct_opposing_left_accessible}
+              placeholder="100"
+              required
+            />
             <span class="unit">%</span>
           </div>
           <p class="param-hint">Use 0 for a full restrictive median with no openings.</p>
@@ -544,7 +735,14 @@
         <div class="param-field">
           <label for="SSP_input">Signal Spacing (optional)</label>
           <div class="cell-field">
-            <input id="SSP_input" type="number" min="0" class="input input-bordered input-sm" bind:value={signal_spacing} placeholder="segment length" />
+            <input
+              id="SSP_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={signal_spacing}
+              placeholder="segment length"
+            />
             <span class="unit">ft</span>
           </div>
         </div>
@@ -552,7 +750,14 @@
         <div class="param-field">
           <label for="FFO_input">Measured Free-Flow Speed (optional)</label>
           <div class="cell-field">
-            <input id="FFO_input" type="number" min="0" class="input input-bordered input-sm" bind:value={ffs_override} placeholder="predicted" />
+            <input
+              id="FFO_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={ffs_override}
+              placeholder="predicted"
+            />
             <span class="unit">mph</span>
           </div>
         </div>
@@ -571,7 +776,15 @@
         <div class="param-field">
           <label for="DEM_input">Through Demand Flow Rate</label>
           <div class="cell-field">
-            <input id="DEM_input" type="number" min="0" class="input input-bordered input-sm" bind:value={through_demand} placeholder="968" required />
+            <input
+              id="DEM_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={through_demand}
+              placeholder="968"
+              required
+            />
             <span class="unit">veh/h</span>
           </div>
           <p class="param-hint">At the downstream boundary intersection.</p>
@@ -580,7 +793,14 @@
         <div class="param-field">
           <label for="MID_input">Midsegment Flow Rate (optional)</label>
           <div class="cell-field">
-            <input id="MID_input" type="number" min="0" class="input input-bordered input-sm" bind:value={midsegment_flow} placeholder="through demand" />
+            <input
+              id="MID_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={midsegment_flow}
+              placeholder="through demand"
+            />
             <span class="unit">veh/h</span>
           </div>
         </div>
@@ -592,7 +812,10 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Access-Point Turning Delay</h2>
-          <p class="panel-sub">The Σ d_ap,i term of Equation 18-7, the delay through traffic suffers from vehicles turning at midsegment access points.</p>
+          <p class="panel-sub">
+            The Σ d_ap,i term of Equation 18-7, the delay through traffic suffers from vehicles turning at midsegment
+            access points.
+          </p>
         </div>
       </div>
       <div class="param-grid">
@@ -603,7 +826,10 @@
             <option value="computed">Computed (Chapter 30 §4)</option>
             <option value="planning">Planning estimate (Exhibit 18-13)</option>
           </select>
-          <p class="param-hint">The three sources the method allows. The computed procedure (Equations 30-31 through 30-68) derives each per-point delay from the approach turn volumes, lane configuration, and opposing flow.</p>
+          <p class="param-hint">
+            The three sources the method allows. The computed procedure (Equations 30-31 through 30-68) derives each
+            per-point delay from the approach turn volumes, lane configuration, and opposing flow.
+          </p>
         </div>
 
         {#if ap_source === 'computed'}
@@ -612,7 +838,15 @@
             <div class="cell-field">
               <!-- step="any": a fixed step rejects the 0.25 default as a step
                    mismatch, which blocks the form submit with no error. -->
-              <input id="APT_input" type="number" step="any" min="0.01" class="input input-bordered input-sm" bind:value={analysis_period} placeholder="0.25" />
+              <input
+                id="APT_input"
+                type="number"
+                step="any"
+                min="0.01"
+                class="input input-bordered input-sm"
+                bind:value={analysis_period}
+                placeholder="0.25"
+              />
               <span class="unit">h</span>
             </div>
             <p class="param-hint">Equations 30-48 and 30-51. Read only by this source.</p>
@@ -621,16 +855,33 @@
           <div class="param-field">
             <label for="APD_input">Per-Point Delays</label>
             <div class="cell-field">
-              <input id="APD_input" type="text" class="input input-bordered input-sm" bind:value={ap_delays} placeholder="0.193, 0.194" />
+              <input
+                id="APD_input"
+                type="text"
+                class="input input-bordered input-sm"
+                bind:value={ap_delays}
+                placeholder="0.193, 0.194"
+              />
               <span class="unit">s/veh</span>
             </div>
-            <p class="param-hint">One value per active access point, comma separated. The defaults are the Exhibit 30-35 published values for Example Problem 1.</p>
+            <p class="param-hint">
+              One value per active access point, comma separated. The defaults are the Exhibit 30-35 published values
+              for Example Problem 1.
+            </p>
           </div>
         {:else}
           <div class="param-field">
             <label for="NAP_input">Influential Access Points N_ap</label>
             <div class="cell-field">
-              <input id="NAP_input" type="number" step="0.1" min="0" class="input input-bordered input-sm" bind:value={n_influential_access_points} placeholder="N_ap,s + p_ap,lt × N_ap,o" />
+              <input
+                id="NAP_input"
+                type="number"
+                step="0.1"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={n_influential_access_points}
+                placeholder="N_ap,s + p_ap,lt × N_ap,o"
+              />
               <span class="unit">pts</span>
             </div>
             <p class="param-hint">Fractional values are allowed. Blank uses the access-point counts above.</p>
@@ -639,23 +890,48 @@
           <div class="param-field">
             <label for="APLT_input">Access Left Turns</label>
             <div class="cell-field">
-              <input id="APLT_input" type="number" step="0.1" min="0" max="100" class="input input-bordered input-sm" bind:value={pct_left_turns_access} placeholder="10" />
+              <input
+                id="APLT_input"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                class="input input-bordered input-sm"
+                bind:value={pct_left_turns_access}
+                placeholder="10"
+              />
               <span class="unit">%</span>
             </div>
-            <p class="param-hint">Share of midsegment flow turning left at access points. Blank uses the Exhibit 18-13 baseline of 10%.</p>
+            <p class="param-hint">
+              Share of midsegment flow turning left at access points. Blank uses the Exhibit 18-13 baseline of 10%.
+            </p>
           </div>
 
           <div class="param-field">
             <label for="APRT_input">Access Right Turns</label>
             <div class="cell-field">
-              <input id="APRT_input" type="number" step="0.1" min="0" max="100" class="input input-bordered input-sm" bind:value={pct_right_turns_access} placeholder="10" />
+              <input
+                id="APRT_input"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                class="input input-bordered input-sm"
+                bind:value={pct_right_turns_access}
+                placeholder="10"
+              />
               <span class="unit">%</span>
             </div>
           </div>
 
           <div class="param-field">
             <label for="APLB_input">
-              <input id="APLB_input" type="checkbox" class="checkbox checkbox-sm" bind:checked={access_left_bay_adequate} />
+              <input
+                id="APLB_input"
+                type="checkbox"
+                class="checkbox checkbox-sm"
+                bind:checked={access_left_bay_adequate}
+              />
               Adequate Left-Turn Bays
             </label>
             <p class="param-hint">An adequate bay keeps left-turning vehicles out of the through lane.</p>
@@ -663,7 +939,12 @@
 
           <div class="param-field">
             <label for="APRB_input">
-              <input id="APRB_input" type="checkbox" class="checkbox checkbox-sm" bind:checked={access_right_bay_adequate} />
+              <input
+                id="APRB_input"
+                type="checkbox"
+                class="checkbox checkbox-sm"
+                bind:checked={access_right_bay_adequate}
+              />
               Adequate Right-Turn Bays
             </label>
           </div>
@@ -674,7 +955,10 @@
         <div class="panel-head ap-head">
           <div>
             <h3 class="panel-title ap-title">Access-Point Approaches</h3>
-            <p class="panel-sub">One row per major-street approach the through movement passes, in the subject direction. Volumes are the turn-in movements at the access point.</p>
+            <p class="panel-sub">
+              One row per major-street approach the through movement passes, in the subject direction. Volumes are the
+              turn-in movements at the access point.
+            </p>
           </div>
           <div class="panel-actions">
             <button class="btn btn-ghost btn-sm" type="button" onclick={addApproach}>Add Approach</button>
@@ -685,9 +969,12 @@
             <thead>
               <tr>
                 <th>#</th>
-                <th title="Left-turn demand flow rate v_lt from the major street into the access point">v_lt (veh/h)</th>
+                <th title="Left-turn demand flow rate v_lt from the major street into the access point">v_lt (veh/h)</th
+                >
                 <th title="Through demand flow rate v_th on the major-street approach">v_th (veh/h)</th>
-                <th title="Right-turn demand flow rate v_rt from the major street into the access point">v_rt (veh/h)</th>
+                <th title="Right-turn demand flow rate v_rt from the major street into the access point"
+                  >v_rt (veh/h)</th
+                >
                 <th title="Lanes in the shared left-turn/through lane group">N_sl</th>
                 <th title="Lanes in the exclusive-through lane group">N_t</th>
                 <th title="Lanes in the shared right-turn/through lane group">N_sr</th>
@@ -704,32 +991,164 @@
               {#each ap_approaches as a, i}
                 <tr>
                   <td>{i + 1}</td>
-                  <td><input id={"AVLT_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " left-turn volume"} bind:value={ap_approaches[i].v_lt} required /></td>
-                  <td><input id={"AVTH_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " through volume"} bind:value={ap_approaches[i].v_th} required /></td>
-                  <td><input id={"AVRT_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " right-turn volume"} bind:value={ap_approaches[i].v_rt} required /></td>
-                  <td><input id={"ANSL_input_" + i} type="number" min="0" max="6" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " shared left-through lanes"} bind:value={ap_approaches[i].n_sl} required /></td>
-                  <td><input id={"ANT_input_" + i} type="number" min="0" max="6" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " exclusive through lanes"} bind:value={ap_approaches[i].n_t} required /></td>
-                  <td><input id={"ANSR_input_" + i} type="number" min="0" max="6" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " shared right-through lanes"} bind:value={ap_approaches[i].n_sr} required /></td>
-                  <td><input id={"AVO_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " opposing flow"} bind:value={ap_approaches[i].opposing_flow_veh_h} required /></td>
-                  <td><input id={"ALB_input_" + i} type="checkbox" class="checkbox checkbox-sm" aria-label={"Approach " + (i + 1) + " left-turn bay"} bind:checked={ap_approaches[i].left_turn_bay} /></td>
-                  <td><input id={"ARB_input_" + i} type="checkbox" class="checkbox checkbox-sm" aria-label={"Approach " + (i + 1) + " right-turn bay"} bind:checked={ap_approaches[i].right_turn_bay} /></td>
-                  <td><input id={"ANLT_input_" + i} type="number" min="0" max="4" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " left-turn bay lanes"} bind:value={ap_approaches[i].n_lt_lanes} required /></td>
-                  <td><input id={"ABS_input_" + i} type="number" step="1" min="0" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " left bay storage"} bind:value={ap_approaches[i].left_bay_storage_ft} required /></td>
-                  <td><input id={"APHV_input_" + i} type="number" step="0.1" min="0" max="100" class="input input-bordered input-sm" aria-label={"Approach " + (i + 1) + " percent heavy vehicles"} bind:value={ap_approaches[i].pct_heavy_veh} required /></td>
-                  <td><button class="btn btn-ghost btn-sm" type="button" onclick={() => removeApproach(i)} disabled={ap_approaches.length <= 1}>Remove</button></td>
+                  <td
+                    ><input
+                      id={'AVLT_input_' + i}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input input-bordered input-sm"
+                      aria-label={'Approach ' + (i + 1) + ' left-turn volume'}
+                      bind:value={ap_approaches[i].v_lt}
+                      required
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'AVTH_input_' + i}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input input-bordered input-sm"
+                      aria-label={'Approach ' + (i + 1) + ' through volume'}
+                      bind:value={ap_approaches[i].v_th}
+                      required
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'AVRT_input_' + i}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input input-bordered input-sm"
+                      aria-label={'Approach ' + (i + 1) + ' right-turn volume'}
+                      bind:value={ap_approaches[i].v_rt}
+                      required
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'ANSL_input_' + i}
+                      type="number"
+                      min="0"
+                      max="6"
+                      class="input input-bordered input-sm"
+                      aria-label={'Approach ' + (i + 1) + ' shared left-through lanes'}
+                      bind:value={ap_approaches[i].n_sl}
+                      required
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'ANT_input_' + i}
+                      type="number"
+                      min="0"
+                      max="6"
+                      class="input input-bordered input-sm"
+                      aria-label={'Approach ' + (i + 1) + ' exclusive through lanes'}
+                      bind:value={ap_approaches[i].n_t}
+                      required
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'ANSR_input_' + i}
+                      type="number"
+                      min="0"
+                      max="6"
+                      class="input input-bordered input-sm"
+                      aria-label={'Approach ' + (i + 1) + ' shared right-through lanes'}
+                      bind:value={ap_approaches[i].n_sr}
+                      required
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'AVO_input_' + i}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input input-bordered input-sm"
+                      aria-label={'Approach ' + (i + 1) + ' opposing flow'}
+                      bind:value={ap_approaches[i].opposing_flow_veh_h}
+                      required
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'ALB_input_' + i}
+                      type="checkbox"
+                      class="checkbox checkbox-sm"
+                      aria-label={'Approach ' + (i + 1) + ' left-turn bay'}
+                      bind:checked={ap_approaches[i].left_turn_bay}
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'ARB_input_' + i}
+                      type="checkbox"
+                      class="checkbox checkbox-sm"
+                      aria-label={'Approach ' + (i + 1) + ' right-turn bay'}
+                      bind:checked={ap_approaches[i].right_turn_bay}
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'ANLT_input_' + i}
+                      type="number"
+                      min="0"
+                      max="4"
+                      class="input input-bordered input-sm"
+                      aria-label={'Approach ' + (i + 1) + ' left-turn bay lanes'}
+                      bind:value={ap_approaches[i].n_lt_lanes}
+                      required
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'ABS_input_' + i}
+                      type="number"
+                      step="1"
+                      min="0"
+                      class="input input-bordered input-sm"
+                      aria-label={'Approach ' + (i + 1) + ' left bay storage'}
+                      bind:value={ap_approaches[i].left_bay_storage_ft}
+                      required
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'APHV_input_' + i}
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      class="input input-bordered input-sm"
+                      aria-label={'Approach ' + (i + 1) + ' percent heavy vehicles'}
+                      bind:value={ap_approaches[i].pct_heavy_veh}
+                      required
+                    /></td
+                  >
+                  <td
+                    ><button
+                      class="btn btn-ghost btn-sm"
+                      type="button"
+                      onclick={() => removeApproach(i)}
+                      disabled={ap_approaches.length <= 1}>Remove</button
+                    ></td
+                  >
                 </tr>
               {/each}
             </tbody>
           </table>
         </div>
         <p class="param-hint panel-note">
-          The defaults are the two approaches the eastbound through movement sees in
-          Exhibit 30-35 of Example Problem 1, both undivided with two through lanes and
-          no turn bays. Their computed delays reproduce the published 0.193 and 0.194
-          s/veh, and with them the published travel speed of 23.67 mi/h. The right-turn
-          branch is evaluated at the posted speed limit, which is what reproduces those
-          published values. The access-point counts entered under Geometry still drive
-          the free-flow speed adjustment f_A; the rows here drive only the Σ d_ap,i term.
+          The defaults are the two approaches the eastbound through movement sees in Exhibit 30-35 of Example Problem 1,
+          both undivided with two through lanes and no turn bays. Their computed delays reproduce the published 0.193
+          and 0.194 s/veh, and with them the published travel speed of 23.67 mi/h. The right-turn branch is evaluated at
+          the posted speed limit, which is what reproduces those published values. The access-point counts entered under
+          Geometry still drive the free-flow speed adjustment f_A; the rows here drive only the Σ d_ap,i term.
         </p>
 
         {#if results && results.ap_computed}
@@ -759,7 +1178,10 @@
                 {/each}
               </tbody>
             </table>
-            <p class="param-hint panel-note">Computed per access point by Equations 30-31 through 30-68. Their sum is the Σ d_ap,i reported under Outputs, which is why it reads 0.388 against the 0.387 of the published pair.</p>
+            <p class="param-hint panel-note">
+              Computed per access point by Equations 30-31 through 30-68. Their sum is the Σ d_ap,i reported under
+              Outputs, which is why it reads 0.388 against the 0.387 of the published pair.
+            </p>
           </div>
         {/if}
       {/if}
@@ -770,7 +1192,9 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Downstream Boundary Intersection</h2>
-          <p class="panel-sub">Control type and the through-movement performance inputs from the intersection analysis.</p>
+          <p class="panel-sub">
+            Control type and the through-movement performance inputs from the intersection analysis.
+          </p>
         </div>
       </div>
       <div class="param-grid">
@@ -789,7 +1213,16 @@
           <div class="param-field">
             <label for="DEL_input">Through Control Delay</label>
             <div class="cell-field">
-              <input id="DEL_input" type="number" step="0.01" min="0" class="input input-bordered input-sm" bind:value={through_delay} placeholder="18.31" required />
+              <input
+                id="DEL_input"
+                type="number"
+                step="0.01"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={through_delay}
+                placeholder="18.31"
+                required
+              />
               <span class="unit">s/veh</span>
             </div>
             <p class="param-hint">From the Chapter 19, 21, or 22 analysis of the intersection.</p>
@@ -799,7 +1232,14 @@
         <div class="param-field">
           <label for="CAP_input">Through Capacity (optional)</label>
           <div class="cell-field">
-            <input id="CAP_input" type="number" min="0" class="input input-bordered input-sm" bind:value={through_capacity} placeholder="1848" />
+            <input
+              id="CAP_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={through_capacity}
+              placeholder="1848"
+            />
             <span class="unit">veh/h</span>
           </div>
           <p class="param-hint">Needed for the volume-to-capacity ratio and the LOS F check.</p>
@@ -809,7 +1249,14 @@
           <div class="param-field">
             <label for="CYC_input">Cycle Length</label>
             <div class="cell-field">
-              <input id="CYC_input" type="number" min="0" class="input input-bordered input-sm" bind:value={cycle_length} placeholder="100" />
+              <input
+                id="CYC_input"
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={cycle_length}
+                placeholder="100"
+              />
               <span class="unit">s</span>
             </div>
           </div>
@@ -817,7 +1264,15 @@
           <div class="param-field">
             <label for="GRN_input">Effective Green Time</label>
             <div class="cell-field">
-              <input id="GRN_input" type="number" step="0.01" min="0" class="input input-bordered input-sm" bind:value={effective_green} placeholder="48.63" />
+              <input
+                id="GRN_input"
+                type="number"
+                step="0.01"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={effective_green}
+                placeholder="48.63"
+              />
               <span class="unit">s</span>
             </div>
           </div>
@@ -825,7 +1280,15 @@
           <div class="param-field">
             <label for="PR_input">Platoon Ratio (optional)</label>
             <div class="cell-field">
-              <input id="PR_input" type="number" step="0.001" min="0" class="input input-bordered input-sm" bind:value={platoon_ratio} placeholder="uniform arrivals" />
+              <input
+                id="PR_input"
+                type="number"
+                step="0.001"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={platoon_ratio}
+                placeholder="uniform arrivals"
+              />
             </div>
             <p class="param-hint">Blank gives uniform arrivals, P = g/C. Use 1.333 for favorable progression.</p>
           </div>
@@ -833,7 +1296,14 @@
           <div class="param-field">
             <label for="SAT_input">Adjusted Saturation Flow Rate (optional)</label>
             <div class="cell-field">
-              <input id="SAT_input" type="number" min="0" class="input input-bordered input-sm" bind:value={sat_flow} placeholder="HCM default" />
+              <input
+                id="SAT_input"
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={sat_flow}
+                placeholder="HCM default"
+              />
               <span class="unit">veh/h/ln</span>
             </div>
           </div>
@@ -842,16 +1312,35 @@
         <div class="param-field">
           <label for="STP_input">Full Stop Rate (optional)</label>
           <div class="cell-field">
-            <input id="STP_input" type="number" step="0.001" min="0" class="input input-bordered input-sm" bind:value={stop_rate_override} placeholder="0.547" />
+            <input
+              id="STP_input"
+              type="number"
+              step="0.001"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={stop_rate_override}
+              placeholder="0.547"
+            />
             <span class="unit">stops/veh</span>
           </div>
-          <p class="param-hint">Supply a value from an HCM computational engine. Unsignalized boundaries use the HCM defaults when blank.</p>
+          <p class="param-hint">
+            Supply a value from an HCM computational engine. Unsignalized boundaries use the HCM defaults when blank.
+          </p>
         </div>
 
         <div class="param-field">
           <label for="PLTL_input">Intersections with Left-Turn Lanes</label>
           <div class="cell-field">
-            <input id="PLTL_input" type="number" min="0" max="100" class="input input-bordered input-sm" bind:value={pct_left_turn_lanes} placeholder="33" required />
+            <input
+              id="PLTL_input"
+              type="number"
+              min="0"
+              max="100"
+              class="input input-bordered input-sm"
+              bind:value={pct_left_turn_lanes}
+              placeholder="33"
+              required
+            />
             <span class="unit">%</span>
           </div>
           <p class="param-hint">Used by the traveler perception score.</p>
@@ -941,10 +1430,18 @@
 <style>
   /* The approach table and its readout sit inside the access-point panel, so
      they need the separation a sibling panel would have given them. */
-  .ap-head { margin-top: 1.25rem; }
-  .ap-title { font-size: 1rem; }
-  .ap-out { margin-top: 1rem; }
+  .ap-head {
+    margin-top: 1.25rem;
+  }
+  .ap-title {
+    font-size: 1rem;
+  }
+  .ap-out {
+    margin-top: 1rem;
+  }
   /* .param-hint is sized for the 16rem column of a single field; a note that
      runs the width of a table needs the room. */
-  .panel-note { max-width: 46rem; }
+  .panel-note {
+    max-width: 46rem;
+  }
 </style>

@@ -10,19 +10,13 @@
   import { planProjector3, fitTransform, makeDrawers } from '$lib/proj3d.js';
   import { LOS_COLORS } from '$lib/los.js';
 
-  let {
-    rows = [],
-    laneWidth = 12,
-    results = null,
-    selected = -1,
-    onselect = null,
-  } = $props();
+  let { rows = [], laneWidth = 12, results = null, selected = -1, onselect = null } = $props();
 
   const VIEW_W = 560;
   const VIEW_H = 260; // a facility is long and shallow; a square frame wastes half of it
-  const THICK = 9;      // slab thickness, screen px
-  const Z_EXAG = 7;     // grade elevation exaggeration
-  const BANK_EXAG = 6;  // superelevation exaggeration
+  const THICK = 9; // slab thickness, screen px
+  const Z_EXAG = 7; // grade elevation exaggeration
+  const BANK_EXAG = 6; // superelevation exaggeration
 
   // Tap-to-select without stealing the camera drag: the camera captures the
   // pointer, so pointerup retargets to the svg and no click fires on the slab.
@@ -39,7 +33,10 @@
     pendingTap = null;
   }
 
-  const num = (v, d) => { const n = parseFloat(v); return isNaN(n) ? d : n; };
+  const num = (v, d) => {
+    const n = parseFloat(v);
+    return isNaN(n) ? d : n;
+  };
   const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
   const dashFor = (t) => (t === 'Passing Zone' ? '6 5' : null);
 
@@ -73,7 +70,8 @@
     // Curvature and superelevation come from whichever horizontal-curve
     // subsegment covers the current position within the segment.
     const sample = (segPos, s) => {
-      let kappa = 0, supere = 0;
+      let kappa = 0,
+        supere = 0;
       if (s.isHc) {
         let acc = 0;
         for (const sub of s.subs) {
@@ -89,16 +87,18 @@
       return { kappa, supere };
     };
 
-    let hx = 0, hy = 0, heading = Math.PI / 2, elev = 0;
-    let kappa = 0, supere = 0;
+    let hx = 0,
+      hy = 0,
+      heading = Math.PI / 2,
+      elev = 0;
+    let kappa = 0,
+      supere = 0;
     const stn = [];
     const ranges = [];
 
     const push = (s, f) => {
       // Passing-lane taper: the extra lane opens and closes inside the segment.
-      const t = s.type === 'Passing Lane'
-        ? (f < 0.18 ? smooth(f / 0.18) : f > 0.82 ? smooth((1 - f) / 0.18) : 1)
-        : 0;
+      const t = s.type === 'Passing Lane' ? (f < 0.18 ? smooth(f / 0.18) : f > 0.82 ? smooth((1 - f) / 0.18) : 1) : 0;
       const lat = { x: -Math.sin(heading), y: Math.cos(heading) };
       const hwR = base * (1 + t);
       // Banking carries only BANK_EXAG. The predecessor applied the grade
@@ -155,8 +155,10 @@
 
     // Travel-direction arrow, extrapolated past the downstream end so it
     // reads as an arrow rather than as a stub between two adjacent stations.
-    const last = stn[stn.length - 1], prev = stn[stn.length - 2] || last;
-    const dx = last.c[0] - prev.c[0], dy = last.c[1] - prev.c[1];
+    const last = stn[stn.length - 1],
+      prev = stn[stn.length - 2] || last;
+    const dx = last.c[0] - prev.c[0],
+      dy = last.c[1] - prev.c[1];
     const mag = Math.hypot(dx, dy) || 1;
     const reach = total * 0.035;
     return {
@@ -178,8 +180,13 @@
   {#if !model}
     <p class="tl3-empty">Add a segment to see the connected facility.</p>
   {:else}
-    <Camera3DSvg viewW={VIEW_W} viewH={VIEW_H} defYaw={28} defPitch={38}
-                 ariaLabel="two-lane highway facility 3D view, {model.segs.length} segments">
+    <Camera3DSvg
+      viewW={VIEW_W}
+      viewH={VIEW_H}
+      defYaw={28}
+      defPitch={38}
+      ariaLabel="two-lane highway facility 3D view, {model.segs.length} segments"
+    >
       {#snippet children({ yaw, pitch, zoom, panX, panY })}
         {@const project = planProjector3(yaw, pitch)}
         <!-- A facility is nearly a line, so its projected extent is far smaller than
@@ -198,9 +205,16 @@
              between that many quads read as a comb down the side of the road.
              All walls draw before any top, so the joins between neighbouring
              slabs end up underneath. -->
-        {@const px = (p) => { const q = tf(p[0], p[1], p[2]); return `${q.x.toFixed(1)},${q.y.toFixed(1)}`; }}
-        {@const dropped = (p) => { const q = tf(p[0], p[1], p[2]); return `${q.x.toFixed(1)},${(q.y + THICK).toFixed(1)}`; }}
-        {@const wall = (edge) => 'M' + edge.map(px).join(' L') + ' L' + [...edge].reverse().map(dropped).join(' L') + ' Z'}
+        {@const px = (p) => {
+          const q = tf(p[0], p[1], p[2]);
+          return `${q.x.toFixed(1)},${q.y.toFixed(1)}`;
+        }}
+        {@const dropped = (p) => {
+          const q = tf(p[0], p[1], p[2]);
+          return `${q.x.toFixed(1)},${(q.y + THICK).toFixed(1)}`;
+        }}
+        {@const wall = (edge) =>
+          'M' + edge.map(px).join(' L') + ' L' + [...edge].reverse().map(dropped).join(' L') + ' Z'}
         {#each model.segs as s}
           <path d={wall(s.left)} class="tl3-wall" />
           <path d={wall(s.right)} class="tl3-wall" />
@@ -209,9 +223,14 @@
         {/each}
 
         {#each model.segs as s, i}
-          <path d={d.polygon(s.outline)} fill={topFill(i)}
-                class="tl3-top tl3-deck" class:scored={losFor(i) != null} class:selected={selected === i}
-                onpointerdown={(e) => pressTop(e, i)} />
+          <path
+            d={d.polygon(s.outline)}
+            fill={topFill(i)}
+            class="tl3-top tl3-deck"
+            class:scored={losFor(i) != null}
+            class:selected={selected === i}
+            onpointerdown={(e) => pressTop(e, i)}
+          />
         {/each}
 
         {#each model.segs as s}
@@ -244,21 +263,71 @@
 </div>
 
 <style>
-  .tl3-empty { font-size: 0.78rem; color: var(--text-faint); }
-  .tl3-shadow { fill: var(--text); opacity: 0.08; }
+  .tl3-empty {
+    font-size: 0.78rem;
+    color: var(--text-faint);
+  }
+  .tl3-shadow {
+    fill: var(--text);
+    opacity: 0.08;
+  }
   /* No wall stroke: one quad per outline edge means a 190-station ribbon
      would otherwise draw as a comb of hairlines down its own side. */
-  .tl3-wall { fill: var(--diag-wall); stroke: none; }
-  .tl3-top { stroke: var(--diag-edge); stroke-width: 1; vector-effect: non-scaling-stroke; transition: fill 150ms ease; }
-  .tl3-top.scored { stroke: rgba(15, 23, 42, 0.4); }
-  .tl3-top.selected { stroke: var(--accent); stroke-width: 2.5; }
-  .tl3-deck { cursor: pointer; }
+  .tl3-wall {
+    fill: var(--diag-wall);
+    stroke: none;
+  }
+  .tl3-top {
+    stroke: var(--diag-edge);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+    transition: fill 150ms ease;
+  }
+  .tl3-top.scored {
+    stroke: rgba(15, 23, 42, 0.4);
+  }
+  .tl3-top.selected {
+    stroke: var(--accent);
+    stroke-width: 2.5;
+  }
+  .tl3-deck {
+    cursor: pointer;
+  }
   /* Markings and labels must not swallow slab taps. */
-  .tl3-center, .tl3-los, .tl3-num, .tl3-arrow { pointer-events: none; }
-  .tl3-center { fill: none; stroke: var(--diag-center); stroke-width: 1.6; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-  .tl3-divider { stroke: var(--diag-lane-line); }
-  .tl3-los { font-size: 9px; fill: #fff; font-weight: 700; paint-order: stroke; stroke: rgba(15, 23, 42, 0.45); stroke-width: 2px; }
-  .tl3-num { font-size: 7.5px; fill: var(--text-muted); font-weight: 600; }
-  .tl3-arrow { stroke: var(--diag-dim); stroke-width: 1.4; }
-  .tl3-arrow-head { fill: var(--diag-dim); }
+  .tl3-center,
+  .tl3-los,
+  .tl3-num,
+  .tl3-arrow {
+    pointer-events: none;
+  }
+  .tl3-center {
+    fill: none;
+    stroke: var(--diag-center);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .tl3-divider {
+    stroke: var(--diag-lane-line);
+  }
+  .tl3-los {
+    font-size: 9px;
+    fill: #fff;
+    font-weight: 700;
+    paint-order: stroke;
+    stroke: rgba(15, 23, 42, 0.45);
+    stroke-width: 2px;
+  }
+  .tl3-num {
+    font-size: 7.5px;
+    fill: var(--text-muted);
+    font-weight: 600;
+  }
+  .tl3-arrow {
+    stroke: var(--diag-dim);
+    stroke-width: 1.4;
+  }
+  .tl3-arrow-head {
+    fill: var(--diag-dim);
+  }
 </style>

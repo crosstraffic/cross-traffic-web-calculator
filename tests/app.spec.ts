@@ -21,7 +21,10 @@ function readZipEntry(zip: Buffer, name: string): string {
   const EOCD = 0x06054b50;
   let eocd = -1;
   for (let i = zip.length - 22; i >= 0; i--) {
-    if (zip.readUInt32LE(i) === EOCD) { eocd = i; break; }
+    if (zip.readUInt32LE(i) === EOCD) {
+      eocd = i;
+      break;
+    }
   }
   if (eocd < 0) throw new Error('not a zip file');
   const count = zip.readUInt16LE(eocd + 10);
@@ -78,7 +81,7 @@ async function startOfflineProxy(baseURL: string): Promise<OfflineProxy> {
       (response: IncomingMessage) => {
         res.writeHead(response.statusCode ?? 502, response.headers);
         response.pipe(res);
-      }
+      },
     );
     upstream.on('error', () => res.socket?.destroy());
     req.pipe(upstream);
@@ -96,7 +99,7 @@ async function startOfflineProxy(baseURL: string): Promise<OfflineProxy> {
     forget: () => {
       seen = [];
     },
-    close: () => new Promise<void>((resolve) => proxy.close(() => resolve()))
+    close: () => new Promise<void>((resolve) => proxy.close(() => resolve())),
   };
 }
 
@@ -113,7 +116,7 @@ async function waitForPrecachedRoute(page: Page, pathname: string) {
           }
           return false;
         }, pathname),
-      { timeout: 30_000 }
+      { timeout: 30_000 },
     )
     .toBe(true);
 }
@@ -185,7 +188,7 @@ test.describe('navigation and route gating', () => {
 
     await page.emulateMedia({ media: 'print' });
     const pavement = await page.evaluate(() =>
-      getComputedStyle(document.documentElement).getPropertyValue('--diag-pavement').trim()
+      getComputedStyle(document.documentElement).getPropertyValue('--diag-pavement').trim(),
     );
     expect(pavement).toBe('#e2e8f0');
   });
@@ -221,7 +224,7 @@ test.describe('navigation and route gating', () => {
               }
               return found;
             }),
-          { timeout: 20_000 }
+          { timeout: 20_000 },
         )
         .toEqual([expect.stringMatching(/\.wasm$/)]);
 
@@ -325,7 +328,11 @@ test.describe('navigation and route gating', () => {
     }
   });
 
-  test('an online navigation is still served by the network, not the precache', async ({ browser, browserName, baseURL }) => {
+  test('an online navigation is still served by the network, not the precache', async ({
+    browser,
+    browserName,
+    baseURL,
+  }) => {
     test.skip(browserName !== 'chromium', 'service worker test runs on chromium');
     test.slow();
 
@@ -483,7 +490,9 @@ test.describe('pre-hydration input guard', () => {
 
       // The fill is attempted with no readiness gate, the way a user types.
       // It must not land, so the field still holds exactly its default.
-      await input.fill('3800', { timeout: 3000 }).catch(() => { /* refused is also a pass */ });
+      await input.fill('3800', { timeout: 3000 }).catch(() => {
+        /* refused is also a pass */
+      });
       await expect(input).toHaveValue(seeded);
 
       // And the guard must actually lift, or it would be a very effective way
@@ -535,7 +544,13 @@ test.describe('chapter 10 freeway facilities calculator', () => {
     await setSegment(page, 2, { type: 'Basic', len: '2280', lanes: '3' });
     await setSegment(page, 3, { type: 'Diverge', len: '1500', lanes: '3', off: '270, 360, 270, 270, 270' });
     await setSegment(page, 4, { type: 'Basic', len: '5280', lanes: '3' });
-    await setSegment(page, 5, { type: 'Weaving', len: '2640', lanes: '4', on: '540, 720, 810, 360, 270', off: '360, 360, 360, 360, 180' });
+    await setSegment(page, 5, {
+      type: 'Weaving',
+      len: '2640',
+      lanes: '4',
+      on: '540, 720, 810, 360, 270',
+      off: '360, 360, 360, 360, 180',
+    });
     await setSegment(page, 6, { type: 'Basic', len: '5280', lanes: '3' });
     await setSegment(page, 7, { type: 'Merge', len: '1140', lanes: '3', on: '450, 540, 630, 450, 270' });
     await setSegment(page, 8, { type: 'OverlappingRamp', len: '360', lanes: '3' });
@@ -654,10 +669,14 @@ test.describe('chapter 10 freeway facilities calculator', () => {
     await page.locator('#DEMAND_input').fill('4505, 4955, 5225, 4685, 3785');
 
     await buildEp1Chain(page, {
-      on2: '450, 540, 630, 360, 180', off4: '270, 360, 270, 270, 270',
-      on6: '540, 720, 810, 360, 270', off6: '360, 360, 360, 360, 180',
-      on8: '450, 540, 630, 450, 270', off10: '270, 270, 450, 270, 180',
-      rr6: '50, 100, 150, 80, 50', lanes11: '2',
+      on2: '450, 540, 630, 360, 180',
+      off4: '270, 360, 270, 270, 270',
+      on6: '540, 720, 810, 360, 270',
+      off6: '360, 360, 360, 360, 180',
+      on8: '450, 540, 630, 450, 270',
+      off10: '270, 270, 450, 270, 180',
+      rr6: '50, 100, 150, 80, 50',
+      lanes11: '2',
     });
 
     // Control: the two-lane Segment 11 with no work zone attached.
@@ -672,8 +691,7 @@ test.describe('chapter 10 freeway facilities calculator', () => {
 
     // Opening the panel places the Example Problem 4 closure, and the panel
     // shows the values it placed rather than leaving them implicit.
-    await page.locator('.seg-table tbody tr').nth(10)
-      .getByRole('button', { name: '+ Add work zone' }).click();
+    await page.locator('.seg-table tbody tr').nth(10).getByRole('button', { name: '+ Add work zone' }).click();
     await expect(page.locator('#WZTL_input11')).toHaveValue('3');
     await expect(page.locator('#WZOL_input11')).toHaveValue('2');
     await expect(page.locator('#WZSL_input11')).toHaveValue('55');
@@ -719,8 +737,7 @@ test.describe('chapter 10 freeway facilities calculator', () => {
     // The seed derives from the segment's own lane coding (lanes = the OPEN
     // count during a closure), so adding a work zone on three-lane Segment 1
     // seeds a consistent four-to-three closure with no mismatch flag.
-    await page.locator('.seg-table tbody tr').nth(0)
-      .getByRole('button', { name: '+ Add work zone' }).click();
+    await page.locator('.seg-table tbody tr').nth(0).getByRole('button', { name: '+ Add work zone' }).click();
     const chip1 = diagram.locator('[data-testid="wz-chip"]').first();
     await expect(chip1).toHaveText('WZ 4→3');
     await expect(chip1).not.toHaveClass(/mismatch/);
@@ -731,13 +748,11 @@ test.describe('chapter 10 freeway facilities calculator', () => {
     await page.locator('#WZOL_input1').fill('2');
     await expect(chip1).toHaveText('WZ 4→2 !');
     await expect(chip1).toHaveClass(/mismatch/);
-    await page.locator('.seg-table tbody tr').nth(0)
-      .getByRole('button', { name: 'Remove work zone' }).click();
+    await page.locator('.seg-table tbody tr').nth(0).getByRole('button', { name: 'Remove work zone' }).click();
 
     // Removing it restores the unadjusted capacity, so the panel is not a
     // one-way door and set_work_zone is genuinely conditional.
-    await page.locator('.seg-table tbody tr').nth(10)
-      .getByRole('button', { name: 'Remove work zone' }).click();
+    await page.locator('.seg-table tbody tr').nth(10).getByRole('button', { name: 'Remove work zone' }).click();
     await calculate.click();
     await expect(capRow()).toContainText('4499 (v/c 1.12)');
 
@@ -756,8 +771,7 @@ test.describe('chapter 10 freeway facilities calculator', () => {
     // Two open lanes behind a three-to-two closure, the coding the engine
     // reads, on the default three-segment facility.
     await page.locator('.seg-table tbody tr').nth(0).locator('td').nth(3).locator('input').fill('2');
-    await page.locator('.seg-table tbody tr').nth(0)
-      .getByRole('button', { name: '+ Add work zone' }).click();
+    await page.locator('.seg-table tbody tr').nth(0).getByRole('button', { name: '+ Add work zone' }).click();
     await calculate.click();
 
     await page.getByRole('link', { name: 'Open printable report' }).click();
@@ -785,10 +799,14 @@ test.describe('chapter 10 freeway facilities calculator', () => {
     await page.locator('#DEMAND_input').fill('4001, 4400, 4640, 4160, 3361');
 
     await buildEp1Chain(page, {
-      on2: '500, 599, 699, 400, 200', off4: '300, 400, 300, 300, 300',
-      on6: '599, 799, 899, 400, 300', off6: '400, 400, 400, 400, 200',
-      on8: '500, 599, 699, 500, 300', off10: '300, 300, 500, 300, 200',
-      rr6: '56, 111, 167, 89, 56', lanes11: '3',
+      on2: '500, 599, 699, 400, 200',
+      off4: '300, 400, 300, 300, 300',
+      on6: '599, 799, 899, 400, 300',
+      off6: '400, 400, 400, 400, 200',
+      on8: '500, 599, 699, 500, 300',
+      off10: '300, 300, 500, 300, 200',
+      rr6: '56, 111, 167, 89, 56',
+      lanes11: '3',
     });
 
     // Before enabling, the strip carries no ML band at all.
@@ -935,9 +953,9 @@ test.describe('chapter 11 freeway reliability calculator', () => {
     await expect(cell('Scenarios Evaluated:')).toHaveText('240', { timeout: 60_000 });
     await expect(cell('Travel Time Observations:')).toHaveText('2880');
     await expect(cell('Free-Flow Travel Time (min):')).toHaveText('6.00'); // 6 mi at 60 mi/h
-    await expect(cell('Mean TTI:')).toHaveText('1.323');          // published 1.30
+    await expect(cell('Mean TTI:')).toHaveText('1.323'); // published 1.30
     await expect(cell('50th Percentile TTI:')).toHaveText('1.033'); // published 1.03
-    await expect(cell('Misery Index:')).toHaveText('5.630');       // published 5.76
+    await expect(cell('Misery Index:')).toHaveText('5.630'); // published 5.76
     await expect(cell('Semi-Standard Deviation:')).toHaveText('1.963'); // published 2.05
     await expect(cell('95th Percentile TTI (PTI):')).toHaveText('1.970'); // published 1.67, a known gap
     // Probability-weighted, which is how Exhibit 25-104 reports EP7, so the
@@ -1347,7 +1365,7 @@ test.describe('chapter 12 mixed-flow mode', () => {
     await page.getByRole('button', { name: 'Calculate' }).click();
 
     await expect(page.getByTestId('mf-oversaturated')).toContainText(
-      'LOS F — demand exceeds mixed-flow capacity; the method reports no speed'
+      'LOS F — demand exceeds mixed-flow capacity; the method reports no speed',
     );
     await expect(page.getByTestId('mf-speed')).toHaveText('no speed reported');
     await expect(page.getByTestId('mf-density')).toHaveText('no density reported');
@@ -1519,7 +1537,9 @@ test.describe('chapter 12 managed lane calculator', () => {
     // The labels are SVG <text>, which the text engine does not reach, so assert on
     // the rendered node itself.
     await expect(diagram.locator('[data-testid="ml-label"]')).toHaveText(/Managed lane · LOS D · 27\.0 pc\/mi\/ln/);
-    await expect(diagram.locator('[data-testid="gp-label"]')).toHaveText(/2 general purpose lanes · K_GP 19\.5 pc\/mi\/ln/);
+    await expect(diagram.locator('[data-testid="gp-label"]')).toHaveText(
+      /2 general purpose lanes · K_GP 19\.5 pc\/mi\/ln/,
+    );
   });
 
   test('a run publishes a printable report', async ({ page }) => {
@@ -1644,7 +1664,10 @@ test.describe('chapter 16 urban street facility calculator', () => {
 
     // The 3D toggle swaps in the projected view, LOS heat and all.
     await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
-    await expect(page.locator('.uf3-wrap svg')).toHaveAttribute('aria-label', /urban street facility 3D view, 3 segments/);
+    await expect(page.locator('.uf3-wrap svg')).toHaveAttribute(
+      'aria-label',
+      /urban street facility 3D view, 3 segments/,
+    );
     await expect(page.locator('path.uf3-top.scored')).toHaveCount(3);
   });
 });
@@ -1767,7 +1790,10 @@ test.describe('chapter 17 urban street reliability calculator', () => {
 
     // The 3D toggle swaps in the projected view, un-tinted there too.
     await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
-    await expect(page.locator('.uf3-wrap svg')).toHaveAttribute('aria-label', /urban street facility 3D view, 6 segments/);
+    await expect(page.locator('.uf3-wrap svg')).toHaveAttribute(
+      'aria-label',
+      /urban street facility 3D view, 6 segments/,
+    );
     await expect(page.locator('path.uf3-top')).toHaveCount(6);
     await expect(page.locator('path.uf3-top.scored')).toHaveCount(0);
   });
@@ -1823,7 +1849,10 @@ test.describe('chapter 18 urban street segment calculator', () => {
     await expect(page.getByRole('button', { name: 'Calculate' })).toBeEnabled({ timeout: 30_000 }); // hydration + wasm ready
     const diagram = page.locator('.us-diagram svg');
     await expect(diagram).toBeVisible();
-    await expect(diagram).toHaveAttribute('aria-label', /urban street segment, 2 through lanes each direction, 4 subject and 4 opposing access points/);
+    await expect(diagram).toHaveAttribute(
+      'aria-label',
+      /urban street segment, 2 through lanes each direction, 4 subject and 4 opposing access points/,
+    );
 
     // Four driveways per side, redrawn from the counts.
     await expect(page.locator('rect.us-drive')).toHaveCount(8);
@@ -2125,14 +2154,14 @@ test.describe('chapter 20 pedestrian crossing mode', () => {
     // t_c = 6.0 s, P_b = 0.508, P_d = 0.758, d_g = 7.2 s, d_gd = 9.5 s,
     // h = 2.3 s, n = 4, and d_p,s = 3.0 s.
     const stage1 = page.getByTestId('ped-result-stage-1');
-    await expect(stage1.locator('td').nth(1)).toHaveText('6.0');   // t_c
+    await expect(stage1.locator('td').nth(1)).toHaveText('6.0'); // t_c
     await expect(stage1.locator('td').nth(4)).toHaveText('0.508'); // P_b
     await expect(stage1.locator('td').nth(5)).toHaveText('0.757'); // P_d, published 0.758
-    await expect(stage1.locator('td').nth(6)).toHaveText('7.2');   // d_g
-    await expect(stage1.locator('td').nth(7)).toHaveText('9.5');   // d_gd
-    await expect(stage1.locator('td').nth(8)).toHaveText('2.3');   // h
-    await expect(stage1.locator('td').nth(9)).toHaveText('4');     // n
-    await expect(stage1.locator('td').nth(10)).toHaveText('3.0');  // stage delay
+    await expect(stage1.locator('td').nth(6)).toHaveText('7.2'); // d_g
+    await expect(stage1.locator('td').nth(7)).toHaveText('9.5'); // d_gd
+    await expect(stage1.locator('td').nth(8)).toHaveText('2.3'); // h
+    await expect(stage1.locator('td').nth(9)).toHaveText('4'); // n
+    await expect(stage1.locator('td').nth(10)).toHaveText('3.0'); // stage delay
     // Both stages are identical by construction, so Equation 20-94 doubles it.
     await expect(page.getByTestId('ped-result-stage-2').locator('td').nth(10)).toHaveText('3.0');
 
@@ -2172,7 +2201,7 @@ test.describe('chapter 20 pedestrian crossing mode', () => {
     // d_gd = 763 s, d_p = 761 s (the engine's 760.6 is inside the 0.5% band
     // of a three-significant-figure publication), P_nd = 0.003, LOS F.
     const stage1 = page.getByTestId('ped-result-stage-1');
-    await expect(stage1.locator('td').nth(1)).toHaveText('12.5');  // t_c
+    await expect(stage1.locator('td').nth(1)).toHaveText('12.5'); // t_c
     await expect(stage1.locator('td').nth(4)).toHaveText('0.771'); // P_b
     await expect(stage1.locator('td').nth(5)).toHaveText('0.997'); // P_d
     await expect(stage1.locator('td').nth(6)).toHaveText('760.6'); // d_g, published 761
@@ -2218,7 +2247,10 @@ test.describe('chapter 20 pedestrian crossing mode', () => {
     // the convention of the other cross-section diagrams here.
     const diagram = page.locator('.pedx-diagram');
     await expect(diagram.locator('svg')).toBeVisible();
-    await expect(diagram).toHaveAttribute('aria-label', /2-stage pedestrian crossing of 2 lanes at 850 veh\/h then 2 lanes at 850 veh\/h/);
+    await expect(diagram).toHaveAttribute(
+      'aria-label',
+      /2-stage pedestrian crossing of 2 lanes at 850 veh\/h then 2 lanes at 850 veh\/h/,
+    );
     await expect(page.getByTestId('pedx-refuge')).toBeVisible();
     await expect(page.getByTestId('pedx-stage-1')).toHaveText('Stage 1 · 2 lanes · 20 ft · 850 veh/h');
     await expect(page.getByTestId('pedx-headline')).toHaveText('2-stage crossing · median refuge · 4.0 ft/s');
@@ -2236,7 +2268,9 @@ test.describe('chapter 20 pedestrian crossing mode', () => {
     await calculate(page);
     await expect(page.getByTestId('pedx-footline')).toHaveText('d_p 6.0 s · LOS C');
     await page.getByRole('link', { name: 'Open printable report' }).click();
-    await expect(page.locator('.report-title')).toHaveText('Pedestrian Crossing at a Two-Way STOP-Controlled Intersection');
+    await expect(page.locator('.report-title')).toHaveText(
+      'Pedestrian Crossing at a Two-Way STOP-Controlled Intersection',
+    );
     await expect(page.locator('.report-diagram .pedx-diagram svg')).toBeVisible();
   });
 
@@ -2295,7 +2329,10 @@ test.describe('chapter 21 AWSC calculator', () => {
 
     // The 3D toggle swaps in the projected view.
     await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
-    await expect(page.locator('.awsc-diagram-3d svg')).toHaveAttribute('aria-label', /all-way stop-controlled intersection, 3D view/);
+    await expect(page.locator('.awsc-diagram-3d svg')).toHaveAttribute(
+      'aria-label',
+      /all-way stop-controlled intersection, 3D view/,
+    );
   });
 });
 
@@ -2399,8 +2436,7 @@ test.describe('chapter 23 interchange calculator', () => {
     await expect(page.getByText(/Interchange LOS: C/)).toBeVisible();
     // Scoped to the interchange ETT row: the previous bare /52\.4/ page-wide
     // match also hit two unrelated cells carrying the same digits.
-    await expect(page.locator('tr', { hasText: 'Interchange Experienced Travel Time' }))
-      .toContainText('50.4');
+    await expect(page.locator('tr', { hasText: 'Interchange Experienced Travel Time' })).toContainText('50.4');
 
     await page.getByRole('link', { name: 'Open printable report' }).click();
     await expect(page.locator('.report-title')).toHaveText('Ramp Terminals and Alternative Intersections');
@@ -2429,8 +2465,7 @@ test.describe('chapter 23 interchange calculator', () => {
     await calculate.click();
 
     await expect(page.getByText(/Interchange LOS: B/)).toBeVisible();
-    await expect(page.locator('tr', { hasText: 'Interchange Experienced Travel Time' }))
-      .toContainText('29.8');
+    await expect(page.locator('tr', { hasText: 'Interchange Experienced Travel Time' })).toContainText('29.8');
 
     // Lane configuration drives the geometry: dropping EB to two shared
     // lanes removes a lane line and merges the E left onto the through lane.
@@ -2441,7 +2476,10 @@ test.describe('chapter 23 interchange calculator', () => {
 
     // 3D view carries the form and the overpass deck.
     await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
-    await expect(page.locator('.dd-diagram-3d svg')).toHaveAttribute('aria-label', /diverging diamond interchange, 3D view/);
+    await expect(page.locator('.dd-diagram-3d svg')).toHaveAttribute(
+      'aria-label',
+      /diverging diamond interchange, 3D view/,
+    );
     await expect(page.locator('.dd-diagram-3d path.dd3-deck')).toHaveCount(1);
   });
 
@@ -2475,8 +2513,7 @@ test.describe('chapter 23 interchange calculator', () => {
     await calculate.click();
 
     await expect(page.getByText(/Interchange LOS: D/)).toBeVisible();
-    await expect(page.locator('tr', { hasText: 'Interchange Experienced Travel Time' }))
-      .toContainText(/61\.[56]/);
+    await expect(page.locator('tr', { hasText: 'Interchange Experienced Travel Time' })).toContainText(/61\.[56]/);
 
     const rowA = page.locator('.results-panel tbody tr', { has: page.locator('th:text-is("A")') }).first();
     await expect(rowA).toContainText('99.5');
@@ -2530,21 +2567,27 @@ test.describe('chapter 23 interchange calculator', () => {
 
     await calculate.click();
     await expect(page.getByText(/Interchange LOS: C/)).toBeVisible();
-    await expect(page.locator('tr', { hasText: 'Interchange Experienced Travel Time' }))
-      .toContainText('45.4');
+    await expect(page.locator('tr', { hasText: 'Interchange Experienced Travel Time' })).toContainText('45.4');
 
     // One signalized point means no O-D leaves the arterial and rejoins it, so
     // every EDTT is exactly zero and every ETT is its movement's control delay.
     // That is the property Exhibit 34-82 shows and the one that separates this
     // form from every other on the page.
     const rows = page.locator('.results-panel tbody tr');
-    for (const [letter, ett, los] of [['A', '27.7', 'B'], ['B', '64.0', 'D'], ['I', '50.3', 'C']]) {
+    for (const [letter, ett, los] of [
+      ['A', '27.7', 'B'],
+      ['B', '64.0', 'D'],
+      ['I', '50.3', 'C'],
+    ]) {
       const row = rows.filter({ has: page.locator(`th:text-is("${letter}")`) }).first();
       await expect(row).toContainText(ett);
       await expect(row).toContainText(los);
     }
     for (const letter of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']) {
-      const cells = rows.filter({ has: page.locator(`th:text-is("${letter}")`) }).first().locator('td');
+      const cells = rows
+        .filter({ has: page.locator(`th:text-is("${letter}")`) })
+        .first()
+        .locator('td');
       // Columns are demand, control delay, EDTT, ETT, LOS.
       await expect(cells.nth(2)).toHaveText('0.0');
       await expect(cells.nth(3)).toHaveText(await cells.nth(1).innerText());
@@ -2590,7 +2633,8 @@ test.describe('chapter 23 interchange calculator', () => {
         return s(a, b, c) !== s(a, b, d) && s(c, d, a) !== s(c, d, b);
       };
       const cross = (u: string, v: string) => {
-        const A = at(u, 400), B = at(v, 400);
+        const A = at(u, 400),
+          B = at(v, 400);
         for (let i = 1; i < A.length; i++) {
           for (let j = 1; j < B.length; j++) if (seg(A[i - 1], A[i], B[j - 1], B[j])) return true;
         }
@@ -2777,16 +2821,21 @@ test.describe('chapter 23 part C alternative intersections', () => {
     await page.getByRole('button', { name: 'Calculate' }).click();
 
     const results = page.locator('.results-panel');
-    const row = (label: string) =>
-      results.locator('tbody tr', { has: page.locator(`th:text-is("${label}")`) }).first();
+    const row = (label: string) => results.locator('tbody tr', { has: page.locator(`th:text-is("${label}")`) }).first();
     // Exhibit 34-133, all twelve movements.
     for (const [label, ett, los] of [
-      ['NB L', '37.3', 'D'], ['SB L', '18.4', 'B'],
-      ['NB T', '10.5', 'B'], ['SB T', '13.0', 'B'],
-      ['NB R', '13.2', 'B'], ['SB R', '7.9', 'A'],
-      ['EB L', '79.4', 'E'], ['WB L', '72.9', 'E'],
-      ['EB T', '82.1', 'F'], ['WB T', '67.8', 'E'],
-      ['EB R', '35.1', 'D'], ['WB R', '12.4', 'B'],
+      ['NB L', '37.3', 'D'],
+      ['SB L', '18.4', 'B'],
+      ['NB T', '10.5', 'B'],
+      ['SB T', '13.0', 'B'],
+      ['NB R', '13.2', 'B'],
+      ['SB R', '7.9', 'A'],
+      ['EB L', '79.4', 'E'],
+      ['WB L', '72.9', 'E'],
+      ['EB T', '82.1', 'F'],
+      ['WB T', '67.8', 'E'],
+      ['EB R', '35.1', 'D'],
+      ['WB R', '12.4', 'B'],
     ]) {
       await expect(row(label)).toContainText(ett);
       await expect(row(label)).toContainText(los);
@@ -3007,7 +3056,9 @@ test.describe('chapter 24 pedestrian and bicycle path calculator', () => {
 });
 
 test.describe('chapter 15 two-lane highway calculator', () => {
-  test('importing a library fixture carries its horizontal curves through to the published answer', async ({ page }) => {
+  test('importing a library fixture carries its horizontal curves through to the published answer', async ({
+    page,
+  }) => {
     // case2.json is Chapter 26 Example Problem 2: EP1 plus eleven horizontal
     // curve subsegments. The import previously read design_radius/superelevation
     // where the library schema writes design_rad/sup_ele, so every curve arrived
@@ -3063,7 +3114,10 @@ test.describe('chapter 15 two-lane highway calculator', () => {
     await page.locator('.view-toggle .vt-btn', { hasText: '3D' }).click();
     const decks = page.locator('path.tl3-deck');
     await expect(decks).toHaveCount(5);
-    await expect(page.locator('.tl3-wrap svg')).toHaveAttribute('aria-label', /two-lane highway facility 3D view, 5 segments/);
+    await expect(page.locator('.tl3-wrap svg')).toHaveAttribute(
+      'aria-label',
+      /two-lane highway facility 3D view, 5 segments/,
+    );
 
     // A tap (press and release in place) selects; the camera keeps drags.
     await decks.nth(2).click({ force: true });
@@ -3134,15 +3188,65 @@ type TwoLaneSeg = {
 };
 
 const CASE1_TWOLANE: TwoLaneSeg[] = [
-  { type: 'Passing Constrained', length: '0.75', grade: '0', spl: '50', vi: '752', vo: '0', vc: '1', phf: '0.94', phv: '5' },
+  {
+    type: 'Passing Constrained',
+    length: '0.75',
+    grade: '0',
+    spl: '50',
+    vi: '752',
+    vo: '0',
+    vc: '1',
+    phf: '0.94',
+    phv: '5',
+  },
 ];
 
 const CASE3_TWOLANE: TwoLaneSeg[] = [
-  { type: 'Passing Constrained', length: '0.75', grade: '0', spl: '55', vi: '850', vo: '0', vc: '1', phf: '0.94', phv: '8' },
+  {
+    type: 'Passing Constrained',
+    length: '0.75',
+    grade: '0',
+    spl: '55',
+    vi: '850',
+    vo: '0',
+    vc: '1',
+    phf: '0.94',
+    phv: '8',
+  },
   { type: 'Passing Lane', length: '1.5', grade: '0', spl: '55', vi: '825', vo: '0', vc: '1', phf: '0.95', phv: '8' },
-  { type: 'Passing Constrained', length: '1.0', grade: '0', spl: '55', vi: '820', vo: '0', vc: '1', phf: '0.95', phv: '8' },
-  { type: 'Passing Zone', length: '0.5', grade: '0', spl: '55', vi: '800', vo: '500', vc: '1', phf: '0.94', phv: '7.5' },
-  { type: 'Passing Constrained', length: '1.75', grade: '0', spl: '55', vi: '795', vo: '0', vc: '1', phf: '0.935', phv: '8' },
+  {
+    type: 'Passing Constrained',
+    length: '1.0',
+    grade: '0',
+    spl: '55',
+    vi: '820',
+    vo: '0',
+    vc: '1',
+    phf: '0.95',
+    phv: '8',
+  },
+  {
+    type: 'Passing Zone',
+    length: '0.5',
+    grade: '0',
+    spl: '55',
+    vi: '800',
+    vo: '500',
+    vc: '1',
+    phf: '0.94',
+    phv: '7.5',
+  },
+  {
+    type: 'Passing Constrained',
+    length: '1.75',
+    grade: '0',
+    spl: '55',
+    vi: '795',
+    vo: '0',
+    vc: '1',
+    phf: '0.935',
+    phv: '8',
+  },
 ];
 
 // Loads /hcm15, enters a facility, and runs it. The passing type goes in first
@@ -3180,7 +3284,7 @@ async function fillTwoLane(page: Page, segs: TwoLaneSeg[]) {
 
 async function expectTwoLaneOutputs(
   page: Page,
-  want: { ffs: string[]; avgspd: string[]; pf: string[]; fd: string[]; seglos: string[]; los: string; fdF: string }
+  want: { ffs: string[]; avgspd: string[]; pf: string[]; fd: string[]; seglos: string[]; los: string; fdF: string },
 ) {
   for (const key of ['ffs', 'avgspd', 'pf', 'fd', 'seglos'] as const) {
     for (let i = 0; i < want[key].length; i++) {
@@ -3220,9 +3324,7 @@ test.describe('facility builder', () => {
   }
 
   const typesOf = (page: Page) =>
-    page.getByTestId('segment-row').evaluateAll((rows) =>
-      rows.map((r) => (r as HTMLElement).dataset.segType)
-    );
+    page.getByTestId('segment-row').evaluateAll((rows) => rows.map((r) => (r as HTMLElement).dataset.segType));
 
   /** Every field a feature carries lives in the editor its row opens, so a test
    * that edits one opens the row first, the same way a user does. */
@@ -3265,7 +3367,7 @@ test.describe('facility builder', () => {
     const box = await strip.boundingBox();
     expect(from && box).toBeTruthy();
     // 4 mi of facility across the plot: move left by roughly 2,000 ft.
-    const perFt = (box!.width * (900 - 28) / 900) / (4 * 5280);
+    const perFt = (box!.width * (900 - 28)) / 900 / (4 * 5280);
     await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2);
     await page.mouse.down();
     await page.mouse.move(from!.x + from!.width / 2 - 2000 * perFt, from!.y + from!.height / 2, { steps: 8 });
@@ -3300,7 +3402,9 @@ test.describe('facility builder', () => {
     expect(await typesOf(page)).not.toEqual(before);
   });
 
-  test('an override survives re-derivation, is marked stale when its row changes type, and clears', async ({ page }) => {
+  test('an override survives re-derivation, is marked stale when its row changes type, and clears', async ({
+    page,
+  }) => {
     await openBuilder(page);
     await page.getByTestId('facility-length').fill('4');
     await page.getByTestId('facility-length').blur();
@@ -3338,7 +3442,7 @@ test.describe('facility builder', () => {
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByTestId('download-document').click()
+      page.getByTestId('download-document').click(),
     ]);
     const savedPath = await download.path();
 
@@ -3348,7 +3452,7 @@ test.describe('facility builder', () => {
     await page.locator('input[type="file"]').setInputFiles({
       name: 'round-trip.builder.json',
       mimeType: 'application/json',
-      buffer: readFileSync(savedPath)
+      buffer: readFileSync(savedPath),
     });
     await expect(page.getByTestId('facility-name')).toHaveValue('Round trip');
     expect(await typesOf(page)).toEqual(before);
@@ -3372,16 +3476,14 @@ test.describe('facility builder', () => {
     await page.locator('input[type="file"]').setInputFiles({
       name: 'case1.json',
       mimeType: 'application/json',
-      buffer: readFileSync(CASE1())
+      buffer: readFileSync(CASE1()),
     });
     expect(await typesOf(page)).toEqual(case1.segments.map((s: { seg_type: string }) => s.seg_type));
     await expect(page.getByTestId('segment-row')).toHaveCount(11);
     // No features arrived with it, and the page does not pretend otherwise.
     await expect(page.getByTestId('feature-table')).toHaveCount(0);
     await expect(page.getByTestId('imported-note')).toBeVisible();
-    await expect(
-      page.locator('[data-testid="validation-flag"][data-flag-id="imported-no-features"]')
-    ).toBeVisible();
+    await expect(page.locator('[data-testid="validation-flag"][data-flag-id="imported-no-features"]')).toBeVisible();
   });
 
   test('the checks panel flags an over-long facility as a warning and cites the section', async ({ page }) => {
@@ -3400,9 +3502,7 @@ test.describe('facility builder', () => {
   });
 
   const lanesOf = (page: Page) =>
-    page.getByTestId('strip-seg').evaluateAll((els) =>
-      els.map((e) => Number((e as HTMLElement).dataset.segLanes))
-    );
+    page.getByTestId('strip-seg').evaluateAll((els) => els.map((e) => Number((e as HTMLElement).dataset.segLanes)));
 
   test('Example Problem 3 shows the added lane as a step in the cross section', async ({ page }) => {
     await openBuilder(page);
@@ -3457,8 +3557,9 @@ test.describe('facility builder', () => {
     expect(await typesOf(page)).toEqual(ep1Types);
     expect(await lanesOf(page)).toEqual(ep1Lanes);
     const case2 = readCase('FreewayFacilities', 'case2.json');
-    await expect(page.locator('[data-testid="demand-row"][data-source="mainline"] input').first())
-      .toHaveValue(String(case2.mainline_demand[0]));
+    await expect(page.locator('[data-testid="demand-row"][data-source="mainline"] input').first()).toHaveValue(
+      String(case2.mainline_demand[0]),
+    );
   });
 
   // Every feature kind shares one `features` array, and the ramp kinds are the
@@ -3574,7 +3675,10 @@ test.describe('facility builder', () => {
     await page.locator(`[data-testid="feature-marker"][data-feature-id="${onId}"] circle`).click();
     await expect(page.locator(`[data-testid="feature-editor"][data-feature-id="${onId}"]`)).toBeVisible();
     await expect(page.locator(`[data-testid="feature-editor"][data-feature-id="${offId}"]`)).toHaveCount(0);
-    await expect(page.locator(`[data-testid="feature-row"][data-feature-id="${onId}"]`)).toHaveAttribute('data-expanded', 'true');
+    await expect(page.locator(`[data-testid="feature-row"][data-feature-id="${onId}"]`)).toHaveAttribute(
+      'data-expanded',
+      'true',
+    );
   });
 
   test('the editor maximizes to the viewport and Escape restores it', async ({ page }) => {
@@ -3637,14 +3741,13 @@ test.describe('facility builder', () => {
 
   /** The facility LOS row of the summary table, which is the letter sequence
    * Exhibit 25-52 and its siblings print along the bottom. */
-  const facilityLos = (page: Page) =>
-    page.getByTestId('facility-los-row').locator('td').allInnerTexts();
+  const facilityLos = (page: Page) => page.getByTestId('facility-los-row').locator('td').allInnerTexts();
 
   /** One row of the heatmap, in segment order, as the page renders it. */
   const heatRow = (page: Page, period: number) =>
-    page.locator(`[data-testid="heatmap-cell"][data-period="${period}"]`).evaluateAll((els) =>
-      els.map((e) => (e as HTMLElement).dataset.value)
-    );
+    page
+      .locator(`[data-testid="heatmap-cell"][data-period="${period}"]`)
+      .evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.value));
 
   test('Example Problem 1 analyzes to the published Exhibit 25-52 facility values', async ({ page }) => {
     await analyze(page, 'ep1');
@@ -3679,9 +3782,10 @@ test.describe('facility builder', () => {
     // Exhibit 25-59 period 4, segment 4: LOS E. This cell moved onto its
     // published value when the Equation 25-12 front-clearing test was scoped to
     // a restored bottleneck, so it is the one worth watching.
-    await expect(
-      page.locator('[data-testid="heatmap-cell"][data-seg="4"][data-period="4"]')
-    ).toHaveAttribute('data-value', 'E');
+    await expect(page.locator('[data-testid="heatmap-cell"][data-seg="4"][data-period="4"]')).toHaveAttribute(
+      'data-value',
+      'E',
+    );
     // VERIFY-HCM: the residual queue-distribution gap keeps the totals off the
     // published 50.5 mi/h and 35.6 veh/mi/ln, so the page is pinned at what the
     // engine measures, exactly as the boundary file pins it.
@@ -3857,8 +3961,20 @@ test.describe('facility builder', () => {
     await expect(matrix).toBeVisible();
     await expect(matrix.locator('thead th')).toHaveCount(12);
     await expect(matrix.locator('tbody tr')).toHaveCount(5);
-    expect(await matrix.locator('tbody tr').nth(2).locator('td').allInnerTexts())
-      .toEqual(['3', 'D', 'D', 'D', 'D', 'D', 'D', 'E', 'E', 'E', 'D', 'E']);
+    expect(await matrix.locator('tbody tr').nth(2).locator('td').allInnerTexts()).toEqual([
+      '3',
+      'D',
+      'D',
+      'D',
+      'D',
+      'D',
+      'D',
+      'E',
+      'E',
+      'E',
+      'D',
+      'E',
+    ]);
     // The discussion rides under the same opt-out toggle every chapter uses.
     await expect(page.getByTestId('report-discussion')).toContainText('governing cell');
   });
@@ -3887,10 +4003,7 @@ test.describe('facility builder', () => {
     // both while the print carries the one on screen.
     await expect(page.locator('.report-tabs button')).toHaveCount(2);
 
-    const [download] = await Promise.all([
-      page.waitForEvent('download'),
-      page.getByTestId('download-docx').click()
-    ]);
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('download-docx').click()]);
     expect(download.suggestedFilename()).toMatch(/\.docx$/);
     const path = await download.path();
     const bytes = readFileSync(path);
@@ -3910,10 +4023,7 @@ test.describe('facility builder', () => {
     // the page, which is the whole point of one control for both.
     await page.getByTestId('include-discussion').uncheck();
     await expect(page.getByTestId('report-discussion')).toHaveCount(0);
-    const [second] = await Promise.all([
-      page.waitForEvent('download'),
-      page.getByTestId('download-docx').click()
-    ]);
+    const [second] = await Promise.all([page.waitForEvent('download'), page.getByTestId('download-docx').click()]);
     const withoutDiscussion = readZipEntry(readFileSync(await second.path()), 'word/document.xml');
     expect(withoutDiscussion).not.toContain('>Discussion<');
     // And nothing else went with it.
@@ -3948,9 +4058,7 @@ test.describe('facility builder', () => {
     }
 
     const segLengths = (page: Page) =>
-      page.getByTestId('strip-seg').evaluateAll((rows) =>
-        rows.map((r) => (r as HTMLElement).dataset.segKey)
-      );
+      page.getByTestId('strip-seg').evaluateAll((rows) => rows.map((r) => (r as HTMLElement).dataset.segKey));
 
     test('the urban mode swaps the whole editor, and does not leak freeway controls', async ({ page }) => {
       await openUrban(page);
@@ -3967,7 +4075,9 @@ test.describe('facility builder', () => {
       await expect(page.getByTestId('facility-ffs')).toHaveCount(0);
     });
 
-    test('Chapter 30 EP1 loads from its signals and reproduces the published Exhibit 30-36 values', async ({ page }) => {
+    test('Chapter 30 EP1 loads from its signals and reproduces the published Exhibit 30-36 values', async ({
+      page,
+    }) => {
       await loadUrbanExample(page, 'ch30ep1');
 
       // Four boundary signals give three segments, and the access points are on
@@ -4048,7 +4158,7 @@ test.describe('facility builder', () => {
       const rows = page.getByTestId('strip-seg');
       await expect(rows).toHaveCount(3);
       const widths = await rows.evaluateAll((els) =>
-        els.map((e) => Number((e.querySelector('rect') as SVGRectElement).getAttribute('width')))
+        els.map((e) => Number((e.querySelector('rect') as SVGRectElement).getAttribute('width'))),
       );
       expect(widths[0]).toBeLessThan(widths[1]);
 
@@ -4131,7 +4241,11 @@ test.describe('facility builder', () => {
       // terminate a segment carry them; the one at station 0 terminates nothing.
       for (const id of ['sig2', 'sig3', 'sig4']) {
         await page.getByTestId(`expand-${id}`).click();
-        for (const [testid, value] of [['nap', '2'], ['pctlt', '6.5'], ['pctrt', '8.1']]) {
+        for (const [testid, value] of [
+          ['nap', '2'],
+          ['pctlt', '6.5'],
+          ['pctrt', '8.1'],
+        ]) {
           const field = page.getByTestId(`${testid}-${id}`);
           await field.fill(value);
           await field.blur();
@@ -4200,7 +4314,7 @@ test.describe('facility builder', () => {
 
       const [download] = await Promise.all([
         page.waitForEvent('download'),
-        page.getByTestId('download-fixture').click()
+        page.getByTestId('download-fixture').click(),
       ]);
       const exported = JSON.parse(readFileSync(await download.path(), 'utf8'));
       expect(exported).toEqual(JSON.parse(readFileSync(fixture, 'utf8')));
@@ -4233,15 +4347,16 @@ test.describe('facility builder', () => {
 
       const [download] = await Promise.all([
         page.waitForEvent('download'),
-        page.getByTestId('download-fixture').click()
+        page.getByTestId('download-fixture').click(),
       ]);
       const exported = JSON.parse(readFileSync(await download.path(), 'utf8'));
       expect(exported.segments[0]).not.toHaveProperty('full_stop_rate_override');
       // And only there. The clear is one signal's, not the facility's.
       expect(exported.segments[1].full_stop_rate_override).toBe(raw.segments[1].full_stop_rate_override);
       expect(exported.segments[2].full_stop_rate_override).toBe(raw.segments[2].full_stop_rate_override);
-      expect({ ...exported.segments[0], full_stop_rate_override: raw.segments[0].full_stop_rate_override })
-        .toEqual(raw.segments[0]);
+      expect({ ...exported.segments[0], full_stop_rate_override: raw.segments[0].full_stop_rate_override }).toEqual(
+        raw.segments[0],
+      );
     });
 
     test('the report and the Word export carry the urban run', async ({ page }) => {
@@ -4259,10 +4374,7 @@ test.describe('facility builder', () => {
       // period axis to build one from.
       await expect(page.locator('body')).not.toContainText('Time-space domain');
 
-      const [download] = await Promise.all([
-        page.waitForEvent('download'),
-        page.getByTestId('download-docx').click()
-      ]);
+      const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('download-docx').click()]);
       const xml = readZipEntry(readFileSync(await download.path()), 'word/document.xml');
       expect(xml).toContain('23.67');
       expect(xml).toContain('Facility Builder');
@@ -4299,9 +4411,7 @@ test.describe('facility builder', () => {
 
     /** The values of one measure across the result strip, in segment order. */
     const cellValues = (page: Page) =>
-      page.getByTestId('twolane-cell').evaluateAll((cells) =>
-        cells.map((c) => (c as HTMLElement).dataset.value ?? '')
-      );
+      page.getByTestId('twolane-cell').evaluateAll((cells) => cells.map((c) => (c as HTMLElement).dataset.value ?? ''));
 
     async function readMeasure(page: Page, id: string, digits: number) {
       await page.getByTestId('twolane-measure').selectOption(id);
@@ -4338,7 +4448,9 @@ test.describe('facility builder', () => {
       await expect(uncarried).not.toContainText('carry ,');
     });
 
-    test('Example Problem 1 is a highway with no features at all, and reproduces its Step 11 value', async ({ page }) => {
+    test('Example Problem 1 is a highway with no features at all, and reproduces its Step 11 value', async ({
+      page,
+    }) => {
       await loadTwoLane(page, 'ch26ep1');
       // The honest reconstruction of a level Passing Constrained highway is a
       // highway and nothing else, so the feature tables are absent.
@@ -4357,7 +4469,9 @@ test.describe('facility builder', () => {
       expect(await readMeasure(page, 'percentFollowers', 1)).toEqual([67.7]);
     });
 
-    test('Example Problem 2 is the same highway with five curves, and they are subsegments rather than segments', async ({ page }) => {
+    test('Example Problem 2 is the same highway with five curves, and they are subsegments rather than segments', async ({
+      page,
+    }) => {
       await loadTwoLane(page, 'ch26ep2');
       // Five curves, and the segment count does NOT move: Chapter 15 Step 1
       // sends varying curvature to Step 5d inside one segment.
@@ -4403,18 +4517,15 @@ test.describe('facility builder', () => {
       const centerlines = await page.getByTestId('strip-seg').evaluateAll((segs) =>
         segs.map((sg) => {
           const line = sg.querySelector('.bs-tl-center');
-          return [
-            (sg as HTMLElement).dataset.segType,
-            line ? getComputedStyle(line).strokeDasharray : 'missing'
-          ];
-        })
+          return [(sg as HTMLElement).dataset.segType, line ? getComputedStyle(line).strokeDasharray : 'missing'];
+        }),
       );
       expect(centerlines).toEqual([
         ['Passing Constrained', 'none'],
         ['Passing Lane', 'none'],
         ['Passing Constrained', 'none'],
         ['Passing Zone', '6px, 5px'],
-        ['Passing Constrained', 'none']
+        ['Passing Constrained', 'none'],
       ]);
 
       // The passing lane's cell is marked, because its value is a midpoint
@@ -4452,7 +4563,9 @@ test.describe('facility builder', () => {
       await expect(page.locator('body')).toContainText('midpoint follower density');
     });
 
-    test('a passing lane under the Exhibit 15-10 minimum is analyzed as Passing Constrained, and says so', async ({ page }) => {
+    test('a passing lane under the Exhibit 15-10 minimum is analyzed as Passing Constrained, and says so', async ({
+      page,
+    }) => {
       await openTwoLane(page);
       await page.getByTestId('add-passing').click();
       const row = page.getByTestId('twolane-feature-row').first();
@@ -4465,9 +4578,9 @@ test.describe('facility builder', () => {
       await length.blur();
       await expect(page.getByTestId(`pl-too-short-${id}`)).toBeVisible();
 
-      const types = await page.getByTestId('strip-seg').evaluateAll((segs) =>
-        segs.map((sg) => (sg as HTMLElement).dataset.segType)
-      );
+      const types = await page
+        .getByTestId('strip-seg')
+        .evaluateAll((segs) => segs.map((sg) => (sg as HTMLElement).dataset.segType));
       expect(types).not.toContain('Passing Lane');
       expect(types.every((t) => t === 'Passing Constrained')).toBe(true);
 
@@ -4475,17 +4588,17 @@ test.describe('facility builder', () => {
       // live rather than at load.
       await length.fill('0.6');
       await length.blur();
-      const back = await page.getByTestId('strip-seg').evaluateAll((segs) =>
-        segs.map((sg) => (sg as HTMLElement).dataset.segType)
-      );
+      const back = await page
+        .getByTestId('strip-seg')
+        .evaluateAll((segs) => segs.map((sg) => (sg as HTMLElement).dataset.segType));
       expect(back).toContain('Passing Lane');
     });
 
     test('moving a passing feature re-derives the segments on both sides of it', async ({ page }) => {
       await loadTwoLane(page, 'ch26ep3');
-      const before = await page.getByTestId('strip-seg').evaluateAll((segs) =>
-        segs.map((sg) => Number((sg as HTMLElement).dataset.segLanes))
-      );
+      const before = await page
+        .getByTestId('strip-seg')
+        .evaluateAll((segs) => segs.map((sg) => Number((sg as HTMLElement).dataset.segLanes)));
       expect(before).toEqual([1, 2, 1, 1, 1]);
 
       await page.getByTestId('expand-ps1').click();
@@ -4497,9 +4610,9 @@ test.describe('facility builder', () => {
       // boundary where none was. Example Problem 3 already has a demand change at
       // 0.75 mi, so the old boundary stays and the highway gains segments rather
       // than the first one simply growing.
-      const after = await page.getByTestId('strip-seg').evaluateAll((segs) =>
-        segs.map((sg) => (sg as HTMLElement).getAttribute('aria-label') ?? '')
-      );
+      const after = await page
+        .getByTestId('strip-seg')
+        .evaluateAll((segs) => segs.map((sg) => (sg as HTMLElement).getAttribute('aria-label') ?? ''));
       expect(after.length).toBeGreaterThan(before.length);
       // The feature's own extent is unchanged, which is what "moved whole"
       // means, and it is read off the marker rather than off the segments.
@@ -4515,7 +4628,7 @@ test.describe('facility builder', () => {
       // through one does not turn it into two lanes that are each too short.
       expect(after.filter((l) => l.includes('Passing Lane'))).toEqual([
         'segment 3, Passing Lane, 6600 feet, 2 lanes',
-        'segment 4, Passing Lane, 1320 feet, 2 lanes'
+        'segment 4, Passing Lane, 1320 feet, 2 lanes',
       ]);
 
       // But it is refused, and on its own terms. Step 9 measures downstream
@@ -4549,7 +4662,7 @@ test.describe('facility builder', () => {
 
       const [download] = await Promise.all([
         page.waitForEvent('download'),
-        page.getByTestId('download-fixture').click()
+        page.getByTestId('download-fixture').click(),
       ]);
       const exported = JSON.parse(readFileSync(await download.path(), 'utf8'));
       expect(exported).toEqual(readCase('TwoLaneHighways', 'case4.json'));

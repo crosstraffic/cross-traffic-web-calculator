@@ -1,10 +1,6 @@
 <script>
   import { SERVICE_MEASURES, LOS_COLORS, bandsFor, letterFor } from './los.js';
 
-  
-  
-  
-  
   /**
    * @typedef {Object} Props
    * @property {any} measure - Key into SERVICE_MEASURES, e.g. "density_pc" or "control_delay_signal".
@@ -16,12 +12,7 @@ two disagree the strip says so rather than quietly contradicting the engine.
    */
 
   /** @type {Props} */
-  let {
-    measure,
-    value = null,
-    los = null,
-    title = null
-  } = $props();
+  let { measure, value = null, los = null, title = null } = $props();
 
   let m = $derived(SERVICE_MEASURES[measure]);
   let bands = $derived(bandsFor(measure));
@@ -33,22 +24,24 @@ two disagree the strip says so rather than quietly contradicting the engine.
   // Where the marker sits inside its band, so a value near a threshold visibly sits near the edge
   // instead of snapping to the middle. The open-ended final band has no upper edge to scale
   // against, so it uses the width of the previous band as a stand-in.
-  let markerPct = $derived((() => {
-    if (!hasValue || !earned) return null;
-    const i = bands.findIndex((b) => b.letter === earned);
-    if (i < 0) return null;
-    const b = bands[i];
-    const bandWidth = 100 / bands.length;
-    let frac;
-    if (b.openEnded) {
-      const prev = bands[i - 1];
-      const span = prev && Number.isFinite(prev.to - prev.from) ? Math.abs(prev.to - prev.from) : 1;
-      frac = Math.min(0.85, Math.abs(value - b.from) / (span || 1));
-    } else {
-      frac = Math.abs(value - b.from) / Math.abs(b.to - b.from);
-    }
-    return (i + Math.min(Math.max(frac, 0), 1)) * bandWidth;
-  })());
+  let markerPct = $derived(
+    (() => {
+      if (!hasValue || !earned) return null;
+      const i = bands.findIndex((b) => b.letter === earned);
+      if (i < 0) return null;
+      const b = bands[i];
+      const bandWidth = 100 / bands.length;
+      let frac;
+      if (b.openEnded) {
+        const prev = bands[i - 1];
+        const span = prev && Number.isFinite(prev.to - prev.from) ? Math.abs(prev.to - prev.from) : 1;
+        frac = Math.min(0.85, Math.abs(value - b.from) / (span || 1));
+      } else {
+        frac = Math.abs(value - b.from) / Math.abs(b.to - b.from);
+      }
+      return (i + Math.min(Math.max(frac, 0), 1)) * bandWidth;
+    })(),
+  );
 
   function fmtValue(v) {
     if (!Number.isFinite(v)) return '—';
@@ -76,11 +69,7 @@ two disagree the strip says so rather than quietly contradicting the engine.
         : `${m.label} thresholds: ${bands.map((b) => `${b.letter} ${b.rangeLabel}`).join(', ')}.`}
     >
       {#each bands as b}
-        <div
-          class="los-band"
-          class:is-current={hasValue && b.letter === earned}
-          style="--band: {LOS_COLORS[b.letter]}"
-        >
+        <div class="los-band" class:is-current={hasValue && b.letter === earned} style="--band: {LOS_COLORS[b.letter]}">
           <span class="los-band-letter">{b.letter}</span>
           <span class="los-band-range">{b.rangeLabel}</span>
         </div>
@@ -96,8 +85,8 @@ two disagree the strip says so rather than quietly contradicting the engine.
     <div class="los-scale-foot">
       {#if overridden}
         <p class="los-override">
-          Reported LOS is <strong>{reported}</strong>, not {earned}. The {m.label.toLowerCase()} alone
-          would earn {earned}; the chapter overrides it, which happens when demand exceeds capacity.
+          Reported LOS is <strong>{reported}</strong>, not {earned}. The {m.label.toLowerCase()} alone would earn {earned};
+          the chapter overrides it, which happens when demand exceeds capacity.
         </p>
       {/if}
       <p class="los-scale-source">{m.source}. {m.note}</p>
@@ -167,7 +156,9 @@ two disagree the strip says so rather than quietly contradicting the engine.
     border-radius: 4px;
     background: color-mix(in srgb, var(--band) 22%, transparent);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--band) 38%, transparent);
-    transition: background 120ms ease, box-shadow 120ms ease;
+    transition:
+      background 120ms ease,
+      box-shadow 120ms ease;
   }
 
   .los-band.is-current {

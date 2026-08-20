@@ -5,6 +5,6 @@
     "types": ["svelte"],
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "skipLibCheck": true,
+    "skipLibCheck": true
   }
 }

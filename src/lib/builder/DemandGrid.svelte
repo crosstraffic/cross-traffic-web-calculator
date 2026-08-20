@@ -17,9 +17,7 @@
   // but carry no demand vector at all, and reading `f.demand[p]` off one throws
   // during render, which takes the whole page down rather than showing a blank
   // row. Every consumer of `features` has to say which kinds it means.
-  let feats = $derived(
-    [...(doc?.features ?? [])].filter(isRamp).sort((a, b) => a.stationFt - b.stationFt)
-  );
+  let feats = $derived([...(doc?.features ?? [])].filter(isRamp).sort((a, b) => a.stationFt - b.stationFt));
   let periods = $derived(doc?.periods ?? 0);
 
   const mi = (ft) => (ft / 5280).toFixed(2);
@@ -36,9 +34,16 @@
     <h3>Demands</h3>
     <label class="dg-periods">
       Analysis periods
-      <input type="number" min="1" max="96" step="1" value={periods} disabled={!interactive}
-             data-testid="period-count"
-             onchange={(e) => onperiods?.(Number(e.currentTarget.value))} />
+      <input
+        type="number"
+        min="1"
+        max="96"
+        step="1"
+        value={periods}
+        disabled={!interactive}
+        data-testid="period-count"
+        onchange={(e) => onperiods?.(Number(e.currentTarget.value))}
+      />
     </label>
   </div>
   <p class="dg-sub">
@@ -60,9 +65,15 @@
           <th scope="row">Mainline entering</th>
           {#each Array.from({ length: periods }) as _, p}
             <td>
-              <input type="number" min="0" step="1" value={doc.mainline.demand[p] ?? 0} disabled={!interactive}
-                     aria-label="mainline demand, period {p + 1}"
-                     onchange={(e) => setCell('mainline', null, p, e.currentTarget.value)} />
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={doc.mainline.demand[p] ?? 0}
+                disabled={!interactive}
+                aria-label="mainline demand, period {p + 1}"
+                onchange={(e) => setCell('mainline', null, p, e.currentTarget.value)}
+              />
             </td>
           {/each}
         </tr>
@@ -74,22 +85,32 @@
             </th>
             {#each Array.from({ length: periods }) as _, p}
               <td>
-                <input type="number" min="0" step="1" value={f.demand[p] ?? 0} disabled={!interactive}
-                       aria-label="{f.id} demand, period {p + 1}"
-                       onchange={(e) => setCell('feature', f.id, p, e.currentTarget.value)} />
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={f.demand[p] ?? 0}
+                  disabled={!interactive}
+                  aria-label="{f.id} demand, period {p + 1}"
+                  onchange={(e) => setCell('feature', f.id, p, e.currentTarget.value)}
+                />
               </td>
             {/each}
           </tr>
           {#if f.kind === 'on_ramp' && f.auxLaneToNext}
             <tr data-testid="demand-row" data-source="{f.id}:r2r">
-              <th scope="row" class="dg-sub-row">
-                Ramp-to-ramp through the weave
-              </th>
+              <th scope="row" class="dg-sub-row"> Ramp-to-ramp through the weave </th>
               {#each Array.from({ length: periods }) as _, p}
                 <td>
-                  <input type="number" min="0" step="1" value={f.rampToRampDemand[p] ?? 0} disabled={!interactive}
-                         aria-label="{f.id} ramp-to-ramp demand, period {p + 1}"
-                         onchange={(e) => setCell('rampToRamp', f.id, p, e.currentTarget.value)} />
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={f.rampToRampDemand[p] ?? 0}
+                    disabled={!interactive}
+                    aria-label="{f.id} ramp-to-ramp demand, period {p + 1}"
+                    onchange={(e) => setCell('rampToRamp', f.id, p, e.currentTarget.value)}
+                  />
                 </td>
               {/each}
             </tr>
@@ -101,18 +122,76 @@
 </div>
 
 <style>
-  .dg-wrap { margin-top: 1rem; }
-  .dg-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
-  .dg-head h3 { margin: 0; font-size: 1rem; }
-  .dg-periods { font-size: 0.78rem; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 0.35rem; }
-  .dg-periods input { width: 5ch; }
-  .dg-sub { margin: 0.15rem 0 0; font-size: 0.76rem; color: var(--text-muted); }
-  .dg-scroll { overflow-x: auto; }
-  .dg-table { border-collapse: collapse; font-size: 0.8rem; margin-top: 0.4rem; }
-  .dg-table th, .dg-table td { padding: 0.15rem 0.35rem; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
-  .dg-table thead th { color: var(--text-muted); font-weight: 600; font-size: 0.72rem; }
-  .dg-table tbody th { font-weight: 500; color: var(--text-secondary); }
-  .dg-station { color: var(--text-faint); font-size: 0.7rem; margin-left: 0.3rem; }
-  .dg-sub-row { padding-left: 1.1rem; font-style: italic; color: var(--text-muted); }
-  input { width: 7ch; font-size: 0.78rem; padding: 0.05rem 0.2rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 3px; }
+  .dg-wrap {
+    margin-top: 1rem;
+  }
+  .dg-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .dg-head h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+  .dg-periods {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .dg-periods input {
+    width: 5ch;
+  }
+  .dg-sub {
+    margin: 0.15rem 0 0;
+    font-size: 0.76rem;
+    color: var(--text-muted);
+  }
+  .dg-scroll {
+    overflow-x: auto;
+  }
+  .dg-table {
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    margin-top: 0.4rem;
+  }
+  .dg-table th,
+  .dg-table td {
+    padding: 0.15rem 0.35rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    white-space: nowrap;
+  }
+  .dg-table thead th {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.72rem;
+  }
+  .dg-table tbody th {
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .dg-station {
+    color: var(--text-faint);
+    font-size: 0.7rem;
+    margin-left: 0.3rem;
+  }
+  .dg-sub-row {
+    padding-left: 1.1rem;
+    font-style: italic;
+    color: var(--text-muted);
+  }
+  input {
+    width: 7ch;
+    font-size: 0.78rem;
+    padding: 0.05rem 0.2rem;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+  }
 </style>

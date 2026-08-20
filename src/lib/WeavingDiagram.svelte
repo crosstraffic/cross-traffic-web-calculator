@@ -6,7 +6,7 @@
   // One-sided: on-ramp joins at the entry gore, an auxiliary lane runs the
   // short length, the off-ramp leaves at the exit gore, all on the right.
   // Two-sided: on-ramp on the right, off-ramp on the left, so the
-  
+
   /**
    * @typedef {Object} Props
    * @property {string} [weavingType] - ramp-to-ramp movement crosses every mainline lane.
@@ -24,7 +24,7 @@
     vFF = $bindable(0),
     vFR = $bindable(0),
     vRF = $bindable(0),
-    vRR = $bindable(0)
+    vRR = $bindable(0),
   } = $props();
 
   let hovered = $state(null); // 'ff' | 'fr' | 'rf' | 'rr' | null
@@ -33,11 +33,11 @@
   // One-sided: N includes the auxiliary lane, so draw N-1 mainline lanes.
   let mainLanes = $derived(Math.max(2, Math.min(6, (Number(numLanes) || 4) - (twoSided ? 0 : 1))));
 
-  const LANE = 16;      // lane height, px
-  const gIn = 78;       // entry gore x
-  const gOut = 246;     // exit gore x
-  const RAMP = 84;      // horizontal run of a ramp band
-  const DROP = 46;      // vertical drop of a ramp band over that run
+  const LANE = 16; // lane height, px
+  const gIn = 78; // entry gore x
+  const gOut = 246; // exit gore x
+  const RAMP = 84; // horizontal run of a ramp band
+  const DROP = 46; // vertical drop of a ramp band over that run
 
   let mainTop = $derived(twoSided ? DROP + LANE + 14 : 16);
   let mainBot = $derived(mainTop + LANE * mainLanes);
@@ -81,24 +81,40 @@
 </script>
 
 <div class="weave-diagram">
-  <svg viewBox="0 0 320 {viewH}" preserveAspectRatio="xMidYMid meet" role="img"
-       aria-label={`${Number(numLanes) || 4}-lane ${twoSided ? 'two-sided' : 'one-sided'} weaving segment`}>
-
+  <svg
+    viewBox="0 0 320 {viewH}"
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={`${Number(numLanes) || 4}-lane ${twoSided ? 'two-sided' : 'one-sided'} weaving segment`}
+  >
     <!-- ══ pavement (fills only, no strokes: edges are drawn as lines) ══ -->
     <rect x="0" y={mainTop} width="320" height={LANE * mainLanes} class="wv-pavement" />
 
     {#if twoSided}
       <!-- on-ramp band merging from lower left; taper ends at gIn + 70 -->
-      <polygon points="{gIn - RAMP},{mainBot + DROP} {gIn},{mainBot} {gIn + 70},{mainBot} {gIn - RAMP},{mainBot + DROP + LANE}" class="wv-pavement" />
+      <polygon
+        points="{gIn - RAMP},{mainBot + DROP} {gIn},{mainBot} {gIn + 70},{mainBot} {gIn - RAMP},{mainBot + DROP + LANE}"
+        class="wv-pavement"
+      />
       <!-- off-ramp band diverging to upper right; taper begins at gOut - 70 -->
-      <polygon points="{gOut - 70},{mainTop} {gOut + RAMP},{mainTop - DROP - LANE} {gOut + RAMP},{mainTop - DROP} {gOut},{mainTop}" class="wv-pavement" />
+      <polygon
+        points="{gOut - 70},{mainTop} {gOut + RAMP},{mainTop - DROP - LANE} {gOut + RAMP},{mainTop -
+          DROP} {gOut},{mainTop}"
+        class="wv-pavement"
+      />
     {:else}
       <!-- auxiliary lane between the gores -->
       <rect x={gIn} y={mainBot} width={gOut - gIn} height={LANE} class="wv-pavement" />
       <!-- on-ramp band into the entry gore -->
-      <polygon points="{gIn - RAMP},{auxBot + DROP - LANE} {gIn},{mainBot} {gIn},{auxBot} {gIn - RAMP},{auxBot + DROP}" class="wv-pavement" />
+      <polygon
+        points="{gIn - RAMP},{auxBot + DROP - LANE} {gIn},{mainBot} {gIn},{auxBot} {gIn - RAMP},{auxBot + DROP}"
+        class="wv-pavement"
+      />
       <!-- off-ramp band out of the exit gore -->
-      <polygon points="{gOut},{mainBot} {gOut + RAMP},{auxBot + DROP - LANE} {gOut + RAMP},{auxBot + DROP} {gOut},{auxBot}" class="wv-pavement" />
+      <polygon
+        points="{gOut},{mainBot} {gOut + RAMP},{auxBot + DROP - LANE} {gOut + RAMP},{auxBot + DROP} {gOut},{auxBot}"
+        class="wv-pavement"
+      />
     {/if}
 
     <!-- ══ edges and lane lines ══ -->
@@ -129,7 +145,10 @@
       <line x1={gIn} y1={mainBot} x2={gOut} y2={mainBot} class="wv-lane-line" />
       <line x1={gOut} y1={mainBot} x2="320" y2={mainBot} class="wv-edge" />
       <!-- outer edge: up the on-ramp, along the auxiliary lane, down the off-ramp -->
-      <polyline points="{gIn - RAMP},{auxBot + DROP} {gIn},{auxBot} {gOut},{auxBot} {gOut + RAMP},{auxBot + DROP}" class="wv-edge-path" />
+      <polyline
+        points="{gIn - RAMP},{auxBot + DROP} {gIn},{auxBot} {gOut},{auxBot} {gOut + RAMP},{auxBot + DROP}"
+        class="wv-edge-path"
+      />
       <!-- gore edges (inner ramp edges meeting the mainline edge) -->
       <line x1={gIn - RAMP} y1={auxBot + DROP - LANE} x2={gIn} y2={mainBot} class="wv-edge" />
       <line x1={gOut} y1={mainBot} x2={gOut + RAMP} y2={auxBot + DROP - LANE} class="wv-edge" />
@@ -145,24 +164,47 @@
       <!-- ramp-to-ramp: enters lower left, crosses every lane in one smooth S, and leaves
            up the outer side of the off-ramp band (the freeway-to-ramp movement keeps the
            gore side, so the two never cross inside the band) -->
-      <path d={`M${rampInlet2.x},${rampInlet2.y} L${gIn + 2},${mainBot + 9} C${gIn + 100},${yBottom + 6} ${gOut - 110},${yTop - 4} ${gOut - 2},${mainTop - 13} L${rampOutlet2.x},${rampOutlet2.y - 2}`} class={`mv-rr ${cls(hovered, 'rr')}`} />
+      <path
+        d={`M${rampInlet2.x},${rampInlet2.y} L${gIn + 2},${mainBot + 9} C${gIn + 100},${yBottom + 6} ${gOut - 110},${yTop - 4} ${gOut - 2},${mainTop - 13} L${rampOutlet2.x},${rampOutlet2.y - 2}`}
+        class={`mv-rr ${cls(hovered, 'rr')}`}
+      />
       <!-- ramp-to-freeway: enters lower left, settles into the bottom lane -->
-      <path d={`M${rampInlet2.x},${rampInlet2.y + 4} L${gIn + 4},${mainBot + 12} Q${gIn + 56},${mainBot} ${gIn + 96},${yBottom} H312`} class={`mv-rf ${cls(hovered, 'rf')}`} />
+      <path
+        d={`M${rampInlet2.x},${rampInlet2.y + 4} L${gIn + 4},${mainBot + 12} Q${gIn + 56},${mainBot} ${gIn + 96},${yBottom} H312`}
+        class={`mv-rf ${cls(hovered, 'rf')}`}
+      />
       <!-- freeway-to-ramp: rides the top lane, leaves up the gore side of the off-ramp -->
-      <path d={`M0,${yTop} H${gOut - 70} Q${gOut - 16},${yTop - 6} ${gOut + 2},${mainTop - 7} L${rampOutlet2.x},${rampOutlet2.y + 4}`} class={`mv-fr ${cls(hovered, 'fr')}`} />
+      <path
+        d={`M0,${yTop} H${gOut - 70} Q${gOut - 16},${yTop - 6} ${gOut + 2},${mainTop - 7} L${rampOutlet2.x},${rampOutlet2.y + 4}`}
+        class={`mv-fr ${cls(hovered, 'fr')}`}
+      />
     {:else}
       <!-- ramp legs run straight along the band centerline to the gore point
            (the centerline meets the auxiliary lane middle exactly at the gore) -->
       <!-- ramp-to-freeway: up the on-ramp, along the auxiliary lane, merge to lane 1 -->
-      <path d={`M${rampInlet.x},${rampInlet.y - 3} L${gIn},${yAux - 3} C${gIn + 52},${yAux - 2} ${gIn + 84},${yBottom} ${gIn + 128},${yBottom} H312`} class={`mv-rf ${cls(hovered, 'rf')}`} />
+      <path
+        d={`M${rampInlet.x},${rampInlet.y - 3} L${gIn},${yAux - 3} C${gIn + 52},${yAux - 2} ${gIn + 84},${yBottom} ${gIn + 128},${yBottom} H312`}
+        class={`mv-rf ${cls(hovered, 'rf')}`}
+      />
       <!-- freeway-to-ramp: lane 1 to the auxiliary lane, out the off-ramp -->
-      <path d={`M0,${yBottom} H${gIn + 24} C${gIn + 60},${yBottom} ${gIn + 72},${yAux - 2} ${gIn + 108},${yAux - 2} H${gOut} L${rampOutlet.x},${rampOutlet.y - 3}`} class={`mv-fr ${cls(hovered, 'fr')}`} />
+      <path
+        d={`M0,${yBottom} H${gIn + 24} C${gIn + 60},${yBottom} ${gIn + 72},${yAux - 2} ${gIn + 108},${yAux - 2} H${gOut} L${rampOutlet.x},${rampOutlet.y - 3}`}
+        class={`mv-fr ${cls(hovered, 'fr')}`}
+      />
       <!-- ramp-to-ramp: stays in the auxiliary lane the whole length -->
-      <path d={`M${rampInlet.x},${rampInlet.y + 4} L${gIn},${yAux + 4} H${gOut} L${rampOutlet.x},${rampOutlet.y + 4}`} class={`mv-rr ${cls(hovered, 'rr')}`} />
+      <path
+        d={`M${rampInlet.x},${rampInlet.y + 4} L${gIn},${yAux + 4} H${gOut} L${rampOutlet.x},${rampOutlet.y + 4}`}
+        class={`mv-rr ${cls(hovered, 'rr')}`}
+      />
     {/if}
 
     <!-- direction arrow on the freeway-to-freeway lane -->
-    <polygon points="300,{yLane(Math.max(0, Math.floor((mainLanes - 1) / 2))) - 5} 314,{yLane(Math.max(0, Math.floor((mainLanes - 1) / 2)))} 300,{yLane(Math.max(0, Math.floor((mainLanes - 1) / 2))) + 5}" class="wv-arrow" />
+    <polygon
+      points="300,{yLane(Math.max(0, Math.floor((mainLanes - 1) / 2))) - 5} 314,{yLane(
+        Math.max(0, Math.floor((mainLanes - 1) / 2)),
+      )} 300,{yLane(Math.max(0, Math.floor((mainLanes - 1) / 2))) + 5}"
+      class="wv-arrow"
+    />
 
     <!-- ══ L_S dimension between the gores ══ -->
     {#if twoSided}
@@ -212,7 +254,9 @@
     display: block;
     margin: 0 auto;
   }
-  .wv-pavement { fill: var(--diag-pavement); }
+  .wv-pavement {
+    fill: var(--diag-pavement);
+  }
   .wv-edge {
     stroke: var(--diag-edge);
     stroke-width: 2;
@@ -232,29 +276,65 @@
     stroke-dasharray: 8 6;
     vector-effect: non-scaling-stroke;
   }
-  .wv-dim { stroke: var(--diag-wall-edge); stroke-width: 1; }
-  .wv-ext { stroke: var(--diag-wall-edge); stroke-width: 0.75; stroke-dasharray: 2 3; opacity: 0.6; }
-  .wv-label { font-size: 9px; fill: var(--diag-wall-edge); }
-  .wv-arrow { fill: var(--diag-edge); }
+  .wv-dim {
+    stroke: var(--diag-wall-edge);
+    stroke-width: 1;
+  }
+  .wv-ext {
+    stroke: var(--diag-wall-edge);
+    stroke-width: 0.75;
+    stroke-dasharray: 2 3;
+    opacity: 0.6;
+  }
+  .wv-label {
+    font-size: 9px;
+    fill: var(--diag-wall-edge);
+  }
+  .wv-arrow {
+    fill: var(--diag-edge);
+  }
 
   .wv-move {
     fill: none;
     stroke-width: 2.5;
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
-    transition: opacity 120ms ease, stroke-width 120ms ease;
+    transition:
+      opacity 120ms ease,
+      stroke-width 120ms ease;
     opacity: 0.85;
   }
-  .wv-move.dim { opacity: 0.12; }
-  .wv-move.active { stroke-width: 4; opacity: 1; }
-  .mv-ff { stroke: #2563eb; }
-  .mv-rf { stroke: #16a34a; }
-  .mv-fr { stroke: #ea7317; }
-  .mv-rr { stroke: #dc2626; }
-  .swatch.ff { background: #2563eb; }
-  .swatch.rf { background: #16a34a; }
-  .swatch.fr { background: #ea7317; }
-  .swatch.rr { background: #dc2626; }
+  .wv-move.dim {
+    opacity: 0.12;
+  }
+  .wv-move.active {
+    stroke-width: 4;
+    opacity: 1;
+  }
+  .mv-ff {
+    stroke: #2563eb;
+  }
+  .mv-rf {
+    stroke: #16a34a;
+  }
+  .mv-fr {
+    stroke: #ea7317;
+  }
+  .mv-rr {
+    stroke: #dc2626;
+  }
+  .swatch.ff {
+    background: #2563eb;
+  }
+  .swatch.rf {
+    background: #16a34a;
+  }
+  .swatch.fr {
+    background: #ea7317;
+  }
+  .swatch.rr {
+    background: #dc2626;
+  }
 
   .wv-legend {
     display: flex;
@@ -273,7 +353,9 @@
     background: transparent;
     cursor: default;
   }
-  .wv-chip.active { border-color: var(--diag-edge); }
+  .wv-chip.active {
+    border-color: var(--diag-edge);
+  }
   .wv-chip input {
     width: 3.6rem;
     font-size: 0.72rem;

@@ -68,7 +68,12 @@ approx(r5.s_mix, 47.3, 0.3, 'EP5 S_mix (mi/h), Eq. 26-21');
 // comparison paragraph a few lines later quotes 32.6. No step produces 32.6;
 // it would need a mixed-flow speed of 46.0 mi/h, which nothing in the example
 // computes. 31.7 is asserted.
-approx(r5.d_mix, 31.7, 0.3, 'EP5 D_mix (veh/mi/ln), Eq. 26-22 (Step 8 value, not the 32.6 of the comparison paragraph)');
+approx(
+  r5.d_mix,
+  31.7,
+  0.3,
+  'EP5 D_mix (veh/mi/ln), Eq. 26-22 (Step 8 value, not the 32.6 of the comparison paragraph)',
+);
 
 // The headline getters must agree with the result object rather than being a
 // second code path that can drift from it.
@@ -85,7 +90,11 @@ const over = new m.WasmMixedFlow({ ...ep5, v_mix: 2000.0 }).results_to_js_value(
 exact(over.oversaturated, true, 'EP5 at 2,000 veh/h/ln is oversaturated');
 exact(typeof over.s_mix, 'undefined', 'EP5 oversaturated S_mix is absent, not a speed');
 exact(typeof over.d_mix, 'undefined', 'EP5 oversaturated D_mix is absent, not a density');
-exact(Object.prototype.hasOwnProperty.call(over, 'oversaturated'), true, 'oversaturated flag is present alongside the absent measures');
+exact(
+  Object.prototype.hasOwnProperty.call(over, 'oversaturated'),
+  true,
+  'oversaturated flag is present alongside the absent measures',
+);
 
 // --- HCM Ch.25 Example Problem 11: three grades in the order a vehicle meets
 // them (1.5 mi at 3%, 2.0 mi at 2%, 1.0 mi at 5%), same six-lane freeway,
@@ -137,11 +146,20 @@ approx(r11.s_mix_overall, 55.6, 0.3, 'EP11 S_mix,oa (mi/h), Eq. 25-70');
 approx(cg.get_overall_speed(), r11.s_mix_overall, 1e-9, 'EP11 get_overall_speed agrees with the result object');
 
 // Exhibit 25-110, space mean speeds by segment for autos, SUTs and TTs.
-const wantSpace = [[58.7, 57.0, 50.6], [59.5, 60.9, 51.8], [49.9, 46.6, 36.3]];
+const wantSpace = [
+  [58.7, 57.0, 50.6],
+  [59.5, 60.9, 51.8],
+  [49.9, 46.6, 36.3],
+];
 const classes = ['autos', 'SUTs', 'TTs'];
 r11.segments.forEach((s, i) => {
   classes.forEach((name, k) => {
-    approx(s.space_speeds[k], wantSpace[i][k], 0.5, `EP11 segment ${i + 1} ${name} space mean speed (mi/h), Exhibit 25-110`);
+    approx(
+      s.space_speeds[k],
+      wantSpace[i][k],
+      0.5,
+      `EP11 segment ${i + 1} ${name} space mean speed (mi/h), Exhibit 25-110`,
+    );
   });
 });
 
@@ -168,7 +186,12 @@ const wantSpot = [
 ];
 r11.segments.forEach((s, i) => {
   classes.forEach((name, k) => {
-    approx(s.spot_speeds[k], wantSpot[i][k], 1.0, `EP11 end of segment ${i + 1} ${name} spot speed (mi/h), Exhibit 25-109${i === 0 ? ' (corrected row)' : ''}`);
+    approx(
+      s.spot_speeds[k],
+      wantSpot[i][k],
+      1.0,
+      `EP11 end of segment ${i + 1} ${name} spot speed (mi/h), Exhibit 25-109${i === 0 ? ' (corrected row)' : ''}`,
+    );
   });
 });
 
@@ -184,12 +207,14 @@ approx(3600.0 / r11.segments[0].tau_f_tt_kin, 49.5, 1.0, 'EP11 TT speed entering
 exact(r11.segments[1].decelerating, false, 'EP11 segment 2 is where the trucks recover');
 exact(r11.segments[2].decelerating, true, 'EP11 segment 3 slows them again');
 
-const standalone = new m.WasmCompositeGrade({ ...ep11, segments: [ep11.segments[1]] })
-  .results_to_js_value();
+const standalone = new m.WasmCompositeGrade({ ...ep11, segments: [ep11.segments[1]] }).results_to_js_value();
 const chainedS2 = r11.segments[1].s_mix;
 const aloneS2 = standalone.segments[0].s_mix;
-exact(chainedS2 < aloneS2 - 0.5, true,
-  `EP11 the 2% grade is slower when entered with trucks already slowed: chained ${chainedS2.toFixed(2)} vs standalone ${aloneS2.toFixed(2)} mi/h`);
+exact(
+  chainedS2 < aloneS2 - 0.5,
+  true,
+  `EP11 the 2% grade is slower when entered with trucks already slowed: chained ${chainedS2.toFixed(2)} vs standalone ${aloneS2.toFixed(2)} mi/h`,
+);
 
 // --- Domain refusals. The truck-performance curves are published as figures
 // with no closed form anywhere in either chapter, so they are digitised from
@@ -206,7 +231,11 @@ try {
   refusal = String(e);
 }
 exact(refusal !== null, true, 'EP5 at FFS 70 throws rather than extrapolating');
-exact(String(refusal).includes('Chapter 26 Appendix A'), true, `refusal names the exhibit that would have to be digitised, got: ${refusal}`);
+exact(
+  String(refusal).includes('Chapter 26 Appendix A'),
+  true,
+  `refusal names the exhibit that would have to be digitised, got: ${refusal}`,
+);
 exact(String(refusal).includes('70 mi/h FFS'), true, 'refusal names the speed that is missing');
 
 let refusal25 = null;
@@ -217,7 +246,11 @@ try {
   refusal25 = String(e);
 }
 exact(refusal25 !== null, true, 'EP11 with a 7% grade throws rather than extrapolating');
-exact(String(refusal25).includes('Exhibit 25-20/25-21'), true, `composite refusal names the exhibit, got: ${refusal25}`);
+exact(
+  String(refusal25).includes('Exhibit 25-20/25-21'),
+  true,
+  `composite refusal names the exhibit, got: ${refusal25}`,
+);
 
 // --- A misspelled optional key is rejected, not silently dropped. caf_ao is the
 // one serde-defaulted field on either surface, so before library 0.3.5's

@@ -23,21 +23,22 @@ const s0 = c3.segments[0];
 
 function addSegment(fac, seg, capacity = seg.through_capacity_veh_h) {
   fac.add_segment(
-    seg.segment_length_ft,        // 1,800 ft
-    seg.n_through_lanes,          // 2
-    seg.speed_limit_mph,          // 35 mi/h
-    seg.through_demand_veh_h,     // 968 veh/h
-    seg.control,                  // "Signalized"
-    seg.n_access_points_subject,  // 4
+    seg.segment_length_ft, // 1,800 ft
+    seg.n_through_lanes, // 2
+    seg.speed_limit_mph, // 35 mi/h
+    seg.through_demand_veh_h, // 968 veh/h
+    seg.control, // "Signalized"
+    seg.n_access_points_subject, // 4
     seg.n_access_points_opposing, // 4
-    seg.midsegment_flow_veh_h,    // 1,150 veh/h
-    capacity,                     // 1,848 veh/h (Exhibit 30-32)
-    seg.through_control_delay_s,  // 18.31 s/veh (Exhibit 30-36)
-    seg.cycle_length_s,           // 100 s
-    seg.effective_green_s,        // 48.63 s
-    undefined,                    // platoon_ratio (uniform arrivals)
-    undefined,                    // sat_flow_veh_h_ln
-    seg.full_stop_rate_override); // 0.547 stops/veh (Exhibit 30-36)
+    seg.midsegment_flow_veh_h, // 1,150 veh/h
+    capacity, // 1,848 veh/h (Exhibit 30-32)
+    seg.through_control_delay_s, // 18.31 s/veh (Exhibit 30-36)
+    seg.cycle_length_s, // 100 s
+    seg.effective_green_s, // 48.63 s
+    undefined, // platoon_ratio (uniform arrivals)
+    undefined, // sat_flow_veh_h_ln
+    seg.full_stop_rate_override,
+  ); // 0.547 stops/veh (Exhibit 30-36)
 }
 
 const fac = new m.WasmUrbanFacility(c3.prop_left_turn_lanes); // P_LTL = 0.33
@@ -65,19 +66,54 @@ approx(fac.get_perception_score(), 2.53, 0.01, 'case3 facility perception score 
 // engine (validates the add_segment 15-arg mapping against the 28-arg
 // constructor mapping tested in ch18_urban_segments.mjs).
 const ref = new m.WasmUrbanSegment(
-  s0.segment_length_ft, s0.n_through_lanes, s0.speed_limit_mph,
-  s0.through_demand_veh_h, s0.control,
-  undefined, undefined, undefined, undefined,      // width/median/curb/parking not in add_segment
-  s0.n_access_points_subject, s0.n_access_points_opposing,
-  undefined, undefined, undefined,
-  s0.midsegment_flow_veh_h, s0.through_capacity_veh_h,
-  s0.through_control_delay_s, s0.cycle_length_s, s0.effective_green_s,
-  undefined, undefined, undefined, undefined, undefined, undefined,
-  s0.full_stop_rate_override, undefined, s0.prop_left_turn_lanes);
+  s0.segment_length_ft,
+  s0.n_through_lanes,
+  s0.speed_limit_mph,
+  s0.through_demand_veh_h,
+  s0.control,
+  undefined,
+  undefined,
+  undefined,
+  undefined, // width/median/curb/parking not in add_segment
+  s0.n_access_points_subject,
+  s0.n_access_points_opposing,
+  undefined,
+  undefined,
+  undefined,
+  s0.midsegment_flow_veh_h,
+  s0.through_capacity_veh_h,
+  s0.through_control_delay_s,
+  s0.cycle_length_s,
+  s0.effective_green_s,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  s0.full_stop_rate_override,
+  undefined,
+  s0.prop_left_turn_lanes,
+);
 ref.analyze();
-approx(fac.get_base_ffs(), ref.get_base_ffs(), 1e-9, 'case3 facility base FFS == segment base FFS (Equation 16-2, identical segments)');
-approx(fac.get_travel_speed(), ref.get_travel_speed(), 1e-9, 'case3 facility travel speed == segment travel speed (Equation 16-3, identical segments)');
-approx(fac.get_spatial_stop_rate(), ref.get_spatial_stop_rate(), 1e-9, 'case3 facility stop rate == segment stop rate (Equation 16-4, identical segments)');
+approx(
+  fac.get_base_ffs(),
+  ref.get_base_ffs(),
+  1e-9,
+  'case3 facility base FFS == segment base FFS (Equation 16-2, identical segments)',
+);
+approx(
+  fac.get_travel_speed(),
+  ref.get_travel_speed(),
+  1e-9,
+  'case3 facility travel speed == segment travel speed (Equation 16-3, identical segments)',
+);
+approx(
+  fac.get_spatial_stop_rate(),
+  ref.get_spatial_stop_rate(),
+  1e-9,
+  'case3 facility stop rate == segment stop rate (Equation 16-4, identical segments)',
+);
 exact(fac.get_los(), ref.get_los(), 'case3 facility LOS == segment LOS');
 
 // Rust case3 harmonic-mean identity: the facility travel speed must equal
@@ -92,8 +128,13 @@ approx(segs[0].vc_ratio, 0.52, 0.005, 'case3 segment 1 v/c [30-36]');
 
 // Travel-time bookkeeping in results_to_js_value.
 const res = fac.results_to_js_value();
-approx(res.travel_time, 3600.0 * 5400.0 / (5280.0 * fac.get_travel_speed()), 1e-9, 'case3 travel time identity');
-approx(res.base_free_flow_travel_time, 3600.0 * 5400.0 / (5280.0 * fac.get_base_ffs()), 1e-9, 'case3 base free-flow travel time identity');
+approx(res.travel_time, (3600.0 * 5400.0) / (5280.0 * fac.get_travel_speed()), 1e-9, 'case3 travel time identity');
+approx(
+  res.base_free_flow_travel_time,
+  (3600.0 * 5400.0) / (5280.0 * fac.get_base_ffs()),
+  1e-9,
+  'case3 base free-flow travel time identity',
+);
 exact(res.los, 'C', 'case3 results object LOS');
 exact(res.poorest_segment_los, 'C', 'case3 results object poorest LOS');
 
@@ -116,12 +157,13 @@ function summaryFacility(fixture) {
   const fac = new m.WasmUrbanFacility(fixture.prop_left_turn_lanes); // P_LTL = 1.0
   for (const s of fixture.segments) {
     fac.add_segment_summary(
-      s.segment_length_ft,             // 1,320 ft (Segments 1-3) / 660 ft (Segments 4-5)
-      s.base_ffs_mph,                  // 40.9 / 37.9 mi/h (Exhibits 29-47, 29-48)
-      s.travel_speed_mph,              // published Chapter 18 output
-      s.spatial_stop_rate_stops_mi,    // published Chapter 18 output
-      s.vc_ratio,                      // through v/c at the downstream boundary intersection
-      s.los);                          // published segment LOS letter
+      s.segment_length_ft, // 1,320 ft (Segments 1-3) / 660 ft (Segments 4-5)
+      s.base_ffs_mph, // 40.9 / 37.9 mi/h (Exhibits 29-47, 29-48)
+      s.travel_speed_mph, // published Chapter 18 output
+      s.spatial_stop_rate_stops_mi, // published Chapter 18 output
+      s.vc_ratio, // through v/c at the downstream boundary intersection
+      s.los,
+    ); // published segment LOS letter
   }
   return fac;
 }
@@ -137,7 +179,12 @@ exact(ep1eb.get_poorest_segment_los(), 'D', 'EP1 EB poorest-performing segment L
 // Segments 1 and 5 into the unpublished Segments 2-4 yields 22.1, which is
 // what the Rust test's +-0.6 band accommodates; the tight assertion here
 // pins the computed value so the aggregation cannot drift unnoticed.
-approx(ep1eb.get_travel_speed(), 22.13, 0.05, 'EP1 EB facility travel speed (Equation 16-3; published 22.6, fixture artifact 22.1)');
+approx(
+  ep1eb.get_travel_speed(),
+  22.13,
+  0.05,
+  'EP1 EB facility travel speed (Equation 16-3; published 22.6, fixture artifact 22.1)',
+);
 approx(ep1eb.get_travel_speed(), 22.6, 0.6, 'EP1 EB facility travel speed within the published band [29-49]');
 approx(ep1eb.get_spatial_stop_rate(), 1.83, 0.15, 'EP1 EB facility stop rate (Equation 16-4) [29-49]');
 exact(ep1eb.get_critical_vc_ratio() <= 1.0, true, 'EP1 EB undersaturated boundary intersections');
@@ -174,29 +221,30 @@ exact(summaryAnalyzeThrew, true, 'analyze() throws on a summary-built facility (
 const facFull = new m.WasmUrbanFacility(c3.prop_left_turn_lanes); // P_LTL = 0.33
 for (const seg of c3.segments) {
   facFull.add_segment(
-    seg.segment_length_ft,                    // 1,800 ft
-    seg.n_through_lanes,                      // 2
-    seg.speed_limit_mph,                      // 35 mi/h
-    seg.through_demand_veh_h,                 // 968 veh/h
-    seg.control,                              // "Signalized"
-    seg.n_access_points_subject,              // 4
-    seg.n_access_points_opposing,             // 4
-    seg.midsegment_flow_veh_h,                // 1,150 veh/h
-    seg.through_capacity_veh_h,               // 1,848 veh/h
-    seg.through_control_delay_s,              // 18.31 s/veh
-    seg.cycle_length_s,                       // 100 s
-    seg.effective_green_s,                    // 48.63 s
-    undefined,                                // platoon_ratio (uniform arrivals)
-    undefined,                                // sat_flow_veh_h_ln
-    seg.full_stop_rate_override,              // 0.547 stops/veh
-    seg.upstream_intersection_width_ft,       // 50 ft
-    seg.restrictive_median_length_ft,         // 0 ft (undivided)
-    seg.proportion_with_curb,                 // 0.70
-    seg.proportion_on_street_parking,         // 0.0
-    undefined,                                // prop_opposing_left_accessible
-    seg.signal_spacing_ft,                    // 1,800 ft
-    undefined,                                // free_flow_speed_override_mph
-    Float64Array.from(seg.access_point_delays_s)); // [0.193, 0.194] s/veh (Exhibit 30-35)
+    seg.segment_length_ft, // 1,800 ft
+    seg.n_through_lanes, // 2
+    seg.speed_limit_mph, // 35 mi/h
+    seg.through_demand_veh_h, // 968 veh/h
+    seg.control, // "Signalized"
+    seg.n_access_points_subject, // 4
+    seg.n_access_points_opposing, // 4
+    seg.midsegment_flow_veh_h, // 1,150 veh/h
+    seg.through_capacity_veh_h, // 1,848 veh/h
+    seg.through_control_delay_s, // 18.31 s/veh
+    seg.cycle_length_s, // 100 s
+    seg.effective_green_s, // 48.63 s
+    undefined, // platoon_ratio (uniform arrivals)
+    undefined, // sat_flow_veh_h_ln
+    seg.full_stop_rate_override, // 0.547 stops/veh
+    seg.upstream_intersection_width_ft, // 50 ft
+    seg.restrictive_median_length_ft, // 0 ft (undivided)
+    seg.proportion_with_curb, // 0.70
+    seg.proportion_on_street_parking, // 0.0
+    undefined, // prop_opposing_left_accessible
+    seg.signal_spacing_ft, // 1,800 ft
+    undefined, // free_flow_speed_override_mph
+    Float64Array.from(seg.access_point_delays_s),
+  ); // [0.193, 0.194] s/veh (Exhibit 30-35)
 }
 
 exact(facFull.analyze(), 'C', 'case3 full-geometry facility LOS [Exhibit 16-3]');
@@ -212,21 +260,55 @@ exact(facFull.get_poorest_segment_los(), 'C', 'case3 full-geometry poorest segme
 // sixteen new add_segment argument positions against the WasmUrbanSegment
 // constructor mapping checked in ch18_urban_segments.mjs.
 const refFull = new m.WasmUrbanSegment(
-  s0.segment_length_ft, s0.n_through_lanes, s0.speed_limit_mph,
-  s0.through_demand_veh_h, s0.control,
-  s0.upstream_intersection_width_ft, s0.restrictive_median_length_ft,
-  s0.proportion_with_curb, s0.proportion_on_street_parking,
-  s0.n_access_points_subject, s0.n_access_points_opposing,
-  undefined, s0.signal_spacing_ft, undefined,
-  s0.midsegment_flow_veh_h, s0.through_capacity_veh_h,
-  s0.through_control_delay_s, s0.cycle_length_s, s0.effective_green_s,
-  undefined, undefined, undefined, undefined, undefined, undefined,
-  s0.full_stop_rate_override, undefined, s0.prop_left_turn_lanes,
-  Float64Array.from(s0.access_point_delays_s));
+  s0.segment_length_ft,
+  s0.n_through_lanes,
+  s0.speed_limit_mph,
+  s0.through_demand_veh_h,
+  s0.control,
+  s0.upstream_intersection_width_ft,
+  s0.restrictive_median_length_ft,
+  s0.proportion_with_curb,
+  s0.proportion_on_street_parking,
+  s0.n_access_points_subject,
+  s0.n_access_points_opposing,
+  undefined,
+  s0.signal_spacing_ft,
+  undefined,
+  s0.midsegment_flow_veh_h,
+  s0.through_capacity_veh_h,
+  s0.through_control_delay_s,
+  s0.cycle_length_s,
+  s0.effective_green_s,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  s0.full_stop_rate_override,
+  undefined,
+  s0.prop_left_turn_lanes,
+  Float64Array.from(s0.access_point_delays_s),
+);
 refFull.analyze();
-approx(facFull.get_base_ffs(), refFull.get_base_ffs(), 1e-9, 'case3 full-geometry facility base FFS == segment base FFS');
-approx(facFull.get_travel_speed(), refFull.get_travel_speed(), 1e-9, 'case3 full-geometry facility travel speed == segment travel speed');
-approx(facFull.get_spatial_stop_rate(), refFull.get_spatial_stop_rate(), 1e-9, 'case3 full-geometry facility stop rate == segment stop rate');
+approx(
+  facFull.get_base_ffs(),
+  refFull.get_base_ffs(),
+  1e-9,
+  'case3 full-geometry facility base FFS == segment base FFS',
+);
+approx(
+  facFull.get_travel_speed(),
+  refFull.get_travel_speed(),
+  1e-9,
+  'case3 full-geometry facility travel speed == segment travel speed',
+);
+approx(
+  facFull.get_spatial_stop_rate(),
+  refFull.get_spatial_stop_rate(),
+  1e-9,
+  'case3 full-geometry facility stop rate == segment stop rate',
+);
 
 // aggregate() re-runs Chapter 16 Steps 1-4 over measures analyze() already
 // produced, so it must be idempotent here.
@@ -244,8 +326,14 @@ approx(facFull.get_travel_speed(), 23.67, 0.01, 'case3 full-geometry travel spee
   approx(fac.get_base_ffs(), 40.78, 0.01, 'case3 config-object base FFS');
   approx(fac.get_travel_speed(), 23.67, 0.01, 'case3 config-object travel speed');
   let threw = false;
-  try { fac.add_segment_from_config({ segment_length_ft: 'not a number' }); } catch { threw = true; }
+  try {
+    fac.add_segment_from_config({ segment_length_ft: 'not a number' });
+  } catch {
+    threw = true;
+  }
   exact(threw, true, 'config-object rejects a malformed segment');
 }
 
-report('ch16 urban street facilities (HCM Ch.29 EP1 EB+WB summaries + Ch.30 EP1-driven facility + Exhibit 16-3 footnote)');
+report(
+  'ch16 urban street facilities (HCM Ch.29 EP1 EB+WB summaries + Ch.30 EP1-driven facility + Exhibit 16-3 footnote)',
+);

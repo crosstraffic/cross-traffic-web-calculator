@@ -35,31 +35,31 @@ const KEY = 'hcm-builder-handoff';
  * world like the one they just sent. Better to stay on the page and say so.
  */
 export function putHandoff(payload) {
-	if (typeof sessionStorage === 'undefined') {
-		throw new Error('This browser has no session storage, so the facility cannot be carried across.');
-	}
-	sessionStorage.setItem(KEY, JSON.stringify(payload));
+  if (typeof sessionStorage === 'undefined') {
+    throw new Error('This browser has no session storage, so the facility cannot be carried across.');
+  }
+  sessionStorage.setItem(KEY, JSON.stringify(payload));
 }
 
 /** Read the payload and clear it in the same call, so it is consumed exactly
  * once. Returns null when there is nothing waiting. */
 export function takeHandoff() {
-	if (typeof sessionStorage === 'undefined') return null;
-	let raw;
-	try {
-		raw = sessionStorage.getItem(KEY);
-		sessionStorage.removeItem(KEY);
-	} catch {
-		return null;
-	}
-	if (!raw) return null;
-	try {
-		const payload = JSON.parse(raw);
-		if (!payload || typeof payload !== 'object' || !payload.fixture) return null;
-		return payload;
-	} catch {
-		return null;
-	}
+  if (typeof sessionStorage === 'undefined') return null;
+  let raw;
+  try {
+    raw = sessionStorage.getItem(KEY);
+    sessionStorage.removeItem(KEY);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+  try {
+    const payload = JSON.parse(raw);
+    if (!payload || typeof payload !== 'object' || !payload.fixture) return null;
+    return payload;
+  } catch {
+    return null;
+  }
 }
 
 // ── Shared coercion ──────────────────────────────────────────────────────
@@ -74,25 +74,25 @@ export function takeHandoff() {
  * NaN, because NaN serializes to JSON `null` and would land on a serde default
  * three layers downstream as a finished-looking wrong answer. */
 function num(v, what) {
-	const n = Number(v);
-	if (!Number.isFinite(n)) throw new Error(`${what} is not a number`);
-	return n;
+  const n = Number(v);
+  if (!Number.isFinite(n)) throw new Error(`${what} is not a number`);
+  return n;
 }
 
 /** An optional numeric field. Blank means "the page did not state this", which
  * the fixture expresses by omitting the key, so this returns undefined and the
  * caller drops it. */
 function opt(v) {
-	if (v === '' || v == null) return undefined;
-	const n = Number(v);
-	return Number.isFinite(n) ? n : undefined;
+  if (v === '' || v == null) return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
 }
 
 /** Drop every key whose value is undefined, so an omitted optional field is
  * absent from the fixture rather than present as null. The library's serde
  * treats an absent key as "take the default" and a null as a type error. */
 function compact(o) {
-	return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
+  return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
 }
 
 /** The demand lists on the freeway page, parsed the way that page parses them.
@@ -101,29 +101,29 @@ function compact(o) {
  * that also split on whitespace would carry a demand the page never analyzed
  * with. Carrying exactly what the page holds means carrying its parser too. */
 function commaList(text) {
-	return String(text ?? '')
-		.split(',')
-		.map((t) => t.trim())
-		.filter((t) => t.length > 0)
-		.map(Number)
-		.filter((v) => Number.isFinite(v));
+  return String(text ?? '')
+    .split(',')
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0)
+    .map(Number)
+    .filter((v) => Number.isFinite(v));
 }
 
 /** The access-point delay lists on the urban pages, parsed the way those pages
  * parse them: `parseDelays` splits on commas OR whitespace, so this one does
  * too, for the same reason `commaList` does not. */
 function delayList(text) {
-	const parts = String(text ?? '')
-		.split(/[,\s]+/)
-		.filter((t) => t.length > 0);
-	const nums = parts.map(Number);
-	// The pages treat a negative or unparseable delay as an error rather than
-	// dropping it, and so does this: a list that silently lost an entry would
-	// attach the remaining delays to the wrong access points.
-	if (nums.some((n) => !Number.isFinite(n) || n < 0)) {
-		throw new Error('Access point delays must be a list of nonnegative numbers.');
-	}
-	return nums;
+  const parts = String(text ?? '')
+    .split(/[,\s]+/)
+    .filter((t) => t.length > 0);
+  const nums = parts.map(Number);
+  // The pages treat a negative or unparseable delay as an error rather than
+  // dropping it, and so does this: a list that silently lost an entry would
+  // attach the remaining delays to the wrong access points.
+  if (nums.some((n) => !Number.isFinite(n) || n < 0)) {
+    throw new Error('Access point delays must be a list of nonnegative numbers.');
+  }
+  return nums;
 }
 
 // ── Chapter 10, freeway facilities ───────────────────────────────────────
@@ -151,79 +151,77 @@ const CITY_TYPE = { urban: 'Urban', rural: 'Rural' };
  * is named in `dropped` rather than quietly left behind.
  */
 export function freewayHandoff(page) {
-	const demand = commaList(page.mainline_demand);
-	if (demand.length === 0) throw new Error('Enter at least one mainline demand value first.');
+  const demand = commaList(page.mainline_demand);
+  if (demand.length === 0) throw new Error('Enter at least one mainline demand value first.');
 
-	const terrain = TERRAIN[page.terrain];
-	const cityType = CITY_TYPE[page.city_type];
-	if (!terrain) throw new Error(`unknown terrain "${page.terrain}"`);
-	if (!cityType) throw new Error(`unknown area type "${page.city_type}"`);
+  const terrain = TERRAIN[page.terrain];
+  const cityType = CITY_TYPE[page.city_type];
+  if (!terrain) throw new Error(`unknown terrain "${page.terrain}"`);
+  if (!cityType) throw new Error(`unknown area type "${page.city_type}"`);
 
-	const segments = page.segments.map((s, i) => {
-		const onRamp = commaList(s.on_ramp);
-		const offRamp = commaList(s.off_ramp);
-		const rampToRamp = commaList(s.ramp_to_ramp);
-		const weaving = s.seg_type === 'Weaving';
-		const ramp = weaving || s.seg_type === 'Merge' || s.seg_type === 'Diverge';
-		return compact({
-			seg_type: s.seg_type,
-			length_ft: num(s.length_ft, `segment ${i + 1} length`),
-			lanes: num(s.lanes, `segment ${i + 1} lanes`),
-			// The ramp geometry fields are written only for the segment types that
-			// read them, which is a deliberate difference from what the page does.
-			// The page shows those inputs on every row and passes all of them into
-			// `WasmFacilitySegment` regardless of type, because the positional
-			// constructor has no way to say "absent"; the engine then ignores an
-			// acceleration lane on a basic segment. A fixture does have a way to say
-			// absent, and the library's own hand-written ones use it, so writing a
-			// 500 ft acceleration lane onto every basic segment would make an export
-			// from the builder unlike any fixture in the tree while changing no
-			// number. Chapter 25 Example Problem 1 reproduces to 56.9 mi/h either
-			// way, which is the check that this is a presentation choice and not a
-			// dropped input.
-			ramp_ffs: ramp ? opt(s.ramp_ffs) : undefined,
-			accel_lane_ft: s.seg_type === 'Merge' || weaving ? opt(s.accel) : undefined,
-			decel_lane_ft: s.seg_type === 'Diverge' || weaving ? opt(s.decel) : undefined,
-			short_length_ft: weaving ? opt(s.short_length) : undefined,
-			num_weaving_lanes: weaving ? opt(s.weaving_lanes) : undefined,
-			lc_rf: weaving ? opt(s.lc_rf) : undefined,
-			lc_fr: weaving ? opt(s.lc_fr) : undefined,
-			on_ramp_demand: onRamp.length ? onRamp : undefined,
-			off_ramp_demand: offRamp.length ? offRamp : undefined,
-			ramp_to_ramp_demand: rampToRamp.length ? rampToRamp : undefined,
-			// Already the engine's `WorkZone` serde shape, because the page built it
-			// that way to call `set_work_zone`. Passed through whole rather than
-			// rebuilt field by field, so a field added upstream reaches the builder
-			// without a second mapping to keep in step.
-			work_zone: s.work_zone ? page.workZoneConfig(s.work_zone) : undefined
-		});
-	});
+  const segments = page.segments.map((s, i) => {
+    const onRamp = commaList(s.on_ramp);
+    const offRamp = commaList(s.off_ramp);
+    const rampToRamp = commaList(s.ramp_to_ramp);
+    const weaving = s.seg_type === 'Weaving';
+    const ramp = weaving || s.seg_type === 'Merge' || s.seg_type === 'Diverge';
+    return compact({
+      seg_type: s.seg_type,
+      length_ft: num(s.length_ft, `segment ${i + 1} length`),
+      lanes: num(s.lanes, `segment ${i + 1} lanes`),
+      // The ramp geometry fields are written only for the segment types that
+      // read them, which is a deliberate difference from what the page does.
+      // The page shows those inputs on every row and passes all of them into
+      // `WasmFacilitySegment` regardless of type, because the positional
+      // constructor has no way to say "absent"; the engine then ignores an
+      // acceleration lane on a basic segment. A fixture does have a way to say
+      // absent, and the library's own hand-written ones use it, so writing a
+      // 500 ft acceleration lane onto every basic segment would make an export
+      // from the builder unlike any fixture in the tree while changing no
+      // number. Chapter 25 Example Problem 1 reproduces to 56.9 mi/h either
+      // way, which is the check that this is a presentation choice and not a
+      // dropped input.
+      ramp_ffs: ramp ? opt(s.ramp_ffs) : undefined,
+      accel_lane_ft: s.seg_type === 'Merge' || weaving ? opt(s.accel) : undefined,
+      decel_lane_ft: s.seg_type === 'Diverge' || weaving ? opt(s.decel) : undefined,
+      short_length_ft: weaving ? opt(s.short_length) : undefined,
+      num_weaving_lanes: weaving ? opt(s.weaving_lanes) : undefined,
+      lc_rf: weaving ? opt(s.lc_rf) : undefined,
+      lc_fr: weaving ? opt(s.lc_fr) : undefined,
+      on_ramp_demand: onRamp.length ? onRamp : undefined,
+      off_ramp_demand: offRamp.length ? offRamp : undefined,
+      ramp_to_ramp_demand: rampToRamp.length ? rampToRamp : undefined,
+      // Already the engine's `WorkZone` serde shape, because the page built it
+      // that way to call `set_work_zone`. Passed through whole rather than
+      // rebuilt field by field, so a field added upstream reaches the builder
+      // without a second mapping to keep in step.
+      work_zone: s.work_zone ? page.workZoneConfig(s.work_zone) : undefined,
+    });
+  });
 
-	const fixture = compact({
-		mainline_demand: demand,
-		ffs: num(page.ffs, 'free-flow speed'),
-		heavy_vehicle_pct: num(page.hv_pct, 'heavy vehicle percentage') / 100,
-		terrain,
-		city_type: cityType,
-		phf: num(page.phf, 'peak hour factor'),
-		jam_density_pc: num(page.jam_density, 'jam density'),
-		queue_discharge_drop: num(page.queue_discharge_drop, 'queue discharge drop') / 100,
-		total_ramp_density: num(page.total_ramp_density, 'total ramp density'),
-		interchange_density: opt(page.interchange_density),
-		segments
-	});
+  const fixture = compact({
+    mainline_demand: demand,
+    ffs: num(page.ffs, 'free-flow speed'),
+    heavy_vehicle_pct: num(page.hv_pct, 'heavy vehicle percentage') / 100,
+    terrain,
+    city_type: cityType,
+    phf: num(page.phf, 'peak hour factor'),
+    jam_density_pc: num(page.jam_density, 'jam density'),
+    queue_discharge_drop: num(page.queue_discharge_drop, 'queue discharge drop') / 100,
+    total_ramp_density: num(page.total_ramp_density, 'total ramp density'),
+    interchange_density: opt(page.interchange_density),
+    segments,
+  });
 
-	return {
-		v: 1,
-		from: '/hcm10',
-		label: 'the Chapter 10 freeway facilities page',
-		facilityType: 'freeway',
-		name: 'Freeway facility from Chapter 10',
-		fixture,
-		dropped: page.ml_enabled
-			? ['the adjacent managed lane, which the builder has no second lane group for']
-			: []
-	};
+  return {
+    v: 1,
+    from: '/hcm10',
+    label: 'the Chapter 10 freeway facilities page',
+    facilityType: 'freeway',
+    name: 'Freeway facility from Chapter 10',
+    fixture,
+    dropped: page.ml_enabled ? ['the adjacent managed lane, which the builder has no second lane group for'] : [],
+  };
 }
 
 // ── Chapter 15, two-lane highways ────────────────────────────────────────
@@ -249,61 +247,61 @@ const PASSING_TYPE_INDEX = { 'Passing Constrained': 0, 'Passing Zone': 1, 'Passi
  * 0.0 is the honest value to carry rather than the library's own default.
  */
 export function twoLaneHandoff(page) {
-	const segments = page.rows.map((row, i) => {
-		const passingType = PASSING_TYPE_INDEX[row.passing_type];
-		if (passingType === undefined) {
-			throw new Error(`Choose a passing type for segment ${i + 1} first.`);
-		}
-		const isHc = !!row.is_hc;
-		return compact({
-			passing_type: passingType,
-			length: num(row.seg_length, `segment ${i + 1} length`),
-			grade: num(row.seg_grade, `segment ${i + 1} grade`),
-			spl: num(row.seg_spl, `segment ${i + 1} speed limit`),
-			is_hc: isHc,
-			volume: num(row.vi, `segment ${i + 1} directional demand`),
-			volume_op: num(row.vo, `segment ${i + 1} opposing demand`),
-			vertical_class: num(row.vertical_class, `segment ${i + 1} vertical class`),
-			phf: num(row.phf, `segment ${i + 1} peak hour factor`),
-			phv: num(row.phv, `segment ${i + 1} heavy vehicle percentage`),
-			// Only a segment the page marked as containing horizontal curvature has
-			// subsegments. Writing the page's placeholder row for a segment with
-			// `is_hc` off would put a zero-length zero-radius subsegment into the
-			// fixture, which is not what the page analyzed and not what a
-			// hand-written fixture carries.
-			subsegments: isHc
-				? row.subrows.map((ss, k) =>
-						compact({
-							length: num(ss.subseg_length, `segment ${i + 1} subsegment ${k + 1} length`),
-							design_rad: num(ss.design_radius, `segment ${i + 1} subsegment ${k + 1} radius`),
-							sup_ele: num(ss.superelevation, `segment ${i + 1} subsegment ${k + 1} superelevation`),
-							central_angle: 0,
-							hor_class: 0
-						})
-					)
-				: undefined
-		});
-	});
+  const segments = page.rows.map((row, i) => {
+    const passingType = PASSING_TYPE_INDEX[row.passing_type];
+    if (passingType === undefined) {
+      throw new Error(`Choose a passing type for segment ${i + 1} first.`);
+    }
+    const isHc = !!row.is_hc;
+    return compact({
+      passing_type: passingType,
+      length: num(row.seg_length, `segment ${i + 1} length`),
+      grade: num(row.seg_grade, `segment ${i + 1} grade`),
+      spl: num(row.seg_spl, `segment ${i + 1} speed limit`),
+      is_hc: isHc,
+      volume: num(row.vi, `segment ${i + 1} directional demand`),
+      volume_op: num(row.vo, `segment ${i + 1} opposing demand`),
+      vertical_class: num(row.vertical_class, `segment ${i + 1} vertical class`),
+      phf: num(row.phf, `segment ${i + 1} peak hour factor`),
+      phv: num(row.phv, `segment ${i + 1} heavy vehicle percentage`),
+      // Only a segment the page marked as containing horizontal curvature has
+      // subsegments. Writing the page's placeholder row for a segment with
+      // `is_hc` off would put a zero-length zero-radius subsegment into the
+      // fixture, which is not what the page analyzed and not what a
+      // hand-written fixture carries.
+      subsegments: isHc
+        ? row.subrows.map((ss, k) =>
+            compact({
+              length: num(ss.subseg_length, `segment ${i + 1} subsegment ${k + 1} length`),
+              design_rad: num(ss.design_radius, `segment ${i + 1} subsegment ${k + 1} radius`),
+              sup_ele: num(ss.superelevation, `segment ${i + 1} subsegment ${k + 1} superelevation`),
+              central_angle: 0,
+              hor_class: 0,
+            }),
+          )
+        : undefined,
+    });
+  });
 
-	return {
-		v: 1,
-		from: '/hcm15',
-		label: 'the Chapter 15 two-lane highways page',
-		facilityType: 'twolane',
-		name: 'Two-lane highway from Chapter 15',
-		fixture: {
-			lane_width: num(page.lane_width, 'lane width'),
-			shoulder_width: num(page.shoulder_width, 'shoulder width'),
-			apd: num(page.apd, 'access point density'),
-			pmhvfl: num(page.pmhvfl, 'heavy vehicles in the passing lane'),
-			// The page has no input for the effective downstream length and writes
-			// 0.0 on its own JSON export. Carrying that rather than omitting the key
-			// keeps the two exports saying the same thing.
-			l_de: 0.0,
-			segments
-		},
-		dropped: []
-	};
+  return {
+    v: 1,
+    from: '/hcm15',
+    label: 'the Chapter 15 two-lane highways page',
+    facilityType: 'twolane',
+    name: 'Two-lane highway from Chapter 15',
+    fixture: {
+      lane_width: num(page.lane_width, 'lane width'),
+      shoulder_width: num(page.shoulder_width, 'shoulder width'),
+      apd: num(page.apd, 'access point density'),
+      pmhvfl: num(page.pmhvfl, 'heavy vehicles in the passing lane'),
+      // The page has no input for the effective downstream length and writes
+      // 0.0 on its own JSON export. Carrying that rather than omitting the key
+      // keeps the two exports saying the same thing.
+      l_de: 0.0,
+      segments,
+    },
+    dropped: [],
+  };
 }
 
 // ── Chapters 16 and 18, urban streets ────────────────────────────────────
@@ -312,11 +310,11 @@ export function twoLaneHandoff(page) {
  * names serde expects. `yield` is `YieldControlled` and not `Yield`, which is
  * the kind of mismatch that would deserialize to a default rather than throw. */
 const CONTROL = {
-	signalized: 'Signalized',
-	allwaystop: 'AllWayStop',
-	yield: 'YieldControlled',
-	roundabout: 'Roundabout',
-	uncontrolled: 'Uncontrolled'
+  signalized: 'Signalized',
+  allwaystop: 'AllWayStop',
+  yield: 'YieldControlled',
+  roundabout: 'Roundabout',
+  uncontrolled: 'Uncontrolled',
 };
 
 /**
@@ -333,56 +331,54 @@ const CONTROL = {
  * that are NOT are handled by the caller: see `urbanDropped`.
  */
 export function urbanSegmentInputs(s) {
-	const control = CONTROL[s.control];
-	if (!control) throw new Error(`unknown boundary control "${s.control}"`);
-	const signalized = s.control === 'signalized';
-	const delays = delayList(s.ap_delays);
-	return compact({
-		segment_length_ft: num(s.segment_length, 'segment length'),
-		n_through_lanes: num(s.n_through_lanes, 'through lanes'),
-		speed_limit_mph: num(s.speed_limit, 'speed limit'),
-		through_demand_veh_h: num(s.through_demand, 'through demand'),
-		control,
-		upstream_intersection_width_ft: num(s.upstream_width, 'upstream intersection width'),
-		restrictive_median_length_ft: num(s.restrictive_median_length, 'restrictive median length'),
-		// PERCENT on every chapter page, DECIMAL in the schema and in the engine.
-		// The pages divide inline at the call site rather than storing decimals, so
-		// the division belongs here too.
-		proportion_with_curb: num(s.pct_curb, 'proportion with curb') / 100,
-		proportion_on_street_parking: num(s.pct_parking, 'on-street parking') / 100,
-		n_access_points_subject: num(s.access_points_subject, 'subject-side access points'),
-		n_access_points_opposing: num(s.access_points_opposing, 'opposing-side access points'),
-		signal_spacing_ft: opt(s.signal_spacing),
-		midsegment_flow_veh_h: opt(s.midsegment_flow),
-		through_capacity_veh_h: opt(s.through_capacity),
-		// Uncontrolled through movements have no control delay by the Chapter 18
-		// text, and the page suppresses the field rather than showing a zero.
-		through_control_delay_s: s.control === 'uncontrolled' ? undefined : opt(s.through_delay),
-		cycle_length_s: signalized ? opt(s.cycle_length) : undefined,
-		effective_green_s: signalized ? opt(s.effective_green) : undefined,
-		platoon_ratio: signalized ? opt(s.platoon_ratio) : undefined,
-		sat_flow_veh_h_ln: signalized ? opt(s.sat_flow) : undefined,
-		// `arrival_type` stays absent on purpose. No chapter page sets it; hcm18
-		// passes undefined and says platoon ratio is used instead, so writing one
-		// here would be inventing an input the page never had.
-		full_stop_rate_override: opt(s.stop_rate_override),
-		// The three access-point delay sources are exclusive, and the pages keep
-		// all three subforms' state alive so switching back does not lose what was
-		// typed. So each source's fields are written only when it is the live one.
-		// hcm16 has no source selector at all and is always measured, which is why
-		// an absent `ap_source` takes the measured branch rather than none.
-		access_point_delays_s:
-			(s.ap_source == null || s.ap_source === 'measured') && delays.length ? delays : undefined,
-		access_point_approaches: s.ap_source === 'computed' && s.ap_approaches?.length
-			? s.ap_approaches.map((a) => ({ ...a }))
-			: undefined,
-		analysis_period_h: s.ap_source === 'computed' ? opt(s.analysis_period) : undefined,
-		n_influential_access_points: s.ap_source === 'planning' ? opt(s.n_influential_access_points) : undefined,
-		pct_left_turns_access: s.ap_source === 'planning' ? opt(s.pct_left_turns_access) : undefined,
-		pct_right_turns_access: s.ap_source === 'planning' ? opt(s.pct_right_turns_access) : undefined,
-		access_left_bay_adequate: s.ap_source === 'planning' ? !!s.access_left_bay_adequate : undefined,
-		access_right_bay_adequate: s.ap_source === 'planning' ? !!s.access_right_bay_adequate : undefined
-	});
+  const control = CONTROL[s.control];
+  if (!control) throw new Error(`unknown boundary control "${s.control}"`);
+  const signalized = s.control === 'signalized';
+  const delays = delayList(s.ap_delays);
+  return compact({
+    segment_length_ft: num(s.segment_length, 'segment length'),
+    n_through_lanes: num(s.n_through_lanes, 'through lanes'),
+    speed_limit_mph: num(s.speed_limit, 'speed limit'),
+    through_demand_veh_h: num(s.through_demand, 'through demand'),
+    control,
+    upstream_intersection_width_ft: num(s.upstream_width, 'upstream intersection width'),
+    restrictive_median_length_ft: num(s.restrictive_median_length, 'restrictive median length'),
+    // PERCENT on every chapter page, DECIMAL in the schema and in the engine.
+    // The pages divide inline at the call site rather than storing decimals, so
+    // the division belongs here too.
+    proportion_with_curb: num(s.pct_curb, 'proportion with curb') / 100,
+    proportion_on_street_parking: num(s.pct_parking, 'on-street parking') / 100,
+    n_access_points_subject: num(s.access_points_subject, 'subject-side access points'),
+    n_access_points_opposing: num(s.access_points_opposing, 'opposing-side access points'),
+    signal_spacing_ft: opt(s.signal_spacing),
+    midsegment_flow_veh_h: opt(s.midsegment_flow),
+    through_capacity_veh_h: opt(s.through_capacity),
+    // Uncontrolled through movements have no control delay by the Chapter 18
+    // text, and the page suppresses the field rather than showing a zero.
+    through_control_delay_s: s.control === 'uncontrolled' ? undefined : opt(s.through_delay),
+    cycle_length_s: signalized ? opt(s.cycle_length) : undefined,
+    effective_green_s: signalized ? opt(s.effective_green) : undefined,
+    platoon_ratio: signalized ? opt(s.platoon_ratio) : undefined,
+    sat_flow_veh_h_ln: signalized ? opt(s.sat_flow) : undefined,
+    // `arrival_type` stays absent on purpose. No chapter page sets it; hcm18
+    // passes undefined and says platoon ratio is used instead, so writing one
+    // here would be inventing an input the page never had.
+    full_stop_rate_override: opt(s.stop_rate_override),
+    // The three access-point delay sources are exclusive, and the pages keep
+    // all three subforms' state alive so switching back does not lose what was
+    // typed. So each source's fields are written only when it is the live one.
+    // hcm16 has no source selector at all and is always measured, which is why
+    // an absent `ap_source` takes the measured branch rather than none.
+    access_point_delays_s: (s.ap_source == null || s.ap_source === 'measured') && delays.length ? delays : undefined,
+    access_point_approaches:
+      s.ap_source === 'computed' && s.ap_approaches?.length ? s.ap_approaches.map((a) => ({ ...a })) : undefined,
+    analysis_period_h: s.ap_source === 'computed' ? opt(s.analysis_period) : undefined,
+    n_influential_access_points: s.ap_source === 'planning' ? opt(s.n_influential_access_points) : undefined,
+    pct_left_turns_access: s.ap_source === 'planning' ? opt(s.pct_left_turns_access) : undefined,
+    pct_right_turns_access: s.ap_source === 'planning' ? opt(s.pct_right_turns_access) : undefined,
+    access_left_bay_adequate: s.ap_source === 'planning' ? !!s.access_left_bay_adequate : undefined,
+    access_right_bay_adequate: s.ap_source === 'planning' ? !!s.access_right_bay_adequate : undefined,
+  });
 }
 
 /**
@@ -403,20 +399,20 @@ export function urbanSegmentInputs(s) {
  * the default nothing is lost and there is nothing to report.
  */
 export function urbanDropped(s, label = '') {
-	const where = label ? ` on ${label}` : '';
-	const out = [];
-	const accessible = opt(s.pct_opposing_left_accessible);
-	if (accessible !== undefined && accessible !== 100) {
-		out.push(
-			`the opposing left-turn accessibility of ${accessible}%${where}, which the builder keeps in an exported fixture but does not feed to the engine`
-		);
-	}
-	if (opt(s.ffs_override) !== undefined) {
-		out.push(
-			`the free-flow speed override of ${s.ffs_override} mi/h${where}, which the builder keeps in an exported fixture but does not feed to the engine`
-		);
-	}
-	return out;
+  const where = label ? ` on ${label}` : '';
+  const out = [];
+  const accessible = opt(s.pct_opposing_left_accessible);
+  if (accessible !== undefined && accessible !== 100) {
+    out.push(
+      `the opposing left-turn accessibility of ${accessible}%${where}, which the builder keeps in an exported fixture but does not feed to the engine`,
+    );
+  }
+  if (opt(s.ffs_override) !== undefined) {
+    out.push(
+      `the free-flow speed override of ${s.ffs_override} mi/h${where}, which the builder keeps in an exported fixture but does not feed to the engine`,
+    );
+  }
+  return out;
 }
 
 /** What the hcm16 summary mode is short of, in the page's own vocabulary. Named
@@ -450,24 +446,24 @@ export const SUMMARY_MODE_MISSING = 'a through demand, a through-lane count and 
  * summary mode, so nothing should reach here.
  */
 export function urbanFacilityHandoff(page) {
-	if (page.mode === 'measures') {
-		throw new Error(
-			`Summary mode holds published segment measures and no cross-section, and the builder needs ${SUMMARY_MODE_MISSING}. Switch to segment inputs to carry this facility across.`
-		);
-	}
+  if (page.mode === 'measures') {
+    throw new Error(
+      `Summary mode holds published segment measures and no cross-section, and the builder needs ${SUMMARY_MODE_MISSING}. Switch to segment inputs to carry this facility across.`,
+    );
+  }
 
-	return {
-		v: 1,
-		from: '/hcm16',
-		label: 'the Chapter 16 urban street facilities page',
-		facilityType: 'urban',
-		name: 'Urban street facility from Chapter 16',
-		fixture: {
-			prop_left_turn_lanes: num(page.inputs_pct_left_turn_lanes, 'left-turn lane percentage') / 100,
-			segments: page.inputSegments.map((s) => urbanSegmentInputs(s))
-		},
-		dropped: page.inputSegments.flatMap((s, i) => urbanDropped(s, `segment ${i + 1}`))
-	};
+  return {
+    v: 1,
+    from: '/hcm16',
+    label: 'the Chapter 16 urban street facilities page',
+    facilityType: 'urban',
+    name: 'Urban street facility from Chapter 16',
+    fixture: {
+      prop_left_turn_lanes: num(page.inputs_pct_left_turn_lanes, 'left-turn lane percentage') / 100,
+      segments: page.inputSegments.map((s) => urbanSegmentInputs(s)),
+    },
+    dropped: page.inputSegments.flatMap((s, i) => urbanDropped(s, `segment ${i + 1}`)),
+  };
 }
 
 /**
@@ -482,16 +478,16 @@ export function urbanFacilityHandoff(page) {
  * So nothing is lost and nothing is invented; there is simply one more number.
  */
 export function urbanSegmentHandoff(page) {
-	return {
-		v: 1,
-		from: '/hcm18',
-		label: 'the Chapter 18 urban street segments page',
-		facilityType: 'urban',
-		name: 'Urban street segment from Chapter 18',
-		fixture: {
-			prop_left_turn_lanes: num(page.pct_left_turn_lanes, 'left-turn lane percentage') / 100,
-			segments: [urbanSegmentInputs(page)]
-		},
-		dropped: urbanDropped(page)
-	};
+  return {
+    v: 1,
+    from: '/hcm18',
+    label: 'the Chapter 18 urban street segments page',
+    facilityType: 'urban',
+    name: 'Urban street segment from Chapter 18',
+    fixture: {
+      prop_left_turn_lanes: num(page.pct_left_turn_lanes, 'left-turn lane percentage') / 100,
+      segments: [urbanSegmentInputs(page)],
+    },
+    dropped: urbanDropped(page),
+  };
 }

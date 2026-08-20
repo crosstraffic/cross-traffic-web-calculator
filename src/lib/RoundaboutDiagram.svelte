@@ -8,9 +8,9 @@
   // nonyielding.
   //
   // `entries` is the page's object: { nb|sb|eb|wb: { u,l,t,r, hv, entryLanes,
-  
+
   // Per-approach LOS letters from the last run ({ NB: 'C', ... }); when
-  
+
   /**
    * @typedef {Object} Props
    * @property {any} [entries] - circLanes, exitLanes, bypass, laneAssignment, nped } }.
@@ -24,15 +24,26 @@
   let hovered = $state(null); // 'NB' | 'SB' | 'EB' | 'WB' | null
 
   const LANE = 16;
-  const RUN = 92;      // leg length outside the ring
-  const RI = 34;       // central island radius
+  const RUN = 92; // leg length outside the ring
+  const RI = 34; // central island radius
 
-  let circLanes = $derived(Math.max(1, Math.min(2,
-    Math.max(Number(entries?.nb?.circLanes) || 1, Number(entries?.sb?.circLanes) || 1,
-             Number(entries?.eb?.circLanes) || 1, Number(entries?.wb?.circLanes) || 1))));
+  let circLanes = $derived(
+    Math.max(
+      1,
+      Math.min(
+        2,
+        Math.max(
+          Number(entries?.nb?.circLanes) || 1,
+          Number(entries?.sb?.circLanes) || 1,
+          Number(entries?.eb?.circLanes) || 1,
+          Number(entries?.wb?.circLanes) || 1,
+        ),
+      ),
+    ),
+  );
 
-  let RO = $derived(RI + circLanes * LANE + 6);      // outer edge of the circulating roadway
-  let RC = $derived((RI + RO) / 2);                  // circulating centerline
+  let RO = $derived(RI + circLanes * LANE + 6); // outer edge of the circulating roadway
+  let RC = $derived((RI + RO) / 2); // circulating centerline
   let EXT = $derived(RO + RUN);
   let cx = $derived(EXT);
   let cy = $derived(EXT);
@@ -75,10 +86,14 @@
     // Perpendicular offset direction: rotate the leg direction -90° (driver's
     // right side approaching the ring).
     const a = (deg * Math.PI) / 180;
-    const ux = Math.cos(a), uy = -Math.sin(a);          // svg unit toward the leg
-    const px = -uy * side, py = ux * side;              // perpendicular
-    const x0 = cx + ux * EXT + px * off, y0 = cy + uy * EXT + py * off;
-    const x1 = cx + ux * nearR + px * off, y1 = cy + uy * nearR + py * off;
+    const ux = Math.cos(a),
+      uy = -Math.sin(a); // svg unit toward the leg
+    const px = -uy * side,
+      py = ux * side; // perpendicular
+    const x0 = cx + ux * EXT + px * off,
+      y0 = cy + uy * EXT + py * off;
+    const x1 = cx + ux * nearR + px * off,
+      y1 = cy + uy * nearR + py * off;
     return { far: `${x0.toFixed(1)},${y0.toFixed(1)}`, near: `${x1.toFixed(1)},${y1.toFixed(1)}` };
   }
 
@@ -140,17 +155,23 @@
   // Leg slab rectangles (as polygons) for the four compass legs.
   function legRect(deg) {
     const a = (deg * Math.PI) / 180;
-    const ux = Math.cos(a), uy = -Math.sin(a);
-    const px = -uy, py = ux;
+    const ux = Math.cos(a),
+      uy = -Math.sin(a);
+    const px = -uy,
+      py = ux;
     const wHalf = LANE * 1.6;
-    const x0 = cx + ux * (RO - 6), y0 = cy + uy * (RO - 6);
-    const x1 = cx + ux * EXT, y1 = cy + uy * EXT;
+    const x0 = cx + ux * (RO - 6),
+      y0 = cy + uy * (RO - 6);
+    const x1 = cx + ux * EXT,
+      y1 = cy + uy * EXT;
     return `${(x0 + px * wHalf).toFixed(1)},${(y0 + py * wHalf).toFixed(1)} ${(x1 + px * wHalf).toFixed(1)},${(y1 + py * wHalf).toFixed(1)} ${(x1 - px * wHalf).toFixed(1)},${(y1 - py * wHalf).toFixed(1)} ${(x0 - px * wHalf).toFixed(1)},${(y0 - py * wHalf).toFixed(1)}`;
   }
 
-  let bypasses = $derived(order
-    .map((o) => ({ key: o.key, mode: entries?.[dirOf[o.key]]?.bypass || 'none' }))
-    .filter((b) => b.mode !== 'none'));
+  let bypasses = $derived(
+    order
+      .map((o) => ({ key: o.key, mode: entries?.[dirOf[o.key]]?.bypass || 'none' }))
+      .filter((b) => b.mode !== 'none'),
+  );
 
   // ── illustrative traffic animation ──
   // Small vehicles flow along the movement paths, count weighted by the
@@ -163,42 +184,47 @@
   // Congestion response: speed multiplier and fleet multiplier by LOS letter.
   const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
   const LOS_FLEET = { A: 1, B: 1, C: 1.1, D: 1.3, E: 1.7, F: 2.3 };
-  let vehiclePlan = $derived((() => {
-    if (!animating) return [];
-    const items = [];
-    for (const o of order) {
-      const e = entries?.[dirOf[o.key]] || {};
-      const los = approachLos?.[o.key];
-      const slow = LOS_SPEED[los] ?? 1;
-      const crowd = LOS_FLEET[los] ?? 1;
-      for (const mv of ['R', 'T', 'L']) {
-        const vol = Number(e[{ R: 'r', T: 't', L: 'l' }[mv]]) || 0;
-        if (vol <= 0) continue;
-        const useBypass = mv === 'R' && e.bypass && e.bypass !== 'none';
-        // A nonyielding bypass never queues, so it ignores the approach LOS.
-        const freeFlow = useBypass && e.bypass === 'nonyielding';
-        items.push({
-          key: o.key,
-          d: useBypass ? bypassPath(o.key) : movePath(o.key, mv),
-          vol,
-          dur: (useBypass ? 5 : 4 + spanOf[mv] / 55) / (freeFlow ? 1 : slow),
-          crowd: freeFlow ? 1 : crowd,
-        });
+  let vehiclePlan = $derived(
+    (() => {
+      if (!animating) return [];
+      const items = [];
+      for (const o of order) {
+        const e = entries?.[dirOf[o.key]] || {};
+        const los = approachLos?.[o.key];
+        const slow = LOS_SPEED[los] ?? 1;
+        const crowd = LOS_FLEET[los] ?? 1;
+        for (const mv of ['R', 'T', 'L']) {
+          const vol = Number(e[{ R: 'r', T: 't', L: 'l' }[mv]]) || 0;
+          if (vol <= 0) continue;
+          const useBypass = mv === 'R' && e.bypass && e.bypass !== 'none';
+          // A nonyielding bypass never queues, so it ignores the approach LOS.
+          const freeFlow = useBypass && e.bypass === 'nonyielding';
+          items.push({
+            key: o.key,
+            d: useBypass ? bypassPath(o.key) : movePath(o.key, mv),
+            vol,
+            dur: (useBypass ? 5 : 4 + spanOf[mv] / 55) / (freeFlow ? 1 : slow),
+            crowd: freeFlow ? 1 : crowd,
+          });
+        }
       }
-    }
-    const total = items.reduce((s, it) => s + it.vol, 0) || 1;
-    const BUDGET = 26;
-    for (const it of items) {
-      it.n = Math.max(1, Math.min(8, Math.round((BUDGET * it.vol * it.crowd) / total)));
-    }
-    return items;
-  })());
+      const total = items.reduce((s, it) => s + it.vol, 0) || 1;
+      const BUDGET = 26;
+      for (const it of items) {
+        it.n = Math.max(1, Math.min(8, Math.round((BUDGET * it.vol * it.crowd) / total)));
+      }
+      return items;
+    })(),
+  );
 </script>
 
 <div class="rb-diagram">
-  <svg viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet" role="img"
-       aria-label={`four-leg roundabout, ${circLanes} circulating lane${circLanes === 1 ? '' : 's'}`}>
-
+  <svg
+    viewBox="0 0 {W} {H}"
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={`four-leg roundabout, ${circLanes} circulating lane${circLanes === 1 ? '' : 's'}`}
+  >
     <!-- ══ pavement: legs, circulating annulus, central island ══ -->
     {#each [270, 90, 180, 0] as deg}
       <polygon points={legRect(deg)} class="rb-pavement" />
@@ -215,13 +241,22 @@
       {@const px = -uy}
       {@const py = ux}
       {@const wHalf = LANE * 1.6}
-      <line x1={cx + ux * (RO - 6) + px * wHalf} y1={cy + uy * (RO - 6) + py * wHalf}
-            x2={cx + ux * EXT + px * wHalf} y2={cy + uy * EXT + py * wHalf} class="rb-edge" />
-      <line x1={cx + ux * (RO - 6) - px * wHalf} y1={cy + uy * (RO - 6) - py * wHalf}
-            x2={cx + ux * EXT - px * wHalf} y2={cy + uy * EXT - py * wHalf} class="rb-edge" />
+      <line
+        x1={cx + ux * (RO - 6) + px * wHalf}
+        y1={cy + uy * (RO - 6) + py * wHalf}
+        x2={cx + ux * EXT + px * wHalf}
+        y2={cy + uy * EXT + py * wHalf}
+        class="rb-edge"
+      />
+      <line
+        x1={cx + ux * (RO - 6) - px * wHalf}
+        y1={cy + uy * (RO - 6) - py * wHalf}
+        x2={cx + ux * EXT - px * wHalf}
+        y2={cy + uy * EXT - py * wHalf}
+        class="rb-edge"
+      />
       <!-- leg centerline between entry and exit halves -->
-      <line x1={cx + ux * (RO + 2)} y1={cy + uy * (RO + 2)}
-            x2={cx + ux * EXT} y2={cy + uy * EXT} class="rb-center" />
+      <line x1={cx + ux * (RO + 2)} y1={cy + uy * (RO + 2)} x2={cx + ux * EXT} y2={cy + uy * EXT} class="rb-center" />
       <!-- yield line across the entry half where it meets the ring -->
       {@const yx0 = cx + ux * (RO + 3)}
       {@const yy0 = cy + uy * (RO + 3)}
@@ -239,8 +274,11 @@
 
     <!-- ══ bypass bands ══ -->
     {#each bypasses as b}
-      <path d={bypassPath(b.key)} class={`rb-bypass mv-${b.key.toLowerCase()} ${cls(hovered, b.key)}`}
-            stroke-dasharray={b.mode === 'yielding' ? '6 5' : null} />
+      <path
+        d={bypassPath(b.key)}
+        class={`rb-bypass mv-${b.key.toLowerCase()} ${cls(hovered, b.key)}`}
+        stroke-dasharray={b.mode === 'yielding' ? '6 5' : null}
+      />
     {/each}
 
     <!-- ══ movement arcs (right, through, left per entry) ══ -->
@@ -256,8 +294,13 @@
         {#each Array.from({ length: v.n }) as _, k}
           <g class="rb-veh veh-{v.key.toLowerCase()}" class:dim={hovered != null && hovered !== v.key}>
             <rect x="-4.5" y="-2.4" width="9" height="4.8" rx="1.4" />
-            <animateMotion dur="{v.dur}s" repeatCount="indefinite" rotate="auto"
-                           begin="{(-(k + 0.37 * (k % 2)) / v.n) * v.dur}s" path={v.d} />
+            <animateMotion
+              dur="{v.dur}s"
+              repeatCount="indefinite"
+              rotate="auto"
+              begin="{(-(k + 0.37 * (k % 2)) / v.n) * v.dur}s"
+              path={v.d}
+            />
           </g>
         {/each}
       {/each}
@@ -266,14 +309,22 @@
     <!-- ══ on-diagram volume editors (U/L/T/R) ══ -->
     {#each editable ? order : [] as o (o.key)}
       <foreignObject x={clusterPos[o.key].x} y={clusterPos[o.key].y} width={CW} height={CH}>
-        <div class="rb-cluster" xmlns="http://www.w3.org/1999/xhtml"
-             onmouseenter={() => (hovered = o.key)} onmouseleave={() => (hovered = null)}>
+        <div
+          class="rb-cluster"
+          xmlns="http://www.w3.org/1999/xhtml"
+          onmouseenter={() => (hovered = o.key)}
+          onmouseleave={() => (hovered = null)}
+        >
           <span class="rb-cluster-title"><span class="swatch {o.key.toLowerCase()}"></span>{o.key}</span>
           {#each [['u', 'U-turn'], ['l', 'left-turn'], ['t', 'through'], ['r', 'right-turn']] as [f, name]}
-            <input type="number" min="0" title="{o.key} {name} volume (veh/h)"
-                   aria-label="{o.key} {name} volume"
-                   value={entries?.[dirOf[o.key]]?.[f] ?? 0}
-                   oninput={(e) => setVol(o.key, f, e.currentTarget.value)} />
+            <input
+              type="number"
+              min="0"
+              title="{o.key} {name} volume (veh/h)"
+              aria-label="{o.key} {name} volume"
+              value={entries?.[dirOf[o.key]]?.[f] ?? 0}
+              oninput={(e) => setVol(o.key, f, e.currentTarget.value)}
+            />
           {/each}
         </div>
       </foreignObject>
@@ -281,8 +332,13 @@
   </svg>
 
   <div class="rb-legend" role="list">
-    <button type="button" class="rb-chip rb-animate" class:active={animating}
-            aria-pressed={animating} onclick={() => (animating = !animating)}>
+    <button
+      type="button"
+      class="rb-chip rb-animate"
+      class:active={animating}
+      aria-pressed={animating}
+      onclick={() => (animating = !animating)}
+    >
       {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
     </button>
     {#each order as o}
@@ -297,11 +353,18 @@
         onblur={() => (hovered = null)}
       >
         <span class="swatch {o.key.toLowerCase()}"></span>
-        {o.label}{entries?.[dirOf[o.key]]?.bypass && entries[dirOf[o.key]].bypass !== 'none' ? `, ${entries[dirOf[o.key]].bypass} bypass` : ''}
+        {o.label}{entries?.[dirOf[o.key]]?.bypass && entries[dirOf[o.key]].bypass !== 'none'
+          ? `, ${entries[dirOf[o.key]].bypass} bypass`
+          : ''}
       </button>
     {/each}
   </div>
-  <p class="rb-note">Circulation is counterclockwise and entries yield at the dashed line. Volume boxes are U-turn / left / through / right. A dashed bypass yields at its exit leg; a solid one merges without yielding. Animated vehicles are an illustration weighted by the entered volumes; after a run they slow and bunch with each approach's LOS. Not a simulation.</p>
+  <p class="rb-note">
+    Circulation is counterclockwise and entries yield at the dashed line. Volume boxes are U-turn / left / through /
+    right. A dashed bypass yields at its exit leg; a solid one merges without yielding. Animated vehicles are an
+    illustration weighted by the entered volumes; after a run they slow and bunch with each approach's LOS. Not a
+    simulation.
+  </p>
 </div>
 
 <style>
@@ -311,34 +374,94 @@
     display: block;
     margin: 0 auto;
   }
-  .rb-pavement { fill: var(--diag-pavement); }
-  .rb-island { fill: var(--surface-page); }
-  .rb-edge-circle { fill: none; stroke: var(--diag-edge); stroke-width: 2; vector-effect: non-scaling-stroke; }
-  .rb-lane-circle { fill: none; stroke: var(--diag-lane-line); stroke-width: 1.5; stroke-dasharray: 8 6; vector-effect: non-scaling-stroke; }
-  .rb-edge { stroke: var(--diag-edge); stroke-width: 2; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-  .rb-center { stroke: var(--diag-center); stroke-width: 1.25; vector-effect: non-scaling-stroke; }
-  .rb-yield { stroke: var(--diag-lane-line); stroke-width: 3; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+  .rb-pavement {
+    fill: var(--diag-pavement);
+  }
+  .rb-island {
+    fill: var(--surface-page);
+  }
+  .rb-edge-circle {
+    fill: none;
+    stroke: var(--diag-edge);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+  }
+  .rb-lane-circle {
+    fill: none;
+    stroke: var(--diag-lane-line);
+    stroke-width: 1.5;
+    stroke-dasharray: 8 6;
+    vector-effect: non-scaling-stroke;
+  }
+  .rb-edge {
+    stroke: var(--diag-edge);
+    stroke-width: 2;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .rb-center {
+    stroke: var(--diag-center);
+    stroke-width: 1.25;
+    vector-effect: non-scaling-stroke;
+  }
+  .rb-yield {
+    stroke: var(--diag-lane-line);
+    stroke-width: 3;
+    stroke-dasharray: 4 4;
+    vector-effect: non-scaling-stroke;
+  }
 
-  .rb-move, .rb-bypass {
+  .rb-move,
+  .rb-bypass {
     fill: none;
     stroke-width: 2.25;
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
-    transition: opacity 120ms ease, stroke-width 120ms ease;
+    transition:
+      opacity 120ms ease,
+      stroke-width 120ms ease;
     opacity: 0.7;
   }
-  .rb-move.dim, .rb-bypass.dim { opacity: 0.08; }
-  .rb-move.active, .rb-bypass.active { stroke-width: 4; opacity: 1; }
-  .mv-nb { stroke: #2563eb; }
-  .mv-sb { stroke: #16a34a; }
-  .mv-eb { stroke: #ea7317; }
-  .mv-wb { stroke: #dc2626; }
-  .swatch.nb { background: #2563eb; }
-  .swatch.sb { background: #16a34a; }
-  .swatch.eb { background: #ea7317; }
-  .swatch.wb { background: #dc2626; }
+  .rb-move.dim,
+  .rb-bypass.dim {
+    opacity: 0.08;
+  }
+  .rb-move.active,
+  .rb-bypass.active {
+    stroke-width: 4;
+    opacity: 1;
+  }
+  .mv-nb {
+    stroke: #2563eb;
+  }
+  .mv-sb {
+    stroke: #16a34a;
+  }
+  .mv-eb {
+    stroke: #ea7317;
+  }
+  .mv-wb {
+    stroke: #dc2626;
+  }
+  .swatch.nb {
+    background: #2563eb;
+  }
+  .swatch.sb {
+    background: #16a34a;
+  }
+  .swatch.eb {
+    background: #ea7317;
+  }
+  .swatch.wb {
+    background: #dc2626;
+  }
 
-  .rb-legend { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+  .rb-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+  }
   .rb-chip {
     display: inline-flex;
     align-items: center;
@@ -350,21 +473,60 @@
     background: transparent;
     cursor: default;
   }
-  .rb-chip.active { border-color: var(--diag-edge); }
-  .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
-  .rb-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; }
+  .rb-chip.active {
+    border-color: var(--diag-edge);
+  }
+  .swatch {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .rb-note {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.35rem;
+  }
 
-  .rb-bypass-bed-edge { fill: none; stroke: var(--diag-edge); stroke-width: 19; stroke-linecap: butt; }
-  .rb-bypass-bed { fill: none; stroke: var(--diag-pavement); stroke-width: 16; stroke-linecap: butt; }
+  .rb-bypass-bed-edge {
+    fill: none;
+    stroke: var(--diag-edge);
+    stroke-width: 19;
+    stroke-linecap: butt;
+  }
+  .rb-bypass-bed {
+    fill: none;
+    stroke: var(--diag-pavement);
+    stroke-width: 16;
+    stroke-linecap: butt;
+  }
 
-  .rb-veh rect { stroke: rgba(15, 23, 42, 0.35); stroke-width: 0.6; }
-  .rb-veh { transition: opacity 120ms ease; }
-  .rb-veh.dim { opacity: 0.08; }
-  .veh-nb rect { fill: #2563eb; }
-  .veh-sb rect { fill: #16a34a; }
-  .veh-eb rect { fill: #ea7317; }
-  .veh-wb rect { fill: #dc2626; }
-  .rb-animate { cursor: pointer; font-weight: 600; }
+  .rb-veh rect {
+    stroke: rgba(15, 23, 42, 0.35);
+    stroke-width: 0.6;
+  }
+  .rb-veh {
+    transition: opacity 120ms ease;
+  }
+  .rb-veh.dim {
+    opacity: 0.08;
+  }
+  .veh-nb rect {
+    fill: #2563eb;
+  }
+  .veh-sb rect {
+    fill: #16a34a;
+  }
+  .veh-eb rect {
+    fill: #ea7317;
+  }
+  .veh-wb rect {
+    fill: #dc2626;
+  }
+  .rb-animate {
+    cursor: pointer;
+    font-weight: 600;
+  }
 
   .rb-cluster {
     box-sizing: border-box;
@@ -383,7 +545,14 @@
     padding: 2px 3px;
     overflow: hidden;
   }
-  .rb-cluster-title { display: inline-flex; align-items: center; gap: 2px; font-size: 7px; font-weight: 600; flex: none; }
+  .rb-cluster-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 7px;
+    font-weight: 600;
+    flex: none;
+  }
   .rb-cluster input {
     box-sizing: border-box;
     width: 100%;
@@ -399,7 +568,16 @@
     text-align: center;
   }
   .rb-cluster input::-webkit-outer-spin-button,
-  .rb-cluster input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .rb-cluster input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
-  .rb-cluster .swatch { width: 6px; height: 6px; }
+  .rb-cluster input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .rb-cluster input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  .rb-cluster .swatch {
+    width: 6px;
+    height: 6px;
+  }
 </style>

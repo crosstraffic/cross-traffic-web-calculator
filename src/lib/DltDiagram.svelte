@@ -29,29 +29,42 @@
 
   let hovered = $state(null);
 
-  const W = 580, H = 340;
+  const W = 580,
+    H = 340;
   const LANE = 16;
-  const cy = 160, cxM = 290;            // major-street crown, main intersection
-  const MINOR = 2 * LANE;               // two lanes each way on the minor street
+  const cy = 160,
+    cxM = 290; // major-street crown, main intersection
+  const MINOR = 2 * LANE; // two lanes each way on the minor street
 
-  const medN = cy - 8, medS = cy + 8;   // raised median
-  const coreN = cy - 40, coreS = cy + 40;
-  const sepN = cy - 46, sepS = cy + 46; // separator between DLT roadway and through lanes
-  const bandN = cy - 62, bandS = cy + 62;
-  const minW = cxM - MINOR, minE = cxM + MINOR;
+  const medN = cy - 8,
+    medS = cy + 8; // raised median
+  const coreN = cy - 40,
+    coreS = cy + 40;
+  const sepN = cy - 46,
+    sepS = cy + 46; // separator between DLT roadway and through lanes
+  const bandN = cy - 62,
+    bandS = cy + 62;
+  const minW = cxM - MINOR,
+    minE = cxM + MINOR;
 
   // Lane centerlines. Left turners approach in the inner lane and the through
   // movement is drawn one lane out so the two never share a line.
-  const wbL = cy - 16, wbT = cy - 32;
-  const ebL = cy + 16, ebT = cy + 32;
-  const dltN = cy - 54, dltS = cy + 54; // the two displaced left-turn roadways
-  const nbT = cxM + 22, sbT = cxM - 22; // minor-street through lanes
-  const nbOut = cxM + 8, sbOut = cxM - 8; // departure lanes the displaced lefts land in
+  const wbL = cy - 16,
+    wbT = cy - 32;
+  const ebL = cy + 16,
+    ebT = cy + 32;
+  const dltN = cy - 54,
+    dltS = cy + 54; // the two displaced left-turn roadways
+  const nbT = cxM + 22,
+    sbT = cxM - 22; // minor-street through lanes
+  const nbOut = cxM + 8,
+    sbOut = cxM - 8; // departure lanes the displaced lefts land in
 
   // The supplemental intersections move with the dimensioned roadway distance,
   // clamped to what the canvas can show at either extreme.
   let sep = $derived(Math.min(190, Math.max(115, 105 + (Math.max(0, Number(td) || 0) - 100) * 0.2)));
-  let xW = $derived(cxM - sep), xE = $derived(cxM + sep);
+  let xW = $derived(cxM - sep),
+    xE = $derived(cxM + sep);
 
   let tdLabel = $derived(`${Math.round(Number(td) || 0).toLocaleString('en-US')} ft`);
 
@@ -62,12 +75,14 @@
   let P = $derived({
     ebt: `M 0,${ebT} L ${W},${ebT}`,
     wbt: `M ${W},${wbT} L 0,${wbT}`,
-    ebl: `M 0,${ebL} L ${xW - 36},${ebL}`
-      + ` C ${xW - 4},${ebL} ${xW + 4},${dltN} ${xW + 36},${dltN}`
-      + ` L ${cxM - 8},${dltN} Q ${nbOut},${dltN} ${nbOut},${bandN - 12} L ${nbOut},0`,
-    wbl: `M ${W},${wbL} L ${xE + 36},${wbL}`
-      + ` C ${xE + 4},${wbL} ${xE - 4},${dltS} ${xE - 36},${dltS}`
-      + ` L ${cxM + 8},${dltS} Q ${sbOut},${dltS} ${sbOut},${bandS + 12} L ${sbOut},${H}`,
+    ebl:
+      `M 0,${ebL} L ${xW - 36},${ebL}` +
+      ` C ${xW - 4},${ebL} ${xW + 4},${dltN} ${xW + 36},${dltN}` +
+      ` L ${cxM - 8},${dltN} Q ${nbOut},${dltN} ${nbOut},${bandN - 12} L ${nbOut},0`,
+    wbl:
+      `M ${W},${wbL} L ${xE + 36},${wbL}` +
+      ` C ${xE + 4},${wbL} ${xE - 4},${dltS} ${xE - 36},${dltS}` +
+      ` L ${cxM + 8},${dltS} Q ${sbOut},${dltS} ${sbOut},${bandS + 12} L ${sbOut},${H}`,
     nbt: `M ${nbT},${H} L ${nbT},0`,
     sbt: `M ${sbT},0 L ${sbT},${H}`,
   });
@@ -81,8 +96,12 @@
     { key: 'sbt', label: 'SB through' },
   ];
   const BASE_COLOR = {
-    ebl: '#2563eb', ebt: '#0891b2', wbl: '#dc2626',
-    wbt: '#ea7317', nbt: '#16a34a', sbt: '#7c3aed',
+    ebl: '#2563eb',
+    ebt: '#0891b2',
+    wbl: '#dc2626',
+    wbt: '#ea7317',
+    nbt: '#16a34a',
+    sbt: '#7c3aed',
   };
 
   // A DLT reports one intersection LOS rather than a LOS per movement
@@ -95,11 +114,11 @@
   let losColor = $derived(LOS_COLORS[los] ?? 'transparent');
 
   let ariaLabel = $derived(
-    `${full ? 'full' : 'partial'} displaced left-turn intersection, plan view. `
-    + 'Major street east-west through three signals: the main intersection with a '
-    + `supplemental intersection ${tdLabel} either side. `
-    + 'The major-street left turns cross the opposing through lanes at the supplemental '
-    + 'intersections and reach the main intersection on separated roadways on the far side'
+    `${full ? 'full' : 'partial'} displaced left-turn intersection, plan view. ` +
+      'Major street east-west through three signals: the main intersection with a ' +
+      `supplemental intersection ${tdLabel} either side. ` +
+      'The major-street left turns cross the opposing through lanes at the supplemental ' +
+      'intersections and reach the main intersection on separated roadways on the far side',
   );
 
   function cls(key) {
@@ -111,22 +130,23 @@
   // ── illustrative traffic ──
   let animating = $state(false);
   const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
-  let vehiclePlan = $derived((() => {
-    if (!animating) return [];
-    const dur = 9 / (LOS_SPEED[los] ?? 1);
-    const items = [];
-    for (const m of MOVES) {
-      for (let j = 0; j < 3; j++) {
-        items.push({ id: m.key + j, key: m.key, d: P[m.key], dur, begin: (-j / 3) * dur });
+  let vehiclePlan = $derived(
+    (() => {
+      if (!animating) return [];
+      const dur = 9 / (LOS_SPEED[los] ?? 1);
+      const items = [];
+      for (const m of MOVES) {
+        for (let j = 0; j < 3; j++) {
+          items.push({ id: m.key + j, key: m.key, d: P[m.key], dur, begin: (-j / 3) * dur });
+        }
       }
-    }
-    return items;
-  })());
+      return items;
+    })(),
+  );
 </script>
 
 <div class="dl-diagram">
   <svg viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label={ariaLabel}>
-
     <!-- ══ pavement (fills only) ══ -->
     <!-- through lanes and median, full width -->
     <rect x="0" y={coreN} width={W} height={coreS - coreN} class="dl-pavement" />
@@ -196,7 +216,7 @@
 
     <!-- ══ signals, numbered as the delay table numbers them ══ -->
     {#each [xW, cxM, xE] as sx, i}
-      <circle cx={sx} cy={cy} r="8" class="dl-signal" />
+      <circle cx={sx} {cy} r="8" class="dl-signal" />
       <text x={sx} y={cy + 3} class="dl-signal-num">{i + 1}</text>
     {/each}
 
@@ -232,8 +252,13 @@
   </svg>
 
   <div class="dl-legend">
-    <button type="button" class="dl-chip dl-animate" class:active={animating}
-            aria-pressed={animating} onclick={() => (animating = !animating)}>
+    <button
+      type="button"
+      class="dl-chip dl-animate"
+      class:active={animating}
+      aria-pressed={animating}
+      onclick={() => (animating = !animating)}
+    >
       {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
     </button>
     {#each MOVES as m (m.key)}
@@ -251,17 +276,23 @@
       </button>
     {/each}
     {#if los}
-      <span class="dl-chip dl-los"><span class="swatch" style="background: {losColor}"></span>Intersection LOS {los}</span>
+      <span class="dl-chip dl-los"
+        ><span class="swatch" style="background: {losColor}"></span>Intersection LOS {los}</span
+      >
     {/if}
   </div>
   <p class="dl-note">
     Signals 1, 2, and 3 are the west supplemental, main, and east supplemental intersections of the delay table below.
     {#if full}
-      A full DLT displaces all four left turns; the two additional minor-street crossovers are not drawn, so read this as the major-street half of that configuration.
+      A full DLT displaces all four left turns; the two additional minor-street crossovers are not drawn, so read this
+      as the major-street half of that configuration.
     {:else}
-      A partial DLT displaces the major-street left turns only, so the minor-street left turns are still made at the main intersection.
+      A partial DLT displaces the major-street left turns only, so the minor-street left turns are still made at the
+      main intersection.
     {/if}
-    Major-street left turns are shielded by the through movements at the main intersection and are not modelled there. Equation 23-69 reports one experienced travel time for the whole intersection rather than one per movement, so a run reports its LOS on the badge and leaves the paths in their own colours. An illustration, not a simulation.
+    Major-street left turns are shielded by the through movements at the main intersection and are not modelled there. Equation
+    23-69 reports one experienced travel time for the whole intersection rather than one per movement, so a run reports its
+    LOS on the badge and leaves the paths in their own colours. An illustration, not a simulation.
   </p>
 </div>
 
@@ -272,37 +303,103 @@
     display: block;
     margin: 0 auto;
   }
-  .dl-pavement { fill: var(--diag-pavement); }
-  .dl-island { fill: var(--diag-wall); }
-  .dl-island-edge { stroke: var(--diag-wall-edge); stroke-width: 1; vector-effect: non-scaling-stroke; }
-  .dl-edge { stroke: var(--diag-edge); stroke-width: 1.5; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-  .dl-center { stroke: var(--diag-center); stroke-width: 1.25; vector-effect: non-scaling-stroke; }
-  .dl-lane-line { stroke: var(--diag-lane-line); stroke-width: 1.25; stroke-dasharray: 8 6; vector-effect: non-scaling-stroke; }
-  .dl-signal { fill: var(--diag-center); stroke: var(--diag-edge); stroke-width: 1.5; }
-  .dl-signal-num { font-size: 9px; font-weight: 700; text-anchor: middle; fill: var(--surface); }
-  .dl-dim { stroke: var(--diag-dim); stroke-width: 1; vector-effect: non-scaling-stroke; }
-  .dl-ext { stroke: var(--diag-dim); stroke-width: 0.8; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
-  .dl-compass polygon { fill: var(--diag-dim); }
+  .dl-pavement {
+    fill: var(--diag-pavement);
+  }
+  .dl-island {
+    fill: var(--diag-wall);
+  }
+  .dl-island-edge {
+    stroke: var(--diag-wall-edge);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  .dl-edge {
+    stroke: var(--diag-edge);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .dl-center {
+    stroke: var(--diag-center);
+    stroke-width: 1.25;
+    vector-effect: non-scaling-stroke;
+  }
+  .dl-lane-line {
+    stroke: var(--diag-lane-line);
+    stroke-width: 1.25;
+    stroke-dasharray: 8 6;
+    vector-effect: non-scaling-stroke;
+  }
+  .dl-signal {
+    fill: var(--diag-center);
+    stroke: var(--diag-edge);
+    stroke-width: 1.5;
+  }
+  .dl-signal-num {
+    font-size: 9px;
+    font-weight: 700;
+    text-anchor: middle;
+    fill: var(--surface);
+  }
+  .dl-dim {
+    stroke: var(--diag-dim);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  .dl-ext {
+    stroke: var(--diag-dim);
+    stroke-width: 0.8;
+    stroke-dasharray: 3 3;
+    vector-effect: non-scaling-stroke;
+  }
+  .dl-compass polygon {
+    fill: var(--diag-dim);
+  }
 
   .dl-move {
     fill: none;
     stroke-width: 2.5;
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
-    transition: opacity 120ms ease, stroke-width 120ms ease;
+    transition:
+      opacity 120ms ease,
+      stroke-width 120ms ease;
     opacity: 0.8;
   }
-  .dl-move.dim { opacity: 0.08; }
-  .dl-move.active { stroke-width: 4; opacity: 1; }
+  .dl-move.dim {
+    opacity: 0.08;
+  }
+  .dl-move.active {
+    stroke-width: 4;
+    opacity: 1;
+  }
 
-  .dl-veh rect { stroke: rgba(15, 23, 42, 0.35); stroke-width: 0.6; }
-  .dl-veh { transition: opacity 120ms ease; }
-  .dl-veh.dim { opacity: 0.08; }
+  .dl-veh rect {
+    stroke: rgba(15, 23, 42, 0.35);
+    stroke-width: 0.6;
+  }
+  .dl-veh {
+    transition: opacity 120ms ease;
+  }
+  .dl-veh.dim {
+    opacity: 0.08;
+  }
 
-  .dl-label { font-size: 9px; fill: var(--text-muted); }
-  .dl-label.mid { text-anchor: middle; }
+  .dl-label {
+    font-size: 9px;
+    fill: var(--text-muted);
+  }
+  .dl-label.mid {
+    text-anchor: middle;
+  }
 
-  .dl-legend { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+  .dl-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+  }
   .dl-chip {
     display: inline-flex;
     align-items: center;
@@ -314,9 +411,25 @@
     background: transparent;
     cursor: default;
   }
-  .dl-chip.active { border-color: var(--diag-edge); }
-  .dl-animate { cursor: pointer; font-weight: 600; }
-  .dl-los { font-weight: 600; }
-  .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
-  .dl-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; }
+  .dl-chip.active {
+    border-color: var(--diag-edge);
+  }
+  .dl-animate {
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .dl-los {
+    font-weight: 600;
+  }
+  .swatch {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .dl-note {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.35rem;
+  }
 </style>

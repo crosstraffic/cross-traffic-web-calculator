@@ -1,7 +1,3 @@
-<svelte:head>
-  <title>Report · HCM Calculator</title>
-</svelte:head>
-
 <script>
   import { run } from 'svelte/legacy';
 
@@ -23,14 +19,16 @@
   import ManagedLaneDiagram from '$lib/ManagedLaneDiagram.svelte';
   import GradeProfileStrip from '$lib/GradeProfileStrip.svelte';
 
-  onMount(() => { if (!Object.keys($reports).length) loadReports(); });
+  onMount(() => {
+    if (!Object.keys($reports).length) loadReports();
+  });
 
   let selected = $state(null);
   // Default to the most recent report; keep the user's tab choice while it's valid.
   let keys = $derived(Object.keys($reports));
   run(() => {
     if (selected === null || !$reports[selected]) {
-      selected = ($lastKey && $reports[$lastKey]) ? $lastKey : (keys[0] || null);
+      selected = $lastKey && $reports[$lastKey] ? $lastKey : keys[0] || null;
     }
   });
   let current = $derived(selected ? $reports[selected] : null);
@@ -47,7 +45,9 @@
   let hasDiscussion = $derived(keys.some((k) => $reports[k].discussion && $reports[k].discussion.length));
   let currentHasDiscussion = $derived(Boolean(current && current.discussion && current.discussion.length));
 
-  function printReport() { window.print(); }
+  function printReport() {
+    window.print();
+  }
 
   // The docx builder is loaded on demand, so the ~400 kB library sits in its own chunk and the
   // page costs nothing until someone asks for a Word file. It is still build output, so the
@@ -65,7 +65,7 @@
       await downloadReportDocx(list, {
         includeDiscussion,
         generatedAt: new Date().toLocaleString(),
-        filename: `${docxSlug()}.docx`
+        filename: `${docxSlug()}.docx`,
       });
     } catch (e) {
       exportError = `Could not build the Word file: ${e?.message ?? e}`;
@@ -88,6 +88,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>Report · HCM Calculator</title>
+</svelte:head>
+
 <div class="hcm-page report-page">
   {#if !current}
     <header class="page-header">
@@ -96,9 +100,8 @@
     </header>
     <div class="panel">
       <p class="panel-sub">
-        No analysis yet. Run an analysis on any chapter page, then return here
-        to view and print the report. Reports from several chapters are kept
-        side by side for the session.
+        No analysis yet. Run an analysis on any chapter page, then return here to view and print the report. Reports
+        from several chapters are kept side by side for the session.
       </p>
     </div>
   {:else}
@@ -106,7 +109,8 @@
       {#if tabs.length > 1}
         <div class="report-tabs" role="group" aria-label="Available reports">
           {#each tabs as t}
-            <button type="button" class:active={t.key === selected} onclick={() => selected = t.key}>{t.label}</button>
+            <button type="button" class:active={t.key === selected} onclick={() => (selected = t.key)}>{t.label}</button
+            >
           {/each}
         </div>
       {:else}
@@ -119,8 +123,13 @@
             Include discussion
           </label>
         {/if}
-        <button class="btn btn-outline btn-sm report-docx" type="button" onclick={downloadDocx}
-                disabled={exporting} data-testid="download-docx">
+        <button
+          class="btn btn-outline btn-sm report-docx"
+          type="button"
+          onclick={downloadDocx}
+          disabled={exporting}
+          data-testid="download-docx"
+        >
           {exporting ? 'Building…' : 'Download Word (.docx)'}
         </button>
         <button class="btn btn-primary btn-sm" type="button" onclick={printReport}>Print / Save as PDF</button>
@@ -166,11 +175,15 @@
         <div class="report-table-scroll">
           <table class="report-table">
             <thead>
-              <tr>{#each current.resultTable.columns as c}<th>{c}</th>{/each}</tr>
+              <tr
+                >{#each current.resultTable.columns as c}<th>{c}</th>{/each}</tr
+              >
             </thead>
             <tbody>
               {#each current.resultTable.rows as r}
-                <tr>{#each r as cell, ci}<td class:label={ci === 0}>{cell}</td>{/each}</tr>
+                <tr
+                  >{#each r as cell, ci}<td class:label={ci === 0}>{cell}</td>{/each}</tr
+                >
               {/each}
             </tbody>
           </table>
@@ -198,11 +211,15 @@
           <div class="report-table-scroll">
             <table class="report-table report-matrix" data-testid="report-matrix">
               <thead>
-                <tr>{#each current.matrixTable.columns as c}<th>{c}</th>{/each}</tr>
+                <tr
+                  >{#each current.matrixTable.columns as c}<th>{c}</th>{/each}</tr
+                >
               </thead>
               <tbody>
                 {#each current.matrixTable.rows as r}
-                  <tr>{#each r as cell, ci}<td class:label={ci === 0}>{cell}</td>{/each}</tr>
+                  <tr
+                    >{#each r as cell, ci}<td class:label={ci === 0}>{cell}</td>{/each}</tr
+                  >
                 {/each}
               </tbody>
             </table>
@@ -215,7 +232,9 @@
 
       {#if current.diagram}
         <section class="report-section">
-          <h2>{['urban-facility', 'freeway-facility', 'twolane'].includes(current.diagram.kind) ? 'Facility' : 'Segment'}</h2>
+          <h2>
+            {['urban-facility', 'freeway-facility', 'twolane'].includes(current.diagram.kind) ? 'Facility' : 'Segment'}
+          </h2>
           <div class="report-diagram">
             {#if current.diagram.kind === 'freeway'}
               <FreewaySegment3D
@@ -226,7 +245,11 @@
                 lcR={current.diagram.props.lcR}
               />
             {:else if current.diagram.kind === 'twolane'}
-              <TwoLaneStrip rows={current.diagram.props.rows} results={current.diagram.props.results ?? null} interactive={false} />
+              <TwoLaneStrip
+                rows={current.diagram.props.rows}
+                results={current.diagram.props.results ?? null}
+                interactive={false}
+              />
             {:else if current.diagram.kind === 'weaving'}
               <WeavingDiagram
                 weavingType={current.diagram.props.weavingType}
@@ -265,15 +288,19 @@
               <FacilityDiagram
                 segments={current.diagram.props.segments}
                 mlLanes={current.diagram.props.mlLanes ?? null}
-                note={current.diagram.props.note ?? 'Segment chain, upstream to downstream.'} />
+                note={current.diagram.props.note ?? 'Segment chain, upstream to downstream.'}
+              />
             {:else if current.diagram.kind === 'urban-facility'}
               <UrbanFacilityDiagram
                 segments={current.diagram.props.segments}
-                note={current.diagram.props.note ?? 'Segment chain, upstream to downstream, coloured by segment level of service.'} />
+                note={current.diagram.props.note ??
+                  'Segment chain, upstream to downstream, coloured by segment level of service.'}
+              />
             {:else if current.diagram.kind === 'grade-profile'}
               <GradeProfileStrip
                 segments={current.diagram.props.segments}
-                governing={current.diagram.props.governing ?? -1} />
+                governing={current.diagram.props.governing ?? -1}
+              />
             {/if}
           </div>
         </section>
@@ -300,9 +327,9 @@
       </section>
 
       <footer class="report-foot">
-        Generated by the HCM Calculator ({current.chapterRef}). Calculations run in a Rust core
-        compiled to WebAssembly. This is an independent tool and is not affiliated with any
-        organization; verify results independently before relying on them in engineering work.
+        Generated by the HCM Calculator ({current.chapterRef}). Calculations run in a Rust core compiled to WebAssembly.
+        This is an independent tool and is not affiliated with any organization; verify results independently before
+        relying on them in engineering work.
       </footer>
     </article>
   {/if}
@@ -329,8 +356,14 @@
     background: #fff;
     color: #64748b;
   }
-  .report-tabs button.active { background: #fff5ec; color: #ea7317; font-weight: 600; }
-  .report-tabs button + button { border-left: 1px solid #e2e8f0; }
+  .report-tabs button.active {
+    background: #fff5ec;
+    color: #ea7317;
+    font-weight: 600;
+  }
+  .report-tabs button + button {
+    border-left: 1px solid #e2e8f0;
+  }
 
   .report-sheet {
     background: #fff;
@@ -351,48 +384,159 @@
     padding-bottom: 1rem;
     margin-bottom: 1.25rem;
   }
-  .report-eyebrow { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin: 0; }
-  .report-title { font-size: 1.6rem; font-weight: 700; margin: 0.15rem 0; color: #0f172a; }
-  .report-meta { font-size: 0.8rem; color: #64748b; margin: 0; }
-  .report-los { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; }
-  .report-los-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; }
+  .report-eyebrow {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748b;
+    margin: 0;
+  }
+  .report-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin: 0.15rem 0;
+    color: #0f172a;
+  }
+  .report-meta {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin: 0;
+  }
+  .report-los {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.3rem;
+  }
+  .report-los-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+  }
   .los-badge {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 2.5rem; height: 2.5rem; border-radius: 0.5rem;
-    font-size: 1.35rem; font-weight: 700; color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.5rem;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #fff;
   }
-  .los-good { background: #16a34a; }
-  .los-warn { background: #d97706; }
-  .los-bad  { background: #dc2626; }
+  .los-good {
+    background: #16a34a;
+  }
+  .los-warn {
+    background: #d97706;
+  }
+  .los-bad {
+    background: #dc2626;
+  }
 
-  .report-section { margin-bottom: 1.5rem; }
-  .report-section h2 {
-    font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;
-    color: #475569; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.3rem; margin-bottom: 0.6rem;
+  .report-section {
+    margin-bottom: 1.5rem;
   }
-  .report-table-scroll { overflow-x: auto; }
-  .report-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-  .report-table th, .report-table td { padding: 0.4rem 0.6rem; text-align: left; border-bottom: 1px solid #f1f5f9; }
-  .report-table thead th { color: #64748b; font-weight: 600; font-size: 0.78rem; }
-  .report-table.kv th { color: #475569; font-weight: 500; width: 45%; }
-  .report-table.kv td { text-align: right; font-variant-numeric: tabular-nums; }
-  .report-table td.label { color: #334155; }
-  .report-table td:not(.label) { text-align: right; font-variant-numeric: tabular-nums; }
-  .report-summary { margin-top: 0.6rem; }
-  .report-summary th { font-weight: 700; }
-  .report-subhead { font-size: 0.9rem; font-weight: 700; margin: 1rem 0 0.35rem; }
-  .report-matrix td:not(.label) { text-align: center; font-weight: 600; }
-  .report-caption { font-size: 0.75rem; color: #64748b; margin: 0.35rem 0 0; line-height: 1.45; max-width: 78ch; }
-  .report-diagram { max-width: 560px; margin: 0 auto; }
-  .report-options { display: inline-flex; align-items: center; gap: 0.9rem; }
+  .report-section h2 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #475569;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 0.3rem;
+    margin-bottom: 0.6rem;
+  }
+  .report-table-scroll {
+    overflow-x: auto;
+  }
+  .report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  .report-table th,
+  .report-table td {
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .report-table thead th {
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.78rem;
+  }
+  .report-table.kv th {
+    color: #475569;
+    font-weight: 500;
+    width: 45%;
+  }
+  .report-table.kv td {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .report-table td.label {
+    color: #334155;
+  }
+  .report-table td:not(.label) {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .report-summary {
+    margin-top: 0.6rem;
+  }
+  .report-summary th {
+    font-weight: 700;
+  }
+  .report-subhead {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin: 1rem 0 0.35rem;
+  }
+  .report-matrix td:not(.label) {
+    text-align: center;
+    font-weight: 600;
+  }
+  .report-caption {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin: 0.35rem 0 0;
+    line-height: 1.45;
+    max-width: 78ch;
+  }
+  .report-diagram {
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .report-options {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.9rem;
+  }
   /* A ghost button reads as disabled text against the dark page, so the
      secondary action is outlined. The colour comes from the theme rather than
      from a literal, since this control sits outside the printed sheet and so
      follows the app's palette rather than the sheet's. */
-  .report-docx { font-weight: 500; }
-  .report-docx:disabled { opacity: 0.6; }
-  .report-export-note { font-size: 0.75rem; color: var(--text-muted); margin: -0.5rem 0 0.75rem; }
-  .report-export-error { font-size: 0.8rem; color: var(--warn-text); background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 4px; padding: 0.35rem 0.5rem; margin: -0.5rem 0 0.75rem; }
+  .report-docx {
+    font-weight: 500;
+  }
+  .report-docx:disabled {
+    opacity: 0.6;
+  }
+  .report-export-note {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin: -0.5rem 0 0.75rem;
+  }
+  .report-export-error {
+    font-size: 0.8rem;
+    color: var(--warn-text);
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    margin: -0.5rem 0 0.75rem;
+  }
   .report-toggle {
     display: inline-flex;
     align-items: center;
@@ -402,17 +546,50 @@
     cursor: pointer;
   }
 
-  .report-discussion p { font-size: 0.9rem; color: #334155; margin: 0 0 0.45rem; line-height: 1.5; }
-  .report-discussion p:last-child { margin-bottom: 0; }
+  .report-discussion p {
+    font-size: 0.9rem;
+    color: #334155;
+    margin: 0 0 0.45rem;
+    line-height: 1.5;
+  }
+  .report-discussion p:last-child {
+    margin-bottom: 0;
+  }
 
-  .report-notes { margin: 0; padding-left: 1.1rem; }
-  .report-notes li { font-size: 0.85rem; color: #334155; margin-bottom: 0.3rem; }
-  .report-foot { font-size: 0.72rem; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 0.8rem; margin-top: 1rem; }
+  .report-notes {
+    margin: 0;
+    padding-left: 1.1rem;
+  }
+  .report-notes li {
+    font-size: 0.85rem;
+    color: #334155;
+    margin-bottom: 0.3rem;
+  }
+  .report-foot {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 0.8rem;
+    margin-top: 1rem;
+  }
 
   @media print {
-    :global(header), :global(.site-footer) { display: none !important; }
-    .no-print { display: none !important; }
-    .report-sheet { border: none; box-shadow: none; padding: 0; max-width: 100%; }
-    :global(body), :global(main) { background: #fff !important; }
+    :global(header),
+    :global(.site-footer) {
+      display: none !important;
+    }
+    .no-print {
+      display: none !important;
+    }
+    .report-sheet {
+      border: none;
+      box-shadow: none;
+      padding: 0;
+      max-width: 100%;
+    }
+    :global(body),
+    :global(main) {
+      background: #fff !important;
+    }
   }
 </style>

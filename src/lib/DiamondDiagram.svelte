@@ -5,25 +5,26 @@
   // ramps lean toward the freeway in the diamond pattern. Each O-D movement
   // (Exhibit 23-8 letters A through J) draws as a path colored by its origin
   // group; hover the legend to isolate a group, edit the O-D demands directly
-  
+
   // 'Diamond' or 'Ddi': the DDI crosses the arterial throughs to the left
   // side between the terminals, so its internal paths swap sides at both
-  
-  
 
   let hovered = $state(null); // 'NBOFF' | 'SBOFF' | 'EB' | 'WB' | null
 
-  const W = 520, H = 320;
+  const W = 520,
+    H = 320;
   const LANE = 14;
-  const cx = 260, cy = 160;
-  const xW = 165, xE = 355;          // terminal nodes
-  const FWY = 38;                    // carriageway width
-  const GAP = 12;                    // median
-  const LEAN = 46;                   // ramp lean toward the freeway
+  const cx = 260,
+    cy = 160;
+  const xW = 165,
+    xE = 355; // terminal nodes
+  const FWY = 38; // carriageway width
+  const GAP = 12; // median
+  const LEAN = 46; // ramp lean toward the freeway
 
   // Lane-reactive arterial geometry. The DDI crossover lane configurations
   // set each direction's lane count (2 or 3) and whether the left turn
-  
+
   /**
    * @typedef {Object} Props
    * @property {any} [odDemands] - on the picture, and animate traffic that slows per O-D LOS after a run.
@@ -41,7 +42,7 @@
     form = 'Diamond',
     odLos = {},
     ddiEb = 'ThreeLaneExclusive',
-    ddiWb = 'TwoLaneShared'
+    ddiWb = 'TwoLaneShared',
   } = $props();
   let nEbLanes = $derived(form === 'Ddi' ? (String(ddiEb).startsWith('Two') ? 2 : 3) : 2);
   let nWbLanes = $derived(form === 'Ddi' ? (String(ddiWb).startsWith('Two') ? 2 : 3) : 2);
@@ -65,10 +66,10 @@
 
   // Ramp stubs: [xAtTerminal, yAtArterial] to [xAtFreewayEnd, yEdge].
   let stubs = $derived({
-    sbOff: { x0: xW, y0: edgeN, x1: xW + LEAN, y1: 16 },      // west terminal, north leg (down toward node)
-    sbOn: { x0: xW, y0: edgeS, x1: xW + LEAN, y1: H - 16 },   // west terminal, south leg
-    nbOn: { x0: xE, y0: edgeN, x1: xE - LEAN, y1: 16 },       // east terminal, north leg
-    nbOff: { x0: xE, y0: edgeS, x1: xE - LEAN, y1: H - 16 },  // east terminal, south leg
+    sbOff: { x0: xW, y0: edgeN, x1: xW + LEAN, y1: 16 }, // west terminal, north leg (down toward node)
+    sbOn: { x0: xW, y0: edgeS, x1: xW + LEAN, y1: H - 16 }, // west terminal, south leg
+    nbOn: { x0: xE, y0: edgeN, x1: xE - LEAN, y1: 16 }, // east terminal, north leg
+    nbOff: { x0: xE, y0: edgeS, x1: xE - LEAN, y1: H - 16 }, // east terminal, south leg
   });
   const stubBand = (s) => {
     const dx = 11;
@@ -77,7 +78,8 @@
   const along = (s, t) => `${(s.x0 + (s.x1 - s.x0) * t).toFixed(1)},${(s.y0 + (s.y1 - s.y0) * t).toFixed(1)}`;
 
   // Internal-side lane centers for the DDI crossovers.
-  const ebN = cy - 10, wbS = cy + 10;
+  const ebN = cy - 10,
+    wbS = cy + 10;
 
   // O-D paths. Straight legs with quarter curves at the nodes; the DDI set
   // crosses the throughs between the terminals.
@@ -118,7 +120,18 @@
     { key: 'EB', label: 'EB arterial (E, F, I)', ods: ['e', 'f', 'i'], cls: 'ebg' },
     { key: 'WB', label: 'WB arterial (G, H, J)', ods: ['g', 'h', 'j'], cls: 'wbg' },
   ];
-  const groupOf = { a: 'NBOFF', b: 'NBOFF', c: 'SBOFF', d: 'SBOFF', e: 'EB', f: 'EB', i: 'EB', g: 'WB', h: 'WB', j: 'WB' };
+  const groupOf = {
+    a: 'NBOFF',
+    b: 'NBOFF',
+    c: 'SBOFF',
+    d: 'SBOFF',
+    e: 'EB',
+    f: 'EB',
+    i: 'EB',
+    g: 'WB',
+    h: 'WB',
+    j: 'WB',
+  };
   const clsOf = { NBOFF: 'nboff', SBOFF: 'sboff', EB: 'ebg', WB: 'wbg' };
 
   let volOf = $derived(Object.fromEntries((odDemands || []).map((d) => [d.key, Number(d.value) || 0])));
@@ -140,30 +153,39 @@
   let animating = $state(false);
   const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
   const LOS_FLEET = { A: 1, B: 1, C: 1.1, D: 1.3, E: 1.7, F: 2.3 };
-  let vehiclePlan = $derived((() => {
-    if (!animating) return [];
-    const raw = [];
-    let total = 0;
-    for (const [k, group] of Object.entries(groupOf)) {
-      const vol = volOf[k] || 0;
-      if (vol <= 0) continue;
-      const letter = k.toUpperCase();
-      const slow = LOS_SPEED[odLos?.[letter]] ?? 1;
-      const crowd = LOS_FLEET[odLos?.[letter]] ?? 1;
-      raw.push({ k, group, d: P[letter], vol, dur: 7 / slow, crowd });
-      total += vol;
-    }
-    const items = [];
-    for (const it of raw) {
-      const n = Math.max(1, Math.min(7, Math.round((26 * it.vol * it.crowd) / (total || 1))));
-      for (let j = 0; j < n; j++) {
-        items.push({ id: it.k + j, group: it.group, d: it.d, dur: it.dur, begin: (-(j + 0.4 * (j % 2)) / n) * it.dur });
+  let vehiclePlan = $derived(
+    (() => {
+      if (!animating) return [];
+      const raw = [];
+      let total = 0;
+      for (const [k, group] of Object.entries(groupOf)) {
+        const vol = volOf[k] || 0;
+        if (vol <= 0) continue;
+        const letter = k.toUpperCase();
+        const slow = LOS_SPEED[odLos?.[letter]] ?? 1;
+        const crowd = LOS_FLEET[odLos?.[letter]] ?? 1;
+        raw.push({ k, group, d: P[letter], vol, dur: 7 / slow, crowd });
+        total += vol;
       }
-    }
-    return items;
-  })());
+      const items = [];
+      for (const it of raw) {
+        const n = Math.max(1, Math.min(7, Math.round((26 * it.vol * it.crowd) / (total || 1))));
+        for (let j = 0; j < n; j++) {
+          items.push({
+            id: it.k + j,
+            group: it.group,
+            d: it.d,
+            dur: it.dur,
+            begin: (-(j + 0.4 * (j % 2)) / n) * it.dur,
+          });
+        }
+      }
+      return items;
+    })(),
+  );
 
-  const CW = 118, CH = 24;
+  const CW = 118,
+    CH = 24;
   const clusterPos = {
     NBOFF: { x: W - CW - 4, y: H - CH - 4 },
     SBOFF: { x: 4, y: 4 },
@@ -173,9 +195,14 @@
 </script>
 
 <div class="dd-diagram">
-  <svg viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet" role="img"
-       aria-label={form === 'Ddi' ? 'diverging diamond interchange, two signalized crossovers' : 'conventional diamond interchange, two signalized ramp terminals'}>
-
+  <svg
+    viewBox="0 0 {W} {H}"
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={form === 'Ddi'
+      ? 'diverging diamond interchange, two signalized crossovers'
+      : 'conventional diamond interchange, two signalized ramp terminals'}
+  >
     <!-- ══ pavement ══ -->
     <rect x="0" y={edgeN} width={W} height={hEB + hWB} class="dd-pavement" />
     {#each Object.values(stubs) as s}
@@ -209,8 +236,8 @@
     <line x1={xE + 10} y1={cy} x2={W} y2={cy} class="dd-center" />
 
     <!-- signalized terminal nodes -->
-    <circle cx={xW} cy={cy} r="5" class="dd-signal" />
-    <circle cx={xE} cy={cy} r="5" class="dd-signal" />
+    <circle cx={xW} {cy} r="5" class="dd-signal" />
+    <circle cx={xE} {cy} r="5" class="dd-signal" />
 
     <!-- ══ O-D movement paths ══ -->
     {#each Object.entries(P) as [letter, d]}
@@ -233,14 +260,24 @@
     <!-- ══ grouped O-D editors ══ -->
     {#each editable ? GROUPS : [] as g (g.key)}
       <foreignObject x={clusterPos[g.key].x} y={clusterPos[g.key].y} width={CW} height={CH}>
-        <div class="dd-cluster" xmlns="http://www.w3.org/1999/xhtml"
-             onmouseenter={() => (hovered = g.key)} onmouseleave={() => (hovered = null)}>
-          <span class="dd-cluster-title"><span class="swatch {g.cls}"></span>{g.key === 'NBOFF' ? 'NB' : g.key === 'SBOFF' ? 'SB' : g.key}</span>
+        <div
+          class="dd-cluster"
+          xmlns="http://www.w3.org/1999/xhtml"
+          onmouseenter={() => (hovered = g.key)}
+          onmouseleave={() => (hovered = null)}
+        >
+          <span class="dd-cluster-title"
+            ><span class="swatch {g.cls}"></span>{g.key === 'NBOFF' ? 'NB' : g.key === 'SBOFF' ? 'SB' : g.key}</span
+          >
           {#each g.ods as k}
-            <input type="number" min="0" title="O-D {k.toUpperCase()} demand (veh/h)"
-                   aria-label="O-D {k.toUpperCase()} demand"
-                   value={volOf[k] ?? 0}
-                   oninput={(e) => setOd(k, e.currentTarget.value)} />
+            <input
+              type="number"
+              min="0"
+              title="O-D {k.toUpperCase()} demand (veh/h)"
+              aria-label="O-D {k.toUpperCase()} demand"
+              value={volOf[k] ?? 0}
+              oninput={(e) => setOd(k, e.currentTarget.value)}
+            />
           {/each}
         </div>
       </foreignObject>
@@ -248,8 +285,13 @@
   </svg>
 
   <div class="dd-legend" role="list">
-    <button type="button" class="dd-chip dd-animate" class:active={animating}
-            aria-pressed={animating} onclick={() => (animating = !animating)}>
+    <button
+      type="button"
+      class="dd-chip dd-animate"
+      class:active={animating}
+      aria-pressed={animating}
+      onclick={() => (animating = !animating)}
+    >
       {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
     </button>
     {#each GROUPS as g}
@@ -268,7 +310,11 @@
       </button>
     {/each}
   </div>
-  <p class="dd-note">O-D letters follow Exhibit 23-8: off-ramp lefts and rights, arterial turns onto the on-ramps, and the arterial throughs. Editors hold each group's O-D demands in letter order. Animated traffic slows per O-D LOS after a run. An illustration, not a simulation.</p>
+  <p class="dd-note">
+    O-D letters follow Exhibit 23-8: off-ramp lefts and rights, arterial turns onto the on-ramps, and the arterial
+    throughs. Editors hold each group's O-D demands in letter order. Animated traffic slows per O-D LOS after a run. An
+    illustration, not a simulation.
+  </p>
 </div>
 
 <style>
@@ -278,41 +324,106 @@
     display: block;
     margin: 0 auto;
   }
-  .dd-pavement { fill: var(--diag-pavement); }
-  .dd-freeway { fill: var(--diag-pavement-alt); }
-  .dd-edge { stroke: var(--diag-edge); stroke-width: 2; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-  .dd-center { stroke: var(--diag-center); stroke-width: 1.25; vector-effect: non-scaling-stroke; }
-  .dd-lane-line { stroke: var(--diag-lane-line); stroke-width: 1.25; stroke-dasharray: 8 6; vector-effect: non-scaling-stroke; }
-  .dd-signal { fill: var(--diag-center); stroke: var(--diag-edge); stroke-width: 1.25; }
+  .dd-pavement {
+    fill: var(--diag-pavement);
+  }
+  .dd-freeway {
+    fill: var(--diag-pavement-alt);
+  }
+  .dd-edge {
+    stroke: var(--diag-edge);
+    stroke-width: 2;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .dd-center {
+    stroke: var(--diag-center);
+    stroke-width: 1.25;
+    vector-effect: non-scaling-stroke;
+  }
+  .dd-lane-line {
+    stroke: var(--diag-lane-line);
+    stroke-width: 1.25;
+    stroke-dasharray: 8 6;
+    vector-effect: non-scaling-stroke;
+  }
+  .dd-signal {
+    fill: var(--diag-center);
+    stroke: var(--diag-edge);
+    stroke-width: 1.25;
+  }
 
   .dd-move {
     fill: none;
     stroke-width: 2.25;
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
-    transition: opacity 120ms ease, stroke-width 120ms ease;
+    transition:
+      opacity 120ms ease,
+      stroke-width 120ms ease;
     opacity: 0.75;
   }
-  .dd-move.dim { opacity: 0.08; }
-  .dd-move.active { stroke-width: 4; opacity: 1; }
-  .mv-nboff { stroke: #2563eb; }
-  .mv-sboff { stroke: #16a34a; }
-  .mv-ebg { stroke: #ea7317; }
-  .mv-wbg { stroke: #dc2626; }
-  .swatch.nboff { background: #2563eb; }
-  .swatch.sboff { background: #16a34a; }
-  .swatch.ebg { background: #ea7317; }
-  .swatch.wbg { background: #dc2626; }
+  .dd-move.dim {
+    opacity: 0.08;
+  }
+  .dd-move.active {
+    stroke-width: 4;
+    opacity: 1;
+  }
+  .mv-nboff {
+    stroke: #2563eb;
+  }
+  .mv-sboff {
+    stroke: #16a34a;
+  }
+  .mv-ebg {
+    stroke: #ea7317;
+  }
+  .mv-wbg {
+    stroke: #dc2626;
+  }
+  .swatch.nboff {
+    background: #2563eb;
+  }
+  .swatch.sboff {
+    background: #16a34a;
+  }
+  .swatch.ebg {
+    background: #ea7317;
+  }
+  .swatch.wbg {
+    background: #dc2626;
+  }
 
-  .dd-veh rect { stroke: rgba(15, 23, 42, 0.35); stroke-width: 0.6; }
-  .dd-veh { transition: opacity 120ms ease; }
-  .dd-veh.dim { opacity: 0.08; }
-  .veh-nboff rect { fill: #2563eb; }
-  .veh-sboff rect { fill: #16a34a; }
-  .veh-ebg rect { fill: #ea7317; }
-  .veh-wbg rect { fill: #dc2626; }
+  .dd-veh rect {
+    stroke: rgba(15, 23, 42, 0.35);
+    stroke-width: 0.6;
+  }
+  .dd-veh {
+    transition: opacity 120ms ease;
+  }
+  .dd-veh.dim {
+    opacity: 0.08;
+  }
+  .veh-nboff rect {
+    fill: #2563eb;
+  }
+  .veh-sboff rect {
+    fill: #16a34a;
+  }
+  .veh-ebg rect {
+    fill: #ea7317;
+  }
+  .veh-wbg rect {
+    fill: #dc2626;
+  }
 
-  .dd-legend { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+  .dd-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+  }
   .dd-chip {
     display: inline-flex;
     align-items: center;
@@ -324,10 +435,24 @@
     background: transparent;
     cursor: default;
   }
-  .dd-chip.active { border-color: var(--diag-edge); }
-  .dd-animate { cursor: pointer; font-weight: 600; }
-  .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
-  .dd-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; }
+  .dd-chip.active {
+    border-color: var(--diag-edge);
+  }
+  .dd-animate {
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .swatch {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .dd-note {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.35rem;
+  }
 
   .dd-cluster {
     box-sizing: border-box;
@@ -346,7 +471,14 @@
     padding: 2px 3px;
     overflow: hidden;
   }
-  .dd-cluster-title { display: inline-flex; align-items: center; gap: 2px; font-size: 7px; font-weight: 600; flex: none; }
+  .dd-cluster-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 7px;
+    font-weight: 600;
+    flex: none;
+  }
   .dd-cluster input {
     box-sizing: border-box;
     width: 100%;
@@ -362,7 +494,16 @@
     text-align: center;
   }
   .dd-cluster input::-webkit-outer-spin-button,
-  .dd-cluster input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .dd-cluster input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
-  .dd-cluster .swatch { width: 6px; height: 6px; }
+  .dd-cluster input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .dd-cluster input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  .dd-cluster .swatch {
+    width: 6px;
+    height: 6px;
+  }
 </style>

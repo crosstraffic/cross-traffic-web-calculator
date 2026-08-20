@@ -1,8 +1,6 @@
 <script>
   import { LOS_COLORS } from './los.js';
 
-  
-  
   /**
    * @typedef {Object} Props
    * @property {any} [los] - LOS letter, or null when the chapter defines none for this configuration.

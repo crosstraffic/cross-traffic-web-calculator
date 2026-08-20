@@ -18,16 +18,16 @@
     segments = [],
     selected = -1,
     onselect = null,
-    note = 'Segment chain, upstream to downstream, separated by its boundary intersections. Widths follow segment length; press Calculate to colour each segment by its LOS.'
+    note = 'Segment chain, upstream to downstream, separated by its boundary intersections. Widths follow segment length; press Calculate to colour each segment by its LOS.',
   } = $props();
 
-  const TOP = 32;        // deck top edge
+  const TOP = 32; // deck top edge
   const LANE = 12;
-  const CW = 16;         // cross-street width
-  const CROSS_OUT = 15;  // how far the cross-street stubs run past the deck
-  const TICK_H = 7;      // driveway stub depth below the deck
+  const CW = 16; // cross-street width
+  const CROSS_OUT = 15; // how far the cross-street stubs run past the deck
+  const TICK_H = 7; // driveway stub depth below the deck
   const PAD = 6;
-  const ARROW_PAD = 26;  // clear space past the last cross street for the direction arrow
+  const ARROW_PAD = 26; // clear space past the last cross street for the direction arrow
 
   let lanesOf = (s) => Math.max(1, Math.min(6, Math.round(Number(s.lanes) || 2)));
 
@@ -49,7 +49,7 @@
         ap: Math.max(0, Math.min(12, Math.round(Number(s.accessPoints) || 0))),
         los: s.los || null,
         control: s.control || 'signalized',
-        length_ft: Number(s.length_ft) || 0
+        length_ft: Number(s.length_ft) || 0,
       });
       x += w;
       crosses.push({ x: x + CW / 2, signalized: (s.control ?? 'signalized') === 'signalized' });
@@ -76,13 +76,12 @@
 
   let ariaLabel = $derived(
     `urban street facility, ${layout.segs.length} segment${layout.segs.length === 1 ? '' : 's'} upstream to downstream` +
-    (anyLos ? `, coloured by segment level of service` : '')
+      (anyLos ? `, coloured by segment level of service` : ''),
   );
 </script>
 
 <div class="uf-diagram">
   <svg viewBox="0 0 {layout.totalW} {H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label={ariaLabel}>
-
     <!-- ══ pavement (fills only) ══ -->
     {#each layout.crosses as c}
       <rect x={c.x - CW / 2} y={TOP - CROSS_OUT} width={CW} height={deckH + CROSS_OUT * 2} class="uf-cross" />
@@ -98,13 +97,29 @@
     {#each layout.segs as s, i}
       {@const bot = TOP + s.lanes * LANE}
       <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-      <g class="uf-seg" class:selected={selected === i} onclick={() => onselect?.(i)}
-         role="button" tabindex="-1"
-         aria-label="segment {i + 1}, {Math.round(s.length_ft).toLocaleString('en-US')} feet{s.los ? `, LOS ${s.los}` : ''}">
-        <title>Segment {i + 1} · {Math.round(s.length_ft).toLocaleString('en-US')} ft{s.los ? ` · LOS ${s.los}` : ''}</title>
+      <g
+        class="uf-seg"
+        class:selected={selected === i}
+        onclick={() => onselect?.(i)}
+        role="button"
+        tabindex="-1"
+        aria-label="segment {i + 1}, {Math.round(s.length_ft).toLocaleString('en-US')} feet{s.los
+          ? `, LOS ${s.los}`
+          : ''}"
+      >
+        <title
+          >Segment {i + 1} · {Math.round(s.length_ft).toLocaleString('en-US')} ft{s.los ? ` · LOS ${s.los}` : ''}</title
+        >
 
-        <rect x={s.x} y={TOP} width={s.w} height={s.lanes * LANE}
-              fill={fillFor(s)} class="uf-deck" class:scored={s.los != null} />
+        <rect
+          x={s.x}
+          y={TOP}
+          width={s.w}
+          height={s.lanes * LANE}
+          fill={fillFor(s)}
+          class="uf-deck"
+          class:scored={s.los != null}
+        />
 
         <!-- lane lines and the stop bar at the downstream boundary -->
         {#each Array.from({ length: s.lanes - 1 }) as _, li}
@@ -116,9 +131,12 @@
 
         <text x={s.x + s.w / 2} y={TOP - CROSS_OUT - 5} class="uf-num" text-anchor="middle">{i + 1}</text>
         {#if s.los}
-          <text x={s.x + s.w / 2} y={TOP + (s.lanes * LANE) / 2 + 3.5} class="uf-los" text-anchor="middle">{s.los}</text>
+          <text x={s.x + s.w / 2} y={TOP + (s.lanes * LANE) / 2 + 3.5} class="uf-los" text-anchor="middle">{s.los}</text
+          >
         {/if}
-        <text x={s.x + s.w / 2} y={H - 6} class="uf-len" text-anchor="middle">{Math.round(s.length_ft).toLocaleString('en-US')} ft</text>
+        <text x={s.x + s.w / 2} y={H - 6} class="uf-len" text-anchor="middle"
+          >{Math.round(s.length_ft).toLocaleString('en-US')} ft</text
+        >
       </g>
     {/each}
 
@@ -136,7 +154,10 @@
 
     <!-- direction of travel, clear of the last boundary intersection -->
     <line x1={layout.totalW - ARROW_PAD} y1={arrowY} x2={layout.totalW - 9} y2={arrowY} class="uf-arrow-line" />
-    <polygon points="{layout.totalW - 13},{arrowY - 4} {layout.totalW - 4},{arrowY} {layout.totalW - 13},{arrowY + 4}" class="uf-arrow" />
+    <polygon
+      points="{layout.totalW - 13},{arrowY - 4} {layout.totalW - 4},{arrowY} {layout.totalW - 13},{arrowY + 4}"
+      class="uf-arrow"
+    />
   </svg>
 
   <div class="uf-bar">
@@ -158,35 +179,111 @@
     display: block;
     margin: 0 auto;
   }
-  .uf-seg { cursor: pointer; }
-  .uf-cross { fill: var(--diag-pavement-alt); }
-  .uf-drive { fill: var(--diag-pavement-alt); stroke: var(--diag-edge); stroke-width: 0.6; vector-effect: non-scaling-stroke; }
+  .uf-seg {
+    cursor: pointer;
+  }
+  .uf-cross {
+    fill: var(--diag-pavement-alt);
+  }
+  .uf-drive {
+    fill: var(--diag-pavement-alt);
+    stroke: var(--diag-edge);
+    stroke-width: 0.6;
+    vector-effect: non-scaling-stroke;
+  }
   .uf-deck {
     stroke: var(--diag-edge);
     stroke-width: 1;
     vector-effect: non-scaling-stroke;
     transition: fill 150ms ease;
   }
-  .uf-deck.scored { stroke: rgba(15, 23, 42, 0.35); }
-  .uf-seg.selected .uf-deck { stroke: var(--accent); stroke-width: 2.5; }
-  .uf-lane-line { stroke: var(--diag-lane-line); stroke-width: 1; stroke-dasharray: 6 5; vector-effect: non-scaling-stroke; opacity: 0.8; }
-  .uf-stop { stroke: var(--diag-lane-line); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
-  .uf-cross-center { stroke: var(--diag-center); stroke-width: 1.25; vector-effect: non-scaling-stroke; }
-  .uf-signal { fill: var(--diag-edge); }
-  .uf-signal-r { fill: #dc2626; }
-  .uf-signal-y { fill: #eab308; }
-  .uf-signal-g { fill: #16a34a; }
-  .uf-arrow { fill: var(--diag-dim); }
-  .uf-arrow-line { stroke: var(--diag-dim); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+  .uf-deck.scored {
+    stroke: rgba(15, 23, 42, 0.35);
+  }
+  .uf-seg.selected .uf-deck {
+    stroke: var(--accent);
+    stroke-width: 2.5;
+  }
+  .uf-lane-line {
+    stroke: var(--diag-lane-line);
+    stroke-width: 1;
+    stroke-dasharray: 6 5;
+    vector-effect: non-scaling-stroke;
+    opacity: 0.8;
+  }
+  .uf-stop {
+    stroke: var(--diag-lane-line);
+    stroke-width: 2.5;
+    vector-effect: non-scaling-stroke;
+  }
+  .uf-cross-center {
+    stroke: var(--diag-center);
+    stroke-width: 1.25;
+    vector-effect: non-scaling-stroke;
+  }
+  .uf-signal {
+    fill: var(--diag-edge);
+  }
+  .uf-signal-r {
+    fill: #dc2626;
+  }
+  .uf-signal-y {
+    fill: #eab308;
+  }
+  .uf-signal-g {
+    fill: #16a34a;
+  }
+  .uf-arrow {
+    fill: var(--diag-dim);
+  }
+  .uf-arrow-line {
+    stroke: var(--diag-dim);
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+  }
 
-  .uf-num { font-size: 8px; fill: var(--text-muted); font-weight: 600; }
-  .uf-los { font-size: 10px; fill: #ffffff; font-weight: 700; paint-order: stroke; stroke: rgba(15, 23, 42, 0.45); stroke-width: 2px; }
-  .uf-len { font-size: 7px; fill: var(--text-faint); }
+  .uf-num {
+    font-size: 8px;
+    fill: var(--text-muted);
+    font-weight: 600;
+  }
+  .uf-los {
+    font-size: 10px;
+    fill: #ffffff;
+    font-weight: 700;
+    paint-order: stroke;
+    stroke: rgba(15, 23, 42, 0.45);
+    stroke-width: 2px;
+  }
+  .uf-len {
+    font-size: 7px;
+    fill: var(--text-faint);
+  }
   /* Labels and markings must not swallow a tap meant for the segment below. */
-  .uf-num, .uf-los, .uf-len, .uf-lane-line, .uf-stop, .uf-cross-center, .uf-arrow, .uf-arrow-line, .uf-drive { pointer-events: none; }
+  .uf-num,
+  .uf-los,
+  .uf-len,
+  .uf-lane-line,
+  .uf-stop,
+  .uf-cross-center,
+  .uf-arrow,
+  .uf-arrow-line,
+  .uf-drive {
+    pointer-events: none;
+  }
 
-  .uf-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-top: 0.4rem; flex-wrap: wrap; }
-  .uf-scale { display: inline-flex; gap: 2px; }
+  .uf-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-top: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .uf-scale {
+    display: inline-flex;
+    gap: 2px;
+  }
   .uf-swatch {
     width: 1.15rem;
     height: 1.05rem;
@@ -199,5 +296,10 @@
     border-radius: 3px;
     text-shadow: 0 0 2px rgba(15, 23, 42, 0.5);
   }
-  .uf-note { font-size: 0.72rem; color: var(--text-muted); margin: 0; flex: 1 1 16rem; }
+  .uf-note {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin: 0;
+    flex: 1 1 16rem;
+  }
 </style>

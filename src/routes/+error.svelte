@@ -1,16 +1,16 @@
 <script>
-    import { page } from '$app/stores';
+  import { page } from '$app/stores';
 </script>
 
+<div class="error">
+  <h1>{$page.status}: {$page.error.message}</h1>
+</div>
+
 <style>
-.error {
+  .error {
     font-size: 64pt;
     margin: 0 auto;
     text-align: center;
     padding-top: 20%;
-}
+  }
 </style>
-
-<div class="error">
-    <h1>{$page.status}: {$page.error.message}</h1>
-</div>
