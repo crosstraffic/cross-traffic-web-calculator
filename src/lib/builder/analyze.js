@@ -22,13 +22,7 @@ import { toFixture } from './fixture.js';
  * This is `UNCARRIED_FIELDS` minus the three the constructor does carry, and it
  * is checked against the fixture rather than against the editor, because the
  * editor cannot produce these at all. */
-const UNBOUND_SEGMENT_FIELDS = [
-	'caf_schedule',
-	'saf_schedule',
-	'ramp_metering',
-	'c_ifl_override',
-	'time_step_s'
-];
+const UNBOUND_SEGMENT_FIELDS = ['caf_schedule', 'saf_schedule', 'ramp_metering', 'c_ifl_override', 'time_step_s'];
 
 /**
  * Build the segment handles for one run.
@@ -38,29 +32,29 @@ const UNBOUND_SEGMENT_FIELDS = [
  * reuse the array. Mirrors `buildSegments` in the ch10 boundary file.
  */
 export function buildSegments(fx, wasm) {
-	return fx.segments.map((s) => {
-		const seg = new wasm.WasmFacilitySegment(
-			s.seg_type,
-			s.length_ft,
-			s.lanes,
-			s.on_ramp_demand ?? [],
-			s.off_ramp_demand ?? [],
-			s.ramp_to_ramp_demand ?? [],
-			s.ramp_ffs,
-			s.accel_lane_ft,
-			s.decel_lane_ft,
-			s.short_length_ft,
-			s.num_weaving_lanes,
-			s.lc_rf,
-			s.lc_fr,
-			s.ffs,
-			s.caf,
-			s.saf,
-			s.daf
-		);
-		if (s.work_zone) seg.set_work_zone(s.work_zone);
-		return seg;
-	});
+  return fx.segments.map((s) => {
+    const seg = new wasm.WasmFacilitySegment(
+      s.seg_type,
+      s.length_ft,
+      s.lanes,
+      s.on_ramp_demand ?? [],
+      s.off_ramp_demand ?? [],
+      s.ramp_to_ramp_demand ?? [],
+      s.ramp_ffs,
+      s.accel_lane_ft,
+      s.decel_lane_ft,
+      s.short_length_ft,
+      s.num_weaving_lanes,
+      s.lc_rf,
+      s.lc_fr,
+      s.ffs,
+      s.caf,
+      s.saf,
+      s.daf,
+    );
+    if (s.work_zone) seg.set_work_zone(s.work_zone);
+    return seg;
+  });
 }
 
 /** The facility-wide arguments, read off the fixture once. The reliability
@@ -68,18 +62,18 @@ export function buildSegments(fx, wasm) {
  * the fixture twice is how the two runs start to describe different
  * facilities. */
 export function facilityArgs(fx) {
-	return {
-		mainline_demand: fx.mainline_demand,
-		ffs: fx.ffs,
-		heavy_vehicle_pct: fx.heavy_vehicle_pct,
-		terrain: fx.terrain,
-		city_type: fx.city_type,
-		phf: fx.phf,
-		jam_density_pc: fx.jam_density_pc,
-		queue_discharge_drop: fx.queue_discharge_drop,
-		total_ramp_density: fx.total_ramp_density,
-		interchange_density: fx.interchange_density
-	};
+  return {
+    mainline_demand: fx.mainline_demand,
+    ffs: fx.ffs,
+    heavy_vehicle_pct: fx.heavy_vehicle_pct,
+    terrain: fx.terrain,
+    city_type: fx.city_type,
+    phf: fx.phf,
+    jam_density_pc: fx.jam_density_pc,
+    queue_discharge_drop: fx.queue_discharge_drop,
+    total_ramp_density: fx.total_ramp_density,
+    interchange_density: fx.interchange_density,
+  };
 }
 
 /**
@@ -96,89 +90,89 @@ export function facilityArgs(fx) {
  * @param {object} wasm the module namespace (WasmFacilitySegment, WasmFreewayFacility)
  */
 export function analyzeFacility(doc, rows, wasm) {
-	const fx = toFixture(doc, rows);
-	const a = facilityArgs(fx);
-	const fac = new wasm.WasmFreewayFacility(
-		buildSegments(fx, wasm),
-		a.mainline_demand,
-		a.ffs,
-		a.heavy_vehicle_pct,
-		a.terrain,
-		a.city_type,
-		a.phf,
-		a.jam_density_pc,
-		a.queue_discharge_drop,
-		a.total_ramp_density,
-		a.interchange_density
-	);
-	fac.run_analysis();
+  const fx = toFixture(doc, rows);
+  const a = facilityArgs(fx);
+  const fac = new wasm.WasmFreewayFacility(
+    buildSegments(fx, wasm),
+    a.mainline_demand,
+    a.ffs,
+    a.heavy_vehicle_pct,
+    a.terrain,
+    a.city_type,
+    a.phf,
+    a.jam_density_pc,
+    a.queue_discharge_drop,
+    a.total_ramp_density,
+    a.interchange_density,
+  );
+  fac.run_analysis();
 
-	const numSegments = fac.num_segments();
-	const numPeriods = fac.num_periods();
+  const numSegments = fac.num_segments();
+  const numPeriods = fac.num_periods();
 
-	// Matrices arrive [segment][period] and are copied into ordinary arrays.
-	const grab = (name) => copyMatrix(fac[name](), numSegments, numPeriods);
-	const speed = grab('speed_matrix');
-	const density = grab('density_matrix');
-	const dc = grab('dc_matrix');
-	const capacity = grab('capacity_matrix');
-	const los = grab('los_matrix');
-	const queue = grab('queue_matrix');
-	const volume = grab('volume_served_matrix');
-	const demandLos = grab('demand_based_los_matrix');
+  // Matrices arrive [segment][period] and are copied into ordinary arrays.
+  const grab = (name) => copyMatrix(fac[name](), numSegments, numPeriods);
+  const speed = grab('speed_matrix');
+  const density = grab('density_matrix');
+  const dc = grab('dc_matrix');
+  const capacity = grab('capacity_matrix');
+  const los = grab('los_matrix');
+  const queue = grab('queue_matrix');
+  const volume = grab('volume_served_matrix');
+  const demandLos = grab('demand_based_los_matrix');
 
-	// Density in passenger cars has no matrix getter, only the per-cell one.
-	const densityPc = [];
-	for (let s = 0; s < numSegments; s++) {
-		const row = [];
-		for (let p = 0; p < numPeriods; p++) row.push(fac.get_density_pc(s, p));
-		densityPc.push(row);
-	}
+  // Density in passenger cars has no matrix getter, only the per-cell one.
+  const densityPc = [];
+  for (let s = 0; s < numSegments; s++) {
+    const row = [];
+    for (let p = 0; p < numPeriods; p++) row.push(fac.get_density_pc(s, p));
+    densityPc.push(row);
+  }
 
-	const perPeriod = [];
-	for (let p = 0; p < numPeriods; p++) {
-		perPeriod.push({
-			speed: fac.get_facility_speed(p),
-			density: fac.get_facility_density_veh(p),
-			los: fac.get_facility_los(p)
-		});
-	}
+  const perPeriod = [];
+  for (let p = 0; p < numPeriods; p++) {
+    perPeriod.push({
+      speed: fac.get_facility_speed(p),
+      density: fac.get_facility_density_veh(p),
+      los: fac.get_facility_los(p),
+    });
+  }
 
-	const oversaturated = fac.is_oversaturated();
-	const result = {
-		numSegments,
-		numPeriods,
-		totalLengthMi: fac.total_length_mi(),
-		overallSpeed: fac.get_overall_speed(),
-		overallDensity: fac.get_overall_density_veh(),
-		oversaturated,
-		// `first_oversat_period` is a core field with no binding getter in any
-		// released middleware version, so it is derived here from the
-		// demand-to-capacity matrix, which is the same test the core applies:
-		// the first analysis period in which any segment's demand exceeds its
-		// capacity. It is cross-checked against the queue matrix in
-		// tests/builder/analysis.mjs, and the page labels it as the first period
-		// demand exceeds capacity rather than as an engine output.
-		firstOversatPeriod: oversaturated ? firstPeriodWhere(dc, (v) => v > 1.0) : null,
-		firstQueuedPeriod: firstPeriodWhere(queue, (v) => v > 0.0),
-		lastQueuedPeriod: lastPeriodWhere(queue, (v) => v > 0.0),
-		perPeriod,
-		matrices: { speed, density, densityPc, dc, capacity, los, queue, volume, demandLos },
-		// Row identity snapshotted with the run, so re-deriving or relabelling
-		// the document afterwards cannot retitle a column of finished results.
-		segments: rows.map((r, i) => ({
-			index: i,
-			segType: r.seg_type,
-			lengthFt: r.length_ft,
-			lanes: r.lanes,
-			startFt: r.startFt,
-			workZone: !!r.work_zone,
-			overridden: !!r.overridden
-		})),
-		facilityName: doc.meta?.name ?? 'Untitled facility',
-		unboundFields: unboundFieldsIn(fx)
-	};
-	return deepFreeze(result);
+  const oversaturated = fac.is_oversaturated();
+  const result = {
+    numSegments,
+    numPeriods,
+    totalLengthMi: fac.total_length_mi(),
+    overallSpeed: fac.get_overall_speed(),
+    overallDensity: fac.get_overall_density_veh(),
+    oversaturated,
+    // `first_oversat_period` is a core field with no binding getter in any
+    // released middleware version, so it is derived here from the
+    // demand-to-capacity matrix, which is the same test the core applies:
+    // the first analysis period in which any segment's demand exceeds its
+    // capacity. It is cross-checked against the queue matrix in
+    // tests/builder/analysis.mjs, and the page labels it as the first period
+    // demand exceeds capacity rather than as an engine output.
+    firstOversatPeriod: oversaturated ? firstPeriodWhere(dc, (v) => v > 1.0) : null,
+    firstQueuedPeriod: firstPeriodWhere(queue, (v) => v > 0.0),
+    lastQueuedPeriod: lastPeriodWhere(queue, (v) => v > 0.0),
+    perPeriod,
+    matrices: { speed, density, densityPc, dc, capacity, los, queue, volume, demandLos },
+    // Row identity snapshotted with the run, so re-deriving or relabelling
+    // the document afterwards cannot retitle a column of finished results.
+    segments: rows.map((r, i) => ({
+      index: i,
+      segType: r.seg_type,
+      lengthFt: r.length_ft,
+      lanes: r.lanes,
+      startFt: r.startFt,
+      workZone: !!r.work_zone,
+      overridden: !!r.overridden,
+    })),
+    facilityName: doc.meta?.name ?? 'Untitled facility',
+    unboundFields: unboundFieldsIn(fx),
+  };
+  return deepFreeze(result);
 }
 
 /** Fixture keys present on some segment that no binding can carry into a run.
@@ -186,58 +180,58 @@ export function analyzeFacility(doc, rows, wasm) {
  * dropping them silently is exactly the kind of failure this workspace pays
  * for, so the page says which segment carries what. */
 export function unboundFieldsIn(fx) {
-	const out = [];
-	fx.segments.forEach((s, i) => {
-		for (const k of UNBOUND_SEGMENT_FIELDS) {
-			if (s[k] != null) out.push({ segment: i + 1, field: k });
-		}
-	});
-	return out;
+  const out = [];
+  fx.segments.forEach((s, i) => {
+    for (const k of UNBOUND_SEGMENT_FIELDS) {
+      if (s[k] != null) out.push({ segment: i + 1, field: k });
+    }
+  });
+  return out;
 }
 
 function copyMatrix(m, segs, periods) {
-	const out = [];
-	for (let s = 0; s < segs; s++) {
-		const row = [];
-		const src = m?.[s] ?? [];
-		for (let p = 0; p < periods; p++) row.push(src[p] ?? null);
-		out.push(row);
-	}
-	return out;
+  const out = [];
+  for (let s = 0; s < segs; s++) {
+    const row = [];
+    const src = m?.[s] ?? [];
+    for (let p = 0; p < periods; p++) row.push(src[p] ?? null);
+    out.push(row);
+  }
+  return out;
 }
 
 /** Earliest period index in which any segment satisfies `pred`, or null. The
  * scan is period-major because the answer is a period; a segment-major scan
  * would return the earliest period of the first qualifying segment instead. */
 function firstPeriodWhere(matrix, pred) {
-	const periods = matrix[0]?.length ?? 0;
-	for (let p = 0; p < periods; p++) {
-		for (let s = 0; s < matrix.length; s++) {
-			const v = matrix[s][p];
-			if (Number.isFinite(v) && pred(v)) return p;
-		}
-	}
-	return null;
+  const periods = matrix[0]?.length ?? 0;
+  for (let p = 0; p < periods; p++) {
+    for (let s = 0; s < matrix.length; s++) {
+      const v = matrix[s][p];
+      if (Number.isFinite(v) && pred(v)) return p;
+    }
+  }
+  return null;
 }
 
 function lastPeriodWhere(matrix, pred) {
-	const periods = matrix[0]?.length ?? 0;
-	for (let p = periods - 1; p >= 0; p--) {
-		for (let s = 0; s < matrix.length; s++) {
-			const v = matrix[s][p];
-			if (Number.isFinite(v) && pred(v)) return p;
-		}
-	}
-	return null;
+  const periods = matrix[0]?.length ?? 0;
+  for (let p = periods - 1; p >= 0; p--) {
+    for (let s = 0; s < matrix.length; s++) {
+      const v = matrix[s][p];
+      if (Number.isFinite(v) && pred(v)) return p;
+    }
+  }
+  return null;
 }
 
 /** Freezing is the enforcement of "the results belong to the run". Without it
  * the page could sort or annotate a matrix in place and the printed report,
  * which holds the same object, would silently follow. */
 function deepFreeze(v) {
-	if (v && typeof v === 'object' && !Object.isFrozen(v)) {
-		Object.freeze(v);
-		for (const k of Object.keys(v)) deepFreeze(v[k]);
-	}
-	return v;
+  if (v && typeof v === 'object' && !Object.isFrozen(v)) {
+    Object.freeze(v);
+    for (const k of Object.keys(v)) deepFreeze(v[k]);
+  }
+  return v;
 }

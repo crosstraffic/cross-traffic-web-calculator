@@ -1,24 +1,20 @@
-<svelte:head>
-  <title>All-Way STOP-Controlled Intersections · HCM Calculator</title>
-</svelte:head>
-
 <script>
   import { preventDefault } from 'svelte/legacy';
 
-  import init, { WasmAwsc } from "HCM-middleware";
+  import init, { WasmAwsc } from 'HCM-middleware';
   import AwscDiagram from '$lib/AwscDiagram.svelte';
   import AwscDiagram3D from '$lib/AwscDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
   import { discussion } from './discussion.js';
   import Discussion from '$lib/Discussion.svelte';
-  import { onMount } from "svelte";
+  import { onMount } from 'svelte';
 
   let diagramMode = $state('2d');
 
   let ready = $state(false);
 
-  onMount(async() => {
+  onMount(async () => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
     ready = true;
   });
@@ -27,7 +23,7 @@
     { key: 'eb', label: 'Eastbound (EB)' },
     { key: 'wb', label: 'Westbound (WB)' },
     { key: 'nb', label: 'Northbound (NB)' },
-    { key: 'sb', label: 'Southbound (SB)' }
+    { key: 'sb', label: 'Southbound (SB)' },
   ];
 
   // Defaults follow HCM Chapter 32 AWSC Example Problem 1, a single-lane
@@ -38,7 +34,7 @@
       eb: { laneCount: 1, lanes: [{ left: 50, through: 300, right: 0 }], hv: 2 },
       wb: { laneCount: 1, lanes: [{ left: 0, through: 300, right: 100 }], hv: 2 },
       nb: { laneCount: 0, lanes: [], hv: 0 },
-      sb: { laneCount: 1, lanes: [{ left: 100, through: 0, right: 50 }], hv: 2 }
+      sb: { laneCount: 1, lanes: [{ left: 100, through: 0, right: 50 }], hv: 2 },
     };
   }
 
@@ -51,9 +47,9 @@
   let errMessage = $state('');
 
   // Approach LOS map for the diagram's animation.
-  let losByApproach = $derived(results
-    ? Object.fromEntries(results.approachRows.filter((a) => a.los).map((a) => [a.label, a.los]))
-    : {});
+  let losByApproach = $derived(
+    results ? Object.fromEntries(results.approachRows.filter((a) => a.los).map((a) => [a.label, a.los])) : {},
+  );
 
   function setLaneCount(key, n) {
     const a = approaches[key];
@@ -83,7 +79,7 @@
         Number(approaches.nb.hv),
         Number(approaches.sb.hv),
         phf === '' || phf === null ? undefined : Number(phf),
-        Number(analysis_period)
+        Number(analysis_period),
       );
 
       a.analyze();
@@ -106,7 +102,7 @@
         approachRows,
         intersectionDelay: res.intersection_delay,
         intersectionLos: res.intersection_los,
-        iterations: res.iterations
+        iterations: res.iterations,
       };
       // Generated once, off the run that produced these numbers, and carried on the result so the
       // page and the printable report can never drift apart or restate a since-edited input.
@@ -120,22 +116,46 @@
         headline: { label: 'Intersection LOS', value: results.intersectionLos },
         discussion: results.discussion,
         inputs: [
-          ...dirs.filter((d) => approaches[d.key].laneCount > 0).map((d) => ({
-            label: `${d.label}`,
-            value: approaches[d.key].lanes.map((l, i) => `lane ${i + 1}: ${l.left}/${l.through}/${l.right} veh/h`).join(', ') + `, HV ${approaches[d.key].hv}%`,
-          })),
-          ...dirs.filter((d) => approaches[d.key].laneCount === 0).map((d) => ({ label: d.label, value: 'no approach' })),
+          ...dirs
+            .filter((d) => approaches[d.key].laneCount > 0)
+            .map((d) => ({
+              label: `${d.label}`,
+              value:
+                approaches[d.key].lanes
+                  .map((l, i) => `lane ${i + 1}: ${l.left}/${l.through}/${l.right} veh/h`)
+                  .join(', ') + `, HV ${approaches[d.key].hv}%`,
+            })),
+          ...dirs
+            .filter((d) => approaches[d.key].laneCount === 0)
+            .map((d) => ({ label: d.label, value: 'no approach' })),
           { label: 'Peak hour factor', value: phf === '' ? 'volumes are flow rates' : phf },
           { label: 'Analysis period', value: `${analysis_period} h` },
         ],
         resultTable: {
-          columns: ['Lane', 'Flow rate (veh/h)', 'Departure headway (s)', 'Utilization x', 'Delay (s/veh)', 'LOS', '95% queue (veh)'],
+          columns: [
+            'Lane',
+            'Flow rate (veh/h)',
+            'Departure headway (s)',
+            'Utilization x',
+            'Delay (s/veh)',
+            'LOS',
+            '95% queue (veh)',
+          ],
           rows: results.laneRows.map((l) => [
-            `${l.approach} lane ${l.lane}`, fmt(l.flow_rate, 0), fmt(l.departure_headway, 2), fmt(l.degree_of_utilization, 3), fmt(l.control_delay), l.los ?? '', fmt(l.queue_95),
+            `${l.approach} lane ${l.lane}`,
+            fmt(l.flow_rate, 0),
+            fmt(l.departure_headway, 2),
+            fmt(l.degree_of_utilization, 3),
+            fmt(l.control_delay),
+            l.los ?? '',
+            fmt(l.queue_95),
           ]),
         },
         summary: [
-          ...results.approachRows.map((a) => ({ label: `Approach delay, ${a.label}`, value: `${fmt(a.delay)} s/veh (LOS ${a.los})` })),
+          ...results.approachRows.map((a) => ({
+            label: `Approach delay, ${a.label}`,
+            value: `${fmt(a.delay)} s/veh (LOS ${a.los})`,
+          })),
           { label: 'Intersection delay', value: `${fmt(results.intersectionDelay)} s/veh` },
           { label: 'Intersection LOS (Exhibit 21-8)', value: results.intersectionLos },
           { label: 'Departure-headway iterations to convergence', value: results.iterations },
@@ -161,22 +181,29 @@
   }
 </script>
 
+<svelte:head>
+  <title>All-Way STOP-Controlled Intersections · HCM Calculator</title>
+</svelte:head>
+
 <div class="hcm-page">
   <header class="page-header">
     <span class="badge badge-outline page-badge">HCM Chapter 21</span>
     <h1 class="page-title">All-Way STOP-Controlled Intersections</h1>
     <p class="page-sub">
-      Estimate departure headways, control delay, queues, and level of service
-      for each lane and approach at an all-way STOP-controlled intersection.
+      Estimate departure headways, control delay, queues, and level of service for each lane and approach at an all-way
+      STOP-controlled intersection.
     </p>
   </header>
 
   <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">
     <span>
-      The compute engine reproduces the published HCM worked examples for this
-      chapter, including the iterative departure-headway convergence of the
-      Chapter 21 method. Verify results independently before relying on them in
-      engineering work, and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      The compute engine reproduces the published HCM worked examples for this chapter, including the iterative
+      departure-headway convergence of the Chapter 21 method. Verify results independently before relying on them in
+      engineering work, and please <a
+        href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues"
+        target="_blank"
+        rel="noreferrer">report discrepancies on GitHub</a
+      >.
     </span>
   </div>
 
@@ -191,7 +218,10 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Intersection</h2>
-          <p class="panel-sub">The picture follows the approach lane counts below. Hover the legend to highlight an approach, and in the 2D view single-lane approach volumes can be edited directly on the diagram.</p>
+          <p class="panel-sub">
+            The picture follows the approach lane counts below. Hover the legend to highlight an approach, and in the 2D
+            view single-lane approach volumes can be edited directly on the diagram.
+          </p>
         </div>
         <div class="panel-actions">
           <ViewToggle bind:mode={diagramMode} label="Intersection view mode" />
@@ -209,13 +239,21 @@
         <div class="panel-head">
           <div>
             <h2 class="panel-title">{d.label} Approach</h2>
-            <p class="panel-sub">Lanes in left-to-right order with the demand volume assigned to each. Set lanes to 0 for a leg with no approach.</p>
+            <p class="panel-sub">
+              Lanes in left-to-right order with the demand volume assigned to each. Set lanes to 0 for a leg with no
+              approach.
+            </p>
           </div>
         </div>
         <div class="param-grid">
           <div class="param-field">
             <label for="LC_{d.key}_input">Lanes</label>
-            <select id="LC_{d.key}_input" class="select select-bordered select-sm" value={approaches[d.key].laneCount} onchange={(e) => setLaneCount(d.key, Number(e.target.value))}>
+            <select
+              id="LC_{d.key}_input"
+              class="select select-bordered select-sm"
+              value={approaches[d.key].laneCount}
+              onchange={(e) => setLaneCount(d.key, Number(e.target.value))}
+            >
               <option value={0}>0 (no approach)</option>
               <option value={1}>1</option>
               <option value={2}>2</option>
@@ -226,7 +264,17 @@
           <div class="param-field">
             <label for="HV_{d.key}_input">Heavy Vehicles</label>
             <div class="cell-field">
-              <input id="HV_{d.key}_input" type="number" step="0.01" min="0" max="100" class="input input-bordered input-sm" bind:value={approaches[d.key].hv} placeholder="2" required />
+              <input
+                id="HV_{d.key}_input"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                class="input input-bordered input-sm"
+                bind:value={approaches[d.key].hv}
+                placeholder="2"
+                required
+              />
               <span class="unit">%</span>
             </div>
           </div>
@@ -235,21 +283,42 @@
             <div class="param-field">
               <label for="L_{d.key}_{i}_input">Lane {i + 1} Left</label>
               <div class="cell-field">
-                <input id="L_{d.key}_{i}_input" type="number" min="0" class="input input-bordered input-sm" bind:value={lane.left} required />
+                <input
+                  id="L_{d.key}_{i}_input"
+                  type="number"
+                  min="0"
+                  class="input input-bordered input-sm"
+                  bind:value={lane.left}
+                  required
+                />
                 <span class="unit">veh/h</span>
               </div>
             </div>
             <div class="param-field">
               <label for="T_{d.key}_{i}_input">Lane {i + 1} Through</label>
               <div class="cell-field">
-                <input id="T_{d.key}_{i}_input" type="number" min="0" class="input input-bordered input-sm" bind:value={lane.through} required />
+                <input
+                  id="T_{d.key}_{i}_input"
+                  type="number"
+                  min="0"
+                  class="input input-bordered input-sm"
+                  bind:value={lane.through}
+                  required
+                />
                 <span class="unit">veh/h</span>
               </div>
             </div>
             <div class="param-field">
               <label for="R_{d.key}_{i}_input">Lane {i + 1} Right</label>
               <div class="cell-field">
-                <input id="R_{d.key}_{i}_input" type="number" min="0" class="input input-bordered input-sm" bind:value={lane.right} required />
+                <input
+                  id="R_{d.key}_{i}_input"
+                  type="number"
+                  min="0"
+                  class="input input-bordered input-sm"
+                  bind:value={lane.right}
+                  required
+                />
                 <span class="unit">veh/h</span>
               </div>
             </div>
@@ -270,7 +339,16 @@
         <div class="param-field">
           <label for="PHF_input">Peak Hour Factor</label>
           <div class="cell-field">
-            <input id="PHF_input" type="number" step="0.01" min="0.25" max="1" class="input input-bordered input-sm" bind:value={phf} placeholder="0.95" />
+            <input
+              id="PHF_input"
+              type="number"
+              step="0.01"
+              min="0.25"
+              max="1"
+              class="input input-bordered input-sm"
+              bind:value={phf}
+              placeholder="0.95"
+            />
           </div>
           <p class="param-hint">Leave blank if the lane volumes are already peak 15-min flow rates.</p>
         </div>
@@ -278,7 +356,17 @@
         <div class="param-field">
           <label for="TP_input">Analysis Period</label>
           <div class="cell-field">
-            <input id="TP_input" type="number" step="0.05" min="0.05" max="1" class="input input-bordered input-sm" bind:value={analysis_period} placeholder="0.25" required />
+            <input
+              id="TP_input"
+              type="number"
+              step="0.05"
+              min="0.05"
+              max="1"
+              class="input input-bordered input-sm"
+              bind:value={analysis_period}
+              placeholder="0.25"
+              required
+            />
             <span class="unit">h</span>
           </div>
         </div>

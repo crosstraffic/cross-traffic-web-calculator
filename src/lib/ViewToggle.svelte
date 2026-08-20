@@ -1,7 +1,7 @@
 <script>
   // The house 2D/3D segmented control, shared by every chapter page that has
   // a diagram with both views. Bind `mode` ('2d' | '3d'). Styling comes from
-  
+
   /**
    * @typedef {Object} Props
    * @property {string} [mode] - the global .view-toggle/.vt-btn rules in app.css.

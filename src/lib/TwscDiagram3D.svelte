@@ -22,79 +22,229 @@
     rtEB = 'shared',
     rtWB = 'shared',
     minorNB = 'single_shared',
-    minorSB = 'single_shared'
+    minorSB = 'single_shared',
   } = $props();
 
   let hovered = $state(null);
 
-  const VIEW_W = 520, VIEW_H = 320, PAD = 24, THICK = 9;
-  const LANE = 1, RUN = 5.2;
+  const VIEW_W = 520,
+    VIEW_H = 320,
+    PAD = 24,
+    THICK = 9;
+  const LANE = 1,
+    RUN = 5.2;
 
-  const minorCount = (cfg) => ({ single_shared: 1, shared_lt_exclusive_r: 2, exclusive_l_shared_tr: 2, separate: 3 }[cfg] || 1);
-
-
+  const minorCount = (cfg) =>
+    ({ single_shared: 1, shared_lt_exclusive_r: 2, exclusive_l_shared_tr: 2, separate: 3 })[cfg] || 1;
 
   function build(threeLeg, nEB, nWB, nNB, nSB) {
-    const wEB = nEB * LANE, wWB = nWB * LANE, wNB = nNB * LANE, wSB = nSB * LANE;
-    const XW = -(wSB + RUN), XE = wNB + RUN, YS = -(wEB + RUN), YN = wWB + RUN;
+    const wEB = nEB * LANE,
+      wWB = nWB * LANE,
+      wNB = nNB * LANE,
+      wSB = nSB * LANE;
+    const XW = -(wSB + RUN),
+      XE = wNB + RUN,
+      YS = -(wEB + RUN),
+      YN = wWB + RUN;
 
     // Outline, counterclockwise from the west leg's south edge. Three-leg
     // omits the north leg, so the top edge runs straight across.
-    const outline = threeLeg ? [
-      [XW, -wEB], [-wSB, -wEB], [-wSB, YS], [wNB, YS], [wNB, -wEB], [XE, -wEB],
-      [XE, wWB], [XW, wWB],
-    ] : [
-      [XW, -wEB], [-wSB, -wEB], [-wSB, YS], [wNB, YS], [wNB, -wEB], [XE, -wEB],
-      [XE, wWB], [wNB, wWB], [wNB, YN], [-wSB, YN], [-wSB, wWB], [XW, wWB],
-    ];
+    const outline = threeLeg
+      ? [
+          [XW, -wEB],
+          [-wSB, -wEB],
+          [-wSB, YS],
+          [wNB, YS],
+          [wNB, -wEB],
+          [XE, -wEB],
+          [XE, wWB],
+          [XW, wWB],
+        ]
+      : [
+          [XW, -wEB],
+          [-wSB, -wEB],
+          [-wSB, YS],
+          [wNB, YS],
+          [wNB, -wEB],
+          [XE, -wEB],
+          [XE, wWB],
+          [wNB, wWB],
+          [wNB, YN],
+          [-wSB, YN],
+          [-wSB, wWB],
+          [XW, wWB],
+        ];
 
     const centers = [
-      [[XW, 0], [-wSB, 0]], [[wNB, 0], [XE, 0]],
-      [[0, YS], [0, -wEB]],
-      ...(threeLeg ? [] : [[[0, wWB], [0, YN]]]),
+      [
+        [XW, 0],
+        [-wSB, 0],
+      ],
+      [
+        [wNB, 0],
+        [XE, 0],
+      ],
+      [
+        [0, YS],
+        [0, -wEB],
+      ],
+      ...(threeLeg
+        ? []
+        : [
+            [
+              [0, wWB],
+              [0, YN],
+            ],
+          ]),
     ];
     const laneLines = [];
-    for (let i = 1; i < nEB; i++) laneLines.push([[XW, -i], [-wSB, -i]], [[wNB, -i], [XE, -i]]);
-    for (let i = 1; i < nWB; i++) laneLines.push([[XW, i], [-wSB, i]], [[wNB, i], [XE, i]]);
-    for (let i = 1; i < nNB; i++) laneLines.push([[i, YS], [i, -wEB]]);
-    if (!threeLeg) for (let i = 1; i < nSB; i++) laneLines.push([[-i, YS], [-i, -wEB]], [[-i, wWB], [-i, YN]]);
+    for (let i = 1; i < nEB; i++)
+      laneLines.push(
+        [
+          [XW, -i],
+          [-wSB, -i],
+        ],
+        [
+          [wNB, -i],
+          [XE, -i],
+        ],
+      );
+    for (let i = 1; i < nWB; i++)
+      laneLines.push(
+        [
+          [XW, i],
+          [-wSB, i],
+        ],
+        [
+          [wNB, i],
+          [XE, i],
+        ],
+      );
+    for (let i = 1; i < nNB; i++)
+      laneLines.push([
+        [i, YS],
+        [i, -wEB],
+      ]);
+    if (!threeLeg)
+      for (let i = 1; i < nSB; i++)
+        laneLines.push(
+          [
+            [-i, YS],
+            [-i, -wEB],
+          ],
+          [
+            [-i, wWB],
+            [-i, YN],
+          ],
+        );
 
     const stops = [
-      [[0, -wEB - 0.12], [wNB, -wEB - 0.12]],
-      ...(threeLeg ? [] : [[[-wSB, wWB + 0.12], [0, wWB + 0.12]]]),
+      [
+        [0, -wEB - 0.12],
+        [wNB, -wEB - 0.12],
+      ],
+      ...(threeLeg
+        ? []
+        : [
+            [
+              [-wSB, wWB + 0.12],
+              [0, wWB + 0.12],
+            ],
+          ]),
     ];
 
-    const xNB = (i) => (i + 0.5) * LANE, xSB = (i) => -(i + 0.5) * LANE;
-    const yEB = (i) => -(i + 0.5) * LANE, yWB = (i) => (i + 0.5) * LANE;
+    const xNB = (i) => (i + 0.5) * LANE,
+      xSB = (i) => -(i + 0.5) * LANE;
+    const yEB = (i) => -(i + 0.5) * LANE,
+      yWB = (i) => (i + 0.5) * LANE;
     const mid = (n) => Math.floor((n - 1) / 2);
     const moves = {
       EB: {
-        L: threeLeg ? null : [[XW, yEB(0)], [-wSB, yEB(0)], ...qSample([-wSB, yEB(0)], [LANE / 2, yEB(0)], [LANE / 2, wWB]), [LANE / 2, YN]],
-        T: [[XW, yEB(mid(nEB))], [XE, yEB(mid(nEB))]],
-        R: [[XW, yEB(nEB - 1)], [-wSB, yEB(nEB - 1)], ...qSample([-wSB, yEB(nEB - 1)], [-wSB + LANE / 2, yEB(nEB - 1)], [-wSB + LANE / 2, -wEB]), [-wSB + LANE / 2, YS]],
+        L: threeLeg
+          ? null
+          : [
+              [XW, yEB(0)],
+              [-wSB, yEB(0)],
+              ...qSample([-wSB, yEB(0)], [LANE / 2, yEB(0)], [LANE / 2, wWB]),
+              [LANE / 2, YN],
+            ],
+        T: [
+          [XW, yEB(mid(nEB))],
+          [XE, yEB(mid(nEB))],
+        ],
+        R: [
+          [XW, yEB(nEB - 1)],
+          [-wSB, yEB(nEB - 1)],
+          ...qSample([-wSB, yEB(nEB - 1)], [-wSB + LANE / 2, yEB(nEB - 1)], [-wSB + LANE / 2, -wEB]),
+          [-wSB + LANE / 2, YS],
+        ],
       },
       WB: {
-        L: [[XE, yWB(0)], [wNB, yWB(0)], ...qSample([wNB, yWB(0)], [-LANE / 2, yWB(0)], [-LANE / 2, -wEB]), [-LANE / 2, YS]],
-        T: [[XE, yWB(mid(nWB))], [XW, yWB(mid(nWB))]],
-        R: threeLeg ? null : [[XE, yWB(nWB - 1)], [wNB, yWB(nWB - 1)], ...qSample([wNB, yWB(nWB - 1)], [wNB - LANE / 2, yWB(nWB - 1)], [wNB - LANE / 2, wWB]), [wNB - LANE / 2, YN]],
+        L: [
+          [XE, yWB(0)],
+          [wNB, yWB(0)],
+          ...qSample([wNB, yWB(0)], [-LANE / 2, yWB(0)], [-LANE / 2, -wEB]),
+          [-LANE / 2, YS],
+        ],
+        T: [
+          [XE, yWB(mid(nWB))],
+          [XW, yWB(mid(nWB))],
+        ],
+        R: threeLeg
+          ? null
+          : [
+              [XE, yWB(nWB - 1)],
+              [wNB, yWB(nWB - 1)],
+              ...qSample([wNB, yWB(nWB - 1)], [wNB - LANE / 2, yWB(nWB - 1)], [wNB - LANE / 2, wWB]),
+              [wNB - LANE / 2, YN],
+            ],
       },
       NB: {
-        L: [[xNB(0), YS], [xNB(0), -wEB], ...qSample([xNB(0), -wEB], [xNB(0), LANE / 2], [-wSB, LANE / 2]), [XW, LANE / 2]],
-        T: threeLeg ? null : [[xNB(mid(nNB)), YS], [xNB(mid(nNB)), YN]],
-        R: [[xNB(nNB - 1), YS], [xNB(nNB - 1), -wEB], ...qSample([xNB(nNB - 1), -wEB], [xNB(nNB - 1), -wEB + LANE / 2], [wNB, -wEB + LANE / 2]), [XE, -wEB + LANE / 2]],
+        L: [
+          [xNB(0), YS],
+          [xNB(0), -wEB],
+          ...qSample([xNB(0), -wEB], [xNB(0), LANE / 2], [-wSB, LANE / 2]),
+          [XW, LANE / 2],
+        ],
+        T: threeLeg
+          ? null
+          : [
+              [xNB(mid(nNB)), YS],
+              [xNB(mid(nNB)), YN],
+            ],
+        R: [
+          [xNB(nNB - 1), YS],
+          [xNB(nNB - 1), -wEB],
+          ...qSample([xNB(nNB - 1), -wEB], [xNB(nNB - 1), -wEB + LANE / 2], [wNB, -wEB + LANE / 2]),
+          [XE, -wEB + LANE / 2],
+        ],
       },
-      SB: threeLeg ? { L: null, T: null, R: null } : {
-        L: [[xSB(0), YN], [xSB(0), wWB], ...qSample([xSB(0), wWB], [xSB(0), -LANE / 2], [wNB, -LANE / 2]), [XE, -LANE / 2]],
-        T: [[xSB(mid(nSB)), YN], [xSB(mid(nSB)), YS]],
-        R: [[xSB(nSB - 1), YN], [xSB(nSB - 1), wWB], ...qSample([xSB(nSB - 1), wWB], [xSB(nSB - 1), wWB - LANE / 2], [-wSB, wWB - LANE / 2]), [XW, wWB - LANE / 2]],
-      },
+      SB: threeLeg
+        ? { L: null, T: null, R: null }
+        : {
+            L: [
+              [xSB(0), YN],
+              [xSB(0), wWB],
+              ...qSample([xSB(0), wWB], [xSB(0), -LANE / 2], [wNB, -LANE / 2]),
+              [XE, -LANE / 2],
+            ],
+            T: [
+              [xSB(mid(nSB)), YN],
+              [xSB(mid(nSB)), YS],
+            ],
+            R: [
+              [xSB(nSB - 1), YN],
+              [xSB(nSB - 1), wWB],
+              ...qSample([xSB(nSB - 1), wWB], [xSB(nSB - 1), wWB - LANE / 2], [-wSB, wWB - LANE / 2]),
+              [XW, wWB - LANE / 2],
+            ],
+          },
     };
 
     return { outline, centers, laneLines, stops, moves };
   }
 
   const DASH = { 1: null, 2: '10 6', 3: '6 5', 4: '2 5' };
-
 
   function cls(h, key) {
     if (h == null) return 'tw3-move';
@@ -120,11 +270,15 @@
 </script>
 
 <div class="twsc-diagram-3d">
-  <Camera3DSvg viewW={VIEW_W} viewH={VIEW_H} defYaw={24} defPitch={42}
-      ariaLabel={`${threeLeg ? 'three-leg' : 'four-leg'} two-way stop-controlled intersection, 3D view`}
-          >
+  <Camera3DSvg
+    viewW={VIEW_W}
+    viewH={VIEW_H}
+    defYaw={24}
+    defPitch={42}
+    ariaLabel={`${threeLeg ? 'three-leg' : 'four-leg'} two-way stop-controlled intersection, 3D view`}
+  >
     {#snippet children({ yaw, pitch, zoom, panX, panY })}
-        {@const project = planProjector(yaw, pitch)}
+      {@const project = planProjector(yaw, pitch)}
       {@const tf = fitTransform(project, model.outline, VIEW_W, VIEW_H, PAD, zoom, panX, panY, THICK)}
       {@const d = makeDrawers(tf, THICK)}
 
@@ -147,13 +301,16 @@
       {#each order as o}
         {#each ['T', 'L', 'R'] as mv}
           {#if model.moves[o.key][mv]}
-            <path d={d.polyline(model.moves[o.key][mv])} class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`}
-                  stroke-dasharray={DASH[rank[o.key][mv]]} />
+            <path
+              d={d.polyline(model.moves[o.key][mv])}
+              class={`mv-${o.key.toLowerCase()} ${cls(hovered, o.key)}`}
+              stroke-dasharray={DASH[rank[o.key][mv]]}
+            />
           {/if}
         {/each}
       {/each}
-          {/snippet}
-    </Camera3DSvg>
+    {/snippet}
+  </Camera3DSvg>
 
   <div class="tw3-legend" role="list">
     {#each order as o}
@@ -175,33 +332,90 @@
 </div>
 
 <style>
-  .tw3-shadow { fill: #0f172a; opacity: 0.08; }
-  .tw3-wall { fill: var(--diag-wall); stroke: var(--diag-wall-edge); stroke-width: 0.5; }
-  .tw3-top { fill: var(--diag-pavement); stroke: var(--diag-edge); stroke-width: 1.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-  .tw3-center { stroke: var(--diag-center); stroke-width: 1.25; fill: none; vector-effect: non-scaling-stroke; }
-  .tw3-lane-line { stroke: var(--diag-lane-line); stroke-width: 1.25; stroke-dasharray: 7 5; fill: none; vector-effect: non-scaling-stroke; }
-  .tw3-stop { stroke: var(--diag-lane-line); stroke-width: 3; fill: none; vector-effect: non-scaling-stroke; }
+  .tw3-shadow {
+    fill: #0f172a;
+    opacity: 0.08;
+  }
+  .tw3-wall {
+    fill: var(--diag-wall);
+    stroke: var(--diag-wall-edge);
+    stroke-width: 0.5;
+  }
+  .tw3-top {
+    fill: var(--diag-pavement);
+    stroke: var(--diag-edge);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .tw3-center {
+    stroke: var(--diag-center);
+    stroke-width: 1.25;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+  .tw3-lane-line {
+    stroke: var(--diag-lane-line);
+    stroke-width: 1.25;
+    stroke-dasharray: 7 5;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+  .tw3-stop {
+    stroke: var(--diag-lane-line);
+    stroke-width: 3;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
 
   .tw3-move {
     fill: none;
     stroke-width: 2.25;
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
-    transition: opacity 120ms ease, stroke-width 120ms ease;
+    transition:
+      opacity 120ms ease,
+      stroke-width 120ms ease;
     opacity: 0.75;
   }
-  .tw3-move.dim { opacity: 0.1; }
-  .tw3-move.active { stroke-width: 4; opacity: 1; }
-  .mv-eb { stroke: #ea7317; }
-  .mv-wb { stroke: #dc2626; }
-  .mv-nb { stroke: #2563eb; }
-  .mv-sb { stroke: #16a34a; }
-  .swatch.eb { background: #ea7317; }
-  .swatch.wb { background: #dc2626; }
-  .swatch.nb { background: #2563eb; }
-  .swatch.sb { background: #16a34a; }
+  .tw3-move.dim {
+    opacity: 0.1;
+  }
+  .tw3-move.active {
+    stroke-width: 4;
+    opacity: 1;
+  }
+  .mv-eb {
+    stroke: #ea7317;
+  }
+  .mv-wb {
+    stroke: #dc2626;
+  }
+  .mv-nb {
+    stroke: #2563eb;
+  }
+  .mv-sb {
+    stroke: #16a34a;
+  }
+  .swatch.eb {
+    background: #ea7317;
+  }
+  .swatch.wb {
+    background: #dc2626;
+  }
+  .swatch.nb {
+    background: #2563eb;
+  }
+  .swatch.sb {
+    background: #16a34a;
+  }
 
-  .tw3-legend { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.35rem; }
+  .tw3-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.35rem;
+  }
   .tw3-chip {
     display: inline-flex;
     align-items: center;
@@ -213,6 +427,13 @@
     background: transparent;
     cursor: default;
   }
-  .tw3-chip.active { border-color: var(--diag-edge); }
-  .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
+  .tw3-chip.active {
+    border-color: var(--diag-edge);
+  }
+  .swatch {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 2px;
+    display: inline-block;
+  }
 </style>

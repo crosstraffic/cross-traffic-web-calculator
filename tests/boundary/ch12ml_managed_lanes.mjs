@@ -47,10 +47,13 @@ for (const [type, byFfs] of Object.entries(exhibit12_11)) {
 // --- Breakpoint lambda_BP application (Eq. 12-13 with Exhibit 12-30 rates):
 // Buffer2 (lambda_BP = 10): BP = 500 + 10 x (75 - 65) = 600 at FFS 65.
 // Barrier2 (lambda_BP = 20): BP = 700 + 20 x (75 - 60) = 1000 at FFS 60.
-approx(new m.WasmManagedLanes('buffer2', 65.0).calculate_breakpoint(), 600, 1e-9,
-  'buffer2 BP at FFS 65 (Eq. 12-13)');
-approx(new m.WasmManagedLanes('barrier2', 60.0).calculate_breakpoint(), 1000, 1e-9,
-  'barrier2 BP at FFS 60 (Eq. 12-13)');
+approx(new m.WasmManagedLanes('buffer2', 65.0).calculate_breakpoint(), 600, 1e-9, 'buffer2 BP at FFS 65 (Eq. 12-13)');
+approx(
+  new m.WasmManagedLanes('barrier2', 60.0).calculate_breakpoint(),
+  1000,
+  1e-9,
+  'barrier2 BP at FFS 60 (Eq. 12-13)',
+);
 
 // --- CAF argument position (Eq. 12-13 squares CAF, Eq. 12-14 is linear):
 // continuous access, FFS 75, CAF 0.9 -> c_adj = 0.9 x 1800 = 1620 and
@@ -62,15 +65,20 @@ approx(cafSeg.calculate_breakpoint(), 405, 1e-9, 'CAF=0.9 breakpoint (Eq. 12-13,
 // --- Friction behavior (Exhibit 12-30 note, Eq. 12-18), mirroring
 // test_barrier_no_friction and test_continuous_access_friction. gp_density
 // is passed through the constructor (4th arg) to exercise its position.
-exact(new m.WasmManagedLanes('barrier2', 70.0).has_friction_effect(), false,
-  'barrier2 has no friction effect');
-exact(new m.WasmManagedLanes('buffer1', 70.0).has_friction_effect(), true,
-  'buffer1 has friction effect (K_cf defined)');
+exact(new m.WasmManagedLanes('barrier2', 70.0).has_friction_effect(), false, 'barrier2 has no friction effect');
+exact(
+  new m.WasmManagedLanes('buffer1', 70.0).has_friction_effect(),
+  true,
+  'buffer1 has friction effect (K_cf defined)',
+);
 const fric = new m.WasmManagedLanes('continuous_access', 70.0, undefined, 40.0);
 exact(fric.has_friction_effect(), true, 'continuous access has friction effect');
 exact(fric.is_friction_active(), true, 'friction active at K_GP = 40 > 35 (Eq. 12-18)');
-exact(new m.WasmManagedLanes('continuous_access', 70.0, undefined, 30.0).is_friction_active(),
-  false, 'friction inactive at K_GP = 30 <= 35 (Eq. 12-18)');
+exact(
+  new m.WasmManagedLanes('continuous_access', 70.0, undefined, 30.0).is_friction_active(),
+  false,
+  'friction inactive at K_GP = 30 <= 35 (Eq. 12-18)',
+);
 
 // --- Chapter 26, Example Problem 7: basic managed lane segment ----------
 // Continuous access, FFS 60, PHF 0.92, 7.5% trucks level terrain
@@ -99,8 +107,9 @@ exact(new m.WasmManagedLanes('continuous_access', 70.0, undefined, 30.0).is_fric
   // Published: S_ML = 41.9 mi/h, D = 36.3 pc/mi/ln, LOS E.
   const vpGp2 = 3800 / (0.92 * 2 * fHv);
   approx(vpGp2, 2221, 1.0, 'EP7 GP Case 2 flow rate');
-  const cGp = 2300, bpGp = 1600;
-  const sGp2 = 60 - (60 - cGp / 45) * (vpGp2 - bpGp) ** 2 / (cGp - bpGp) ** 2;
+  const cGp = 2300,
+    bpGp = 1600;
+  const sGp2 = 60 - ((60 - cGp / 45) * (vpGp2 - bpGp) ** 2) / (cGp - bpGp) ** 2;
   approx(sGp2, 53.0, 0.1, 'EP7 GP Case 2 speed (Eq. 12-1)');
   const case2 = new m.WasmManagedLanes('continuous_access', 60.0, vpMl, vpGp2 / sGp2);
   const los2 = case2.run_analysis();

@@ -17,7 +17,7 @@
     /** Returns the handoff payload for the page's current state. May throw. */
     build,
     /** What crosses, in the page's own words. Shown beside the link. */
-    note = ''
+    note = '',
   } = $props();
 
   let error = $state('');
@@ -34,9 +34,7 @@
 </script>
 
 <div class="oib">
-  <a class="btn btn-outline btn-sm" href="/builder" data-testid="open-in-builder" onclick={go}>
-    Open in Builder
-  </a>
+  <a class="btn btn-outline btn-sm" href="/builder" data-testid="open-in-builder" onclick={go}> Open in Builder </a>
   {#if note}<span class="oib-note">{note}</span>{/if}
 </div>
 {#if error}

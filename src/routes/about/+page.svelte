@@ -7,10 +7,9 @@
 
   <div class="desc">
     <p>
-      The HCM Calculator provides quick solutions for the analysis methodologies of the
-      Highway Capacity Manual (HCM), with diagrams to support understanding. Every chapter
-      is validated against the manual's own published example problems, at both the compute
-      core and the calculator's own interface.
+      The HCM Calculator provides quick solutions for the analysis methodologies of the Highway Capacity Manual (HCM),
+      with diagrams to support understanding. Every chapter is validated against the manual's own published example
+      problems, at both the compute core and the calculator's own interface.
     </p>
 
     <p>Launched in November 2022 by Rei Tamaru at the University of Wisconsin-Madison.</p>

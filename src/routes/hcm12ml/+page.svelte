@@ -1,12 +1,8 @@
-<svelte:head>
-  <title>Basic Managed Lane Segments · HCM Calculator</title>
-</svelte:head>
-
 <script>
   import { preventDefault } from 'svelte/legacy';
 
-  import init, { WasmManagedLanes } from "HCM-middleware";
-  import { onMount } from "svelte";
+  import init, { WasmManagedLanes } from 'HCM-middleware';
+  import { onMount } from 'svelte';
   import LosBadge from '$lib/LosBadge.svelte';
   import LosScale from '$lib/LosScale.svelte';
   import ManagedLaneDiagram from '$lib/ManagedLaneDiagram.svelte';
@@ -16,7 +12,7 @@
 
   let ready = $state(false);
 
-  onMount(async() => {
+  onMount(async () => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
     ready = true;
   });
@@ -71,8 +67,8 @@
   // arithmetic in tests/boundary/ch12ml_managed_lanes.mjs.
   function gpSpeed(v_p, ffsGp, c, bp) {
     if (v_p <= bp) return ffsGp;
-    if (v_p >= c) return c / 45.0;   // at or past capacity the curve ends at the capacity speed
-    return ffsGp - (ffsGp - c / 45.0) * (v_p - bp) ** 2 / (c - bp) ** 2;
+    if (v_p >= c) return c / 45.0; // at or past capacity the curve ends at the capacity speed
+    return ffsGp - ((ffsGp - c / 45.0) * (v_p - bp) ** 2) / (c - bp) ** 2;
   }
 
   function runAnalysis() {
@@ -91,14 +87,7 @@
       const s_gp = gpSpeed(v_p_gp, Number(gp_ffs), Number(gp_capacity), Number(gp_breakpoint));
       const k_gp = v_p_gp / s_gp;
 
-      const ml = new WasmManagedLanes(
-        lane_type,
-        Number(ffs),
-        v_p_ml,
-        k_gp,
-        Number(caf),
-        Number(saf)
-      );
+      const ml = new WasmManagedLanes(lane_type, Number(ffs), v_p_ml, k_gp, Number(caf), Number(saf));
 
       const los = ml.run_analysis();
       results = {
@@ -114,7 +103,7 @@
         speed: ml.get_speed(),
         density: ml.get_density(),
         has_friction_effect: ml.has_friction_effect(),
-        friction_active: ml.is_friction_active()
+        friction_active: ml.is_friction_active(),
       };
       // Generated once, off the run that produced these numbers, and carried on the result so the
       // page and the printable report can never drift apart or restate a since-edited input.
@@ -219,25 +208,29 @@
   let multilaneType = $derived(lane_type === 'buffer2' || lane_type === 'barrier2');
 </script>
 
+<svelte:head>
+  <title>Basic Managed Lane Segments · HCM Calculator</title>
+</svelte:head>
+
 <div class="hcm-page">
   <header class="page-header">
     <span class="badge badge-outline page-badge">HCM Chapter 12</span>
     <h1 class="page-title">Basic Managed Lane Segments</h1>
     <p class="page-sub">
-      Estimate capacity, space mean speed, density, and level of service for a
-      basic managed lane segment adjacent to general purpose freeway lanes.
+      Estimate capacity, space mean speed, density, and level of service for a basic managed lane segment adjacent to
+      general purpose freeway lanes.
     </p>
   </header>
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Scope.</strong> The compute engine is boundary-validated against HCM
-      Chapter 26, Example Problem 7 (both cases), which the page defaults reproduce,
-      and against the Exhibit 12-30 separation parameters and the Exhibit 12-11
-      capacities at every tabulated free-flow speed. The page itself is in beta
-      pending final inspection. Verify results independently before relying on them
-      in engineering work, and please
-      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      <strong>Scope.</strong> The compute engine is boundary-validated against HCM Chapter 26, Example Problem 7 (both
+      cases), which the page defaults reproduce, and against the Exhibit 12-30 separation parameters and the Exhibit
+      12-11 capacities at every tabulated free-flow speed. The page itself is in beta pending final inspection. Verify
+      results independently before relying on them in engineering work, and please
+      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer"
+        >report discrepancies on GitHub</a
+      >.
     </span>
   </div>
 
@@ -253,7 +246,9 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Managed Lane</h2>
-          <p class="panel-sub">Separation from the general purpose lanes, free-flow speed, and the two adjustment factors.</p>
+          <p class="panel-sub">
+            Separation from the general purpose lanes, free-flow speed, and the two adjustment factors.
+          </p>
         </div>
       </div>
       <div class="param-grid">
@@ -272,7 +267,15 @@
         <div class="param-field">
           <label for="FFS_input">Free-Flow Speed</label>
           <div class="cell-field">
-            <input id="FFS_input" type="number" min="0" class="input input-bordered input-sm" bind:value={ffs} placeholder="60" required />
+            <input
+              id="FFS_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={ffs}
+              placeholder="60"
+              required
+            />
             <span class="unit">mi/h</span>
           </div>
         </div>
@@ -280,7 +283,15 @@
         <div class="param-field">
           <label for="MLLANES_input">Managed Lanes</label>
           <div class="cell-field">
-            <input id="MLLANES_input" type="number" min="1" max="3" class="input input-bordered input-sm" bind:value={ml_lanes} required />
+            <input
+              id="MLLANES_input"
+              type="number"
+              min="1"
+              max="3"
+              class="input input-bordered input-sm"
+              bind:value={ml_lanes}
+              required
+            />
           </div>
           <p class="param-hint">
             {#if multilaneType}
@@ -294,17 +305,42 @@
         <div class="param-field">
           <label for="CAF_input">Capacity Adjustment Factor</label>
           <div class="cell-field">
-            <input id="CAF_input" type="number" step="0.01" min="0" max="1" class="input input-bordered input-sm" bind:value={caf} placeholder="1.00" required />
+            <input
+              id="CAF_input"
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              class="input input-bordered input-sm"
+              bind:value={caf}
+              placeholder="1.00"
+              required
+            />
           </div>
-          <p class="param-hint">Use 1.00 for base conditions. Equation 12-14 is linear in CAF, Equation 12-13 squares it.</p>
+          <p class="param-hint">
+            Use 1.00 for base conditions. Equation 12-14 is linear in CAF, Equation 12-13 squares it.
+          </p>
         </div>
 
         <div class="param-field">
           <label for="SAF_input">Speed Adjustment Factor</label>
           <div class="cell-field">
-            <input id="SAF_input" type="number" step="0.01" min="0" max="1" class="input input-bordered input-sm" bind:value={saf} placeholder="1.00" required />
+            <input
+              id="SAF_input"
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              class="input input-bordered input-sm"
+              bind:value={saf}
+              placeholder="1.00"
+              required
+            />
           </div>
-          <p class="param-hint">Use 1.00 for base conditions. Applies to the free-flow speed before the breakpoint and capacity are computed.</p>
+          <p class="param-hint">
+            Use 1.00 for base conditions. Applies to the free-flow speed before the breakpoint and capacity are
+            computed.
+          </p>
         </div>
       </div>
 
@@ -319,7 +355,8 @@
           frictionActive={results ? results.friction_active : false}
         />
         <p class="diagram-caption">
-          Plan view. The managed lanes are the left-most lanes of the roadway, so they are drawn above the general purpose lanes. The managed lane is tinted by its level of service after a run.
+          Plan view. The managed lanes are the left-most lanes of the roadway, so they are drawn above the general
+          purpose lanes. The managed lane is tinted by its level of service after a run.
         </p>
       </div>
     </section>
@@ -329,14 +366,25 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Traffic</h2>
-          <p class="panel-sub">Hourly demand in the analysis direction. Equation 12-9 converts it to a per-lane flow rate in passenger cars.</p>
+          <p class="panel-sub">
+            Hourly demand in the analysis direction. Equation 12-9 converts it to a per-lane flow rate in passenger
+            cars.
+          </p>
         </div>
       </div>
       <div class="param-grid">
         <div class="param-field">
           <label for="DEMAND_input">Managed Lane Demand</label>
           <div class="cell-field">
-            <input id="DEMAND_input" type="number" min="0" class="input input-bordered input-sm" bind:value={ml_demand} placeholder="1300" required />
+            <input
+              id="DEMAND_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={ml_demand}
+              placeholder="1300"
+              required
+            />
             <span class="unit">veh/h</span>
           </div>
         </div>
@@ -344,14 +392,34 @@
         <div class="param-field">
           <label for="PHF_input">Peak Hour Factor</label>
           <div class="cell-field">
-            <input id="PHF_input" type="number" step="0.01" min="0.25" max="1" class="input input-bordered input-sm" bind:value={phf} placeholder="0.92" required />
+            <input
+              id="PHF_input"
+              type="number"
+              step="0.01"
+              min="0.25"
+              max="1"
+              class="input input-bordered input-sm"
+              bind:value={phf}
+              placeholder="0.92"
+              required
+            />
           </div>
         </div>
 
         <div class="param-field">
           <label for="PHV_input">Heavy Vehicles</label>
           <div class="cell-field">
-            <input id="PHV_input" type="number" step="0.1" min="0" max="100" class="input input-bordered input-sm" bind:value={phv} placeholder="7.5" required />
+            <input
+              id="PHV_input"
+              type="number"
+              step="0.1"
+              min="0"
+              max="100"
+              class="input input-bordered input-sm"
+              bind:value={phv}
+              placeholder="7.5"
+              required
+            />
             <span class="unit">%</span>
           </div>
           <p class="param-hint">Applied to both carriageways, as in Example Problem 7.</p>
@@ -363,7 +431,10 @@
             <option value="level">Level (E_T = 2.0)</option>
             <option value="rolling">Rolling (E_T = 3.0)</option>
           </select>
-          <p class="param-hint">Exhibit 12-25 general terrain. Mountainous terrain requires the Chapter 25 mixed-flow model and is not offered here.</p>
+          <p class="param-hint">
+            Exhibit 12-25 general terrain. Mountainous terrain requires the Chapter 25 mixed-flow model and is not
+            offered here.
+          </p>
         </div>
       </div>
     </section>
@@ -373,14 +444,25 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Adjacent General Purpose Lanes</h2>
-          <p class="panel-sub">The GP lanes are analyzed as a basic freeway segment. Their density drives the friction term of Equation 12-18, which applies to continuous access and Buffer 1 separations above 35 pc/mi/ln.</p>
+          <p class="panel-sub">
+            The GP lanes are analyzed as a basic freeway segment. Their density drives the friction term of Equation
+            12-18, which applies to continuous access and Buffer 1 separations above 35 pc/mi/ln.
+          </p>
         </div>
       </div>
       <div class="param-grid">
         <div class="param-field">
           <label for="GPDEMAND_input">GP Demand</label>
           <div class="cell-field">
-            <input id="GPDEMAND_input" type="number" min="0" class="input input-bordered input-sm" bind:value={gp_demand} placeholder="2000" required />
+            <input
+              id="GPDEMAND_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={gp_demand}
+              placeholder="2000"
+              required
+            />
             <span class="unit">veh/h</span>
           </div>
           <p class="param-hint">Example Problem 7 runs 2,000 veh/h as Case 1 and 3,800 veh/h as Case 2.</p>
@@ -389,14 +471,30 @@
         <div class="param-field">
           <label for="GPLANES_input">GP Lanes</label>
           <div class="cell-field">
-            <input id="GPLANES_input" type="number" min="1" max="6" class="input input-bordered input-sm" bind:value={gp_lanes} required />
+            <input
+              id="GPLANES_input"
+              type="number"
+              min="1"
+              max="6"
+              class="input input-bordered input-sm"
+              bind:value={gp_lanes}
+              required
+            />
           </div>
         </div>
 
         <div class="param-field">
           <label for="GPFFS_input">GP Free-Flow Speed</label>
           <div class="cell-field">
-            <input id="GPFFS_input" type="number" min="0" class="input input-bordered input-sm" bind:value={gp_ffs} placeholder="60" required />
+            <input
+              id="GPFFS_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={gp_ffs}
+              placeholder="60"
+              required
+            />
             <span class="unit">mi/h</span>
           </div>
         </div>
@@ -404,7 +502,15 @@
         <div class="param-field">
           <label for="GPCAP_input">GP Capacity</label>
           <div class="cell-field">
-            <input id="GPCAP_input" type="number" min="0" class="input input-bordered input-sm" bind:value={gp_capacity} placeholder="2300" required />
+            <input
+              id="GPCAP_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={gp_capacity}
+              placeholder="2300"
+              required
+            />
             <span class="unit">pc/h/ln</span>
           </div>
           <p class="param-hint">From the Chapter 12 basic-segment analysis of the adjacent lanes.</p>
@@ -413,7 +519,15 @@
         <div class="param-field">
           <label for="GPBP_input">GP Breakpoint</label>
           <div class="cell-field">
-            <input id="GPBP_input" type="number" min="0" class="input input-bordered input-sm" bind:value={gp_breakpoint} placeholder="1600" required />
+            <input
+              id="GPBP_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={gp_breakpoint}
+              placeholder="1600"
+              required
+            />
             <span class="unit">pc/h/ln</span>
           </div>
         </div>
@@ -517,8 +631,26 @@
 </div>
 
 <style>
-  .diagram-block { margin: 1rem auto 0; max-width: 560px; text-align: center; }
-  .diagram-caption { font-size: 0.75rem; opacity: 0.65; margin-top: 0.35rem; }
-  .los-summary { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; }
-  .los-summary-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.6; }
+  .diagram-block {
+    margin: 1rem auto 0;
+    max-width: 560px;
+    text-align: center;
+  }
+  .diagram-caption {
+    font-size: 0.75rem;
+    opacity: 0.65;
+    margin-top: 0.35rem;
+  }
+  .los-summary {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+  }
+  .los-summary-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.6;
+  }
 </style>

@@ -28,9 +28,9 @@
   const VIEW_H = 330;
   // The 3D plan compresses segment lengths and widens lanes relative to the 2D
   // strip, otherwise a mile of arterial projects as a thin stick.
-  const LW = 13;         // plan lane width
-  const CWP = 15;        // cross-street width
-  const CROSS_OUT = 17;  // how far the cross streets run past the deck
+  const LW = 13; // plan lane width
+  const CWP = 15; // cross-street width
+  const CROSS_OUT = 17; // how far the cross streets run past the deck
   const THICK = 9;
 
   let lanesOf = (s) => Math.max(1, Math.min(6, Math.round(Number(s.lanes) || 2)));
@@ -57,13 +57,23 @@
   function slab(p) {
     const yTop = maxLanes * LW;
     const yBot = yTop - p.lanes * LW;
-    return [[p.x0, yBot], [p.x1, yBot], [p.x1, yTop], [p.x0, yTop]];
+    return [
+      [p.x0, yBot],
+      [p.x1, yBot],
+      [p.x1, yTop],
+      [p.x0, yTop],
+    ];
   }
 
   function crossSlab(x0) {
     const yTop = maxLanes * LW + CROSS_OUT;
     const yBot = -CROSS_OUT;
-    return [[x0, yBot], [x0 + CWP, yBot], [x0 + CWP, yTop], [x0, yTop]];
+    return [
+      [x0, yBot],
+      [x0 + CWP, yBot],
+      [x0 + CWP, yTop],
+      [x0, yTop],
+    ];
   }
 
   function topFill(p) {
@@ -74,13 +84,18 @@
     const pts = [];
     for (const p of plan.segs) pts.push(...slab(p));
     for (const c of plan.crosses) pts.push(...crossSlab(c));
-    return pts.length ? pts : [[0, 0], [1, 1]];
+    return pts.length
+      ? pts
+      : [
+          [0, 0],
+          [1, 1],
+        ];
   });
 
   let anyLos = $derived(plan.segs.some((p) => p.los));
   let ariaLabel = $derived(
     `urban street facility 3D view, ${plan.segs.length} segment${plan.segs.length === 1 ? '' : 's'}` +
-    (anyLos ? ', coloured by segment level of service' : '')
+      (anyLos ? ', coloured by segment level of service' : ''),
   );
 </script>
 
@@ -117,10 +132,19 @@
         {/each}
       {/each}
       {#each plan.segs as p, i}
-        <path d={d.polygon(slab(p))} fill={topFill(p)} class="uf3-top" class:scored={p.los != null}
-              class:selected={selected === i} onpointerdown={(e) => pressTop(e, i)} />
+        <path
+          d={d.polygon(slab(p))}
+          fill={topFill(p)}
+          class="uf3-top"
+          class:scored={p.los != null}
+          class:selected={selected === i}
+          onpointerdown={(e) => pressTop(e, i)}
+        />
         {#each Array.from({ length: p.lanes - 1 }) as _, li}
-          <path d={d.seg([p.x0, maxLanes * LW - LW * (li + 1)], [p.x1, maxLanes * LW - LW * (li + 1)])} class="uf3-lane-line" />
+          <path
+            d={d.seg([p.x0, maxLanes * LW - LW * (li + 1)], [p.x1, maxLanes * LW - LW * (li + 1)])}
+            class="uf3-lane-line"
+          />
         {/each}
         {#if p.los}
           {@const c = tf((p.x0 + p.x1) / 2, maxLanes * LW - (p.lanes * LW) / 2)}
@@ -134,15 +158,59 @@
 </div>
 
 <style>
-  .uf3-shadow { fill: var(--text); opacity: 0.08; }
-  .uf3-wall { fill: var(--diag-wall, #94a3b8); stroke: var(--diag-edge); stroke-width: 0.5; }
-  .uf3-cross { fill: var(--diag-pavement-alt); stroke: var(--diag-edge); stroke-width: 1; vector-effect: non-scaling-stroke; }
-  .uf3-top { stroke: var(--diag-edge); stroke-width: 1; vector-effect: non-scaling-stroke; transition: fill 150ms ease; }
-  .uf3-top.scored { stroke: rgba(15, 23, 42, 0.4); }
-  .uf3-top.selected { stroke: var(--accent); stroke-width: 2.5; }
-  .uf3-lane-line { stroke: var(--diag-lane-line); stroke-width: 1; stroke-dasharray: 5 4; fill: none; vector-effect: non-scaling-stroke; opacity: 0.8; }
+  .uf3-shadow {
+    fill: var(--text);
+    opacity: 0.08;
+  }
+  .uf3-wall {
+    fill: var(--diag-wall, #94a3b8);
+    stroke: var(--diag-edge);
+    stroke-width: 0.5;
+  }
+  .uf3-cross {
+    fill: var(--diag-pavement-alt);
+    stroke: var(--diag-edge);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  .uf3-top {
+    stroke: var(--diag-edge);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+    transition: fill 150ms ease;
+  }
+  .uf3-top.scored {
+    stroke: rgba(15, 23, 42, 0.4);
+  }
+  .uf3-top.selected {
+    stroke: var(--accent);
+    stroke-width: 2.5;
+  }
+  .uf3-lane-line {
+    stroke: var(--diag-lane-line);
+    stroke-width: 1;
+    stroke-dasharray: 5 4;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+    opacity: 0.8;
+  }
   /* Labels and markings must not swallow slab taps. */
-  .uf3-los, .uf3-num, .uf3-lane-line { pointer-events: none; }
-  .uf3-los { font-size: 10px; fill: #fff; font-weight: 700; paint-order: stroke; stroke: rgba(15, 23, 42, 0.45); stroke-width: 2px; }
-  .uf3-num { font-size: 7.5px; fill: var(--text-muted); font-weight: 600; }
+  .uf3-los,
+  .uf3-num,
+  .uf3-lane-line {
+    pointer-events: none;
+  }
+  .uf3-los {
+    font-size: 10px;
+    fill: #fff;
+    font-weight: 700;
+    paint-order: stroke;
+    stroke: rgba(15, 23, 42, 0.45);
+    stroke-width: 2px;
+  }
+  .uf3-num {
+    font-size: 7.5px;
+    fill: var(--text-muted);
+    font-weight: 600;
+  }
 </style>

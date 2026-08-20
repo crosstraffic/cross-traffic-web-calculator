@@ -5,7 +5,7 @@ import { get, writable } from 'svelte/store';
 // they survive a refresh (cleared when the tab closes).
 const KEY = 'hcm-reports';
 
-export const reports = writable({});   // { '/hcm12': {...}, '/hcm15': {...} }
+export const reports = writable({}); // { '/hcm12': {...}, '/hcm15': {...} }
 export const lastKey = writable(null); // most recently published report
 
 export function setReport(value) {
@@ -17,10 +17,17 @@ export function setReport(value) {
   // session" true across a reload as well as across a client-side navigation.
   if (Object.keys(get(reports)).length === 0) loadReports();
   let snapshot;
-  reports.update((m) => { snapshot = { ...m, [value.href]: value }; return snapshot; });
+  reports.update((m) => {
+    snapshot = { ...m, [value.href]: value };
+    return snapshot;
+  });
   lastKey.set(value.href);
   if (typeof sessionStorage !== 'undefined') {
-    try { sessionStorage.setItem(KEY, JSON.stringify({ map: snapshot, last: value.href })); } catch (e) { /* ignore quota */ }
+    try {
+      sessionStorage.setItem(KEY, JSON.stringify({ map: snapshot, last: value.href }));
+    } catch (e) {
+      /* ignore quota */
+    }
   }
 }
 
@@ -33,5 +40,7 @@ export function loadReports() {
     const { map, last } = JSON.parse(raw);
     if (map) reports.set(map);
     if (last) lastKey.set(last);
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    /* ignore */
+  }
 }

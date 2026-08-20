@@ -33,29 +33,54 @@ function has(obj, name) {
 // through set_work_zone (middleware 0.3.7) rather than through the
 // constructor, which still takes seg_type through daf.
 function buildSegments(fx) {
-  return fx.segments.map(s => {
+  return fx.segments.map((s) => {
     const seg = new m.WasmFacilitySegment(
-      s.seg_type, s.length_ft, s.lanes,
-      s.on_ramp_demand ?? [], s.off_ramp_demand ?? [], s.ramp_to_ramp_demand ?? [],
-      s.ramp_ffs, s.accel_lane_ft, s.decel_lane_ft, s.short_length_ft,
-      s.num_weaving_lanes, s.lc_rf, s.lc_fr, s.ffs, s.caf, s.saf, s.daf);
+      s.seg_type,
+      s.length_ft,
+      s.lanes,
+      s.on_ramp_demand ?? [],
+      s.off_ramp_demand ?? [],
+      s.ramp_to_ramp_demand ?? [],
+      s.ramp_ffs,
+      s.accel_lane_ft,
+      s.decel_lane_ft,
+      s.short_length_ft,
+      s.num_weaving_lanes,
+      s.lc_rf,
+      s.lc_fr,
+      s.ffs,
+      s.caf,
+      s.saf,
+      s.daf,
+    );
     if (s.work_zone) seg.set_work_zone(s.work_zone);
     return seg;
   });
 }
 function buildFacility(fx) {
-  return new m.WasmFreewayFacility(buildSegments(fx), fx.mainline_demand,
-    fx.ffs, fx.heavy_vehicle_pct, fx.terrain, fx.city_type, fx.phf,
-    fx.jam_density_pc, fx.queue_discharge_drop, fx.total_ramp_density,
-    fx.interchange_density);
+  return new m.WasmFreewayFacility(
+    buildSegments(fx),
+    fx.mainline_demand,
+    fx.ffs,
+    fx.heavy_vehicle_pct,
+    fx.terrain,
+    fx.city_type,
+    fx.phf,
+    fx.jam_density_pc,
+    fx.queue_discharge_drop,
+    fx.total_ramp_density,
+    fx.interchange_density,
+  );
 }
 
 // expected[p][i] (period-major, as printed in the exhibits); actual getter
 // is (segment, period), mirroring the Rust assert_matrix.
 function checkMatrix(getFn, expected, tol, label) {
-  expected.forEach((row, p) => row.forEach((e, i) => {
-    approx(getFn(i, p), e, tol, `${label} seg ${i + 1} p${p + 1}`);
-  }));
+  expected.forEach((row, p) =>
+    row.forEach((e, i) => {
+      approx(getFn(i, p), e, tol, `${label} seg ${i + 1} p${p + 1}`);
+    }),
+  );
 }
 
 // Mirrors the Rust assert_matrix_against_published. `published` is the exhibit
@@ -66,15 +91,17 @@ function checkMatrix(getFn, expected, tol, label) {
 // `pinTol`, so no cell is left unasserted and a gap that closes or widens
 // fails rather than passing unnoticed.
 function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
-  published.forEach((row, p) => row.forEach((book, i) => {
-    const mine = engine[p][i];
-    const cell = `${label} seg ${i + 1} p${p + 1}`;
-    if (Math.abs(mine - book) <= tol) {
-      approx(getFn(i, p), book, tol, cell);
-    } else {
-      approx(getFn(i, p), mine, pinTol, `${cell} (VERIFY-HCM gap, published ${book})`);
-    }
-  }));
+  published.forEach((row, p) =>
+    row.forEach((book, i) => {
+      const mine = engine[p][i];
+      const cell = `${label} seg ${i + 1} p${p + 1}`;
+      if (Math.abs(mine - book) <= tol) {
+        approx(getFn(i, p), book, tol, cell);
+      } else {
+        approx(getFn(i, p), mine, pinTol, `${cell} (VERIFY-HCM gap, published ${book})`);
+      }
+    }),
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -91,32 +118,47 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
 
   // Volume-served matrix (Exhibit 25-48): undersaturated, volume = demand.
   if (has(fac, 'get_volume_served')) {
-    checkMatrix((i, p) => fac.get_volume_served(i, p), [
-      [4505, 4955, 4955, 4955, 4685, 5225, 4865, 5315, 5315, 5315, 5045],
-      [4955, 5495, 5495, 5495, 5135, 5855, 5495, 6035, 6035, 6035, 5765],
-      [5225, 5855, 5855, 5855, 5585, 6395, 6035, 6665, 6665, 6665, 6215],
-      [4685, 5045, 5045, 5045, 4775, 5135, 4775, 5225, 5225, 5225, 4955],
-      [3785, 3965, 3965, 3965, 3695, 3965, 3785, 4055, 4055, 4055, 3875],
-    ], 0.5, 'EP1 volume served');
+    checkMatrix(
+      (i, p) => fac.get_volume_served(i, p),
+      [
+        [4505, 4955, 4955, 4955, 4685, 5225, 4865, 5315, 5315, 5315, 5045],
+        [4955, 5495, 5495, 5495, 5135, 5855, 5495, 6035, 6035, 6035, 5765],
+        [5225, 5855, 5855, 5855, 5585, 6395, 6035, 6665, 6665, 6665, 6215],
+        [4685, 5045, 5045, 5045, 4775, 5135, 4775, 5225, 5225, 5225, 4955],
+        [3785, 3965, 3965, 3965, 3695, 3965, 3785, 4055, 4055, 4055, 3875],
+      ],
+      0.5,
+      'EP1 volume served',
+    );
   }
 
   // Speed matrix (Exhibit 25-49), all 55 cells, +-0.5 mi/h.
-  checkMatrix((i, p) => fac.get_speed(i, p), [
-    [60.0, 53.9, 59.7, 56.1, 60.0, 48.0, 59.9, 53.4, 53.4, 56.0, 59.7],
-    [59.9, 53.2, 58.6, 55.8, 59.6, 46.8, 58.6, 52.3, 52.3, 55.7, 57.6],
-    [59.4, 52.6, 57.2, 55.7, 58.3, 46.2, 56.2, 50.6, 50.6, 51.8, 55.1],
-    [60.0, 53.8, 59.7, 56.1, 60.0, 49.7, 60.0, 53.6, 53.6, 56.0, 59.9],
-    [60.0, 54.9, 59.8, 56.3, 60.0, 52.5, 60.0, 54.8, 54.8, 56.5, 60.0],
-  ], 0.5, 'EP1 speed');
+  checkMatrix(
+    (i, p) => fac.get_speed(i, p),
+    [
+      [60.0, 53.9, 59.7, 56.1, 60.0, 48.0, 59.9, 53.4, 53.4, 56.0, 59.7],
+      [59.9, 53.2, 58.6, 55.8, 59.6, 46.8, 58.6, 52.3, 52.3, 55.7, 57.6],
+      [59.4, 52.6, 57.2, 55.7, 58.3, 46.2, 56.2, 50.6, 50.6, 51.8, 55.1],
+      [60.0, 53.8, 59.7, 56.1, 60.0, 49.7, 60.0, 53.6, 53.6, 56.0, 59.9],
+      [60.0, 54.9, 59.8, 56.3, 60.0, 52.5, 60.0, 54.8, 54.8, 56.5, 60.0],
+    ],
+    0.5,
+    'EP1 speed',
+  );
 
   // Density matrix (Exhibit 25-50), all 55 cells, +-0.5 veh/mi/ln.
-  checkMatrix((i, p) => fac.get_density_veh(i, p), [
-    [25.0, 30.6, 27.6, 29.4, 26.0, 27.2, 27.1, 33.2, 33.2, 31.6, 28.1],
-    [27.6, 34.5, 31.2, 32.8, 28.7, 31.3, 31.2, 38.5, 38.5, 36.1, 33.4],
-    [29.3, 37.1, 34.1, 35.0, 31.9, 34.6, 35.8, 43.9, 43.9, 42.9, 37.6],
-    [26.0, 31.3, 28.1, 30.0, 26.5, 25.8, 26.5, 32.5, 32.5, 31.1, 27.6],
-    [21.0, 24.1, 22.0, 23.5, 20.5, 18.9, 21.0, 24.7, 24.7, 23.9, 21.5],
-  ], 0.5, 'EP1 density');
+  checkMatrix(
+    (i, p) => fac.get_density_veh(i, p),
+    [
+      [25.0, 30.6, 27.6, 29.4, 26.0, 27.2, 27.1, 33.2, 33.2, 31.6, 28.1],
+      [27.6, 34.5, 31.2, 32.8, 28.7, 31.3, 31.2, 38.5, 38.5, 36.1, 33.4],
+      [29.3, 37.1, 34.1, 35.0, 31.9, 34.6, 35.8, 43.9, 43.9, 42.9, 37.6],
+      [26.0, 31.3, 28.1, 30.0, 26.5, 25.8, 26.5, 32.5, 32.5, 31.1, 27.6],
+      [21.0, 24.1, 22.0, 23.5, 20.5, 18.9, 21.0, 24.7, 24.7, 23.9, 21.5],
+    ],
+    0.5,
+    'EP1 density',
+  );
 
   // Segment LOS matrix (Exhibit 25-51), all 55 cells exact.
   [
@@ -125,9 +167,11 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
     ['D', 'D', 'D', 'D', 'D', 'D', 'E', 'E', 'E', 'D', 'E'],
     ['D', 'C', 'D', 'C', 'D', 'C', 'D', 'C', 'D', 'D', 'D'],
     ['C', 'C', 'C', 'C', 'C', 'B', 'C', 'C', 'C', 'C', 'C'],
-  ].forEach((row, p) => row.forEach((e, i) => {
-    exact(fac.get_los(i, p), e, `EP1 LOS seg ${i + 1} p${p + 1}`);
-  }));
+  ].forEach((row, p) =>
+    row.forEach((e, i) => {
+      exact(fac.get_los(i, p), e, `EP1 LOS seg ${i + 1} p${p + 1}`);
+    }),
+  );
 
   // Facility performance summary (Exhibit 25-52).
   const perf = [
@@ -148,8 +192,8 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
 
   // Travel time consistency: 6 mi at 56.9 mi/h ~= 6.33 min/veh, +-5%.
   approx(fac.total_length_mi(), 6.0, 0.01, 'EP1 facility length (mi)');
-  const published = 6.0 / 56.9 * 60.0;
-  const tt = fac.total_length_mi() / fac.get_overall_speed() * 60.0;
+  const published = (6.0 / 56.9) * 60.0;
+  const tt = (fac.total_length_mi() / fac.get_overall_speed()) * 60.0;
   approx(tt, published, 0.05 * published, 'EP1 avg travel time (min)');
 }
 
@@ -166,18 +210,24 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
   // unserved_entry_veh have no binding getters (core-only assertions).
 
   // Demand-to-capacity ratios in period 3 (Exhibit 25-55), +-0.005.
-  [0.86, 0.96, 0.96, 0.96, 0.92, 0.85, 0.99, 1.10, 1.10, 1.10, 1.02]
-    .forEach((e, i) => approx(fac.get_dc_ratio(i, 2), e, 0.005, `EP2 vd/c seg ${i + 1} p3`));
+  [0.86, 0.96, 0.96, 0.96, 0.92, 0.85, 0.99, 1.1, 1.1, 1.1, 1.02].forEach((e, i) =>
+    approx(fac.get_dc_ratio(i, 2), e, 0.005, `EP2 vd/c seg ${i + 1} p3`),
+  );
 
   // Volume-served matrix (Exhibit 25-56), all 55 cells, +-40 veh/h.
   if (has(fac, 'get_volume_served')) {
-    checkMatrix((i, p) => fac.get_volume_served(i, p), [
-      [5001, 5500, 5500, 5500, 5200, 5800, 5400, 5900, 5900, 5900, 5600],
-      [5500, 6099, 6099, 6099, 5700, 6499, 6099, 6699, 6699, 6699, 6399],
-      [5800, 6499, 6499, 6499, 5831, 6281, 5584, 6284, 6284, 6284, 5859],
-      [5200, 5600, 5600, 5600, 5668, 6311, 5776, 6276, 6276, 6276, 5934],
-      [4201, 4401, 4401, 4401, 4102, 4608, 4840, 5140, 5140, 5140, 4912],
-    ], 40.0, 'EP2 volume served');
+    checkMatrix(
+      (i, p) => fac.get_volume_served(i, p),
+      [
+        [5001, 5500, 5500, 5500, 5200, 5800, 5400, 5900, 5900, 5900, 5600],
+        [5500, 6099, 6099, 6099, 5700, 6499, 6099, 6699, 6699, 6699, 6399],
+        [5800, 6499, 6499, 6499, 5831, 6281, 5584, 6284, 6284, 6284, 5859],
+        [5200, 5600, 5600, 5600, 5668, 6311, 5776, 6276, 6276, 6276, 5934],
+        [4201, 4401, 4401, 4401, 4102, 4608, 4840, 5140, 5140, 5140, 4912],
+      ],
+      40.0,
+      'EP2 volume served',
+    );
   }
 
   // Speed matrix (Exhibit 25-57), reproduced cells (periods 1, 2, 5 whole;
@@ -275,7 +325,7 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
   // Rust test allows +-1.5 on the same pin; this band is the measurement
   // precision instead, because a pinned value exists to fail when it moves and
   // +-1.5 would swallow a real regression.
-  approx(fac.get_overall_speed(), 49.30, 0.05, 'EP2 overall SMS (VERIFY-HCM, published 50.5)');
+  approx(fac.get_overall_speed(), 49.3, 0.05, 'EP2 overall SMS (VERIFY-HCM, published 50.5)');
   approx(fac.get_overall_density_veh(), 36.53, 0.05, 'EP2 overall density (VERIFY-HCM, published 35.6)');
 
   // Queue lifecycle (the subset expressible through get_queue_length_ft):
@@ -324,34 +374,49 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
   }
 
   // Demand-to-capacity matrix (Exhibit 25-64), all 55 cells, +-0.01.
-  checkMatrix((i, p) => fac.get_dc_ratio(i, p), [
-    [0.74, 0.82, 0.82, 0.82, 0.77, 0.70, 0.60, 0.66, 0.66, 0.66, 0.62],
-    [0.82, 0.90, 0.90, 0.90, 0.84, 0.78, 0.68, 0.74, 0.74, 0.74, 0.71],
-    [0.86, 0.96, 0.96, 0.96, 0.92, 0.85, 0.74, 0.82, 0.82, 0.82, 0.77],
-    [0.77, 0.83, 0.83, 0.83, 0.79, 0.68, 0.59, 0.64, 0.64, 0.64, 0.61],
-    [0.62, 0.65, 0.65, 0.65, 0.61, 0.52, 0.47, 0.50, 0.50, 0.50, 0.48],
-  ], 0.01, 'EP3 d/c ratio');
+  checkMatrix(
+    (i, p) => fac.get_dc_ratio(i, p),
+    [
+      [0.74, 0.82, 0.82, 0.82, 0.77, 0.7, 0.6, 0.66, 0.66, 0.66, 0.62],
+      [0.82, 0.9, 0.9, 0.9, 0.84, 0.78, 0.68, 0.74, 0.74, 0.74, 0.71],
+      [0.86, 0.96, 0.96, 0.96, 0.92, 0.85, 0.74, 0.82, 0.82, 0.82, 0.77],
+      [0.77, 0.83, 0.83, 0.83, 0.79, 0.68, 0.59, 0.64, 0.64, 0.64, 0.61],
+      [0.62, 0.65, 0.65, 0.65, 0.61, 0.52, 0.47, 0.5, 0.5, 0.5, 0.48],
+    ],
+    0.01,
+    'EP3 d/c ratio',
+  );
 
   // Speed matrix (Exhibit 25-65), all 55 cells, +-0.5 mi/h. The facility is
   // globally undersaturated here, so every cell comes from the Chapter
   // 12/13/14 segment methods directly rather than from the oversaturated
   // engine — which is why all 55 reproduce where EP2's period 4 does not.
-  checkMatrix((i, p) => fac.get_speed(i, p), [
-    [59.8, 53.2, 58.6, 55.9, 59.5, 50.5, 60.0, 54.9, 54.9, 58.1, 60.0],
-    [58.6, 52.1, 55.8, 55.5, 57.9, 50.1, 60.0, 54.3, 54.3, 57.7, 60.0],
-    [57.4, 51.1, 53.1, 53.1, 55.2, 49.7, 59.8, 53.6, 53.6, 57.2, 59.5],
-    [59.5, 53.0, 58.3, 55.8, 59.2, 50.8, 60.0, 55.0, 55.0, 58.1, 60.0],
-    [60.0, 54.5, 59.7, 56.2, 60.0, 53.4, 60.0, 55.9, 55.9, 58.8, 60.0],
-  ], 0.5, 'EP3 speed');
+  checkMatrix(
+    (i, p) => fac.get_speed(i, p),
+    [
+      [59.8, 53.2, 58.6, 55.9, 59.5, 50.5, 60.0, 54.9, 54.9, 58.1, 60.0],
+      [58.6, 52.1, 55.8, 55.5, 57.9, 50.1, 60.0, 54.3, 54.3, 57.7, 60.0],
+      [57.4, 51.1, 53.1, 53.1, 55.2, 49.7, 59.8, 53.6, 53.6, 57.2, 59.5],
+      [59.5, 53.0, 58.3, 55.8, 59.2, 50.8, 60.0, 55.0, 55.0, 58.1, 60.0],
+      [60.0, 54.5, 59.7, 56.2, 60.0, 53.4, 60.0, 55.9, 55.9, 58.8, 60.0],
+    ],
+    0.5,
+    'EP3 speed',
+  );
 
   // Density matrix (Exhibit 25-66), all 55 cells, +-0.5 veh/mi/ln.
-  checkMatrix((i, p) => fac.get_density_veh(i, p), [
-    [27.9, 34.5, 31.3, 32.8, 29.2, 28.7, 22.5, 26.8, 26.8, 25.4, 23.3],
-    [31.3, 39.0, 36.4, 36.7, 32.8, 32.5, 25.4, 30.9, 30.9, 29.0, 26.7],
-    [33.7, 42.4, 40.8, 40.8, 37.4, 35.7, 28.0, 34.5, 34.5, 32.4, 29.0],
-    [29.2, 35.2, 32.0, 33.4, 29.8, 28.1, 22.1, 26.4, 26.4, 24.9, 22.9],
-    [23.3, 26.9, 24.5, 26.1, 22.8, 20.6, 17.5, 20.1, 20.1, 19.1, 17.9],
-  ], 0.5, 'EP3 density');
+  checkMatrix(
+    (i, p) => fac.get_density_veh(i, p),
+    [
+      [27.9, 34.5, 31.3, 32.8, 29.2, 28.7, 22.5, 26.8, 26.8, 25.4, 23.3],
+      [31.3, 39.0, 36.4, 36.7, 32.8, 32.5, 25.4, 30.9, 30.9, 29.0, 26.7],
+      [33.7, 42.4, 40.8, 40.8, 37.4, 35.7, 28.0, 34.5, 34.5, 32.4, 29.0],
+      [29.2, 35.2, 32.0, 33.4, 29.8, 28.1, 22.1, 26.4, 26.4, 24.9, 22.9],
+      [23.3, 26.9, 24.5, 26.1, 22.8, 20.6, 17.5, 20.1, 20.1, 19.1, 17.9],
+    ],
+    0.5,
+    'EP3 density',
+  );
 
   // Segment LOS matrix (Exhibit 25-67), all 55 cells exact. The improvement
   // pulls Segments 7-11 out of the D/E band Example Problem 2 produced.
@@ -361,9 +426,11 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
     ['D', 'D', 'E', 'D', 'E', 'E', 'D', 'D', 'D', 'D', 'D'],
     ['D', 'D', 'D', 'D', 'D', 'D', 'C', 'C', 'D', 'C', 'C'],
     ['C', 'C', 'C', 'C', 'C', 'C', 'B', 'B', 'C', 'B', 'B'],
-  ].forEach((row, p) => row.forEach((e, i) => {
-    exact(fac.get_los(i, p), e, `EP3 LOS seg ${i + 1} p${p + 1}`);
-  }));
+  ].forEach((row, p) =>
+    row.forEach((e, i) => {
+      exact(fac.get_los(i, p), e, `EP3 LOS seg ${i + 1} p${p + 1}`);
+    }),
+  );
 
   // No cell of the facility exceeds demand, so no demand-based LOS F appears
   // anywhere (Exhibit 25-64 read against Exhibit 10-6). This is the check that
@@ -446,8 +513,12 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
       const e = i === 5 ? weavingByPeriod[p] : 6748;
       approx(fac.get_capacity(i, p), e, 1.0, `EP4 capacity seg ${i + 1} p${p + 1}`);
     }
-    approx(fac.get_capacity(10, p), 4499 * 0.892, 5.0,
-      `EP4 work zone capacity seg 11 p${p + 1} (Exhibit 25-71 prints the pre-CAF 4499)`);
+    approx(
+      fac.get_capacity(10, p),
+      4499 * 0.892,
+      5.0,
+      `EP4 work zone capacity seg 11 p${p + 1} (Exhibit 25-71 prints the pre-CAF 4499)`,
+    );
   }
 
   // Demand-to-capacity matrix (Exhibit 25-72), all 55 cells. Segment 11
@@ -455,13 +526,18 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
   // oversaturated engine from Analysis Period 1 onward. +-0.02: the book's
   // Segment 11 period-3 ratio prints 1.56 where the unrounded quotient is
   // 1.548, so its own rounding needs more than 0.01.
-  checkMatrix((i, p) => fac.get_dc_ratio(i, p), [
-    [0.67, 0.73, 0.73, 0.73, 0.69, 0.63, 0.72, 0.79, 0.79, 0.79, 1.26],
-    [0.73, 0.81, 0.81, 0.81, 0.76, 0.71, 0.81, 0.89, 0.89, 0.89, 1.44],
-    [0.77, 0.87, 0.87, 0.87, 0.83, 0.77, 0.89, 0.99, 0.99, 0.99, 1.56],
-    [0.69, 0.75, 0.75, 0.75, 0.71, 0.61, 0.71, 0.77, 0.77, 0.77, 1.24],
-    [0.56, 0.59, 0.59, 0.59, 0.55, 0.47, 0.56, 0.60, 0.60, 0.60, 0.97],
-  ], 0.02, 'EP4 d/c ratio');
+  checkMatrix(
+    (i, p) => fac.get_dc_ratio(i, p),
+    [
+      [0.67, 0.73, 0.73, 0.73, 0.69, 0.63, 0.72, 0.79, 0.79, 0.79, 1.26],
+      [0.73, 0.81, 0.81, 0.81, 0.76, 0.71, 0.81, 0.89, 0.89, 0.89, 1.44],
+      [0.77, 0.87, 0.87, 0.87, 0.83, 0.77, 0.89, 0.99, 0.99, 0.99, 1.56],
+      [0.69, 0.75, 0.75, 0.75, 0.71, 0.61, 0.71, 0.77, 0.77, 0.77, 1.24],
+      [0.56, 0.59, 0.59, 0.59, 0.55, 0.47, 0.56, 0.6, 0.6, 0.6, 0.97],
+    ],
+    0.02,
+    'EP4 d/c ratio',
+  );
 
   // Volume-served matrix (Exhibit 25-73), all 55 cells. 33 of them reproduce
   // within +-40 veh/h and are asserted at their published values: the whole of
@@ -477,19 +553,26 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
   // work-zone-specific defect: the work zone segment itself and the whole
   // pre-queue period reproduce.
   if (has(fac, 'get_volume_served')) {
-    checkAgainstPublished((i, p) => fac.get_volume_served(i, p), [
-      [4505, 4955, 4955, 4955, 4685, 5225, 3924, 4185, 4126, 3929, 3719],
-      [4955, 5495, 5495, 5446, 3947, 3701, 3325, 3878, 3882, 3895, 3714],
-      [3275, 3476, 3094, 3031, 2912, 3391, 3250, 3899, 3905, 3929, 3714],
-      [2831, 3398, 3474, 3416, 3424, 3914, 3597, 4014, 4004, 3965, 3714],
-      [3589, 3991, 4096, 3957, 3452, 3912, 3675, 3923, 3916, 3897, 3714],
-    ], [
-      [4505, 4955, 4955, 4955, 4685, 5225, 3925, 4193, 4133, 3948, 3738],
-      [4955, 5495, 5495, 5397, 3935, 3686, 3348, 3901, 3905, 3915, 3733],
-      [3434, 3712, 3215, 3184, 2894, 3337, 3242, 3891, 3898, 3921, 3733],
-      [3138, 3570, 3625, 3469, 3449, 3961, 3627, 4048, 4036, 4006, 3733],
-      [3632, 3801, 3787, 3777, 3543, 4044, 3721, 3967, 3960, 3938, 3733],
-    ], 40.0, 2.0, 'EP4 volume served (veh/h)');
+    checkAgainstPublished(
+      (i, p) => fac.get_volume_served(i, p),
+      [
+        [4505, 4955, 4955, 4955, 4685, 5225, 3924, 4185, 4126, 3929, 3719],
+        [4955, 5495, 5495, 5446, 3947, 3701, 3325, 3878, 3882, 3895, 3714],
+        [3275, 3476, 3094, 3031, 2912, 3391, 3250, 3899, 3905, 3929, 3714],
+        [2831, 3398, 3474, 3416, 3424, 3914, 3597, 4014, 4004, 3965, 3714],
+        [3589, 3991, 4096, 3957, 3452, 3912, 3675, 3923, 3916, 3897, 3714],
+      ],
+      [
+        [4505, 4955, 4955, 4955, 4685, 5225, 3925, 4193, 4133, 3948, 3738],
+        [4955, 5495, 5495, 5397, 3935, 3686, 3348, 3901, 3905, 3915, 3733],
+        [3434, 3712, 3215, 3184, 2894, 3337, 3242, 3891, 3898, 3921, 3733],
+        [3138, 3570, 3625, 3469, 3449, 3961, 3627, 4048, 4036, 4006, 3733],
+        [3632, 3801, 3787, 3777, 3543, 4044, 3721, 3967, 3960, 3938, 3733],
+      ],
+      40.0,
+      2.0,
+      'EP4 volume served (veh/h)',
+    );
   }
 
   // Speed matrix (Exhibit 25-74) and density matrix (Exhibit 25-75), all 110
@@ -514,33 +597,47 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
   // segments than the published FREEVAL run does. Every LOS letter still
   // reproduces below, so the disagreement is in how the same total queue is
   // distributed, not in its size.
-  checkAgainstPublished((i, p) => fac.get_speed(i, p), [
-    [60.0, 53.9, 59.7, 56.1, 60.0, 48.0, 24.2, 15.9, 13.0, 13.0, 50.4],
-    [59.9, 53.2, 54.5, 52.3, 22.2, 8.9, 9.4, 12.3, 12.2, 12.2, 50.5],
-    [12.9, 12.8, 13.1, 9.7, 8.0, 6.5, 9.1, 12.4, 12.4, 12.4, 50.5],
-    [5.9, 11.0, 12.9, 12.8, 11.5, 8.3, 11.0, 13.1, 12.7, 12.7, 50.5],
-    [11.0, 16.4, 18.6, 16.4, 12.3, 8.3, 11.2, 12.5, 12.3, 12.3, 50.5],
-  ], [
-    [60.0, 53.9, 59.7, 56.1, 60.0, 48.0, 24.1, 16.3, 15.0, 13.4, 50.2],
-    [59.9, 53.2, 58.6, 53.2, 22.0, 8.9, 9.7, 12.6, 12.5, 12.6, 50.2],
-    [16.6, 13.9, 10.0, 8.9, 7.4, 6.8, 9.2, 12.5, 12.5, 12.6, 50.2],
-    [7.7, 12.2, 11.4, 10.7, 9.6, 8.8, 11.0, 13.5, 13.3, 13.1, 50.2],
-    [12.2, 14.1, 12.4, 12.3, 10.1, 9.1, 11.5, 13.0, 12.9, 12.7, 50.2],
-  ], 0.5, 0.1, 'EP4 speed (mi/h)');
+  checkAgainstPublished(
+    (i, p) => fac.get_speed(i, p),
+    [
+      [60.0, 53.9, 59.7, 56.1, 60.0, 48.0, 24.2, 15.9, 13.0, 13.0, 50.4],
+      [59.9, 53.2, 54.5, 52.3, 22.2, 8.9, 9.4, 12.3, 12.2, 12.2, 50.5],
+      [12.9, 12.8, 13.1, 9.7, 8.0, 6.5, 9.1, 12.4, 12.4, 12.4, 50.5],
+      [5.9, 11.0, 12.9, 12.8, 11.5, 8.3, 11.0, 13.1, 12.7, 12.7, 50.5],
+      [11.0, 16.4, 18.6, 16.4, 12.3, 8.3, 11.2, 12.5, 12.3, 12.3, 50.5],
+    ],
+    [
+      [60.0, 53.9, 59.7, 56.1, 60.0, 48.0, 24.1, 16.3, 15.0, 13.4, 50.2],
+      [59.9, 53.2, 58.6, 53.2, 22.0, 8.9, 9.7, 12.6, 12.5, 12.6, 50.2],
+      [16.6, 13.9, 10.0, 8.9, 7.4, 6.8, 9.2, 12.5, 12.5, 12.6, 50.2],
+      [7.7, 12.2, 11.4, 10.7, 9.6, 8.8, 11.0, 13.5, 13.3, 13.1, 50.2],
+      [12.2, 14.1, 12.4, 12.3, 10.1, 9.1, 11.5, 13.0, 12.9, 12.7, 50.2],
+    ],
+    0.5,
+    0.1,
+    'EP4 speed (mi/h)',
+  );
 
-  checkAgainstPublished((i, p) => fac.get_density_veh(i, p), [
-    [25.0, 30.6, 27.6, 29.4, 26.0, 27.2, 54.1, 87.5, 100.6, 100.6, 36.9],
-    [27.6, 34.5, 33.6, 34.7, 59.1, 104.2, 117.8, 105.5, 106.2, 106.2, 36.8],
-    [84.6, 90.6, 78.7, 104.6, 121.4, 130.1, 119.1, 104.4, 105.4, 105.4, 36.8],
-    [159.3, 103.4, 89.8, 88.7, 99.4, 117.3, 109.0, 102.5, 104.2, 104.2, 36.8],
-    [108.6, 81.0, 73.5, 80.4, 93.5, 118.2, 109.2, 105.0, 106.0, 106.0, 36.8],
-  ], [
-    [25.0, 30.6, 27.7, 29.4, 26.0, 27.2, 54.4, 86.0, 91.7, 98.4, 37.2],
-    [27.6, 34.5, 31.2, 33.8, 59.7, 103.9, 115.3, 103.5, 103.8, 103.5, 37.1],
-    [69.1, 89.2, 106.9, 118.8, 131.1, 121.9, 117.9, 103.5, 103.9, 103.4, 37.1],
-    [136.0, 97.5, 105.7, 108.1, 120.1, 112.9, 110.0, 99.8, 101.0, 101.6, 37.1],
-    [99.4, 89.9, 102.1, 102.5, 116.8, 111.6, 108.3, 101.9, 102.6, 103.0, 37.1],
-  ], 0.5, 0.2, 'EP4 density (veh/mi/ln)');
+  checkAgainstPublished(
+    (i, p) => fac.get_density_veh(i, p),
+    [
+      [25.0, 30.6, 27.6, 29.4, 26.0, 27.2, 54.1, 87.5, 100.6, 100.6, 36.9],
+      [27.6, 34.5, 33.6, 34.7, 59.1, 104.2, 117.8, 105.5, 106.2, 106.2, 36.8],
+      [84.6, 90.6, 78.7, 104.6, 121.4, 130.1, 119.1, 104.4, 105.4, 105.4, 36.8],
+      [159.3, 103.4, 89.8, 88.7, 99.4, 117.3, 109.0, 102.5, 104.2, 104.2, 36.8],
+      [108.6, 81.0, 73.5, 80.4, 93.5, 118.2, 109.2, 105.0, 106.0, 106.0, 36.8],
+    ],
+    [
+      [25.0, 30.6, 27.7, 29.4, 26.0, 27.2, 54.4, 86.0, 91.7, 98.4, 37.2],
+      [27.6, 34.5, 31.2, 33.8, 59.7, 103.9, 115.3, 103.5, 103.8, 103.5, 37.1],
+      [69.1, 89.2, 106.9, 118.8, 131.1, 121.9, 117.9, 103.5, 103.9, 103.4, 37.1],
+      [136.0, 97.5, 105.7, 108.1, 120.1, 112.9, 110.0, 99.8, 101.0, 101.6, 37.1],
+      [99.4, 89.9, 102.1, 102.5, 116.8, 111.6, 108.3, 101.9, 102.6, 103.0, 37.1],
+    ],
+    0.5,
+    0.2,
+    'EP4 density (veh/mi/ln)',
+  );
 
   // Segment LOS matrix (Exhibit 25-76), all 55 cells exact. Every queued
   // segment reaches LOS F while the work zone itself stays at LOS E, because
@@ -554,9 +651,11 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
     ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'E'],
     ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'E'],
     ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'E'],
-  ].forEach((row, p) => row.forEach((e, i) => {
-    exact(fac.get_los(i, p), e, `EP4 LOS seg ${i + 1} p${p + 1}`);
-  }));
+  ].forEach((row, p) =>
+    row.forEach((e, i) => {
+      exact(fac.get_los(i, p), e, `EP4 LOS seg ${i + 1} p${p + 1}`);
+    }),
+  );
 
   // Facility performance summary (Exhibit 25-77). Space mean speed reproduces
   // within 0.7 mi/h per period and average density within 1.0 veh/mi/ln in the
@@ -565,13 +664,18 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
   // bound: scoping the Equation 25-12 front-clearing test to a restored
   // bottleneck moved it onto a close speed and a density that now overshoots
   // by about as much as it used to undershoot. LOS is F in every period.
-  [[39.2, 38.4], [21.8, 66.1], [11.5, 99.1], [11.3, 105.5], [13.7, 93.4]]
-    .forEach(([s, k], p) => {
-      const [speedTol, densityTol] = p === 4 ? [0.8, 5.2] : [0.7, 1.0];
-      approx(fac.get_facility_speed(p), s, speedTol, `EP4 facility SMS p${p + 1}`);
-      approx(fac.get_facility_density_veh(p), k, densityTol, `EP4 facility density p${p + 1}`);
-      exact(fac.get_facility_los(p), 'F', `EP4 facility LOS p${p + 1}`);
-    });
+  [
+    [39.2, 38.4],
+    [21.8, 66.1],
+    [11.5, 99.1],
+    [11.3, 105.5],
+    [13.7, 93.4],
+  ].forEach(([s, k], p) => {
+    const [speedTol, densityTol] = p === 4 ? [0.8, 5.2] : [0.7, 1.0];
+    approx(fac.get_facility_speed(p), s, speedTol, `EP4 facility SMS p${p + 1}`);
+    approx(fac.get_facility_density_veh(p), k, densityTol, `EP4 facility density p${p + 1}`);
+    exact(fac.get_facility_los(p), 'F', `EP4 facility LOS p${p + 1}`);
+  });
 
   // Exhibit 25-77 overall totals. The demand-weighted overall speed carries a
   // larger gap than the per-period values (computed 16.2 against a published
@@ -624,23 +728,39 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
   // check, read through the GP facility snapshot rather than a second set of
   // getters duplicated on the managed-lane wrapper.
   const gp = fac.gp_facility();
-  checkMatrix((i, p) => gp.get_density_veh(i, p), [
-    [22.2, 27.6, 25.0, 26.7, 23.3, 25.0, 24.4, 30.3, 30.3, 29.1, 25.6],
-    [24.4, 31.0, 27.9, 29.8, 25.6, 28.9, 27.9, 35.2, 35.2, 33.4, 29.8],
-    [25.8, 33.4, 30.1, 31.8, 28.1, 32.2, 31.6, 40.2, 40.2, 37.8, 33.2],
-    [23.1, 28.0, 25.3, 27.1, 23.7, 23.4, 23.7, 29.3, 29.3, 28.3, 24.8],
-    [18.7, 21.5, 19.8, 21.1, 18.1, 16.9, 18.7, 22.1, 22.1, 21.6, 19.2],
-  ], 0.6, 'EP5 GP density (veh/mi/ln)');
+  checkMatrix(
+    (i, p) => gp.get_density_veh(i, p),
+    [
+      [22.2, 27.6, 25.0, 26.7, 23.3, 25.0, 24.4, 30.3, 30.3, 29.1, 25.6],
+      [24.4, 31.0, 27.9, 29.8, 25.6, 28.9, 27.9, 35.2, 35.2, 33.4, 29.8],
+      [25.8, 33.4, 30.1, 31.8, 28.1, 32.2, 31.6, 40.2, 40.2, 37.8, 33.2],
+      [23.1, 28.0, 25.3, 27.1, 23.7, 23.4, 23.7, 29.3, 29.3, 28.3, 24.8],
+      [18.7, 21.5, 19.8, 21.1, 18.1, 16.9, 18.7, 22.1, 22.1, 21.6, 19.2],
+    ],
+    0.6,
+    'EP5 GP density (veh/mi/ln)',
+  );
 
   // ML adjacent-friction speed reductions (Exhibit 25-83, lower table): the
   // Continuous Access ML loses speed where the adjacent GP density exceeds
   // 35 pc/mi/ln (Step A-13, Equations 12-18/12-19). Segments 8-9 in period 2
   // and Segments 8-10 in period 3 are affected; the unaffected segments hold
   // the uniform 59.3/58.9/58.6/59.2/59.7 mi/h by period.
-  [[0, 59.3], [1, 58.9], [2, 58.6], [4, 59.7]].forEach(([p, e]) => {
+  [
+    [0, 59.3],
+    [1, 58.9],
+    [2, 58.6],
+    [4, 59.7],
+  ].forEach(([p, e]) => {
     approx(fac.get_ml_speed(0, p), e, 0.3, `EP5 ML speed seg 1 p${p + 1}`);
   });
-  [[7, 1, 53.5], [8, 1, 53.5], [7, 2, 52.1], [8, 2, 52.1], [9, 2, 52.1]].forEach(([i, p, e]) => {
+  [
+    [7, 1, 53.5],
+    [8, 1, 53.5],
+    [7, 2, 52.1],
+    [8, 2, 52.1],
+    [9, 2, 52.1],
+  ].forEach(([i, p, e]) => {
     approx(fac.get_ml_speed(i, p), e, 0.4, `EP5 ML speed seg ${i + 1} p${p + 1} (friction)`);
   });
   exact(fac.is_ml_friction_active(7, 2), true, 'EP5 friction active seg 8 p3');
@@ -648,8 +768,20 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
 
   // Lane-group performance (Exhibit 25-86): GP and ML space mean speed and
   // average density by analysis period.
-  const gpGroup = [[57.7, 24.9], [57.3, 28.1], [56.5, 31.0], [58.0, 24.6], [58.5, 19.1]];
-  const mlGroup = [[59.3, 16.9], [58.6, 18.8], [58.0, 20.0], [59.2, 17.6], [59.7, 14.1]];
+  const gpGroup = [
+    [57.7, 24.9],
+    [57.3, 28.1],
+    [56.5, 31.0],
+    [58.0, 24.6],
+    [58.5, 19.1],
+  ];
+  const mlGroup = [
+    [59.3, 16.9],
+    [58.6, 18.8],
+    [58.0, 20.0],
+    [59.2, 17.6],
+    [59.7, 14.1],
+  ];
   gpGroup.forEach(([s, k], p) => {
     approx(fac.get_gp_group_speed(p), s, 0.6, `EP5 GP group SMS p${p + 1}`);
     approx(fac.get_gp_group_density_veh(p), k, 0.6, `EP5 GP group density p${p + 1}`);
@@ -668,17 +800,21 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
   // GP, 20.0 ML) under Equation 10-1. LOS is unaffected. That one cell is
   // asserted at the engine value with the published one named; the other four
   // periods carry their published densities.
-  [[58.0, 23.4, 'C'], [57.5, 26.4, 'D'], [56.7, 29.1, 'D'], [58.2, 23.3, 'C'], [58.7, 18.1, 'C']]
-    .forEach(([s, k, l], p) => {
-      approx(fac.get_facility_speed(p), s, 0.6, `EP5 facility SMS p${p + 1}`);
-      if (p === 2) {
-        approx(fac.get_facility_density_veh(p), 28.3, 0.15,
-          'EP5 facility density p3 (VERIFY-HCM, published 29.1)');
-      } else {
-        approx(fac.get_facility_density_veh(p), k, 0.6, `EP5 facility density p${p + 1}`);
-      }
-      exact(fac.get_facility_los(p), l, `EP5 facility LOS p${p + 1}`);
-    });
+  [
+    [58.0, 23.4, 'C'],
+    [57.5, 26.4, 'D'],
+    [56.7, 29.1, 'D'],
+    [58.2, 23.3, 'C'],
+    [58.7, 18.1, 'C'],
+  ].forEach(([s, k, l], p) => {
+    approx(fac.get_facility_speed(p), s, 0.6, `EP5 facility SMS p${p + 1}`);
+    if (p === 2) {
+      approx(fac.get_facility_density_veh(p), 28.3, 0.15, 'EP5 facility density p3 (VERIFY-HCM, published 29.1)');
+    } else {
+      approx(fac.get_facility_density_veh(p), k, 0.6, `EP5 facility density p${p + 1}`);
+    }
+    exact(fac.get_facility_los(p), l, `EP5 facility LOS p${p + 1}`);
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -686,16 +822,23 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
 // ═══════════════════════════════════════════════════════════════════════
 {
   const fx = loadCase('FreewayFacilities', 'planning_case1.json');
-  const secTypes = fx.sections.map(s => s.sec_type).join(',');
+  const secTypes = fx.sections.map((s) => s.sec_type).join(',');
   const plan = new m.WasmPlanningFacility(
     secTypes,
-    fx.sections.map(s => s.length_mi),
-    new Uint32Array(fx.sections.map(s => s.lanes)),
-    fx.sections.map(s => s.inflow_aadt ?? 0),
-    fx.sections.map(s => s.outflow_aadt ?? 0),
-    fx.sections.map(s => s.weave_vr ?? 0),
-    fx.ffs, fx.k_factor, fx.growth_factor, fx.phf,
-    fx.pct_sut, fx.pct_tt, fx.terrain, fx.city_type);
+    fx.sections.map((s) => s.length_mi),
+    new Uint32Array(fx.sections.map((s) => s.lanes)),
+    fx.sections.map((s) => s.inflow_aadt ?? 0),
+    fx.sections.map((s) => s.outflow_aadt ?? 0),
+    fx.sections.map((s) => s.weave_vr ?? 0),
+    fx.ffs,
+    fx.k_factor,
+    fx.growth_factor,
+    fx.phf,
+    fx.pct_sut,
+    fx.pct_tt,
+    fx.terrain,
+    fx.city_type,
+  );
   plan.run_analysis();
 
   exact(plan.num_sections(), 7, 'EP6 section count');
@@ -704,12 +847,14 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
   // Demand-to-capacity ratios (Exhibit 25-91), +-0.01; expected[p][i].
   [
     [0.72, 0.86, 0.74, 0.65, 0.76, 0.91, 0.79],
-    [0.80, 0.96, 0.82, 0.72, 0.85, 1.02, 0.88],
-    [0.72, 0.86, 0.74, 0.65, 0.76, 0.93, 0.80],
-    [0.64, 0.77, 0.66, 0.58, 0.68, 0.81, 0.70],
-  ].forEach((row, p) => row.forEach((e, i) => {
-    approx(plan.get_dc_ratio(i, p), e, 0.01, `EP6 d/c sec ${i + 1} p${p + 1}`);
-  }));
+    [0.8, 0.96, 0.82, 0.72, 0.85, 1.02, 0.88],
+    [0.72, 0.86, 0.74, 0.65, 0.76, 0.93, 0.8],
+    [0.64, 0.77, 0.66, 0.58, 0.68, 0.81, 0.7],
+  ].forEach((row, p) =>
+    row.forEach((e, i) => {
+      approx(plan.get_dc_ratio(i, p), e, 0.01, `EP6 d/c sec ${i + 1} p${p + 1}`);
+    }),
+  );
 
   // Delay rates (Exhibit 25-92), s/mi, +-0.4.
   if (has(plan, 'get_delay_rate')) {
@@ -718,9 +863,11 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
       [1.0, 7.4, 1.6, 0.1, 2.3, 11.7, 3.3],
       [0.0, 2.8, 0.2, 0.0, 0.5, 5.8, 1.1],
       [0.0, 0.5, 0.0, 0.0, 0.0, 1.3, 0.0],
-    ].forEach((row, p) => row.forEach((e, i) => {
-      approx(plan.get_delay_rate(i, p), e, 0.4, `EP6 delay sec ${i + 1} p${p + 1}`);
-    }));
+    ].forEach((row, p) =>
+      row.forEach((e, i) => {
+        approx(plan.get_delay_rate(i, p), e, 0.4, `EP6 delay sec ${i + 1} p${p + 1}`);
+      }),
+    );
   }
 
   // Facility performance summary (Exhibit 25-96):
@@ -745,6 +892,8 @@ function checkAgainstPublished(getFn, published, engine, tol, pinTol, label) {
 }
 
 if (pendingRebuild.size) {
-  console.log(`NOTE  skipped checks awaiting middleware wrapper work (getters not in any released version): ${[...pendingRebuild].join(', ')}`);
+  console.log(
+    `NOTE  skipped checks awaiting middleware wrapper work (getters not in any released version): ${[...pendingRebuild].join(', ')}`,
+  );
 }
 report('ch10 freeway facilities (HCM Ch.25 EP1-EP6, all six example problems at the boundary)');

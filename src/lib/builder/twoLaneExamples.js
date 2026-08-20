@@ -18,40 +18,40 @@ import { emptyDocument } from './document.js';
 const MI = 5280;
 
 export const TWOLANE_EXAMPLES = [
-	{
-		id: 'ch26ep1',
-		name: 'Ch 26 EP1',
-		summary:
-			'A single 0.75-mi Passing Constrained segment at a 50 mi/h posted limit, level, 752 veh/h. The base case: no features at all, so the whole highway is one segment. Reproduces facility follower density 10.092 followers/mi and LOS D.',
-		build: () => ch26ep1(false)
-	},
-	{
-		id: 'ch26ep2',
-		name: 'Ch 26 EP2',
-		summary:
-			'Example Problem 1 with five horizontal curves through it, 275 to 1,100 ft radius. The curves become eleven subsegments of the one segment rather than eleven segments, and drop the average speed from 53.7 to 49.5 mi/h. Reproduces 10.933 followers/mi and LOS D.',
-		build: () => ch26ep1(true)
-	},
-	{
-		id: 'ch26ep3',
-		name: 'Ch 26 EP3',
-		summary:
-			'A 5.5-mi facility of five segments: a passing lane and a passing zone placed along it, with the demand stepping down at each boundary. Reproduces the Exhibit 26-27 facility follower density of 7.3 followers/mi and LOS C, at 7.271 exactly.',
-		build: ch26ep3
-	},
-	{
-		id: 'ch26ep4',
-		name: 'Ch 26 EP4',
-		summary:
-			'A 5.1-mi mountainous facility: four graded segments carrying three horizontal curves, then a passing lane on the downgrade and the segment below it. Reproduces the Exhibit 26-36 LOS E at 19.897 followers/mi, and exercises the Step 9 downstream adjustment.',
-		build: ch26ep4
-	}
+  {
+    id: 'ch26ep1',
+    name: 'Ch 26 EP1',
+    summary:
+      'A single 0.75-mi Passing Constrained segment at a 50 mi/h posted limit, level, 752 veh/h. The base case: no features at all, so the whole highway is one segment. Reproduces facility follower density 10.092 followers/mi and LOS D.',
+    build: () => ch26ep1(false),
+  },
+  {
+    id: 'ch26ep2',
+    name: 'Ch 26 EP2',
+    summary:
+      'Example Problem 1 with five horizontal curves through it, 275 to 1,100 ft radius. The curves become eleven subsegments of the one segment rather than eleven segments, and drop the average speed from 53.7 to 49.5 mi/h. Reproduces 10.933 followers/mi and LOS D.',
+    build: () => ch26ep1(true),
+  },
+  {
+    id: 'ch26ep3',
+    name: 'Ch 26 EP3',
+    summary:
+      'A 5.5-mi facility of five segments: a passing lane and a passing zone placed along it, with the demand stepping down at each boundary. Reproduces the Exhibit 26-27 facility follower density of 7.3 followers/mi and LOS C, at 7.271 exactly.',
+    build: ch26ep3,
+  },
+  {
+    id: 'ch26ep4',
+    name: 'Ch 26 EP4',
+    summary:
+      'A 5.1-mi mountainous facility: four graded segments carrying three horizontal curves, then a passing lane on the downgrade and the segment below it. Reproduces the Exhibit 26-36 LOS E at 19.897 followers/mi, and exercises the Step 9 downstream adjustment.',
+    build: ch26ep4,
+  },
 ];
 
 export function loadTwoLaneExample(id) {
-	const e = TWOLANE_EXAMPLES.find((x) => x.id === id);
-	if (!e) throw new Error(`unknown two-lane example "${id}"`);
-	return e.build();
+  const e = TWOLANE_EXAMPLES.find((x) => x.id === id);
+  if (!e) throw new Error(`unknown two-lane example "${id}"`);
+  return e.build();
 }
 
 /**
@@ -74,57 +74,57 @@ export function loadTwoLaneExample(id) {
  * the eleven subsegments eleven rather than five.
  */
 function ch26ep1(withCurves) {
-	const doc = emptyDocument('twolane');
-	doc.meta = {
-		name: withCurves ? 'Chapter 26 Example Problem 2 (horizontal curves)' : 'Chapter 26 Example Problem 1',
-		source: withCurves ? 'example:ch26ep2' : 'example:ch26ep1',
-		modified: null
-	};
-	Object.assign(doc.mainline, {
-		lengthFt: 0.75 * MI,
-		direction: 'Northbound',
-		laneWidthFt: 12,
-		shoulderWidthFt: 6,
-		accessPointDensity: 0,
-		pctHeavyVehInPassingLane: 0.4,
-		effectiveDownstreamLengthMi: 0,
-		speedLimitMph: 50,
-		demand: [752],
-		opposingDemand: 0,
-		phf: 0.94,
-		heavyVehiclePct: 5,
-		verticalClass: 1
-	});
+  const doc = emptyDocument('twolane');
+  doc.meta = {
+    name: withCurves ? 'Chapter 26 Example Problem 2 (horizontal curves)' : 'Chapter 26 Example Problem 1',
+    source: withCurves ? 'example:ch26ep2' : 'example:ch26ep1',
+    modified: null,
+  };
+  Object.assign(doc.mainline, {
+    lengthFt: 0.75 * MI,
+    direction: 'Northbound',
+    laneWidthFt: 12,
+    shoulderWidthFt: 6,
+    accessPointDensity: 0,
+    pctHeavyVehInPassingLane: 0.4,
+    effectiveDownstreamLengthMi: 0,
+    speedLimitMph: 50,
+    demand: [752],
+    opposingDemand: 0,
+    phf: 0.94,
+    heavyVehiclePct: 5,
+    verticalClass: 1,
+  });
 
-	// Station, length, radius, superelevation, central angle: the five curves of
-	// Example Problem 2, at the stations the published tangent lengths put them
-	// at. The central angles are carried because the fixture states them; the
-	// method does not read them.
-	const CURVES = [
-		[280, 432, 450, 3, 55],
-		[972, 366.5, 300, 2, 70],
-		[1588.5, 216, 275, 5, 45],
-		[2080.1, 458, 750, 0, 35],
-		[2823.1, 767.9, 1100, 4, 40]
-	];
-	doc.features = withCurves
-		? CURVES.map(([station, length, radius, superelevation, angle], i) => ({
-				id: `hc${i + 1}`,
-				kind: 'curve',
-				stationFt: station,
-				endFt: station + length,
-				label: `Curve ${i + 1}`,
-				designRadiusFt: radius,
-				superelevationPct: superelevation,
-				centralAngleDeg: angle,
-				// Left unset on purpose. Step 5d computes the Exhibit 15-22 class from
-				// the radius and the superelevation and overwrites what it is handed,
-				// and the five classes the fixture stores are exactly what it computes,
-				// so transcribing them here could only ever drift.
-				horClassEntered: null
-			}))
-		: [];
-	return doc;
+  // Station, length, radius, superelevation, central angle: the five curves of
+  // Example Problem 2, at the stations the published tangent lengths put them
+  // at. The central angles are carried because the fixture states them; the
+  // method does not read them.
+  const CURVES = [
+    [280, 432, 450, 3, 55],
+    [972, 366.5, 300, 2, 70],
+    [1588.5, 216, 275, 5, 45],
+    [2080.1, 458, 750, 0, 35],
+    [2823.1, 767.9, 1100, 4, 40],
+  ];
+  doc.features = withCurves
+    ? CURVES.map(([station, length, radius, superelevation, angle], i) => ({
+        id: `hc${i + 1}`,
+        kind: 'curve',
+        stationFt: station,
+        endFt: station + length,
+        label: `Curve ${i + 1}`,
+        designRadiusFt: radius,
+        superelevationPct: superelevation,
+        centralAngleDeg: angle,
+        // Left unset on purpose. Step 5d computes the Exhibit 15-22 class from
+        // the radius and the superelevation and overwrites what it is handed,
+        // and the five classes the fixture stores are exactly what it computes,
+        // so transcribing them here could only ever drift.
+        horClassEntered: null,
+      }))
+    : [];
+  return doc;
 }
 
 /**
@@ -148,53 +148,53 @@ function ch26ep1(withCurves) {
  * that reads it.
  */
 function ch26ep3() {
-	const doc = emptyDocument('twolane');
-	doc.meta = { name: 'Chapter 26 Example Problem 3 (Exhibit 26-27)', source: 'example:ch26ep3', modified: null };
-	Object.assign(doc.mainline, {
-		lengthFt: 5.5 * MI,
-		direction: 'Northbound',
-		laneWidthFt: 12,
-		shoulderWidthFt: 6,
-		accessPointDensity: 0,
-		pctHeavyVehInPassingLane: 0.4,
-		effectiveDownstreamLengthMi: 0,
-		speedLimitMph: 55,
-		// Segment 1's conditions, which a stretch with no demand feature inherits.
-		demand: [850],
-		opposingDemand: 0,
-		phf: 0.94,
-		heavyVehiclePct: 8,
-		verticalClass: 1
-	});
+  const doc = emptyDocument('twolane');
+  doc.meta = { name: 'Chapter 26 Example Problem 3 (Exhibit 26-27)', source: 'example:ch26ep3', modified: null };
+  Object.assign(doc.mainline, {
+    lengthFt: 5.5 * MI,
+    direction: 'Northbound',
+    laneWidthFt: 12,
+    shoulderWidthFt: 6,
+    accessPointDensity: 0,
+    pctHeavyVehInPassingLane: 0.4,
+    effectiveDownstreamLengthMi: 0,
+    speedLimitMph: 55,
+    // Segment 1's conditions, which a stretch with no demand feature inherits.
+    demand: [850],
+    opposingDemand: 0,
+    phf: 0.94,
+    heavyVehiclePct: 8,
+    verticalClass: 1,
+  });
 
-	doc.features = [
-		{
-			id: 'ps1',
-			kind: 'passing',
-			stationFt: 0.75 * MI,
-			endFt: 2.25 * MI,
-			label: 'Passing lane',
-			passingType: 2
-		},
-		{
-			id: 'ps2',
-			kind: 'passing',
-			stationFt: 3.25 * MI,
-			endFt: 3.75 * MI,
-			label: 'Passing zone',
-			passingType: 1
-		},
-		demandAt('dm2', 0.75 * MI, 'Segment 2 conditions', { volume: 825, phf: 0.95, heavyVehiclePct: 8 }),
-		demandAt('dm3', 2.25 * MI, 'Segment 3 conditions', { volume: 820, phf: 0.95, heavyVehiclePct: 8 }),
-		demandAt('dm4', 3.25 * MI, 'Segment 4 conditions', {
-			volume: 800,
-			opposingVolume: 500,
-			phf: 0.94,
-			heavyVehiclePct: 7.5
-		}),
-		demandAt('dm5', 3.75 * MI, 'Segment 5 conditions', { volume: 795, phf: 0.935, heavyVehiclePct: 8 })
-	];
-	return doc;
+  doc.features = [
+    {
+      id: 'ps1',
+      kind: 'passing',
+      stationFt: 0.75 * MI,
+      endFt: 2.25 * MI,
+      label: 'Passing lane',
+      passingType: 2,
+    },
+    {
+      id: 'ps2',
+      kind: 'passing',
+      stationFt: 3.25 * MI,
+      endFt: 3.75 * MI,
+      label: 'Passing zone',
+      passingType: 1,
+    },
+    demandAt('dm2', 0.75 * MI, 'Segment 2 conditions', { volume: 825, phf: 0.95, heavyVehiclePct: 8 }),
+    demandAt('dm3', 2.25 * MI, 'Segment 3 conditions', { volume: 820, phf: 0.95, heavyVehiclePct: 8 }),
+    demandAt('dm4', 3.25 * MI, 'Segment 4 conditions', {
+      volume: 800,
+      opposingVolume: 500,
+      phf: 0.94,
+      heavyVehiclePct: 7.5,
+    }),
+    demandAt('dm5', 3.75 * MI, 'Segment 5 conditions', { volume: 795, phf: 0.935, heavyVehiclePct: 8 }),
+  ];
+  return doc;
 }
 
 /**
@@ -217,81 +217,81 @@ function ch26ep3() {
  * 14.936.
  */
 function ch26ep4() {
-	const doc = emptyDocument('twolane');
-	doc.meta = { name: 'Chapter 26 Example Problem 4 (Exhibit 26-36)', source: 'example:ch26ep4', modified: null };
-	Object.assign(doc.mainline, {
-		lengthFt: 5.1 * MI,
-		direction: 'Northbound',
-		laneWidthFt: 12,
-		shoulderWidthFt: 6,
-		accessPointDensity: 0,
-		pctHeavyVehInPassingLane: 0.4,
-		effectiveDownstreamLengthMi: 0,
-		speedLimitMph: 55,
-		demand: [1100],
-		opposingDemand: 0,
-		phf: 0.9,
-		heavyVehiclePct: 8,
-		verticalClass: 1
-	});
+  const doc = emptyDocument('twolane');
+  doc.meta = { name: 'Chapter 26 Example Problem 4 (Exhibit 26-36)', source: 'example:ch26ep4', modified: null };
+  Object.assign(doc.mainline, {
+    lengthFt: 5.1 * MI,
+    direction: 'Northbound',
+    laneWidthFt: 12,
+    shoulderWidthFt: 6,
+    accessPointDensity: 0,
+    pctHeavyVehInPassingLane: 0.4,
+    effectiveDownstreamLengthMi: 0,
+    speedLimitMph: 55,
+    demand: [1100],
+    opposingDemand: 0,
+    phf: 0.9,
+    heavyVehiclePct: 8,
+    verticalClass: 1,
+  });
 
-	// The five graded stretches, in feet. The last one spans two segments,
-	// because the passing lane inside it is what splits them rather than a change
-	// of grade.
-	const GRADES = [
-		[0, 1.3, 4, 4],
-		[1.3, 2.3, 6, 5],
-		[2.3, 2.8, 6, 4],
-		[2.8, 4.1, 4, 4],
-		[4.1, 5.1, -3, 1]
-	];
-	// The three curves, at the stations the published tangent lengths put them
-	// at. Each one runs to the end of its segment.
-	const CURVES = [
-		[5964, 900, 350, 2],
-		[7864, 4280, 500, 2],
-		[18648, 3000, 850, 2]
-	];
+  // The five graded stretches, in feet. The last one spans two segments,
+  // because the passing lane inside it is what splits them rather than a change
+  // of grade.
+  const GRADES = [
+    [0, 1.3, 4, 4],
+    [1.3, 2.3, 6, 5],
+    [2.3, 2.8, 6, 4],
+    [2.8, 4.1, 4, 4],
+    [4.1, 5.1, -3, 1],
+  ];
+  // The three curves, at the stations the published tangent lengths put them
+  // at. Each one runs to the end of its segment.
+  const CURVES = [
+    [5964, 900, 350, 2],
+    [7864, 4280, 500, 2],
+    [18648, 3000, 850, 2],
+  ];
 
-	doc.features = [
-		...GRADES.map(([a, b, gradePct, verticalClass], i) => ({
-			id: `gr${i + 1}`,
-			kind: 'grade',
-			stationFt: a * MI,
-			endFt: b * MI,
-			label: `${gradePct > 0 ? '+' : ''}${gradePct}% grade`,
-			gradePct,
-			verticalClass
-		})),
-		...CURVES.map(([station, length, radius, superelevation], i) => ({
-			id: `hc${i + 1}`,
-			kind: 'curve',
-			stationFt: station,
-			endFt: station + length,
-			label: `Curve ${i + 1}`,
-			designRadiusFt: radius,
-			superelevationPct: superelevation,
-			centralAngleDeg: 0,
-			horClassEntered: null
-		})),
-		{
-			id: 'ps1',
-			kind: 'passing',
-			stationFt: 4.1 * MI,
-			endFt: 4.6 * MI,
-			label: 'Passing lane',
-			passingType: 2
-		}
-	];
-	return doc;
+  doc.features = [
+    ...GRADES.map(([a, b, gradePct, verticalClass], i) => ({
+      id: `gr${i + 1}`,
+      kind: 'grade',
+      stationFt: a * MI,
+      endFt: b * MI,
+      label: `${gradePct > 0 ? '+' : ''}${gradePct}% grade`,
+      gradePct,
+      verticalClass,
+    })),
+    ...CURVES.map(([station, length, radius, superelevation], i) => ({
+      id: `hc${i + 1}`,
+      kind: 'curve',
+      stationFt: station,
+      endFt: station + length,
+      label: `Curve ${i + 1}`,
+      designRadiusFt: radius,
+      superelevationPct: superelevation,
+      centralAngleDeg: 0,
+      horClassEntered: null,
+    })),
+    {
+      id: 'ps1',
+      kind: 'passing',
+      stationFt: 4.1 * MI,
+      endFt: 4.6 * MI,
+      label: 'Passing lane',
+      passingType: 2,
+    },
+  ];
+  return doc;
 }
 
 function demandAt(id, stationFt, label, config) {
-	return {
-		id,
-		kind: 'demand',
-		stationFt,
-		label,
-		config: { opposingVolume: 0, speedLimitMph: null, ...config }
-	};
+  return {
+    id,
+    kind: 'demand',
+    stationFt,
+    label,
+    config: { opposingVolume: 0, speedLimitMph: null, ...config },
+  };
 }

@@ -8,9 +8,9 @@
   // `approaches` is the page's object: { eb|wb|nb|sb: { laneCount, lanes:
   // [{left,through,right}], hv } }. On-diagram editing targets lane 1 and is
   // disabled for multi-lane approaches, where the form's per-lane table is
-  
+
   // Approach LOS letters from the last run; each approach's traffic slows
-  
+
   /**
    * @typedef {Object} Props
    * @property {any} [approaches] - authoritative.
@@ -61,35 +61,61 @@
   const mid = (n) => Math.floor((Math.max(1, n) - 1) / 2);
 
   // Movement paths; a path only exists when its receiving leg does.
-  let dEB = $derived(!legW ? {} : {
-    L: legN ? `M 0,${yEB(0)} H ${boxW} Q ${cx + LANE / 2},${yEB(0)} ${cx + LANE / 2},${boxN} V 0` : null,
-    T: legE ? `M 0,${yEB(mid(nEB))} H ${W}` : null,
-    R: legS ? `M 0,${yEB(nEB - 1)} H ${boxW} Q ${boxW + LANE / 2},${yEB(nEB - 1)} ${boxW + LANE / 2},${boxS} V ${H}` : null,
-  });
-  let dWB = $derived(!legE ? {} : {
-    L: legS ? `M ${W},${yWB(0)} H ${boxE} Q ${cx - LANE / 2},${yWB(0)} ${cx - LANE / 2},${boxS} V ${H}` : null,
-    T: legW ? `M ${W},${yWB(mid(nWB))} H 0` : null,
-    R: legN ? `M ${W},${yWB(nWB - 1)} H ${boxE} Q ${boxE - LANE / 2},${yWB(nWB - 1)} ${boxE - LANE / 2},${boxN} V 0` : null,
-  });
-  let dNB = $derived(!legS ? {} : {
-    L: legW ? `M ${xNB(0)},${H} V ${boxS} Q ${xNB(0)},${cy - LANE / 2} ${boxW},${cy - LANE / 2} H 0` : null,
-    T: legN ? `M ${xNB(mid(nNB))},${H} V 0` : null,
-    R: legE ? `M ${xNB(nNB - 1)},${H} V ${boxS} Q ${xNB(nNB - 1)},${boxS - LANE / 2} ${boxE},${boxS - LANE / 2} H ${W}` : null,
-  });
-  let dSB = $derived(!legN ? {} : {
-    L: legE ? `M ${xSB(0)},0 V ${boxN} Q ${xSB(0)},${cy + LANE / 2} ${boxE},${cy + LANE / 2} H ${W}` : null,
-    T: legS ? `M ${xSB(mid(nSB))},0 V ${H}` : null,
-    R: legW ? `M ${xSB(nSB - 1)},0 V ${boxN} Q ${xSB(nSB - 1)},${boxN + LANE / 2} ${boxW},${boxN + LANE / 2} H 0` : null,
-  });
+  let dEB = $derived(
+    !legW
+      ? {}
+      : {
+          L: legN ? `M 0,${yEB(0)} H ${boxW} Q ${cx + LANE / 2},${yEB(0)} ${cx + LANE / 2},${boxN} V 0` : null,
+          T: legE ? `M 0,${yEB(mid(nEB))} H ${W}` : null,
+          R: legS
+            ? `M 0,${yEB(nEB - 1)} H ${boxW} Q ${boxW + LANE / 2},${yEB(nEB - 1)} ${boxW + LANE / 2},${boxS} V ${H}`
+            : null,
+        },
+  );
+  let dWB = $derived(
+    !legE
+      ? {}
+      : {
+          L: legS ? `M ${W},${yWB(0)} H ${boxE} Q ${cx - LANE / 2},${yWB(0)} ${cx - LANE / 2},${boxS} V ${H}` : null,
+          T: legW ? `M ${W},${yWB(mid(nWB))} H 0` : null,
+          R: legN
+            ? `M ${W},${yWB(nWB - 1)} H ${boxE} Q ${boxE - LANE / 2},${yWB(nWB - 1)} ${boxE - LANE / 2},${boxN} V 0`
+            : null,
+        },
+  );
+  let dNB = $derived(
+    !legS
+      ? {}
+      : {
+          L: legW ? `M ${xNB(0)},${H} V ${boxS} Q ${xNB(0)},${cy - LANE / 2} ${boxW},${cy - LANE / 2} H 0` : null,
+          T: legN ? `M ${xNB(mid(nNB))},${H} V 0` : null,
+          R: legE
+            ? `M ${xNB(nNB - 1)},${H} V ${boxS} Q ${xNB(nNB - 1)},${boxS - LANE / 2} ${boxE},${boxS - LANE / 2} H ${W}`
+            : null,
+        },
+  );
+  let dSB = $derived(
+    !legN
+      ? {}
+      : {
+          L: legE ? `M ${xSB(0)},0 V ${boxN} Q ${xSB(0)},${cy + LANE / 2} ${boxE},${cy + LANE / 2} H ${W}` : null,
+          T: legS ? `M ${xSB(mid(nSB))},0 V ${H}` : null,
+          R: legW
+            ? `M ${xSB(nSB - 1)},0 V ${boxN} Q ${xSB(nSB - 1)},${boxN + LANE / 2} ${boxW},${boxN + LANE / 2} H 0`
+            : null,
+        },
+  );
   let paths = $derived({ EB: dEB, WB: dWB, NB: dNB, SB: dSB });
 
   let present = $derived({ EB: legW, WB: legE, NB: legS, SB: legN });
-  let order = $derived([
-    { key: 'EB', label: 'Eastbound' },
-    { key: 'WB', label: 'Westbound' },
-    { key: 'NB', label: 'Northbound' },
-    { key: 'SB', label: 'Southbound' },
-  ].filter((o) => present[o.key]));
+  let order = $derived(
+    [
+      { key: 'EB', label: 'Eastbound' },
+      { key: 'WB', label: 'Westbound' },
+      { key: 'NB', label: 'Northbound' },
+      { key: 'SB', label: 'Southbound' },
+    ].filter((o) => present[o.key]),
+  );
 
   let lane1 = $derived((a, k) => a?.[k.toLowerCase()]?.lanes?.[0] ?? { left: 0, through: 0, right: 0 });
 
@@ -112,33 +138,44 @@
   let animating = $state(false);
   const LOS_SPEED = { A: 1, B: 0.85, C: 0.7, D: 0.5, E: 0.32, F: 0.16 };
   const LOS_FLEET = { A: 1, B: 1, C: 1.1, D: 1.3, E: 1.7, F: 2.3 };
-  let vehiclePlan = $derived((() => {
-    if (!animating) return [];
-    const items = [];
-    let total = 0;
-    const raw = [];
-    for (const o of order) {
-      const a = approaches?.[o.key.toLowerCase()];
-      if (!a || !a.lanes?.length) continue;
-      const slow = LOS_SPEED[approachLos?.[o.key]] ?? 1;
-      const crowd = LOS_FLEET[approachLos?.[o.key]] ?? 1;
-      const sums = a.lanes.reduce((s, l) => [s[0] + (Number(l.left) || 0), s[1] + (Number(l.through) || 0), s[2] + (Number(l.right) || 0)], [0, 0, 0]);
-      ['L', 'T', 'R'].forEach((mv, i) => {
-        const vol = sums[i];
-        const d = paths[o.key][mv];
-        if (vol <= 0 || !d) return;
-        raw.push({ key: o.key, d, vol, dur: (mv === 'T' ? 6 : 5) / slow, crowd });
-        total += vol;
-      });
-    }
-    for (const it of raw) {
-      const n = Math.max(1, Math.min(7, Math.round((24 * it.vol * it.crowd) / (total || 1))));
-      for (let k = 0; k < n; k++) {
-        items.push({ id: it.key + it.d.length + k, key: it.key, d: it.d, dur: it.dur, begin: (-(k + 0.4 * (k % 2)) / n) * it.dur });
+  let vehiclePlan = $derived(
+    (() => {
+      if (!animating) return [];
+      const items = [];
+      let total = 0;
+      const raw = [];
+      for (const o of order) {
+        const a = approaches?.[o.key.toLowerCase()];
+        if (!a || !a.lanes?.length) continue;
+        const slow = LOS_SPEED[approachLos?.[o.key]] ?? 1;
+        const crowd = LOS_FLEET[approachLos?.[o.key]] ?? 1;
+        const sums = a.lanes.reduce(
+          (s, l) => [s[0] + (Number(l.left) || 0), s[1] + (Number(l.through) || 0), s[2] + (Number(l.right) || 0)],
+          [0, 0, 0],
+        );
+        ['L', 'T', 'R'].forEach((mv, i) => {
+          const vol = sums[i];
+          const d = paths[o.key][mv];
+          if (vol <= 0 || !d) return;
+          raw.push({ key: o.key, d, vol, dur: (mv === 'T' ? 6 : 5) / slow, crowd });
+          total += vol;
+        });
       }
-    }
-    return items;
-  })());
+      for (const it of raw) {
+        const n = Math.max(1, Math.min(7, Math.round((24 * it.vol * it.crowd) / (total || 1))));
+        for (let k = 0; k < n; k++) {
+          items.push({
+            id: it.key + it.d.length + k,
+            key: it.key,
+            d: it.d,
+            dur: it.dur,
+            begin: (-(k + 0.4 * (k % 2)) / n) * it.dur,
+          });
+        }
+      }
+      return items;
+    })(),
+  );
 
   function cls(h, key) {
     if (h == null) return 'aw-move';
@@ -147,12 +184,27 @@
 </script>
 
 <div class="awsc-diagram">
-  <svg viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet" role="img"
-       aria-label={`${order.length}-leg all-way stop-controlled intersection`}>
-
+  <svg
+    viewBox="0 0 {W} {H}"
+    preserveAspectRatio="xMidYMid meet"
+    role="img"
+    aria-label={`${order.length}-leg all-way stop-controlled intersection`}
+  >
     <!-- ══ pavement ══ -->
-    <rect x={boxW} y={legN ? 0 : boxN} width={hSB + hNB} height={(legN ? cy : hWB) + (legS ? H - cy : hEB)} class="aw-pavement" />
-    <rect x={legW ? 0 : boxW} y={boxN} width={(legW ? cx : hSB) + (legE ? W - cx : hNB)} height={hWB + hEB} class="aw-pavement" />
+    <rect
+      x={boxW}
+      y={legN ? 0 : boxN}
+      width={hSB + hNB}
+      height={(legN ? cy : hWB) + (legS ? H - cy : hEB)}
+      class="aw-pavement"
+    />
+    <rect
+      x={legW ? 0 : boxW}
+      y={boxN}
+      width={(legW ? cx : hSB) + (legE ? W - cx : hNB)}
+      height={hWB + hEB}
+      class="aw-pavement"
+    />
 
     <!-- ══ outer edges, interrupted at present legs ══ -->
     {#if legN}
@@ -163,11 +215,11 @@
       <line x1={boxW} y1={boxS} x2={boxW} y2={H} class="aw-edge" />
       <line x1={boxE} y1={boxS} x2={boxE} y2={H} class="aw-edge" />
     {/if}
-    <line x1={legW ? 0 : boxW} y1={boxN} x2={legN ? boxW : (legE ? W : boxE)} y2={boxN} class="aw-edge" />
+    <line x1={legW ? 0 : boxW} y1={boxN} x2={legN ? boxW : legE ? W : boxE} y2={boxN} class="aw-edge" />
     {#if legN && legE}
       <line x1={boxE} y1={boxN} x2={W} y2={boxN} class="aw-edge" />
     {/if}
-    <line x1={legW ? 0 : boxW} y1={boxS} x2={legS ? boxW : (legE ? W : boxE)} y2={boxS} class="aw-edge" />
+    <line x1={legW ? 0 : boxW} y1={boxS} x2={legS ? boxW : legE ? W : boxE} y2={boxS} class="aw-edge" />
     {#if legS && legE}
       <line x1={boxE} y1={boxS} x2={W} y2={boxS} class="aw-edge" />
     {/if}
@@ -193,10 +245,28 @@
     {/each}
 
     <!-- ══ stop bars on every present approach ══ -->
-    {#if legW}<line x1={boxW - 2} y1={cy} x2={boxW - 2} y2={boxS} class="aw-stop" /><text x={boxW - 8} y={boxS + 12} class="aw-stop-label" text-anchor="end">STOP</text>{/if}
-    {#if legE}<line x1={boxE + 2} y1={boxN} x2={boxE + 2} y2={cy} class="aw-stop" /><text x={boxE + 8} y={cy - 4} class="aw-stop-label">STOP</text>{/if}
-    {#if legS}<line x1={cx} y1={boxS + 2} x2={boxE} y2={boxS + 2} class="aw-stop" /><text x={boxE + 6} y={boxS + 14} class="aw-stop-label">STOP</text>{/if}
-    {#if legN}<line x1={boxW} y1={boxN - 2} x2={cx} y2={boxN - 2} class="aw-stop" /><text x={boxW - 6} y={boxN - 8} class="aw-stop-label" text-anchor="end">STOP</text>{/if}
+    {#if legW}<line x1={boxW - 2} y1={cy} x2={boxW - 2} y2={boxS} class="aw-stop" /><text
+        x={boxW - 8}
+        y={boxS + 12}
+        class="aw-stop-label"
+        text-anchor="end">STOP</text
+      >{/if}
+    {#if legE}<line x1={boxE + 2} y1={boxN} x2={boxE + 2} y2={cy} class="aw-stop" /><text
+        x={boxE + 8}
+        y={cy - 4}
+        class="aw-stop-label">STOP</text
+      >{/if}
+    {#if legS}<line x1={cx} y1={boxS + 2} x2={boxE} y2={boxS + 2} class="aw-stop" /><text
+        x={boxE + 6}
+        y={boxS + 14}
+        class="aw-stop-label">STOP</text
+      >{/if}
+    {#if legN}<line x1={boxW} y1={boxN - 2} x2={cx} y2={boxN - 2} class="aw-stop" /><text
+        x={boxW - 6}
+        y={boxN - 8}
+        class="aw-stop-label"
+        text-anchor="end">STOP</text
+      >{/if}
 
     <!-- ══ movement paths ══ -->
     {#each order as o}
@@ -221,16 +291,25 @@
     {#each editable ? order : [] as o (o.key)}
       {#if clusterPos[o.key]}
         <foreignObject x={clusterPos[o.key].x} y={clusterPos[o.key].y} width={CW} height={CH}>
-          <div class="aw-cluster" xmlns="http://www.w3.org/1999/xhtml"
-               onmouseenter={() => (hovered = o.key)} onmouseleave={() => (hovered = null)}>
+          <div
+            class="aw-cluster"
+            xmlns="http://www.w3.org/1999/xhtml"
+            onmouseenter={() => (hovered = o.key)}
+            onmouseleave={() => (hovered = null)}
+          >
             <span class="aw-cluster-title"><span class="swatch {o.key.toLowerCase()}"></span>{o.key}</span>
             {#each ['L', 'T', 'R'] as mv}
-              <input type="number" min="0"
-                     title={counts[o.key] > 1 ? 'Multi-lane approach: edit per lane in the form' : `${o.key} ${mv} volume (veh/h)`}
-                     aria-label="{o.key} {mv === 'L' ? 'left-turn' : mv === 'T' ? 'through' : 'right-turn'} volume"
-                     value={lane1(approaches, o.key)[{ L: 'left', T: 'through', R: 'right' }[mv]]}
-                     disabled={counts[o.key] > 1 || !paths[o.key][mv]}
-                     oninput={(e) => setVol(o.key, mv, e.currentTarget.value)} />
+              <input
+                type="number"
+                min="0"
+                title={counts[o.key] > 1
+                  ? 'Multi-lane approach: edit per lane in the form'
+                  : `${o.key} ${mv} volume (veh/h)`}
+                aria-label="{o.key} {mv === 'L' ? 'left-turn' : mv === 'T' ? 'through' : 'right-turn'} volume"
+                value={lane1(approaches, o.key)[{ L: 'left', T: 'through', R: 'right' }[mv]]}
+                disabled={counts[o.key] > 1 || !paths[o.key][mv]}
+                oninput={(e) => setVol(o.key, mv, e.currentTarget.value)}
+              />
             {/each}
           </div>
         </foreignObject>
@@ -239,8 +318,13 @@
   </svg>
 
   <div class="aw-legend" role="list">
-    <button type="button" class="aw-chip aw-animate" class:active={animating}
-            aria-pressed={animating} onclick={() => (animating = !animating)}>
+    <button
+      type="button"
+      class="aw-chip aw-animate"
+      class:active={animating}
+      aria-pressed={animating}
+      onclick={() => (animating = !animating)}
+    >
       {animating ? '⏸ Stop traffic' : '▶ Animate traffic'}
     </button>
     {#each order as o}
@@ -259,7 +343,10 @@
       </button>
     {/each}
   </div>
-  <p class="aw-note">Every approach stops. An approach with zero lanes removes its leg, matching the three-leg worked examples. Animated traffic slows and bunches with each approach LOS after a run. An illustration, not a simulation.</p>
+  <p class="aw-note">
+    Every approach stops. An approach with zero lanes removes its leg, matching the three-leg worked examples. Animated
+    traffic slows and bunches with each approach LOS after a run. An illustration, not a simulation.
+  </p>
 </div>
 
 <style>
@@ -269,33 +356,86 @@
     display: block;
     margin: 0 auto;
   }
-  .aw-pavement { fill: var(--diag-pavement); }
-  .aw-edge { stroke: var(--diag-edge); stroke-width: 2; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-  .aw-center { stroke: var(--diag-center); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-  .aw-lane-line { stroke: var(--diag-lane-line); stroke-width: 1.5; stroke-dasharray: 8 6; vector-effect: non-scaling-stroke; }
-  .aw-stop { stroke: var(--diag-lane-line); stroke-width: 3; vector-effect: non-scaling-stroke; }
-  .aw-stop-label { font-size: 8px; font-weight: 700; fill: var(--diag-dim); letter-spacing: 0.08em; }
+  .aw-pavement {
+    fill: var(--diag-pavement);
+  }
+  .aw-edge {
+    stroke: var(--diag-edge);
+    stroke-width: 2;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .aw-center {
+    stroke: var(--diag-center);
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+  }
+  .aw-lane-line {
+    stroke: var(--diag-lane-line);
+    stroke-width: 1.5;
+    stroke-dasharray: 8 6;
+    vector-effect: non-scaling-stroke;
+  }
+  .aw-stop {
+    stroke: var(--diag-lane-line);
+    stroke-width: 3;
+    vector-effect: non-scaling-stroke;
+  }
+  .aw-stop-label {
+    font-size: 8px;
+    font-weight: 700;
+    fill: var(--diag-dim);
+    letter-spacing: 0.08em;
+  }
 
   .aw-move {
     fill: none;
     stroke-width: 2.25;
     stroke-linecap: round;
     vector-effect: non-scaling-stroke;
-    transition: opacity 120ms ease, stroke-width 120ms ease;
+    transition:
+      opacity 120ms ease,
+      stroke-width 120ms ease;
     opacity: 0.75;
   }
-  .aw-move.dim { opacity: 0.1; }
-  .aw-move.active { stroke-width: 4; opacity: 1; }
-  .mv-eb { stroke: #ea7317; }
-  .mv-wb { stroke: #dc2626; }
-  .mv-nb { stroke: #2563eb; }
-  .mv-sb { stroke: #16a34a; }
-  .swatch.eb { background: #ea7317; }
-  .swatch.wb { background: #dc2626; }
-  .swatch.nb { background: #2563eb; }
-  .swatch.sb { background: #16a34a; }
+  .aw-move.dim {
+    opacity: 0.1;
+  }
+  .aw-move.active {
+    stroke-width: 4;
+    opacity: 1;
+  }
+  .mv-eb {
+    stroke: #ea7317;
+  }
+  .mv-wb {
+    stroke: #dc2626;
+  }
+  .mv-nb {
+    stroke: #2563eb;
+  }
+  .mv-sb {
+    stroke: #16a34a;
+  }
+  .swatch.eb {
+    background: #ea7317;
+  }
+  .swatch.wb {
+    background: #dc2626;
+  }
+  .swatch.nb {
+    background: #2563eb;
+  }
+  .swatch.sb {
+    background: #16a34a;
+  }
 
-  .aw-legend { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+  .aw-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+  }
   .aw-chip {
     display: inline-flex;
     align-items: center;
@@ -307,17 +447,46 @@
     background: transparent;
     cursor: default;
   }
-  .aw-chip.active { border-color: var(--diag-edge); }
-  .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
-  .aw-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem; }
-  .aw-veh rect { stroke: rgba(15, 23, 42, 0.35); stroke-width: 0.6; }
-  .aw-veh { transition: opacity 120ms ease; }
-  .aw-veh.dim { opacity: 0.08; }
-  .veh-eb rect { fill: #ea7317; }
-  .veh-wb rect { fill: #dc2626; }
-  .veh-nb rect { fill: #2563eb; }
-  .veh-sb rect { fill: #16a34a; }
-  .aw-animate { cursor: pointer; font-weight: 600; }
+  .aw-chip.active {
+    border-color: var(--diag-edge);
+  }
+  .swatch {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .aw-note {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.35rem;
+  }
+  .aw-veh rect {
+    stroke: rgba(15, 23, 42, 0.35);
+    stroke-width: 0.6;
+  }
+  .aw-veh {
+    transition: opacity 120ms ease;
+  }
+  .aw-veh.dim {
+    opacity: 0.08;
+  }
+  .veh-eb rect {
+    fill: #ea7317;
+  }
+  .veh-wb rect {
+    fill: #dc2626;
+  }
+  .veh-nb rect {
+    fill: #2563eb;
+  }
+  .veh-sb rect {
+    fill: #16a34a;
+  }
+  .aw-animate {
+    cursor: pointer;
+    font-weight: 600;
+  }
 
   .aw-cluster {
     box-sizing: border-box;
@@ -336,7 +505,14 @@
     padding: 2px 3px;
     overflow: hidden;
   }
-  .aw-cluster-title { display: inline-flex; align-items: center; gap: 2px; font-size: 7px; font-weight: 600; flex: none; }
+  .aw-cluster-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 7px;
+    font-weight: 600;
+    flex: none;
+  }
   .aw-cluster input {
     box-sizing: border-box;
     width: 100%;
@@ -351,9 +527,20 @@
     color: var(--text);
     text-align: center;
   }
-  .aw-cluster input:disabled { opacity: 0.35; }
+  .aw-cluster input:disabled {
+    opacity: 0.35;
+  }
   .aw-cluster input::-webkit-outer-spin-button,
-  .aw-cluster input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .aw-cluster input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
-  .aw-cluster .swatch { width: 6px; height: 6px; }
+  .aw-cluster input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .aw-cluster input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  .aw-cluster .swatch {
+    width: 6px;
+    height: 6px;
+  }
 </style>

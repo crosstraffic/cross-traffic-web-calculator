@@ -34,8 +34,8 @@ function laneGroup(groups, dir, kind, label) {
     ['EB', 'ExclusiveThrough', 239.0, 1643.0, 484.0, 0.49, 29.9, 0.5, 'C'],
     ['EB', 'SharedRightThrough', 185.0, 1201.0, 354.0, 0.52, 30.6, 0.5, 'C'],
     ['WB', 'ExclusiveLeft', 118.0, 825.0, 208.0, 0.57, 43.5, 1.5, 'D'],
-    ['WB', 'ExclusiveThrough', 337.0, 1643.0, 484.0, 0.70, 35.5, 0.5, 'D'],
-    ['WB', 'SharedRightThrough', 287.0, 1398.0, 412.0, 0.70, 36.2, 0.5, 'D'],
+    ['WB', 'ExclusiveThrough', 337.0, 1643.0, 484.0, 0.7, 35.5, 0.5, 'D'],
+    ['WB', 'SharedRightThrough', 287.0, 1398.0, 412.0, 0.7, 36.2, 0.5, 'D'],
     ['NB', 'ExclusiveLeft', 133.0, 1603.0, 328.0, 0.41, 13.5, 1.5, 'B'],
     ['NB', 'ExclusiveThrough', 870.0, 1683.0, 827.0, 1.05, 72.0, 1.5, 'F'],
     ['NB', 'SharedRightThrough', 863.0, 1648.0, 809.0, 1.07, 76.7, 1.5, 'F'],
@@ -54,12 +54,9 @@ function laneGroup(groups, dir, kind, label) {
   }
 
   // Left-turn 50th percentile back of queue (Exhibit 31-82, ADP method).
-  approx(laneGroup(groups, 'SB', 'ExclusiveLeft', 'EP1').back_of_queue_veh,
-    4.9, 0.5, 'EP1 SB-left back of queue');
-  approx(laneGroup(groups, 'EB', 'ExclusiveLeft', 'EP1').back_of_queue_veh,
-    1.8, 0.4, 'EP1 EB-left back of queue');
-  approx(laneGroup(groups, 'NB', 'ExclusiveLeft', 'EP1').back_of_queue_veh,
-    1.4, 0.5, 'EP1 NB-left back of queue');
+  approx(laneGroup(groups, 'SB', 'ExclusiveLeft', 'EP1').back_of_queue_veh, 4.9, 0.5, 'EP1 SB-left back of queue');
+  approx(laneGroup(groups, 'EB', 'ExclusiveLeft', 'EP1').back_of_queue_veh, 1.8, 0.4, 'EP1 EB-left back of queue');
+  approx(laneGroup(groups, 'NB', 'ExclusiveLeft', 'EP1').back_of_queue_veh, 1.4, 0.5, 'EP1 NB-left back of queue');
 
   // Approach delay and LOS (Exhibit 31-81).
   const approaches = [
@@ -86,7 +83,7 @@ const CASE2 = [
   // dir, v, c, X, d1, d2, d, LOS
   ['EB', 855.0, 927.8, 0.922, 14.28, 15.75, 30.03, 'C'],
   ['WB', 475.0, 927.8, 0.512, 10.47, 2.02, 12.49, 'B'],
-  ['NB', 665.0, 718.8, 0.925, 17.84, 19.57, 37.40, 'D'],
+  ['NB', 665.0, 718.8, 0.925, 17.84, 19.57, 37.4, 'D'],
   ['SB', 475.0, 718.8, 0.661, 15.46, 4.73, 20.19, 'C'],
 ];
 
@@ -110,9 +107,7 @@ function checkCase2(ix, tag) {
 }
 
 // Path 1: full serde config.
-checkCase2(
-  m.WasmSignalizedIntersection.from_config(loadCase('Signalized', 'case2.json')),
-  'Ex31-7 from_config');
+checkCase2(m.WasmSignalizedIntersection.from_config(loadCase('Signalized', 'case2.json')), 'Ex31-7 from_config');
 
 // Path 2: the flat constructor. Arrays are NB, SB, EB, WB ordered, volumes
 // and lanes as [left, through, right] triples; through-phase durations are
@@ -121,21 +116,23 @@ checkCase2(
 // no peds, non-CBD, base saturation flow 1,900 pc/h/ln.
 checkCase2(
   new m.WasmSignalizedIntersection(
-    60.0,           // cycle_length_s
-    0.25,           // analysis_period_h
-    1900.0,         // base_saturation_flow
-    false,          // area_type_cbd
-    undefined,      // peak_hour_factor (fixture: null)
-    [0, 665, 0, 0, 475, 0, 0, 855, 0, 0, 475, 0],  // volumes NB,SB,EB,WB
-    [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],          // lanes NB,SB,EB,WB
-    [26.7, 26.7, 33.3, 33.3],                      // through D_p NB,SB,EB,WB
-    [0, 0, 0, 0],                                  // no protected lefts
-    4.0,            // yellow_s
-    0.0,            // red_clearance_s
-    0.0,            // pct_heavy_vehicles
-    35.0,           // speed_limit_mph
-    12.0,           // lane_width_ft
-    0.0),           // ped_flow_ph
-  'Ex31-7 flat ctor');
+    60.0, // cycle_length_s
+    0.25, // analysis_period_h
+    1900.0, // base_saturation_flow
+    false, // area_type_cbd
+    undefined, // peak_hour_factor (fixture: null)
+    [0, 665, 0, 0, 475, 0, 0, 855, 0, 0, 475, 0], // volumes NB,SB,EB,WB
+    [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], // lanes NB,SB,EB,WB
+    [26.7, 26.7, 33.3, 33.3], // through D_p NB,SB,EB,WB
+    [0, 0, 0, 0], // no protected lefts
+    4.0, // yellow_s
+    0.0, // red_clearance_s
+    0.0, // pct_heavy_vehicles
+    35.0, // speed_limit_mph
+    12.0, // lane_width_ft
+    0.0,
+  ), // ped_flow_ph
+  'Ex31-7 flat ctor',
+);
 
 report('ch19 signalized intersections (HCM Ch.31 EP1 + Exhibit 31-7)');

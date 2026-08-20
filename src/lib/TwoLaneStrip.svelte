@@ -7,13 +7,7 @@
   import RoadDiagram from '$lib/RoadDiagram.svelte';
   import { LOS_COLORS } from '$lib/los.js';
 
-  let {
-    rows = [],
-    results = null,
-    selected = -1,
-    onselect = null,
-    interactive = true,
-  } = $props();
+  let { rows = [], results = null, selected = -1, onselect = null, interactive = true } = $props();
 
   // Segment lengths are miles here; subsegment lengths (not drawn) are feet.
   const lengthMi = (row) => {

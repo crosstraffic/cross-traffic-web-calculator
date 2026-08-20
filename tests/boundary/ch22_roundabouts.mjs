@@ -14,9 +14,16 @@ const CAP_TOL = 5.0;
 // n_ped]; missing v_u / n_ped default to 0.
 function entry(leg) {
   return Float64Array.of(
-    leg.v_u ?? 0, leg.v_l ?? 0, leg.v_t ?? 0, leg.v_r ?? 0,
-    leg.heavy_vehicle_pct, leg.entry_lanes, leg.circulating_lanes,
-    leg.exiting_lanes, leg.n_ped ?? 0);
+    leg.v_u ?? 0,
+    leg.v_l ?? 0,
+    leg.v_t ?? 0,
+    leg.v_r ?? 0,
+    leg.heavy_vehicle_pct,
+    leg.entry_lanes,
+    leg.circulating_lanes,
+    leg.exiting_lanes,
+    leg.n_ped ?? 0,
+  );
 }
 
 // Fixture lane-assignment names (library enum variants) to the constructor's
@@ -31,14 +38,21 @@ const LANE_ASSIGNMENT = {
 
 function build(c) {
   return new m.WasmRoundabouts(
-    entry(c.nb), entry(c.sb), entry(c.eb), entry(c.wb),
-    c.nb.bypass?.toLowerCase(), c.sb.bypass?.toLowerCase(),
-    c.eb.bypass?.toLowerCase(), c.wb.bypass?.toLowerCase(),
+    entry(c.nb),
+    entry(c.sb),
+    entry(c.eb),
+    entry(c.wb),
+    c.nb.bypass?.toLowerCase(),
+    c.sb.bypass?.toLowerCase(),
+    c.eb.bypass?.toLowerCase(),
+    c.wb.bypass?.toLowerCase(),
     c.nb.lane_assignment && LANE_ASSIGNMENT[c.nb.lane_assignment],
     c.sb.lane_assignment && LANE_ASSIGNMENT[c.sb.lane_assignment],
     c.eb.lane_assignment && LANE_ASSIGNMENT[c.eb.lane_assignment],
     c.wb.lane_assignment && LANE_ASSIGNMENT[c.wb.lane_assignment],
-    c.phf ?? undefined, c.analysis_period_h);
+    c.phf ?? undefined,
+    c.analysis_period_h,
+  );
 }
 
 // ── HCM Chapter 33, Roundabout Example Problem 1 (single-lane roundabout
@@ -55,7 +69,7 @@ r1.analyze();
 
 const nb1 = r1.lane_result_to_js_value('NB', 0);
 approx(nb1.capacity_veh, 597.0, CAP_TOL, 'EP1 c_NB');
-approx(nb1.v_c_ratio, 0.70, 0.01, 'EP1 x_NB');
+approx(nb1.v_c_ratio, 0.7, 0.01, 'EP1 x_NB');
 approx(nb1.control_delay, 22.6, DELAY_TOL, 'EP1 d_NB');
 exact(nb1.los, 'C', 'EP1 NB entry LOS');
 approx(nb1.queue_95, 5.7, 0.3, 'EP1 Q95,NB');

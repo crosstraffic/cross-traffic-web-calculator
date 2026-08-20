@@ -21,13 +21,31 @@ const m = await loadWasm();
 function build(c) {
   const rampLanes = c.ramp_lanes === 'TwoLane' ? 2 : 1;
   return new m.WasmRampSegment(
-    c.ramp_type, c.ramp_side, rampLanes, c.freeway_lanes, c.freeway_ffs,
-    c.ramp_ffs, c.accel_lane_length, c.accel_lane_length2,
-    c.decel_lane_length, c.decel_lane_length2, c.freeway_demand,
-    c.ramp_demand, c.phf, c.heavy_vehicle_pct, c.ramp_heavy_vehicle_pct,
-    c.terrain, c.adjacent_upstream, c.upstream_distance, c.upstream_ramp_flow,
-    c.adjacent_downstream, c.downstream_distance, c.downstream_ramp_flow,
-    c.caf, c.saf);
+    c.ramp_type,
+    c.ramp_side,
+    rampLanes,
+    c.freeway_lanes,
+    c.freeway_ffs,
+    c.ramp_ffs,
+    c.accel_lane_length,
+    c.accel_lane_length2,
+    c.decel_lane_length,
+    c.decel_lane_length2,
+    c.freeway_demand,
+    c.ramp_demand,
+    c.phf,
+    c.heavy_vehicle_pct,
+    c.ramp_heavy_vehicle_pct,
+    c.terrain,
+    c.adjacent_upstream,
+    c.upstream_distance,
+    c.upstream_ramp_flow,
+    c.adjacent_downstream,
+    c.downstream_distance,
+    c.downstream_ramp_flow,
+    c.caf,
+    c.saf,
+  );
 }
 
 // --- HCM Ch.28 Example Problem 1: isolated one-lane, right-hand on-ramp to a
@@ -107,7 +125,7 @@ function build(c) {
 
   // Step 2: v_F/S_FR = 214 > 72 -> P_FM = 0.2178 - 0.000125 v_R = 0.16;
   // Equation 14-19 adjustment applies.
-  approx(seg.get_p_f(), 0.160, 0.002, 'EP3 P_FM');
+  approx(seg.get_p_f(), 0.16, 0.002, 'EP3 P_FM');
   approx(seg.get_v12(), 2570.0, 6.0, 'EP3 v_12a (pc/h)');
   approx(seg.get_vr12(), 3028.0, 8.0, 'EP3 v_R12 (pc/h)');
 
@@ -138,7 +156,7 @@ function build(c) {
 
   // Step 2: base P_FM = 0.5775 + 0.000028 x 820 = 0.600 (Equation 14-3);
   // Exhibit 14-18 left-hand factor 1.12 applied to v_12.
-  approx(seg.get_p_f(), 0.600, 0.002, 'EP4 P_FM');
+  approx(seg.get_p_f(), 0.6, 0.002, 'EP4 P_FM');
   approx(seg.get_v12(), 3211.0, 8.0, 'EP4 v_23 (pc/h)');
   approx(seg.get_vr12(), 3772.0, 10.0, 'EP4 v_R23 (pc/h)');
 
@@ -189,10 +207,31 @@ const TOL_D_CASE2 = 0.022;
 
 function ep5(freewayDemand, rampDemand) {
   return new m.WasmRampSegment(
-    'OnRamp', 'Right', 1, 3, 70.0, 40.0, 1000.0, undefined,
-    undefined, undefined, freewayDemand, rampDemand, 1.0, 0.0, 0.0,
-    'Level', 'None', undefined, undefined, 'None', undefined, undefined,
-    1.0, 1.0);
+    'OnRamp',
+    'Right',
+    1,
+    3,
+    70.0,
+    40.0,
+    1000.0,
+    undefined,
+    undefined,
+    undefined,
+    freewayDemand,
+    rampDemand,
+    1.0,
+    0.0,
+    0.0,
+    'Level',
+    'None',
+    undefined,
+    undefined,
+    'None',
+    undefined,
+    undefined,
+    1.0,
+    1.0,
+  );
 }
 
 // Case 1 (Exhibit 28-4): ramp demand fixed at 10% of the approaching freeway
@@ -211,20 +250,34 @@ function ep5(freewayDemand, rampDemand) {
 
   // Exhibit 28-4 SFI column, fed back as demand. Each one should land on its
   // Exhibit 14-3 threshold density.
-  for (const [los, sfi, threshold] of [['A', 1979.0, 10.0], ['B', 3813.0, 20.0], ['C', 5280.0, 28.0]]) {
-    const seg = ep5(sfi, 0.10 * sfi);
+  for (const [los, sfi, threshold] of [
+    ['A', 1979.0, 10.0],
+    ['B', 3813.0, 20.0],
+    ['C', 5280.0, 28.0],
+  ]) {
+    const seg = ep5(sfi, 0.1 * sfi);
     seg.run_analysis();
     approx(seg.get_flow_freeway(), sfi, 5.0, `EP5 case 1 LOS ${los} v_F (pc/h, Exhibit 28-4)`);
-    approx(seg.get_density(), threshold, TOL_D_CASE1, `EP5 case 1 LOS ${los} D_R at SFI ${sfi} (pc/mi/ln, Exhibit 14-3)`);
+    approx(
+      seg.get_density(),
+      threshold,
+      TOL_D_CASE1,
+      `EP5 case 1 LOS ${los} D_R at SFI ${sfi} (pc/mi/ln, Exhibit 14-3)`,
+    );
   }
 
   // LOS E is the capacity limit, not a density limit: the downstream freeway
   // reaches 7,200 pc/h, so v_F = 7,200 / 1.10 = 6,545 pc/h (Exhibit 28-4).
   const sfiE = 6545.0;
-  const segE = ep5(sfiE, 0.10 * sfiE);
+  const segE = ep5(sfiE, 0.1 * sfiE);
   segE.run_analysis();
-  approx(segE.get_flow_freeway() + segE.get_flow_ramp(), 7200.0, 2.0, 'EP5 case 1 LOS E downstream flow at capacity (pc/h, Exhibit 28-4)');
-  exact(0.10 * sfiE < segE.get_capacity_ramp(), true, 'EP5 case 1 LOS E ramp flow (655 pc/h) within ramp capacity');
+  approx(
+    segE.get_flow_freeway() + segE.get_flow_ramp(),
+    7200.0,
+    2.0,
+    'EP5 case 1 LOS E downstream flow at capacity (pc/h, Exhibit 28-4)',
+  );
+  exact(0.1 * sfiE < segE.get_capacity_ramp(), true, 'EP5 case 1 LOS E ramp flow (655 pc/h) within ramp capacity');
   exact(segE.get_demand_exceeds_capacity(), false, 'EP5 case 1 LOS E demand within capacity');
 
   // Exhibit 28-4 reports NA for LOS D: capacity is reached at a density below
@@ -232,7 +285,12 @@ function ep5(freewayDemand, rampDemand) {
   // The book states the conclusion but prints no density for it, so 34.92 is
   // measured from this engine at the published LOS E flow, pinned loosely; the
   // assertion that carries the Exhibit 28-4 claim is the strict inequality.
-  approx(segE.get_density(), 34.92, 0.5, 'EP5 case 1 D_R at LOS E capacity (pc/mi/ln, measured; Exhibit 28-4 LOS D = NA)');
+  approx(
+    segE.get_density(),
+    34.92,
+    0.5,
+    'EP5 case 1 D_R at LOS E capacity (pc/mi/ln, measured; Exhibit 28-4 LOS D = NA)',
+  );
   exact(segE.get_density() < 35.0, true, 'EP5 case 1 LOS D unachievable (D_R at capacity below 35)');
 }
 
@@ -250,7 +308,12 @@ function ep5(freewayDemand, rampDemand) {
   // computes and this engine reproduces; the inequality carries the claim.
   const segZero = ep5(vF, 0.0);
   segZero.run_analysis();
-  approx(segZero.get_density(), 22.33, 0.5, 'EP5 case 2 D_R at zero ramp flow (pc/mi/ln, measured; Exhibit 28-5 LOS A/B = NA)');
+  approx(
+    segZero.get_density(),
+    22.33,
+    0.5,
+    'EP5 case 2 D_R at zero ramp flow (pc/mi/ln, measured; Exhibit 28-5 LOS A/B = NA)',
+  );
   exact(segZero.get_density() > 20.0, true, 'EP5 case 2 LOS A and B unachievable (minimum D_R above 20)');
 
   // LOS C and D ramp service flow rates. Exhibit 28-5 is internally
@@ -262,11 +325,19 @@ function ep5(freewayDemand, rampDemand) {
   // 27.997 against the 28 threshold, while 769 gives 27.973, a residual of
   // 0.027 that exceeds the +-0.022 band. Likewise 1,726 gives 35.000 and
   // 1,723 gives 34.975.
-  for (const [los, sfi, threshold] of [['C', 772.0, 28.0], ['D', 1726.0, 35.0]]) {
+  for (const [los, sfi, threshold] of [
+    ['C', 772.0, 28.0],
+    ['D', 1726.0, 35.0],
+  ]) {
     const seg = ep5(vF, sfi);
     seg.run_analysis();
     approx(seg.get_flow_ramp(), sfi, 3.0, `EP5 case 2 LOS ${los} v_R (pc/h, Exhibit 28-5)`);
-    approx(seg.get_density(), threshold, TOL_D_CASE2, `EP5 case 2 LOS ${los} D_R at SFI ${sfi} (pc/mi/ln, Exhibit 14-3)`);
+    approx(
+      seg.get_density(),
+      threshold,
+      TOL_D_CASE2,
+      `EP5 case 2 LOS ${los} D_R at SFI ${sfi} (pc/mi/ln, Exhibit 14-3)`,
+    );
   }
 
   // LOS E: the downstream-capacity ramp flow (7,200 - 4,896 = 2,304 pc/h)
@@ -274,8 +345,17 @@ function ep5(freewayDemand, rampDemand) {
   // capacity (Exhibit 28-5 SFI = 2,000).
   const segE = ep5(vF, 2000.0);
   const losE = segE.run_analysis();
-  exact(segE.get_capacity_freeway() - vF > segE.get_capacity_ramp(), true, 'EP5 case 2 LOS E governed by ramp capacity, not downstream freeway');
-  approx(Math.min(segE.get_capacity_freeway() - vF, segE.get_capacity_ramp()), 2000.0, 1.0, 'EP5 case 2 LOS E v_R SFI (pc/h, Exhibit 28-5)');
+  exact(
+    segE.get_capacity_freeway() - vF > segE.get_capacity_ramp(),
+    true,
+    'EP5 case 2 LOS E governed by ramp capacity, not downstream freeway',
+  );
+  approx(
+    Math.min(segE.get_capacity_freeway() - vF, segE.get_capacity_ramp()),
+    2000.0,
+    1.0,
+    'EP5 case 2 LOS E v_R SFI (pc/h, Exhibit 28-5)',
+  );
   exact(losE, 'E', 'EP5 case 2 LOS at the capacity-limited ramp flow');
 }
 
@@ -297,7 +377,7 @@ function ep5(freewayDemand, rampDemand) {
 // residual is Case 1 LOS C, 3.25 veh/h on SF, which exceeds a flat +-3 and is
 // entirely the book carrying its rounded 5,280 forward.
 const F_HV = 1.0 / (1.0 + 0.065 * (2.0 - 1.0)); // = 0.939, 6.5% trucks, E_T = 2.0 (level terrain)
-const F_P = 1.0;                                 // regular commuters, printed as the "x 1" term in both exhibits
+const F_P = 1.0; // regular commuters, printed as the "x 1" term in both exhibits
 const EP5_PHF = 0.87;
 
 // The template carries geometry only. The solver replaces the demands, PHF,
@@ -317,7 +397,7 @@ const TOL_SV_2 = TOL_SF_2 * EP5_PHF;
 
 // Case 1 (Exhibit 28-4), solved.
 {
-  const basis = { ApproachingFreeway: { ramp_fraction: 0.10 } };
+  const basis = { ApproachingFreeway: { ramp_fraction: 0.1 } };
   const template = ep5Template();
 
   // The three achievable rows of Exhibit 28-4, every column.
@@ -338,7 +418,7 @@ const TOL_SV_2 = TOL_SF_2 * EP5_PHF;
   // ramp_service_volumes, and had no boundary path before 0.3.11.
   const probe = ep5Template();
   probe.run_analysis();
-  const sfiE = probe.get_capacity_freeway() / 1.10;
+  const sfiE = probe.get_capacity_freeway() / 1.1;
   approx(sfiE, 6545.0, TOL_SFI_1, 'EP5 case 1 LOS E SFI (pc/h, Exhibit 28-4)');
   const eVols = m.ramp_service_volumes(sfiE, F_HV, F_P, EP5_PHF);
   approx(eVols.sf, 6146.0, TOL_SF_1, 'EP5 case 1 LOS E SF (veh/h, Exhibit 28-4)');
@@ -353,7 +433,11 @@ const TOL_SV_2 = TOL_SF_2 * EP5_PHF;
   const sfiD = m.ramp_service_flow_rate_ideal(template, basis, 35.0);
   approx(sfiD, 6559.6, 1.0, 'EP5 case 1 LOS D threshold flow (pc/h, measured; Exhibit 28-4 prints NA)');
   exact(sfiD > sfiE, true, 'EP5 case 1 LOS D is NA (its threshold flow exceeds the LOS E capacity flow)');
-  exact(0.10 * sfiE < probe.get_capacity_ramp(), true, 'EP5 case 1 LOS E ramp flow (655 pc/h) within the 2,000 pc/h ramp capacity');
+  exact(
+    0.1 * sfiE < probe.get_capacity_ramp(),
+    true,
+    'EP5 case 1 LOS E ramp flow (655 pc/h) within the 2,000 pc/h ramp capacity',
+  );
 }
 
 // Case 2 (Exhibit 28-5), solved.
@@ -368,7 +452,10 @@ const TOL_SV_2 = TOL_SF_2 * EP5_PHF;
   // The absence crosses as `undefined`, not `null` -- serde sends None that way
   // -- so a caller guarding on `=== null` would render 22 pc/mi/ln of
   // unavoidable congestion as an achievable LOS A.
-  for (const [los, threshold] of [['A', 10.0], ['B', 20.0]]) {
+  for (const [los, threshold] of [
+    ['A', 10.0],
+    ['B', 20.0],
+  ]) {
     const sfi = m.ramp_service_flow_rate_ideal(template, basis, threshold);
     exact(sfi === undefined, true, `EP5 case 2 LOS ${los} is NA (solver returns no flow, Exhibit 28-5)`);
     exact(sfi === null, false, `EP5 case 2 LOS ${los} NA crosses as undefined rather than null`);
@@ -396,8 +483,16 @@ const TOL_SV_2 = TOL_SF_2 * EP5_PHF;
   // excluded by only 0.03 pc/h, which is too thin to rest a check on. The
   // ratio is not thin: the solved values sit 0.35 and 0.03 pc/h from the
   // arithmetic column and 3.35 and 3.03 from the printed one.
-  exact(Math.abs(solved.C - 772.0) < Math.abs(solved.C - 769.0), true, 'EP5 case 2 LOS C: solver agrees with the Exhibit 28-5 SF arithmetic (772), not its printed SFI (769)');
-  exact(Math.abs(solved.D - 1726.0) < Math.abs(solved.D - 1723.0), true, 'EP5 case 2 LOS D: solver agrees with the Exhibit 28-5 SF arithmetic (1,726), not its printed SFI (1,723)');
+  exact(
+    Math.abs(solved.C - 772.0) < Math.abs(solved.C - 769.0),
+    true,
+    'EP5 case 2 LOS C: solver agrees with the Exhibit 28-5 SF arithmetic (772), not its printed SFI (769)',
+  );
+  exact(
+    Math.abs(solved.D - 1726.0) < Math.abs(solved.D - 1723.0),
+    true,
+    'EP5 case 2 LOS D: solver agrees with the Exhibit 28-5 SF arithmetic (1,726), not its printed SFI (1,723)',
+  );
 
   // LOS E is capped by the ramp roadway, not by the downstream freeway.
   const probe = ep5Template();
@@ -411,7 +506,7 @@ const TOL_SV_2 = TOL_SF_2 * EP5_PHF;
 
 // --- What the solver binding reads off the template, and what it refuses.
 {
-  const basis = { ApproachingFreeway: { ramp_fraction: 0.10 } };
+  const basis = { ApproachingFreeway: { ramp_fraction: 0.1 } };
 
   // The template is borrowed, not consumed: the same handle answers repeated
   // probes. If it were moved, the second call would throw on a null pointer and
@@ -427,19 +522,73 @@ const TOL_SV_2 = TOL_SF_2 * EP5_PHF;
   // one thing about the surface a caller could get silently wrong, since a
   // template that DID carry its demands through would still return a number.
   const dirty = new m.WasmRampSegment(
-    'OnRamp', 'Right', 1, 3, 70.0, 40.0, 1000.0, undefined,
-    undefined, undefined, 9999.0, 8888.0, 0.5, 0.30, 0.30,
-    'Level', 'None', undefined, undefined, 'None', undefined, undefined, 1.0, 1.0);
-  approx(m.ramp_service_flow_rate_ideal(dirty, basis, 28.0), first, 1e-9, 'EP5 solver ignores the template demands, PHF and truck percentages');
+    'OnRamp',
+    'Right',
+    1,
+    3,
+    70.0,
+    40.0,
+    1000.0,
+    undefined,
+    undefined,
+    undefined,
+    9999.0,
+    8888.0,
+    0.5,
+    0.3,
+    0.3,
+    'Level',
+    'None',
+    undefined,
+    undefined,
+    'None',
+    undefined,
+    undefined,
+    1.0,
+    1.0,
+  );
+  approx(
+    m.ramp_service_flow_rate_ideal(dirty, basis, 28.0),
+    first,
+    1e-9,
+    'EP5 solver ignores the template demands, PHF and truck percentages',
+  );
 
   // The control on that control: geometry is not ignored. Shortening the
   // acceleration lane from 1,000 ft to 300 ft moves P_FM and with it the LOS C
   // service flow rate by roughly 675 pc/h, so the template is being read.
   const shortAccel = new m.WasmRampSegment(
-    'OnRamp', 'Right', 1, 3, 70.0, 40.0, 300.0, undefined,
-    undefined, undefined, 0.0, 0.0, 1.0, 0.0, 0.0,
-    'Level', 'None', undefined, undefined, 'None', undefined, undefined, 1.0, 1.0);
-  approx(m.ramp_service_flow_rate_ideal(shortAccel, basis, 28.0), 4601.4, 1.0, 'EP5 solver reads the template geometry (L_A = 300 ft moves LOS C SFI)');
+    'OnRamp',
+    'Right',
+    1,
+    3,
+    70.0,
+    40.0,
+    300.0,
+    undefined,
+    undefined,
+    undefined,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    'Level',
+    'None',
+    undefined,
+    undefined,
+    'None',
+    undefined,
+    undefined,
+    1.0,
+    1.0,
+  );
+  approx(
+    m.ramp_service_flow_rate_ideal(shortAccel, basis, 28.0),
+    4601.4,
+    1.0,
+    'EP5 solver reads the template geometry (L_A = 300 ft moves LOS C SFI)',
+  );
 
   // Refusals. A non-finite target or basis parameter is the one input that
   // produces a finished-looking answer rather than a failure: every density
@@ -453,11 +602,15 @@ const TOL_SV_2 = TOL_SF_2 * EP5_PHF;
     ['negative v_f', { FixedFreeway: { v_f: -1.0 } }, 28.0],
     ['unknown variant name', { Bogus: { x: 1.0 } }, 28.0],
     ['misspelled v_f', { FixedFreeway: { vf: 4896.0 } }, 28.0],
-    ['both variants at once', { ApproachingFreeway: { ramp_fraction: 0.10 }, FixedFreeway: { v_f: 4896.0 } }, 28.0],
+    ['both variants at once', { ApproachingFreeway: { ramp_fraction: 0.1 }, FixedFreeway: { v_f: 4896.0 } }, 28.0],
     ['basis is not an object', 'ApproachingFreeway', 28.0],
   ]) {
     let threw = false;
-    try { m.ramp_service_flow_rate_ideal(shared, b, target); } catch { threw = true; }
+    try {
+      m.ramp_service_flow_rate_ideal(shared, b, target);
+    } catch {
+      threw = true;
+    }
     exact(threw, true, `EP5 solver rejects ${label}`);
   }
 }
@@ -481,13 +634,32 @@ const TOL_SV_2 = TOL_SF_2 * EP5_PHF;
 
 function build71(o) {
   return new m.WasmRampSegment(
-    o.ramp_type, o.ramp_side ?? 'Right', o.ramp_lanes ?? 1, o.freeway_lanes,
-    o.freeway_ffs, o.ramp_ffs,
-    o.accel_lane_length, undefined, o.decel_lane_length, undefined,
-    o.freeway_demand, o.ramp_demand, o.phf, o.heavy_vehicle_pct,
-    o.ramp_heavy_vehicle_pct, o.terrain ?? 'Level',
-    undefined, undefined, undefined, undefined, undefined, undefined,
-    undefined, undefined, o.version ?? '7.1');
+    o.ramp_type,
+    o.ramp_side ?? 'Right',
+    o.ramp_lanes ?? 1,
+    o.freeway_lanes,
+    o.freeway_ffs,
+    o.ramp_ffs,
+    o.accel_lane_length,
+    undefined,
+    o.decel_lane_length,
+    undefined,
+    o.freeway_demand,
+    o.ramp_demand,
+    o.phf,
+    o.heavy_vehicle_pct,
+    o.ramp_heavy_vehicle_pct,
+    o.terrain ?? 'Level',
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    o.version ?? '7.1',
+  );
 }
 
 // --- Ch.28 EP1 (p. 28-2): isolated one-lane, right-hand on-ramp to a
@@ -495,9 +667,15 @@ function build71(o) {
 // comes off the curved part of Equation 12-1.
 {
   const seg = build71({
-    ramp_type: 'OnRamp', freeway_lanes: 2, freeway_ffs: 60.0, ramp_ffs: 45.0,
-    accel_lane_length: 740.0, freeway_demand: 2500.0, ramp_demand: 535.0,
-    phf: 0.90, heavy_vehicle_pct: 0.05,
+    ramp_type: 'OnRamp',
+    freeway_lanes: 2,
+    freeway_ffs: 60.0,
+    ramp_ffs: 45.0,
+    accel_lane_length: 740.0,
+    freeway_demand: 2500.0,
+    ramp_demand: 535.0,
+    phf: 0.9,
+    heavy_vehicle_pct: 0.05,
   });
   exact(seg.version, '7.1', 'EP1 7.1 segment reports version 7.1');
 
@@ -512,7 +690,7 @@ function build71(o) {
   approx(a.capacity_basic_adj, 2300.0, 1e-9, 'EP1 7.1 C_b,adj (pc/h/ln, p. 28-4)');
   approx(a.speed_basic, 59.47, 0.02, 'EP1 7.1 S_b (mi/h, p. 28-4)');
   approx(a.speed_impedance, 4.37, 0.02, 'EP1 7.1 SIM (mi/h, p. 28-4)');
-  approx(a.speed_avg, 55.10, 0.03, 'EP1 7.1 S_M (mi/h, p. 28-4)');
+  approx(a.speed_avg, 55.1, 0.03, 'EP1 7.1 S_M (mi/h, p. 28-4)');
   approx(a.capacity_per_lane, 1882.0, 3.0, 'EP1 7.1 C_M (pc/h/ln, p. 28-5)');
   approx(a.dc_ratio, 0.94, 0.005, 'EP1 7.1 d/c (p. 28-5)');
   approx(a.capacity_neighboring_freeway, 4600.0, 1e-9, 'EP1 7.1 downstream freeway capacity (pc/h, Exhibit 14-8)');
@@ -524,7 +702,11 @@ function build71(o) {
   // The 7th Edition step methods are refused on a 7.1 segment rather than
   // answering from a model that no longer applies.
   let threw = false;
-  try { seg.determine_demand_flow(); } catch { threw = true; }
+  try {
+    seg.determine_demand_flow();
+  } catch {
+    threw = true;
+  }
   exact(threw, true, 'EP1 7.1 segment refuses the 7th Edition step methods');
 }
 
@@ -533,9 +715,15 @@ function build71(o) {
 // independently and applies the worse LOS to the overlapping influence area.
 {
   const seg = build71({
-    ramp_type: 'OffRamp', freeway_lanes: 3, freeway_ffs: 60.0, ramp_ffs: 40.0,
-    decel_lane_length: 500.0, freeway_demand: 4500.0, ramp_demand: 300.0,
-    phf: 0.95, heavy_vehicle_pct: 0.075,
+    ramp_type: 'OffRamp',
+    freeway_lanes: 3,
+    freeway_ffs: 60.0,
+    ramp_ffs: 40.0,
+    decel_lane_length: 500.0,
+    freeway_demand: 4500.0,
+    ramp_demand: 300.0,
+    phf: 0.95,
+    heavy_vehicle_pct: 0.075,
   });
   exact(seg.version, '7.1', 'EP2a 7.1 segment reports version 7.1');
 
@@ -566,13 +754,18 @@ function build71(o) {
 // basic segment runs at the adjusted FFS.
 {
   const seg = build71({
-    ramp_type: 'OffRamp', freeway_lanes: 3, freeway_ffs: 60.0, ramp_ffs: 25.0,
+    ramp_type: 'OffRamp',
+    freeway_lanes: 3,
+    freeway_ffs: 60.0,
+    ramp_ffs: 25.0,
     decel_lane_length: 300.0,
     // DERIVED, not a stated input: the mainline reaching the second ramp is
     // the original demand less what left at the first, 4,500 - 300 = 4,200
     // veh/h. The manual does that subtraction in prose on p. 28-9.
-    freeway_demand: 4200.0, ramp_demand: 500.0,
-    phf: 0.95, heavy_vehicle_pct: 0.075,
+    freeway_demand: 4200.0,
+    ramp_demand: 500.0,
+    phf: 0.95,
+    heavy_vehicle_pct: 0.075,
   });
   exact(seg.version, '7.1', 'EP2b 7.1 segment reports version 7.1');
 
@@ -599,9 +792,16 @@ function build71(o) {
 // and the on-ramp 5%, which is what ramp_heavy_vehicle_pct is for.
 {
   const seg = build71({
-    ramp_type: 'OnRamp', freeway_lanes: 4, freeway_ffs: 65.0, ramp_ffs: 30.0,
-    accel_lane_length: 260.0, freeway_demand: 5490.0, ramp_demand: 410.0,
-    phf: 0.94, heavy_vehicle_pct: 0.10, ramp_heavy_vehicle_pct: 0.05,
+    ramp_type: 'OnRamp',
+    freeway_lanes: 4,
+    freeway_ffs: 65.0,
+    ramp_ffs: 30.0,
+    accel_lane_length: 260.0,
+    freeway_demand: 5490.0,
+    ramp_demand: 410.0,
+    phf: 0.94,
+    heavy_vehicle_pct: 0.1,
+    ramp_heavy_vehicle_pct: 0.05,
   });
   exact(seg.version, '7.1', 'EP3-merge 7.1 segment reports version 7.1');
 
@@ -633,9 +833,15 @@ function build71(o) {
 // different truck percentages and so cannot be summed.
 {
   const seg = build71({
-    ramp_type: 'OffRamp', freeway_lanes: 4, freeway_ffs: 65.0, ramp_ffs: 25.0,
-    decel_lane_length: 260.0, freeway_demand: 6883.0, ramp_demand: 702.0,
-    phf: 1.00, heavy_vehicle_pct: 0.0,
+    ramp_type: 'OffRamp',
+    freeway_lanes: 4,
+    freeway_ffs: 65.0,
+    ramp_ffs: 25.0,
+    decel_lane_length: 260.0,
+    freeway_demand: 6883.0,
+    ramp_demand: 702.0,
+    phf: 1.0,
+    heavy_vehicle_pct: 0.0,
   });
   exact(seg.version, '7.1', 'EP3-diverge 7.1 segment reports version 7.1');
 
@@ -663,10 +869,17 @@ function build71(o) {
 // pin that ramp_side does not move them.
 {
   const seg = build71({
-    ramp_type: 'OnRamp', ramp_side: 'Left', freeway_lanes: 3,
-    freeway_ffs: 65.0, ramp_ffs: 30.0, accel_lane_length: 820.0,
-    freeway_demand: 4000.0, ramp_demand: 490.0,
-    phf: 0.90, heavy_vehicle_pct: 0.075, ramp_heavy_vehicle_pct: 0.03,
+    ramp_type: 'OnRamp',
+    ramp_side: 'Left',
+    freeway_lanes: 3,
+    freeway_ffs: 65.0,
+    ramp_ffs: 30.0,
+    accel_lane_length: 820.0,
+    freeway_demand: 4000.0,
+    ramp_demand: 490.0,
+    phf: 0.9,
+    heavy_vehicle_pct: 0.075,
+    ramp_heavy_vehicle_pct: 0.03,
   });
   exact(seg.version, '7.1', 'EP4 7.1 segment reports version 7.1');
 
@@ -692,10 +905,17 @@ function build71(o) {
   // Same junction on the right side: identical under Edition 7.1. If a later
   // edition or a fix gives the side an effect, this check is where it shows.
   const right = build71({
-    ramp_type: 'OnRamp', ramp_side: 'Right', freeway_lanes: 3,
-    freeway_ffs: 65.0, ramp_ffs: 30.0, accel_lane_length: 820.0,
-    freeway_demand: 4000.0, ramp_demand: 490.0,
-    phf: 0.90, heavy_vehicle_pct: 0.075, ramp_heavy_vehicle_pct: 0.03,
+    ramp_type: 'OnRamp',
+    ramp_side: 'Right',
+    freeway_lanes: 3,
+    freeway_ffs: 65.0,
+    ramp_ffs: 30.0,
+    accel_lane_length: 820.0,
+    freeway_demand: 4000.0,
+    ramp_demand: 490.0,
+    phf: 0.9,
+    heavy_vehicle_pct: 0.075,
+    ramp_heavy_vehicle_pct: 0.03,
   });
   right.run_analysis();
   approx(right.analysis_v7_1().density, a.density, 1e-9, 'EP4 ramp side does not move the 7.1 density');

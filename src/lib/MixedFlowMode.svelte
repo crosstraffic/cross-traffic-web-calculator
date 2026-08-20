@@ -30,7 +30,7 @@
   const GRADES = [-5, 0, 2, 3, 5];
   const FFS_VALUES = [65];
 
-  let submode = $state('single');   // 'single' = Chapter 26 | 'composite' = Chapter 25
+  let submode = $state('single'); // 'single' = Chapter 26 | 'composite' = Chapter 25
 
   // Shared traffic inputs. Truck shares are percents here and decimals at the boundary.
   let ffs = $state(65);
@@ -47,7 +47,7 @@
   let segments = $state([
     { length: 1.5, grade: 3 },
     { length: 2.0, grade: 2 },
-    { length: 1.0, grade: 5 }
+    { length: 1.0, grade: 5 },
   ]);
 
   let results = $state(null);
@@ -62,7 +62,7 @@
       v_mix: Number(v_mix),
       p_sut: Number(p_sut_pct) / 100.0,
       p_tt: Number(p_tt_pct) / 100.0,
-      caf_ao: Number(caf_ao)
+      caf_ao: Number(caf_ao),
     };
   }
 
@@ -103,7 +103,7 @@
     segments = [
       { length: 1.5, grade: 3 },
       { length: 2.0, grade: 2 },
-      { length: 1.0, grade: 5 }
+      { length: 1.0, grade: 5 },
     ];
     results = null;
     hasError = false;
@@ -114,8 +114,11 @@
     results = null;
     try {
       if (submode === 'single') {
-        const r = new WasmMixedFlow({ ...baseConfig(), length: Number(length), grade: Number(grade) })
-          .results_to_js_value();
+        const r = new WasmMixedFlow({
+          ...baseConfig(),
+          length: Number(length),
+          grade: Number(grade),
+        }).results_to_js_value();
         results = { kind: 'single', ...r };
         // Generated once, off the run that produced these numbers, and carried on the result so the
         // page and the printable report can never drift apart or restate a since-edited input.
@@ -124,17 +127,17 @@
           length: Number(length),
           vMix: Number(v_mix),
           pSutPct: Number(p_sut_pct),
-          pTtPct: Number(p_tt_pct)
+          pTtPct: Number(p_tt_pct),
         });
       } else {
         const r = new WasmCompositeGrade({
           ...baseConfig(),
-          segments: segments.map((s) => ({ length: Number(s.length), grade: Number(s.grade) }))
+          segments: segments.map((s) => ({ length: Number(s.length), grade: Number(s.grade) })),
         }).results_to_js_value();
         results = { kind: 'composite', ...r };
         results.discussion = discussionComposite(results, {
           segments: segments.map((s) => ({ length: Number(s.length), grade: Number(s.grade) })),
-          vMix: Number(v_mix)
+          vMix: Number(v_mix),
         });
       }
       publishReport();
@@ -155,12 +158,15 @@
   function publishReport() {
     if (!results) return;
     const common = [
-      { label: 'Procedure', value: submode === 'single' ? 'Single grade (HCM Ch. 26)' : 'Composite grade profile (HCM Ch. 25)' },
+      {
+        label: 'Procedure',
+        value: submode === 'single' ? 'Single grade (HCM Ch. 26)' : 'Composite grade profile (HCM Ch. 25)',
+      },
       { label: 'Free-flow speed, FFS', value: `${ffs} mi/h` },
       { label: 'Mixed-flow demand, v_mix', value: `${v_mix} veh/h/ln` },
       { label: 'Single-unit trucks', value: `${p_sut_pct} %` },
       { label: 'Tractor-trailers', value: `${p_tt_pct} %` },
-      { label: 'Auto-only CAF', value: caf_ao }
+      { label: 'Auto-only CAF', value: caf_ao },
     ];
 
     if (results.kind === 'single') {
@@ -171,7 +177,7 @@
         generatedAt: new Date().toLocaleString(),
         headline: {
           label: 'Mixed-flow result',
-          value: oversaturated ? 'LOS F' : `${fmt(results.s_mix)} mi/h`
+          value: oversaturated ? 'LOS F' : `${fmt(results.s_mix)} mi/h`,
         },
         discussion: results.discussion,
         inputs: [...common, { label: 'Grade', value: `${grade} %` }, { label: 'Grade length', value: `${length} mi` }],
@@ -183,20 +189,20 @@
             ['Mixed-flow free-flow speed, FFS_mix', `${fmt(results.ffs_mix)} mi/h`],
             ['Mixed-flow speed, S_mix', hasSpeed ? `${fmt(results.s_mix)} mi/h` : 'not reported (LOS F)'],
             ['Mixed-flow density, D_mix', hasSpeed ? `${fmt(results.d_mix)} veh/mi/ln` : 'not reported (LOS F)'],
-            ['Level of service', oversaturated ? 'F' : 'not assigned by the method']
-          ]
+            ['Level of service', oversaturated ? 'F' : 'not assigned by the method'],
+          ],
         },
         summary: [],
         methodology: [
           'Capacity: Equations 26-1 through 26-5, the truck and grade capacity adjustment factors applied to the Exhibit 12-6 auto-only capacity.',
           'Free-flow speed: Equations 26-6 through 26-14, mixing the automobile rate with kinematic truck travel-time rates read from the Chapter 26 Appendix A curves.',
           'Speed and density: Equations 26-16 through 26-22.',
-          'HCM Chapter 26 assigns LOS F when v_mix exceeds C_mix and stops. It assigns no other letter, because D_mix is a mixed-flow density and the Exhibit 12-15 bands are auto-only densities.'
+          'HCM Chapter 26 assigns LOS F when v_mix exceeds C_mix and stops. It assigns no other letter, because D_mix is a mixed-flow density and the Exhibit 12-15 bands are auto-only densities.',
         ],
         diagram: {
           kind: 'grade-profile',
-          props: { segments: [{ length: Number(length), grade: Number(grade) }], governing: 0 }
-        }
+          props: { segments: [{ length: Number(length), grade: Number(grade) }], governing: 0 },
+        },
       });
       return;
     }
@@ -208,12 +214,12 @@
       generatedAt: new Date().toLocaleString(),
       headline: {
         label: 'Overall mixed-flow speed',
-        value: oversaturated ? 'LOS F' : `${fmt(results.s_mix_overall)} mi/h`
+        value: oversaturated ? 'LOS F' : `${fmt(results.s_mix_overall)} mi/h`,
       },
       discussion: results.discussion,
       inputs: [
         ...common,
-        { label: 'Grades, in order of travel', value: segments.map((s) => `${s.length} mi @ ${s.grade}%`).join(', ') }
+        { label: 'Grades, in order of travel', value: segments.map((s) => `${s.length} mi @ ${s.grade}%`).join(', ') },
       ],
       resultTable: {
         columns: ['Segment', 'Grade', 'Length (mi)', 'C_mix (veh/h/ln)', 'S_mix (mi/h)', 'Travel time (s)'],
@@ -223,32 +229,32 @@
           String(segments[i]?.length ?? '—'),
           fmt(s.capacity_mix, 0),
           fmt(s.s_mix),
-          fmt(s.travel_time)
-        ])
+          fmt(s.travel_time),
+        ]),
       },
       summary: [
         {
           label: `Governing capacity, C_mix (set by segment ${results.governing_segment + 1})`,
-          value: `${fmt(results.capacity_mix, 0)} veh/h/ln`
+          value: `${fmt(results.capacity_mix, 0)} veh/h/ln`,
         },
         {
           label: 'Overall mixed-flow speed, S_mix,oa (Equation 25-70)',
-          value: `${fmt(results.s_mix_overall)} mi/h over ${fmt(results.total_length, 2)} mi in ${fmt(results.total_travel_time)} s`
-        }
+          value: `${fmt(results.s_mix_overall)} mi/h over ${fmt(results.total_length, 2)} mi in ${fmt(results.total_travel_time)} s`,
+        },
       ],
       methodology: [
         'Per-segment capacity: Equations 25-53 through 25-57, the facility capacity being the tightest of them.',
         'Chaining: each grade is entered at the speed the vehicle left the previous one with (Step 4), which is what separates this from analysing each grade alone.',
         'Overall speed: Equation 25-70, total length over summed segment travel times.',
-        'HCM Chapter 25 assigns no LOS letter to a composite-grade result beyond flagging demand above the governing capacity.'
+        'HCM Chapter 25 assigns no LOS letter to a composite-grade result beyond flagging demand above the governing capacity.',
       ],
       diagram: {
         kind: 'grade-profile',
         props: {
           segments: segments.map((s) => ({ length: Number(s.length), grade: Number(s.grade) })),
-          governing: results.governing_segment
-        }
-      }
+          governing: results.governing_segment,
+        },
+      },
     });
   }
 </script>
@@ -259,15 +265,21 @@
   </div>
 {/if}
 
-<form id="hcm12mf" onsubmit={(e) => { e.preventDefault(); runAnalysis(); }} inert={!ready}>
+<form
+  id="hcm12mf"
+  onsubmit={(e) => {
+    e.preventDefault();
+    runAnalysis();
+  }}
+  inert={!ready}
+>
   <section class="panel">
     <div class="panel-head with-actions">
       <div>
         <h2 class="panel-title">Grade Description</h2>
         <p class="panel-sub">
-          One sustained grade is a Chapter 26 analysis. A sequence of grades is a Chapter 25
-          analysis, which carries each truck's speed from one grade into the next instead of
-          restarting every grade at free-flow speed.
+          One sustained grade is a Chapter 26 analysis. A sequence of grades is a Chapter 25 analysis, which carries
+          each truck's speed from one grade into the next instead of restarting every grade at free-flow speed.
         </p>
       </div>
       <div class="panel-actions">
@@ -292,13 +304,12 @@
         <h2 class="panel-title">{submode === 'single' ? 'Grade' : 'Grade Profile'}</h2>
         <p class="panel-sub">
           {#if submode === 'single'}
-            The sustained upgrade the segment carries. Grade is a fixed list because the truck
-            performance curves are published as figures with no closed form, one per tabulated
-            grade, and each grade settles at its own crawl speed, so a value between them
-            cannot be interpolated.
+            The sustained upgrade the segment carries. Grade is a fixed list because the truck performance curves are
+            published as figures with no closed form, one per tabulated grade, and each grade settles at its own crawl
+            speed, so a value between them cannot be interpolated.
           {:else}
-            The grades in the order a vehicle meets them. Reordering changes the answer,
-            because the speed a truck leaves one grade with is the speed it enters the next.
+            The grades in the order a vehicle meets them. Reordering changes the answer, because the speed a truck
+            leaves one grade with is the speed it enters the next.
           {/if}
         </p>
       </div>
@@ -318,10 +329,21 @@
         <div class="param-field">
           <label for="MFLEN_input">Grade Length</label>
           <div class="cell-field">
-            <input id="MFLEN_input" type="number" step="0.1" min="0.1" class="input input-bordered input-sm" bind:value={length} required />
+            <input
+              id="MFLEN_input"
+              type="number"
+              step="0.1"
+              min="0.1"
+              class="input input-bordered input-sm"
+              bind:value={length}
+              required
+            />
             <span class="unit">mi</span>
           </div>
-          <p class="param-hint">Miles, not the feet a Chapter 15 subsegment takes. Past about 2 mi the trucks have reached crawl speed and the answer stops changing.</p>
+          <p class="param-hint">
+            Miles, not the feet a Chapter 15 subsegment takes. Past about 2 mi the trucks have reached crawl speed and
+            the answer stops changing.
+          </p>
         </div>
       </div>
 
@@ -344,13 +366,26 @@
           <div class="param-field">
             <label for={`MFSEGL${i}_input`}>Length {i + 1}</label>
             <div class="cell-field">
-              <input id={`MFSEGL${i}_input`} type="number" step="0.1" min="0.1" class="input input-bordered input-sm" bind:value={seg.length} required />
+              <input
+                id={`MFSEGL${i}_input`}
+                type="number"
+                step="0.1"
+                min="0.1"
+                class="input input-bordered input-sm"
+                bind:value={seg.length}
+                required
+              />
               <span class="unit">mi</span>
             </div>
           </div>
         </div>
         <div class="seg-action">
-          <button type="button" class="btn btn-ghost btn-sm" onclick={() => removeSegment(i)} disabled={segments.length <= 1}>Remove grade {i + 1}</button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm"
+            onclick={() => removeSegment(i)}
+            disabled={segments.length <= 1}>Remove grade {i + 1}</button
+          >
         </div>
       {/each}
 
@@ -360,7 +395,7 @@
 
       <div class="diagram-block">
         <GradeProfileStrip
-          segments={segments}
+          {segments}
           governing={results && results.kind === 'composite' ? results.governing_segment : -1}
         />
       </div>
@@ -371,7 +406,10 @@
     <div class="panel-head">
       <div>
         <h2 class="panel-title">Traffic</h2>
-        <p class="panel-sub">The mixed stream is described by its total flow rate and the share of each truck class, not converted to passenger cars. That is the whole point of the method.</p>
+        <p class="panel-sub">
+          The mixed stream is described by its total flow rate and the share of each truck class, not converted to
+          passenger cars. That is the whole point of the method.
+        </p>
       </div>
     </div>
     <div class="param-grid">
@@ -383,15 +421,23 @@
           {/each}
         </select>
         <p class="param-hint">
-          Only the 65 mi/h curves of the Chapter 25 and 26 appendices are digitised. Other
-          free-flow speeds are refused rather than extrapolated, so they are not offered here.
+          Only the 65 mi/h curves of the Chapter 25 and 26 appendices are digitised. Other free-flow speeds are refused
+          rather than extrapolated, so they are not offered here.
         </p>
       </div>
 
       <div class="param-field">
         <label for="MFV_input">Mixed-Flow Demand, v<sub>mix</sub></label>
         <div class="cell-field">
-          <input id="MFV_input" type="number" step="1" min="1" class="input input-bordered input-sm" bind:value={v_mix} required />
+          <input
+            id="MFV_input"
+            type="number"
+            step="1"
+            min="1"
+            class="input input-bordered input-sm"
+            bind:value={v_mix}
+            required
+          />
           <span class="unit">veh/h/ln</span>
         </div>
         <p class="param-hint">Vehicles, not passenger cars, and per lane.</p>
@@ -400,7 +446,16 @@
       <div class="param-field">
         <label for="MFSUT_input">Single-Unit Trucks</label>
         <div class="cell-field">
-          <input id="MFSUT_input" type="number" step="0.1" min="0" max="100" class="input input-bordered input-sm" bind:value={p_sut_pct} required />
+          <input
+            id="MFSUT_input"
+            type="number"
+            step="0.1"
+            min="0"
+            max="100"
+            class="input input-bordered input-sm"
+            bind:value={p_sut_pct}
+            required
+          />
           <span class="unit">%</span>
         </div>
       </div>
@@ -408,24 +463,49 @@
       <div class="param-field">
         <label for="MFTT_input">Tractor-Trailers</label>
         <div class="cell-field">
-          <input id="MFTT_input" type="number" step="0.1" min="0" max="100" class="input input-bordered input-sm" bind:value={p_tt_pct} required />
+          <input
+            id="MFTT_input"
+            type="number"
+            step="0.1"
+            min="0"
+            max="100"
+            class="input input-bordered input-sm"
+            bind:value={p_tt_pct}
+            required
+          />
           <span class="unit">%</span>
         </div>
-        <p class="param-hint">The two truck shares are separate inputs because the two classes climb differently. Together they must stay below 100%.</p>
+        <p class="param-hint">
+          The two truck shares are separate inputs because the two classes climb differently. Together they must stay
+          below 100%.
+        </p>
       </div>
 
       <div class="param-field">
         <label for="MFCAF_input">Auto-Only CAF</label>
         <div class="cell-field">
-          <input id="MFCAF_input" type="number" step="0.01" min="0.1" max="1" class="input input-bordered input-sm" bind:value={caf_ao} required />
+          <input
+            id="MFCAF_input"
+            type="number"
+            step="0.01"
+            min="0.1"
+            max="1"
+            class="input input-bordered input-sm"
+            bind:value={caf_ao}
+            required
+          />
         </div>
-        <p class="param-hint">Weather, incident, and work-zone adjustment applied before the mixed-flow factors. 1.00 is the no-adjustment case.</p>
+        <p class="param-hint">
+          Weather, incident, and work-zone adjustment applied before the mixed-flow factors. 1.00 is the no-adjustment
+          case.
+        </p>
       </div>
     </div>
   </section>
 
   <div class="action-bar">
-    <button class="btn btn-ghost" onclick={submode === 'single' ? loadEp5 : loadEp11} type="button">Reset Params</button>
+    <button class="btn btn-ghost" onclick={submode === 'single' ? loadEp5 : loadEp11} type="button">Reset Params</button
+    >
     <button class="btn btn-primary" type="submit" disabled={!ready}>Calculate</button>
   </div>
 </form>
@@ -451,9 +531,14 @@
       <span>
         LOS F — demand exceeds mixed-flow capacity; the method reports no speed.
         {#if results.kind === 'single'}
-          v<sub>mix</sub> of {fmt(v_mix, 0)} veh/h/ln is above the C<sub>mix</sub> of {fmt(results.capacity_mix, 0)} veh/h/ln, and Chapter 26 Step 2 stops here. A facility analysis is recommended.
+          v<sub>mix</sub> of {fmt(v_mix, 0)} veh/h/ln is above the C<sub>mix</sub> of {fmt(results.capacity_mix, 0)} veh/h/ln,
+          and Chapter 26 Step 2 stops here. A facility analysis is recommended.
         {:else}
-          v<sub>mix</sub> of {fmt(v_mix, 0)} veh/h/ln is above the governing C<sub>mix</sub> of {fmt(results.capacity_mix, 0)} veh/h/ln, set by segment {results.governing_segment + 1}. The per-segment speeds below are still computed by Chapter 25 but fall outside the range the method is calibrated for.
+          v<sub>mix</sub> of {fmt(v_mix, 0)} veh/h/ln is above the governing C<sub>mix</sub> of {fmt(
+            results.capacity_mix,
+            0,
+          )} veh/h/ln, set by segment {results.governing_segment + 1}. The per-segment speeds below are still computed
+          by Chapter 25 but fall outside the range the method is calibrated for.
         {/if}
       </span>
     </div>
@@ -509,7 +594,9 @@
           <tr>
             <td class="step-num">8</td>
             <th>Mixed-flow density, D<sub>mix</sub></th>
-            <td class="num" data-testid="mf-density">{hasSpeed ? `${fmt(results.d_mix)} veh/mi/ln` : 'no density reported'}</td>
+            <td class="num" data-testid="mf-density"
+              >{hasSpeed ? `${fmt(results.d_mix)} veh/mi/ln` : 'no density reported'}</td
+            >
           </tr>
           <tr class="step-los">
             <td class="step-num"></td>
@@ -537,7 +624,10 @@
         <tbody>
           {#each results.segments as s, i}
             <tr data-testid={`mf-comp-seg-${i + 1}`} class:seg-governing={i === results.governing_segment}>
-              <th>{i + 1}{#if i === results.governing_segment} · governs{/if}</th>
+              <th
+                >{i + 1}{#if i === results.governing_segment}
+                  · governs{/if}</th
+              >
               <td class="num">{segments[i]?.grade ?? '—'} %</td>
               <td class="num">{segments[i]?.length ?? '—'}</td>
               <td class="num">{fmt(s.capacity_mix, 0)}</td>
@@ -583,10 +673,11 @@
 
   <div class="facility-summary" data-testid="mf-los-basis">
     <p>
-      The mixed-flow model reports a speed and a density, not a level of service. HCM Chapter 26
-      assigns LOS F when v<sub>mix</sub> exceeds C<sub>mix</sub> and stops there; below capacity
-      it assigns no letter, because D<sub>mix</sub> is a mixed-flow density in veh/mi/ln and the
-      Exhibit 12-15 bands are auto-only densities in pc/mi/ln. Chapter 25 Example Problem 11's
+      The mixed-flow model reports a speed and a density, not a level of service. HCM Chapter 26 assigns LOS F when v<sub
+        >mix</sub
+      >
+      exceeds C<sub>mix</sub> and stops there; below capacity it assigns no letter, because D<sub>mix</sub> is a mixed-flow
+      density in veh/mi/ln and the Exhibit 12-15 bands are auto-only densities in pc/mi/ln. Chapter 25 Example Problem 11's
       own discussion makes the same point about the composite procedure.
     </p>
   </div>
@@ -597,11 +688,36 @@
 </section>
 
 <style>
-  .seg-action { display: flex; justify-content: flex-end; margin: -0.25rem 0 0.75rem; }
-  .diagram-block { margin: 1rem auto 0; max-width: 560px; }
-  .step-table .step-num { width: 3rem; text-align: center; font-variant-numeric: tabular-nums; opacity: 0.6; }
-  .step-table tr.step-los th, .step-table tr.step-los td { font-weight: 700; }
-  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  tr.step-los th, tr.step-los td { font-weight: 700; }
-  tr.seg-governing { background: color-mix(in srgb, var(--diag-center) 12%, transparent); }
+  .seg-action {
+    display: flex;
+    justify-content: flex-end;
+    margin: -0.25rem 0 0.75rem;
+  }
+  .diagram-block {
+    margin: 1rem auto 0;
+    max-width: 560px;
+  }
+  .step-table .step-num {
+    width: 3rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.6;
+  }
+  .step-table tr.step-los th,
+  .step-table tr.step-los td {
+    font-weight: 700;
+  }
+  td.num,
+  th.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  tr.step-los th,
+  tr.step-los td {
+    font-weight: 700;
+  }
+  tr.seg-governing {
+    background: color-mix(in srgb, var(--diag-center) 12%, transparent);
+  }
 </style>

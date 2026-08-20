@@ -19,17 +19,42 @@ const c1 = loadCase('Twsc', 'case1.json');
 const d1 = c1.demand;
 const g1 = c1.geometry;
 const t1 = new m.WasmTwsc(
-  undefined, undefined, d1.v2, d1.v3, d1.v4, undefined, d1.v5, undefined,
-  d1.v7, undefined, d1.v9, undefined, undefined, undefined, // v1..v12
-  undefined, undefined, undefined, undefined,               // v13..v16 (ped)
-  g1.is_three_leg, g1.major_lanes_per_direction,
-  g1.major_right_turn_eb.toLowerCase(), g1.major_right_turn_wb.toLowerCase(),
-  undefined,                                                // uturn_median_width
-  undefined, undefined,                                     // minor grades, pct
-  g1.minor_lanes_nb.toLowerCase(), undefined,               // minor lane configs
-  undefined, undefined, undefined, undefined,               // median/flare storage
-  undefined,                                                // lane_width_ft
-  c1.phf ?? undefined, c1.analysis_period_h, c1.heavy_vehicle_pct);
+  undefined,
+  undefined,
+  d1.v2,
+  d1.v3,
+  d1.v4,
+  undefined,
+  d1.v5,
+  undefined,
+  d1.v7,
+  undefined,
+  d1.v9,
+  undefined,
+  undefined,
+  undefined, // v1..v12
+  undefined,
+  undefined,
+  undefined,
+  undefined, // v13..v16 (ped)
+  g1.is_three_leg,
+  g1.major_lanes_per_direction,
+  g1.major_right_turn_eb.toLowerCase(),
+  g1.major_right_turn_wb.toLowerCase(),
+  undefined, // uturn_median_width
+  undefined,
+  undefined, // minor grades, pct
+  g1.minor_lanes_nb.toLowerCase(),
+  undefined, // minor lane configs
+  undefined,
+  undefined,
+  undefined,
+  undefined, // median/flare storage
+  undefined, // lane_width_ft
+  c1.phf ?? undefined,
+  c1.analysis_period_h,
+  c1.heavy_vehicle_pct,
+);
 t1.analyze();
 
 approx(t1.get_movement_capacity('4'), 1238.0, CAP_TOL, 'EP1 c_m,4');
@@ -72,18 +97,42 @@ const c2 = loadCase('Twsc', 'case2.json');
 const d2 = c2.demand;
 const g2 = c2.geometry;
 const t2 = new m.WasmTwsc(
-  d2.v1, undefined, d2.v2, d2.v3, d2.v4, undefined, d2.v5, d2.v6,
-  d2.v7, d2.v8, d2.v9, d2.v10, d2.v11, d2.v12,
-  undefined, undefined, undefined, undefined,               // v13..v16 (ped)
-  g2.is_three_leg, g2.major_lanes_per_direction,
-  g2.major_right_turn_eb.toLowerCase(), g2.major_right_turn_wb.toLowerCase(),
-  undefined,                                                // uturn_median_width
-  undefined, undefined,                                     // minor grades, pct
-  g2.minor_lanes_nb.toLowerCase(), g2.minor_lanes_sb.toLowerCase(),
-  g2.median_storage_nb, g2.median_storage_sb,
-  g2.flare_storage_nb, g2.flare_storage_sb,
-  undefined,                                                // lane_width_ft
-  c2.phf ?? undefined, c2.analysis_period_h, c2.heavy_vehicle_pct);
+  d2.v1,
+  undefined,
+  d2.v2,
+  d2.v3,
+  d2.v4,
+  undefined,
+  d2.v5,
+  d2.v6,
+  d2.v7,
+  d2.v8,
+  d2.v9,
+  d2.v10,
+  d2.v11,
+  d2.v12,
+  undefined,
+  undefined,
+  undefined,
+  undefined, // v13..v16 (ped)
+  g2.is_three_leg,
+  g2.major_lanes_per_direction,
+  g2.major_right_turn_eb.toLowerCase(),
+  g2.major_right_turn_wb.toLowerCase(),
+  undefined, // uturn_median_width
+  undefined,
+  undefined, // minor grades, pct
+  g2.minor_lanes_nb.toLowerCase(),
+  g2.minor_lanes_sb.toLowerCase(),
+  g2.median_storage_nb,
+  g2.median_storage_sb,
+  g2.flare_storage_nb,
+  g2.flare_storage_sb,
+  undefined, // lane_width_ft
+  c2.phf ?? undefined,
+  c2.analysis_period_h,
+  c2.heavy_vehicle_pct,
+);
 
 const hasOverrideSetter = typeof t2.add_conflicting_flow_override === 'function';
 if (hasOverrideSetter) {
@@ -128,8 +177,10 @@ if (hasOverrideSetter) {
 
   approx(t2.get_intersection_delay(), 6.3, DELAY_TOL, 'EP3 d_I');
 } else {
-  console.log('SKIP  ch20 EP3 override-dependent checks: middleware wrapper work needed'
-    + ' for WasmTwsc.add_conflicting_flow_override');
+  console.log(
+    'SKIP  ch20 EP3 override-dependent checks: middleware wrapper work needed' +
+      ' for WasmTwsc.add_conflicting_flow_override',
+  );
 }
 
 // ── HCM Chapter 32, TWSC Example Problem 2 (Chapter 20 Section 5 pedestrian
@@ -189,13 +240,22 @@ approx(sa.prob_delayed_crossing, 0.997, PROB_TOL, 'EP2-A P_d');
 // in v*t_c,G, so these carry a 0.5% band rather than an absolute one.
 approx(sa.gap_delay, 761.0, 761.0 * 0.005, 'EP2-A d_g');
 approx(sa.gap_delay_when_delayed, 763.0, 763.0 * 0.005, 'EP2-A d_gd');
-exact(sa.prob_yield.every((p) => p === 0), true, 'EP2-A every P(Y_i) = 0 at a 0% yield rate');
+exact(
+  sa.prob_yield.every((p) => p === 0),
+  true,
+  'EP2-A every P(Y_i) = 0 at a 0% yield rate',
+);
 approx(ra.delay, 761.0, 761.0 * 0.005, 'EP2-A d_p');
 approx(pa.get_delay(), ra.delay, 1e-12, 'EP2-A get_delay matches the results object');
 // The book labels this step "d_p,1 = d_gd = 761 s", which is a mislabel of
 // d_gd = 763 s. With M_y = 0 every P(Y_i) is zero, so Equation 20-84 reduces
 // to P_d * d_gd, and 761 is what that yields.
-approx(ra.delay, sa.prob_delayed_crossing * sa.gap_delay_when_delayed, 0.001, 'EP2-A d_p = P_d * d_gd at a 0% yield rate');
+approx(
+  ra.delay,
+  sa.prob_delayed_crossing * sa.gap_delay_when_delayed,
+  0.001,
+  'EP2-A d_p = P_d * d_gd at a 0% yield rate',
+);
 // Fit residual, not an independent reproduction: see note 1 above.
 approx(ra.odds_satisfied_no_delay, 1.066, 0.005, 'EP2-A O(S/D, no delay) [Eq 20-95 fit residual]');
 approx(ra.odds_satisfied_delay, 0.159, PROB_TOL, 'EP2-A O(S/D, delay) [Eq 20-95 fit residual]');
@@ -243,7 +303,12 @@ approx(rb.proportion_dissatisfied, 0.207, PROB_TOL, 'EP2-B P_D');
 exact(rb.los, 'C', 'EP2-B LOS');
 // Note 5 above: Step 7 takes the first stage's P_d and P(Y_1) rather than
 // compounding the stages. The published 0.481 is what one stage gives.
-approx(rb.prob_non_delayed, (1 - sb.prob_delayed_crossing) + sb.prob_delayed_crossing * sb.prob_yield[1], 1e-12, 'EP2-B P_nd is the first stage, not the across-stage product');
+approx(
+  rb.prob_non_delayed,
+  1 - sb.prob_delayed_crossing + sb.prob_delayed_crossing * sb.prob_yield[1],
+  1e-12,
+  'EP2-B P_nd is the first stage, not the across-stage product',
+);
 
 // Scenario C: Scenario B plus RRFBs at an 80% motorist yield rate. Published:
 // P(Y_1) = 0.565, d_p,1 = d_p,2 = 1.5 s, d_p = 3.0 s. Exhibit 32-7:
@@ -264,17 +329,20 @@ approx(sc.delay, 1.5, DELAY_TOL, 'EP2-C d_p,1');
 approx(rc.delay, 3.0, DELAY_TOL, 'EP2-C d_p');
 approx(rc.odds_satisfied_no_delay, 95.15, 0.15, 'EP2-C O(S/D, no delay) [Eq 20-95 fit residual]');
 approx(rc.odds_satisfied_delay, 14.15, 0.05, 'EP2-C O(S/D, delay) [Eq 20-95 fit residual]');
-approx(rc.prob_dissatisfied_no_delay, 0.010, PROB_TOL, 'EP2-C P(D, no delay)');
+approx(rc.prob_dissatisfied_no_delay, 0.01, PROB_TOL, 'EP2-C P(D, no delay)');
 approx(rc.prob_dissatisfied_delay, 0.066, PROB_TOL, 'EP2-C P(D, delay)');
 approx(rc.prob_yield_first_event, 0.565, PROB_TOL, 'EP2-C P(Y_1)');
-approx(rc.prob_non_delayed, 0.670, PROB_TOL, 'EP2-C P_nd');
+approx(rc.prob_non_delayed, 0.67, PROB_TOL, 'EP2-C P_nd');
 approx(rc.proportion_dissatisfied, 0.029, PROB_TOL, 'EP2-C P_D');
 exact(rc.los, 'A', 'EP2-C LOS');
 
 // The progression the example is written to show: a marked crosswalk and
 // median refuge move the crossing from LOS F to C, and RRFBs move it to A.
-exact(ra.proportion_dissatisfied > rb.proportion_dissatisfied
-  && rb.proportion_dissatisfied > rc.proportion_dissatisfied, true, 'EP2 P_D falls monotonically as countermeasures are added');
+exact(
+  ra.proportion_dissatisfied > rb.proportion_dissatisfied && rb.proportion_dissatisfied > rc.proportion_dissatisfied,
+  true,
+  'EP2 P_D falls monotonically as countermeasures are added',
+);
 exact(ra.delay > rb.delay && rb.delay > rc.delay, true, 'EP2 d_p falls monotonically');
 
 // `PedestrianCrossing` is serde(default) at both levels, so a config whose
@@ -303,25 +371,53 @@ approx(halfCrossing.get_delay(), 3.0, DELAY_TOL, 'EP2 a dropped stage halves the
 // none of the three is silently dropped on the way through the binding.
 const noRefuge = new m.WasmPedestrianCrossing({ ...ped.scenario_b, has_median_refuge: false }).results_to_js_value();
 exact(noRefuge.los, 'E', 'EP2-B without the median refuge indicator');
-const noMarking = new m.WasmPedestrianCrossing({ ...ped.scenario_b, has_marked_crosswalk: false }).results_to_js_value();
+const noMarking = new m.WasmPedestrianCrossing({
+  ...ped.scenario_b,
+  has_marked_crosswalk: false,
+}).results_to_js_value();
 exact(noMarking.los, 'E', 'EP2-B without the marked-crosswalk indicator');
 const noRrfb = new m.WasmPedestrianCrossing({ ...ped.scenario_c, has_rrfb: false }).results_to_js_value();
 exact(noRrfb.los, 'C', 'EP2-C without the RRFB indicator');
 // AADT reaches Equation 20-95 either directly or through the K-factor, and the
 // direct value wins when both are given.
-const direct = new m.WasmPedestrianCrossing({ ...ped.scenario_b, aadt_veh: ped.scenario_b.peak_hour_volume_veh_h / ped.scenario_b.k_factor }).results_to_js_value();
-approx(direct.odds_satisfied_no_delay, rb.odds_satisfied_no_delay, 1e-9, 'EP2-B aadt_veh equal to the K-factor estimate reproduces it');
+const direct = new m.WasmPedestrianCrossing({
+  ...ped.scenario_b,
+  aadt_veh: ped.scenario_b.peak_hour_volume_veh_h / ped.scenario_b.k_factor,
+}).results_to_js_value();
+approx(
+  direct.odds_satisfied_no_delay,
+  rb.odds_satisfied_no_delay,
+  1e-9,
+  'EP2-B aadt_veh equal to the K-factor estimate reproduces it',
+);
 const higherAadt = new m.WasmPedestrianCrossing({ ...ped.scenario_b, aadt_veh: 30000 }).results_to_js_value();
-exact(higherAadt.odds_satisfied_no_delay < rb.odds_satisfied_no_delay, true, 'EP2-B a higher AADT lowers the satisfaction odds');
+exact(
+  higherAadt.odds_satisfied_no_delay < rb.odds_satisfied_no_delay,
+  true,
+  'EP2-B a higher AADT lowers the satisfaction odds',
+);
 
 // Platooning is the one Step 2 branch no scenario of Example Problem 2
 // exercises, so it has no published column. It is pinned by direction only:
 // Equations 20-77 through 20-79 must lift the group critical headway above the
 // single-pedestrian value, and must be inert when platooning is off.
-const platoon = new m.WasmPedestrianCrossing({ ...ped.scenario_b, pedestrian_platooning: true, crosswalk_width_ft: 10.0, pedestrian_flow_p_h: 300.0 }).results_to_js_value();
-exact(platoon.stages[0].group_critical_headway > sb.group_critical_headway, true, 'EP2-B platooning raises t_c,G above t_c');
+const platoon = new m.WasmPedestrianCrossing({
+  ...ped.scenario_b,
+  pedestrian_platooning: true,
+  crosswalk_width_ft: 10.0,
+  pedestrian_flow_p_h: 300.0,
+}).results_to_js_value();
+exact(
+  platoon.stages[0].group_critical_headway > sb.group_critical_headway,
+  true,
+  'EP2-B platooning raises t_c,G above t_c',
+);
 exact(platoon.stages[0].spatial_distribution > 1.0, true, 'EP2-B platooning gives N_p above one row');
-const platoonOff = new m.WasmPedestrianCrossing({ ...ped.scenario_b, crosswalk_width_ft: 10.0, pedestrian_flow_p_h: 300.0 }).results_to_js_value();
+const platoonOff = new m.WasmPedestrianCrossing({
+  ...ped.scenario_b,
+  crosswalk_width_ft: 10.0,
+  pedestrian_flow_p_h: 300.0,
+}).results_to_js_value();
 approx(platoonOff.delay, rb.delay, 1e-12, 'EP2-B crosswalk width and pedestrian flow are inert with platooning off');
 
 report('ch20 TWSC (HCM Ch.32 EP1, EP2 pedestrian, EP3)');

@@ -1,9 +1,9 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { sveltekit } from '@sveltejs/kit/vite';
-import wasmPack from "vite-plugin-wasm-pack";
+import wasmPack from 'vite-plugin-wasm-pack';
 
-const WASM_CRATE = "./HCM-middleware";
-const ROUTES_DIR = "./src/routes";
+const WASM_CRATE = './HCM-middleware';
+const ROUTES_DIR = './src/routes';
 
 // vite-plugin-wasm-pack copies the crate's pkg/*.wasm to a fixed, unhashed
 // `assets/` path and rewrites the wasm-bindgen glue to fetch exactly that
@@ -51,15 +51,12 @@ function pageRoutes() {
 
 /** @type {import('vite').UserConfig} */
 export default {
-  plugins: [
-    sveltekit(),
-    wasmPack(WASM_CRATE)
-  ],
+  plugins: [sveltekit(), wasmPack(WASM_CRATE)],
   // SvelteKit bundles the service worker in a separate Vite pass that ignores
   // this config file and every plugin in it, so `define` is the only channel
   // that reaches service-worker.js.
   define: {
     __WASM_ASSET__: JSON.stringify(wasmAssetUrl()),
-    __ROUTES__: JSON.stringify(pageRoutes())
+    __ROUTES__: JSON.stringify(pageRoutes()),
   },
 };

@@ -50,7 +50,9 @@
     color: var(--text-secondary);
   }
 
-  .discussion-head::-webkit-details-marker { display: none; }
+  .discussion-head::-webkit-details-marker {
+    display: none;
+  }
 
   /* The marker is drawn rather than left to the browser, so it matches the disclosure arrows the
      rest of the app uses and rotates with the open state. */
@@ -61,7 +63,9 @@
     opacity: 0.6;
   }
 
-  .discussion[open] .discussion-head::before { content: '▾'; }
+  .discussion[open] .discussion-head::before {
+    content: '▾';
+  }
 
   .discussion-body {
     padding: 0 0.9rem 0.8rem;
@@ -74,5 +78,7 @@
     color: var(--text);
   }
 
-  .discussion-body p:last-child { margin-bottom: 0; }
+  .discussion-body p:last-child {
+    margin-bottom: 0;
+  }
 </style>

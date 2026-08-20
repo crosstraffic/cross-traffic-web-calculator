@@ -11,7 +11,7 @@
     mlLos = null,
     mlDensity = null,
     gpDensity = null,
-    frictionActive = false
+    frictionActive = false,
   } = $props();
 
   // Clamped only for drawing; the engine takes the entered values unchanged.
@@ -23,7 +23,7 @@
   const TOP = 16;
 
   let separation = $derived(
-    laneType.startsWith('barrier') ? 'barrier' : laneType.startsWith('buffer') ? 'buffer' : 'marking'
+    laneType.startsWith('barrier') ? 'barrier' : laneType.startsWith('buffer') ? 'buffer' : 'marking',
   );
 
   let mlTop = $derived(TOP);
@@ -38,27 +38,36 @@
 
   // Built in script rather than in the markup: Svelte trims the leading whitespace inside an
   // {#if} block, which silently swallowed the space before each "·" separator.
-  let mlLabel = $derived([
-    `Managed lane${drawnMl === 1 ? '' : 's'}`,
-    ...(mlLos ? [`LOS ${mlLos}`] : []),
-    ...(mlLos && mlDensity != null ? [`${mlDensity.toFixed(1)} pc/mi/ln`] : []),
-  ].join(' · '));
+  let mlLabel = $derived(
+    [
+      `Managed lane${drawnMl === 1 ? '' : 's'}`,
+      ...(mlLos ? [`LOS ${mlLos}`] : []),
+      ...(mlLos && mlDensity != null ? [`${mlDensity.toFixed(1)} pc/mi/ln`] : []),
+    ].join(' · '),
+  );
 
-  let gpLabel = $derived([
-    `${drawnGp} general purpose lane${drawnGp === 1 ? '' : 's'}`,
-    ...(gpDensity != null ? [`K_GP ${gpDensity.toFixed(1)} pc/mi/ln`] : []),
-    ...(frictionActive ? ['friction active'] : []),
-  ].join(' · '));
+  let gpLabel = $derived(
+    [
+      `${drawnGp} general purpose lane${drawnGp === 1 ? '' : 's'}`,
+      ...(gpDensity != null ? [`K_GP ${gpDensity.toFixed(1)} pc/mi/ln`] : []),
+      ...(frictionActive ? ['friction active'] : []),
+    ].join(' · '),
+  );
 
   let sepLabel = $derived(
-    separation === 'barrier' ? 'barrier separation'
-      : separation === 'buffer' ? 'buffer separation'
-      : 'continuous access'
+    separation === 'barrier'
+      ? 'barrier separation'
+      : separation === 'buffer'
+        ? 'buffer separation'
+        : 'continuous access',
   );
 </script>
 
-<div class="ml-diagram" role="img"
-     aria-label={`${drawnMl} managed lane${drawnMl === 1 ? '' : 's'} with ${sepLabel} alongside ${drawnGp} general purpose lanes${mlLos ? `, managed lane LOS ${mlLos}` : ''}`}>
+<div
+  class="ml-diagram"
+  role="img"
+  aria-label={`${drawnMl} managed lane${drawnMl === 1 ? '' : 's'} with ${sepLabel} alongside ${drawnGp} general purpose lanes${mlLos ? `, managed lane LOS ${mlLos}` : ''}`}
+>
   <svg viewBox="0 0 320 {height}" preserveAspectRatio="xMidYMid meet">
     <defs>
       <pattern id="ml-buffer-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -100,8 +109,18 @@
     {/if}
 
     <!-- Direction of travel, one arrow per carriageway, apex downstream (to the right). -->
-    <polygon class="ml-arrow" points="288,{mlTop + LANE_H * drawnMl / 2} 272,{mlTop + LANE_H * drawnMl / 2 - 4} 272,{mlTop + LANE_H * drawnMl / 2 + 4}" />
-    <polygon class="ml-arrow" points="288,{sepBottom + LANE_H * drawnGp / 2} 272,{sepBottom + LANE_H * drawnGp / 2 - 4} 272,{sepBottom + LANE_H * drawnGp / 2 + 4}" />
+    <polygon
+      class="ml-arrow"
+      points="288,{mlTop + (LANE_H * drawnMl) / 2} 272,{mlTop + (LANE_H * drawnMl) / 2 - 4} 272,{mlTop +
+        (LANE_H * drawnMl) / 2 +
+        4}"
+    />
+    <polygon
+      class="ml-arrow"
+      points="288,{sepBottom + (LANE_H * drawnGp) / 2} 272,{sepBottom + (LANE_H * drawnGp) / 2 - 4} 272,{sepBottom +
+        (LANE_H * drawnGp) / 2 +
+        4}"
+    />
 
     <text x="4" y={mlTop - 5} class="ml-label" data-testid="ml-label">{mlLabel}</text>
     <text x="4" y={gpBottom + 14} class="ml-label" data-testid="gp-label">{gpLabel}</text>
@@ -112,15 +131,52 @@
 </div>
 
 <style>
-  .ml-diagram svg { width: 100%; height: auto; display: block; }
-  .ml-pavement { fill: var(--diag-pavement); }
-  .ml-pavement-alt { fill: var(--diag-pavement-alt); }
-  .ml-barrier { fill: var(--diag-wall); stroke: var(--diag-wall-edge); stroke-width: 1; }
-  .ml-hatch-line { stroke: var(--diag-edge); stroke-width: 1; opacity: 0.45; }
-  .ml-edge { stroke: var(--diag-edge); stroke-width: 1.5; }
-  .ml-lane-line { stroke: var(--diag-lane-line); stroke-width: 1; stroke-dasharray: 9 7; }
-  .ml-access-line { stroke: var(--diag-lane-line); stroke-width: 2.5; stroke-dasharray: 3 4; }
-  .ml-arrow { fill: var(--diag-edge); opacity: 0.7; }
-  .ml-label { font-size: 8px; fill: var(--diag-dim); }
-  .ml-sep-label { font-size: 7px; fill: var(--diag-dim); opacity: 0.9; }
+  .ml-diagram svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .ml-pavement {
+    fill: var(--diag-pavement);
+  }
+  .ml-pavement-alt {
+    fill: var(--diag-pavement-alt);
+  }
+  .ml-barrier {
+    fill: var(--diag-wall);
+    stroke: var(--diag-wall-edge);
+    stroke-width: 1;
+  }
+  .ml-hatch-line {
+    stroke: var(--diag-edge);
+    stroke-width: 1;
+    opacity: 0.45;
+  }
+  .ml-edge {
+    stroke: var(--diag-edge);
+    stroke-width: 1.5;
+  }
+  .ml-lane-line {
+    stroke: var(--diag-lane-line);
+    stroke-width: 1;
+    stroke-dasharray: 9 7;
+  }
+  .ml-access-line {
+    stroke: var(--diag-lane-line);
+    stroke-width: 2.5;
+    stroke-dasharray: 3 4;
+  }
+  .ml-arrow {
+    fill: var(--diag-edge);
+    opacity: 0.7;
+  }
+  .ml-label {
+    font-size: 8px;
+    fill: var(--diag-dim);
+  }
+  .ml-sep-label {
+    font-size: 7px;
+    fill: var(--diag-dim);
+    opacity: 0.9;
+  }
 </style>

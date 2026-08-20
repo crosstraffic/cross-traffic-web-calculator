@@ -37,38 +37,38 @@ const siblingOf = (repoRoot) => join(repoRoot, '..', 'transportations-library', 
  * and both should still run.
  */
 function mainWorkingTree() {
-	try {
-		const gitDir = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
-			cwd: here,
-			encoding: 'utf8',
-			stdio: ['ignore', 'pipe', 'ignore']
-		}).trim();
-		return gitDir ? dirname(gitDir) : null;
-	} catch {
-		return null;
-	}
+  try {
+    const gitDir = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
+      cwd: here,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return gitDir ? dirname(gitDir) : null;
+  } catch {
+    return null;
+  }
 }
 
 function resolveLibCases() {
-	// An explicit override always wins, including over a path that exists, so a
-	// run can be pointed at a second checkout without moving the first.
-	if (process.env.HCM_LIB_CASES) return process.env.HCM_LIB_CASES;
-	const main = mainWorkingTree();
-	const candidates = [
-		// A plain clone, and the layout CI builds: the library is cloned beside
-		// this repo. Tried first so a normal checkout resolves without shelling
-		// out to git at all.
-		siblingOf(join(here, '..')),
-		// A worktree of that clone. Dropped rather than defaulted when git is
-		// absent, because `siblingOf('')` builds a RELATIVE path and `existsSync`
-		// would then resolve it against the current directory and could match
-		// something unrelated.
-		...(main ? [siblingOf(main)] : [])
-	];
-	for (const c of candidates) if (existsSync(c)) return c;
-	// Nothing found. Return the plain-clone candidate so the message a caller
-	// prints names the place a reader is most likely to want to put the library.
-	return candidates[0];
+  // An explicit override always wins, including over a path that exists, so a
+  // run can be pointed at a second checkout without moving the first.
+  if (process.env.HCM_LIB_CASES) return process.env.HCM_LIB_CASES;
+  const main = mainWorkingTree();
+  const candidates = [
+    // A plain clone, and the layout CI builds: the library is cloned beside
+    // this repo. Tried first so a normal checkout resolves without shelling
+    // out to git at all.
+    siblingOf(join(here, '..')),
+    // A worktree of that clone. Dropped rather than defaulted when git is
+    // absent, because `siblingOf('')` builds a RELATIVE path and `existsSync`
+    // would then resolve it against the current directory and could match
+    // something unrelated.
+    ...(main ? [siblingOf(main)] : []),
+  ];
+  for (const c of candidates) if (existsSync(c)) return c;
+  // Nothing found. Return the plain-clone candidate so the message a caller
+  // prints names the place a reader is most likely to want to put the library.
+  return candidates[0];
 }
 
 export const LIB_CASES = resolveLibCases();
@@ -76,14 +76,14 @@ export const LIB_CASES = resolveLibCases();
 /** Absolute path to one fixture, checked, because the alternative is an ENOENT
  * raised by whatever consumes the path several frames away from the cause. */
 export function libCase(chapterDir, name) {
-	const path = join(LIB_CASES, chapterDir, name);
-	if (!existsSync(path)) {
-		throw new Error(
-			`HCM fixture ${chapterDir}/${name} not found at ${path}.\n` +
-				`Clone transportations-library beside this repository, or set HCM_LIB_CASES to its tests/ExampleCases/hcm directory.`
-		);
-	}
-	return path;
+  const path = join(LIB_CASES, chapterDir, name);
+  if (!existsSync(path)) {
+    throw new Error(
+      `HCM fixture ${chapterDir}/${name} not found at ${path}.\n` +
+        `Clone transportations-library beside this repository, or set HCM_LIB_CASES to its tests/ExampleCases/hcm directory.`,
+    );
+  }
+  return path;
 }
 
 export const readCase = (chapterDir, name) => JSON.parse(readFileSync(libCase(chapterDir, name), 'utf8'));

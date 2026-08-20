@@ -16,7 +16,7 @@ module.exports = {
     utils: true,
     logs: false,
     rtl: false,
-    prefix: "",
+    prefix: '',
   },
   plugins: [require('daisyui')],
 };

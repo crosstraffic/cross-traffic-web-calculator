@@ -1,18 +1,14 @@
-<svelte:head>
-  <title>Urban Street Reliability and ATDM · HCM Calculator</title>
-</svelte:head>
-
 <script>
   import { preventDefault } from 'svelte/legacy';
 
-  import init, { WasmUrbanReliability } from "HCM-middleware";
+  import init, { WasmUrbanReliability } from 'HCM-middleware';
   import UrbanFacilityDiagram from '$lib/UrbanFacilityDiagram.svelte';
   import UrbanFacilityDiagram3D from '$lib/UrbanFacilityDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
   import { setReport } from '$lib/report';
   import { discussion } from './discussion.js';
   import Discussion from '$lib/Discussion.svelte';
-  import { onMount } from "svelte";
+  import { onMount } from 'svelte';
 
   let ready = $state(false);
   let running = $state(false);
@@ -20,7 +16,7 @@
   let diagramMode = $state('2d');
   let selectedSeg = $state(-1);
 
-  onMount(async() => {
+  onMount(async () => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
     ready = true;
   });
@@ -42,7 +38,20 @@
   let jan1_day_of_week = $state(6);
   let pct_left_turn_lanes = $state(100);
 
-  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const MONTH_NAMES = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
 
   // Monthly weather normals, January through December. Snowfall is
   // deliberately absent: the Chapter 29 procedure decides rain versus snow
@@ -52,18 +61,18 @@
   // engine's snowfall column is carried but never read.
   function defaultWeather() {
     return [
-      { total_precip: 0.67, days_with_precip: 5, mean_temp: 22.4, precip_rate: 0.030 },
-      { total_precip: 0.80, days_with_precip: 6, mean_temp: 27.0, precip_rate: 0.035 },
-      { total_precip: 1.80, days_with_precip: 7, mean_temp: 39.0, precip_rate: 0.045 },
-      { total_precip: 2.90, days_with_precip: 9, mean_temp: 51.2, precip_rate: 0.062 },
-      { total_precip: 4.20, days_with_precip: 11, mean_temp: 62.0, precip_rate: 0.070 },
-      { total_precip: 3.50, days_with_precip: 9, mean_temp: 72.0, precip_rate: 0.080 },
-      { total_precip: 3.00, days_with_precip: 8, mean_temp: 78.0, precip_rate: 0.085 },
-      { total_precip: 3.20, days_with_precip: 8, mean_temp: 75.0, precip_rate: 0.080 },
-      { total_precip: 2.90, days_with_precip: 7, mean_temp: 66.0, precip_rate: 0.070 },
-      { total_precip: 1.90, days_with_precip: 6, mean_temp: 54.0, precip_rate: 0.055 },
-      { total_precip: 1.20, days_with_precip: 5, mean_temp: 38.0, precip_rate: 0.040 },
-      { total_precip: 0.80, days_with_precip: 5, mean_temp: 26.0, precip_rate: 0.032 }
+      { total_precip: 0.67, days_with_precip: 5, mean_temp: 22.4, precip_rate: 0.03 },
+      { total_precip: 0.8, days_with_precip: 6, mean_temp: 27.0, precip_rate: 0.035 },
+      { total_precip: 1.8, days_with_precip: 7, mean_temp: 39.0, precip_rate: 0.045 },
+      { total_precip: 2.9, days_with_precip: 9, mean_temp: 51.2, precip_rate: 0.062 },
+      { total_precip: 4.2, days_with_precip: 11, mean_temp: 62.0, precip_rate: 0.07 },
+      { total_precip: 3.5, days_with_precip: 9, mean_temp: 72.0, precip_rate: 0.08 },
+      { total_precip: 3.0, days_with_precip: 8, mean_temp: 78.0, precip_rate: 0.085 },
+      { total_precip: 3.2, days_with_precip: 8, mean_temp: 75.0, precip_rate: 0.08 },
+      { total_precip: 2.9, days_with_precip: 7, mean_temp: 66.0, precip_rate: 0.07 },
+      { total_precip: 1.9, days_with_precip: 6, mean_temp: 54.0, precip_rate: 0.055 },
+      { total_precip: 1.2, days_with_precip: 5, mean_temp: 38.0, precip_rate: 0.04 },
+      { total_precip: 0.8, days_with_precip: 5, mean_temp: 26.0, precip_rate: 0.032 },
     ];
   }
 
@@ -98,7 +107,7 @@
       intersection_crashes: 33 + i,
       k_factor: 0.5,
       i_factor: 1.0,
-      approach_lanes: 4
+      approach_lanes: 4,
     };
   }
 
@@ -122,7 +131,7 @@
   const CLASS_LABEL = {
     principal: 'Urban Principal Arterial',
     minor: 'Urban Minor Arterial',
-    expressway: 'Expressway'
+    expressway: 'Expressway',
   };
 
   // Blank optional inputs become undefined so the engine applies its defaults.
@@ -175,19 +184,20 @@
           Number(entry_intersection_crashes),
           Number(minor_leg_volume),
           shoulder_present === 'yes',
-          true,                      // VMT-weighted travel time distribution
+          true, // VMT-weighted travel time distribution
           Number(weather_seed),
           Number(demand_seed),
           Number(incident_seed),
-          undefined,                 // monthly snowfall: carried by the engine but never read, see the note below the weather table
+          undefined, // monthly snowfall: carried by the engine but never read, see the note below the weather table
           Number(jan1_day_of_week),
-          Number(pct_left_turn_lanes) / 100
+          Number(pct_left_turn_lanes) / 100,
         );
 
         // Strategies must be registered before run().
         strategies.forEach((s, i) => {
           const strategy = { name: strategyLabel(s, i) };
-          if (opt(s.effective_green_adjustment_s) !== undefined) strategy.effective_green_adjustment_s = Number(s.effective_green_adjustment_s);
+          if (opt(s.effective_green_adjustment_s) !== undefined)
+            strategy.effective_green_adjustment_s = Number(s.effective_green_adjustment_s);
           if (opt(s.sat_flow_adjustment) !== undefined) strategy.sat_flow_adjustment = Number(s.sat_flow_adjustment);
           rel.add_atdm_strategy(strategy);
         });
@@ -209,7 +219,7 @@
             Number(seg.intersection_crashes),
             opt(seg.k_factor),
             opt(seg.i_factor),
-            opt(seg.approach_lanes)
+            opt(seg.approach_lanes),
           );
         }
 
@@ -228,7 +238,10 @@
           discussion: results.discussion,
           inputs: [
             { label: 'Functional class', value: CLASS_LABEL[functional_class] },
-            { label: 'Study period', value: `${study_start_hour}:00 onward, ${analysis_periods} analysis periods of 15 min` },
+            {
+              label: 'Study period',
+              value: `${study_start_hour}:00 onward, ${analysis_periods} analysis periods of 15 min`,
+            },
             { label: 'Reliability reporting period', value: 'weekdays of a full year' },
             { label: 'January 1 day of week', value: DAY_NAMES[Number(jan1_day_of_week)] },
             { label: 'Signalized segments', value: segments.length },
@@ -237,11 +250,23 @@
             { label: 'Minor-street leg volume', value: `${minor_leg_volume} veh/h` },
             { label: 'Outside shoulders present', value: shoulder_present === 'yes' ? 'yes' : 'no' },
             { label: 'Intersections with left-turn lanes', value: `${pct_left_turn_lanes}%` },
-            { label: 'Seeds, weather / demand / incident', value: `${weather_seed} / ${demand_seed} / ${incident_seed}` },
+            {
+              label: 'Seeds, weather / demand / incident',
+              value: `${weather_seed} / ${demand_seed} / ${incident_seed}`,
+            },
             { label: 'Travel time distribution weighting', value: 'VMT-weighted' },
-            { label: 'ATDM strategies', value: strategies.length === 0
-              ? 'none'
-              : strategies.map((s, i) => `${strategyLabel(s, i)} (green ${s.effective_green_adjustment_s === '' ? 0 : s.effective_green_adjustment_s} s, saturation flow x${s.sat_flow_adjustment === '' ? 1 : s.sat_flow_adjustment})`).join('; ') },
+            {
+              label: 'ATDM strategies',
+              value:
+                strategies.length === 0
+                  ? 'none'
+                  : strategies
+                      .map(
+                        (s, i) =>
+                          `${strategyLabel(s, i)} (green ${s.effective_green_adjustment_s === '' ? 0 : s.effective_green_adjustment_s} s, saturation flow x${s.sat_flow_adjustment === '' ? 1 : s.sat_flow_adjustment})`,
+                      )
+                      .join('; '),
+            },
           ],
           resultTable: {
             columns: ['Measure', 'Value', 'Unit'],
@@ -278,14 +303,15 @@
             kind: 'urban-facility',
             props: {
               segments: diagramSegments,
-              note: 'Segment chain, upstream to downstream. The reliability method reports one travel time distribution for the whole facility, so the decks carry no per-segment colour.'
-            }
+              note: 'Segment chain, upstream to downstream. The reliability method reports one travel time distribution for the whole facility, so the decks carry no per-segment colour.',
+            },
           },
         });
       } catch (err) {
         console.error('Chapter 17 analysis failed:', err);
         hasError = true;
-        errMessage = 'The reliability run could not be completed with the given inputs. Check the values and try again.';
+        errMessage =
+          'The reliability run could not be completed with the given inputs. Check the values and try again.';
       } finally {
         running = false;
       }
@@ -319,12 +345,16 @@
   // The percentile strip is drawn against the PTI so the longest bar always
   // fills the track, and against 1.0 at the left because a TTI below the base
   // free-flow travel time is not reachable.
-  let ttiBars = $derived(results ? [
-    { label: 'Mean', value: results.tti_mean },
-    { label: '50th', value: results.tti_50 },
-    { label: '80th', value: results.tti_80 },
-    { label: '95th (PTI)', value: results.tti_95 }
-  ] : []);
+  let ttiBars = $derived(
+    results
+      ? [
+          { label: 'Mean', value: results.tti_mean },
+          { label: '50th', value: results.tti_50 },
+          { label: '80th', value: results.tti_80 },
+          { label: '95th (PTI)', value: results.tti_95 },
+        ]
+      : [],
+  );
 
   function barPct(v) {
     const top = results ? Math.max(results.tti_95, 1.0001) : 1.0001;
@@ -347,32 +377,37 @@
       lanes: Number(s.n_through_lanes) || 2,
       accessPoints: Number(s.access_points_subject) || 0,
       control: 'signalized',
-      los: null
-    }))
+      los: null,
+    })),
   );
 
-  const DIAGRAM_NOTE = 'Segment chain, upstream to downstream, separated by its signalized boundary intersections. Widths follow segment length, depth the through-lane count, and the ticks below each link are its subject-side access points. Click a segment to highlight its card. The decks are not colour coded: the reliability method reports one travel time distribution for the whole facility and exposes no per-segment result to tint them with.';
+  const DIAGRAM_NOTE =
+    'Segment chain, upstream to downstream, separated by its signalized boundary intersections. Widths follow segment length, depth the through-lane count, and the ticks below each link are its subject-side access points. Click a segment to highlight its card. The decks are not colour coded: the reliability method reports one travel time distribution for the whole facility and exposes no per-segment result to tint them with.';
 </script>
+
+<svelte:head>
+  <title>Urban Street Reliability and ATDM · HCM Calculator</title>
+</svelte:head>
 
 <div class="hcm-page">
   <header class="page-header">
     <span class="badge badge-outline page-badge">HCM Chapter 17</span>
     <h1 class="page-title">Urban Street Reliability and ATDM</h1>
     <p class="page-sub">
-      Estimate the travel time distribution, travel time index, and reliability
-      rating of a signalized urban street facility over a one-year weekday
-      reporting period with generated weather, demand, and incident scenarios.
+      Estimate the travel time distribution, travel time index, and reliability rating of a signalized urban street
+      facility over a one-year weekday reporting period with generated weather, demand, and incident scenarios.
     </p>
   </header>
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Scope.</strong> The compute engine is boundary-validated against HCM
-      Chapter 29, Example Problem 4 (Exhibits 29-62 through 29-77), which the page
-      defaults reproduce, along with the Example Problem 5 Strategy 1 and Chapter 37
-      adaptive signal control directions of effect. Verify results independently
-      before relying on them in engineering work, and please
-      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      <strong>Scope.</strong> The compute engine is boundary-validated against HCM Chapter 29, Example Problem 4
+      (Exhibits 29-62 through 29-77), which the page defaults reproduce, along with the Example Problem 5 Strategy 1 and
+      Chapter 37 adaptive signal control directions of effect. Verify results independently before relying on them in
+      engineering work, and please
+      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer"
+        >report discrepancies on GitHub</a
+      >.
     </span>
   </div>
 
@@ -388,7 +423,10 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Facility</h2>
-          <p class="panel-sub">The signalized segment chain the reliability run evaluates, drawn upstream to downstream in the subject direction of travel.</p>
+          <p class="panel-sub">
+            The signalized segment chain the reliability run evaluates, drawn upstream to downstream in the subject
+            direction of travel.
+          </p>
         </div>
         <div class="panel-actions">
           <ViewToggle bind:mode={diagramMode} label="Facility view mode" />
@@ -398,13 +436,15 @@
         <UrbanFacilityDiagram3D
           segments={diagramSegments}
           selected={selectedSeg}
-          onselect={(i) => (selectedSeg = selectedSeg === i ? -1 : i)} />
+          onselect={(i) => (selectedSeg = selectedSeg === i ? -1 : i)}
+        />
       {:else}
         <UrbanFacilityDiagram
           segments={diagramSegments}
           selected={selectedSeg}
           onselect={(i) => (selectedSeg = selectedSeg === i ? -1 : i)}
-          note={DIAGRAM_NOTE} />
+          note={DIAGRAM_NOTE}
+        />
       {/if}
     </section>
 
@@ -413,7 +453,9 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Reliability Reporting Period</h2>
-          <p class="panel-sub">Weekdays of a full year. Demand ratios follow the HCM defaults for the selected functional class.</p>
+          <p class="panel-sub">
+            Weekdays of a full year. Demand ratios follow the HCM defaults for the selected functional class.
+          </p>
         </div>
       </div>
       <div class="param-grid">
@@ -429,7 +471,16 @@
         <div class="param-field">
           <label for="SSH_input">Study Period Start Hour</label>
           <div class="cell-field">
-            <input id="SSH_input" type="number" min="0" max="23" class="input input-bordered input-sm" bind:value={study_start_hour} placeholder="7" required />
+            <input
+              id="SSH_input"
+              type="number"
+              min="0"
+              max="23"
+              class="input input-bordered input-sm"
+              bind:value={study_start_hour}
+              placeholder="7"
+              required
+            />
             <span class="unit">h</span>
           </div>
           <p class="param-hint">7 starts the study period at 7 a.m. It is also the hour of the base traffic count.</p>
@@ -438,7 +489,16 @@
         <div class="param-field">
           <label for="APD_input">Analysis Periods per Day</label>
           <div class="cell-field">
-            <input id="APD_input" type="number" min="1" max="96" class="input input-bordered input-sm" bind:value={analysis_periods} placeholder="12" required />
+            <input
+              id="APD_input"
+              type="number"
+              min="1"
+              max="96"
+              class="input input-bordered input-sm"
+              bind:value={analysis_periods}
+              placeholder="12"
+              required
+            />
             <span class="unit">15-min</span>
           </div>
           <p class="param-hint">12 periods cover a 3-hour study period.</p>
@@ -451,13 +511,24 @@
               <option value={i}>{day}</option>
             {/each}
           </select>
-          <p class="param-hint">Anchors the calendar. A wrong day puts every Exhibit 17-6 day-of-week demand factor on the wrong date.</p>
+          <p class="param-hint">
+            Anchors the calendar. A wrong day puts every Exhibit 17-6 day-of-week demand factor on the wrong date.
+          </p>
         </div>
 
         <div class="param-field">
           <label for="PLTL_input">Intersections with Left-Turn Lanes</label>
           <div class="cell-field">
-            <input id="PLTL_input" type="number" min="0" max="100" class="input input-bordered input-sm" bind:value={pct_left_turn_lanes} placeholder="100" required />
+            <input
+              id="PLTL_input"
+              type="number"
+              min="0"
+              max="100"
+              class="input input-bordered input-sm"
+              bind:value={pct_left_turn_lanes}
+              placeholder="100"
+              required
+            />
             <span class="unit">%</span>
           </div>
           <p class="param-hint">Passed through to the Chapter 18 segment evaluation of each scenario.</p>
@@ -470,7 +541,10 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Weather</h2>
-          <p class="panel-sub">Monthly normals for the facility's location, January through December. Defaults are the Lincoln, Nebraska record of Exhibit 29-65.</p>
+          <p class="panel-sub">
+            Monthly normals for the facility's location, January through December. Defaults are the Lincoln, Nebraska
+            record of Exhibit 29-65.
+          </p>
         </div>
       </div>
       <div class="w-full overflow-x-auto">
@@ -488,20 +562,63 @@
             {#each weather as row, i}
               <tr>
                 <td>{MONTH_NAMES[i]}</td>
-                <td><input id={"PRC_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" aria-label={MONTH_NAMES[i] + " total precipitation"} bind:value={weather[i].total_precip} required /></td>
-                <td><input id={"DWP_input_" + i} type="number" step="0.1" min="0" max="31" class="input input-bordered input-sm" aria-label={MONTH_NAMES[i] + " days with precipitation"} bind:value={weather[i].days_with_precip} required /></td>
-                <td><input id={"TMP_input_" + i} type="number" step="0.1" class="input input-bordered input-sm" aria-label={MONTH_NAMES[i] + " mean temperature"} bind:value={weather[i].mean_temp} required /></td>
-                <td><input id={"PRR_input_" + i} type="number" step="0.001" min="0" class="input input-bordered input-sm" aria-label={MONTH_NAMES[i] + " precipitation rate"} bind:value={weather[i].precip_rate} required /></td>
+                <td
+                  ><input
+                    id={'PRC_input_' + i}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="input input-bordered input-sm"
+                    aria-label={MONTH_NAMES[i] + ' total precipitation'}
+                    bind:value={weather[i].total_precip}
+                    required
+                  /></td
+                >
+                <td
+                  ><input
+                    id={'DWP_input_' + i}
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="31"
+                    class="input input-bordered input-sm"
+                    aria-label={MONTH_NAMES[i] + ' days with precipitation'}
+                    bind:value={weather[i].days_with_precip}
+                    required
+                  /></td
+                >
+                <td
+                  ><input
+                    id={'TMP_input_' + i}
+                    type="number"
+                    step="0.1"
+                    class="input input-bordered input-sm"
+                    aria-label={MONTH_NAMES[i] + ' mean temperature'}
+                    bind:value={weather[i].mean_temp}
+                    required
+                  /></td
+                >
+                <td
+                  ><input
+                    id={'PRR_input_' + i}
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    class="input input-bordered input-sm"
+                    aria-label={MONTH_NAMES[i] + ' precipitation rate'}
+                    bind:value={weather[i].precip_rate}
+                    required
+                  /></td
+                >
               </tr>
             {/each}
           </tbody>
         </table>
       </div>
       <p class="param-hint panel-note">
-        There is no snowfall column. The Chapter 29 procedure decides whether an event
-        falls as rain or as snow from the sampled temperature (Equations 29-3 and 29-4)
-        and sizes the snow depth from the precipitation columns, so a snow climate is
-        entered through the mean temperature and precipitation values above.
+        There is no snowfall column. The Chapter 29 procedure decides whether an event falls as rain or as snow from the
+        sampled temperature (Equations 29-3 and 29-4) and sizes the snow depth from the precipitation columns, so a snow
+        climate is entered through the mean temperature and precipitation values above.
       </p>
     </section>
 
@@ -510,14 +627,25 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Incidents</h2>
-          <p class="panel-sub">Crash frequencies drive the incident generator. Per-segment values are entered with each segment below.</p>
+          <p class="panel-sub">
+            Crash frequencies drive the incident generator. Per-segment values are entered with each segment below.
+          </p>
         </div>
       </div>
       <div class="param-grid">
         <div class="param-field">
           <label for="EIC_input">Entry Intersection Crash Frequency</label>
           <div class="cell-field">
-            <input id="EIC_input" type="number" step="0.1" min="0" class="input input-bordered input-sm" bind:value={entry_intersection_crashes} placeholder="32" required />
+            <input
+              id="EIC_input"
+              type="number"
+              step="0.1"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={entry_intersection_crashes}
+              placeholder="32"
+              required
+            />
             <span class="unit">crashes/yr</span>
           </div>
           <p class="param-hint">The intersection at the upstream end of the facility.</p>
@@ -526,7 +654,15 @@
         <div class="param-field">
           <label for="MLV_input">Minor-Street Leg Volume</label>
           <div class="cell-field">
-            <input id="MLV_input" type="number" min="0" class="input input-bordered input-sm" bind:value={minor_leg_volume} placeholder="1300" required />
+            <input
+              id="MLV_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={minor_leg_volume}
+              placeholder="1300"
+              required
+            />
             <span class="unit">veh/h</span>
           </div>
         </div>
@@ -542,25 +678,52 @@
         <div class="param-field">
           <label for="WSE_input">Weather Seed</label>
           <div class="cell-field">
-            <input id="WSE_input" type="number" min="0" class="input input-bordered input-sm" bind:value={weather_seed} placeholder="82" required />
+            <input
+              id="WSE_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={weather_seed}
+              placeholder="82"
+              required
+            />
           </div>
         </div>
 
         <div class="param-field">
           <label for="DSE_input">Demand Seed</label>
           <div class="cell-field">
-            <input id="DSE_input" type="number" min="0" class="input input-bordered input-sm" bind:value={demand_seed} placeholder="11" required />
+            <input
+              id="DSE_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={demand_seed}
+              placeholder="11"
+              required
+            />
           </div>
         </div>
 
         <div class="param-field">
           <label for="ISE_input">Incident Seed</label>
           <div class="cell-field">
-            <input id="ISE_input" type="number" min="0" class="input input-bordered input-sm" bind:value={incident_seed} placeholder="63" required />
+            <input
+              id="ISE_input"
+              type="number"
+              min="0"
+              class="input input-bordered input-sm"
+              bind:value={incident_seed}
+              placeholder="63"
+              required
+            />
           </div>
         </div>
       </div>
-      <p class="param-hint panel-note">The three seeds fix the weather, demand, and incident streams. Rerunning with the same seeds reproduces the run exactly; any other seeds give an equally valid replication.</p>
+      <p class="param-hint panel-note">
+        The three seeds fix the weather, demand, and incident streams. Rerunning with the same seeds reproduces the run
+        exactly; any other seeds give an equally valid replication.
+      </p>
     </section>
 
     <!-- ATDM strategies -->
@@ -568,7 +731,10 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">ATDM Strategies</h2>
-          <p class="panel-sub">Strategies, work zones, and special events are applied to every scenario as input-level adjustments (Chapter 17, Section 4). A blank cell leaves that input alone.</p>
+          <p class="panel-sub">
+            Strategies, work zones, and special events are applied to every scenario as input-level adjustments (Chapter
+            17, Section 4). A blank cell leaves that input alone.
+          </p>
         </div>
         <div class="panel-actions">
           <button class="btn btn-ghost btn-sm" type="button" onclick={addStrategy}>Add Strategy</button>
@@ -592,10 +758,43 @@
               {#each strategies as s, i}
                 <tr>
                   <td>{i + 1}</td>
-                  <td><input id={"STN_input_" + i} class="input input-bordered input-sm" aria-label={"Strategy " + (i + 1) + " name"} bind:value={strategies[i].name} placeholder={"Strategy " + (i + 1)} autocomplete="off" /></td>
-                  <td><input id={"SGA_input_" + i} type="number" step="0.1" class="input input-bordered input-sm" aria-label={"Strategy " + (i + 1) + " effective green adjustment"} bind:value={strategies[i].effective_green_adjustment_s} placeholder="0" /></td>
-                  <td><input id={"SSA_input_" + i} type="number" step="0.001" min="0" class="input input-bordered input-sm" aria-label={"Strategy " + (i + 1) + " saturation flow adjustment"} bind:value={strategies[i].sat_flow_adjustment} placeholder="1.000" /></td>
-                  <td><button class="btn btn-ghost btn-sm" type="button" onclick={() => removeStrategy(i)}>Remove</button></td>
+                  <td
+                    ><input
+                      id={'STN_input_' + i}
+                      class="input input-bordered input-sm"
+                      aria-label={'Strategy ' + (i + 1) + ' name'}
+                      bind:value={strategies[i].name}
+                      placeholder={'Strategy ' + (i + 1)}
+                      autocomplete="off"
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'SGA_input_' + i}
+                      type="number"
+                      step="0.1"
+                      class="input input-bordered input-sm"
+                      aria-label={'Strategy ' + (i + 1) + ' effective green adjustment'}
+                      bind:value={strategies[i].effective_green_adjustment_s}
+                      placeholder="0"
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'SSA_input_' + i}
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      class="input input-bordered input-sm"
+                      aria-label={'Strategy ' + (i + 1) + ' saturation flow adjustment'}
+                      bind:value={strategies[i].sat_flow_adjustment}
+                      placeholder="1.000"
+                    /></td
+                  >
+                  <td
+                    ><button class="btn btn-ghost btn-sm" type="button" onclick={() => removeStrategy(i)}>Remove</button
+                    ></td
+                  >
                 </tr>
               {/each}
             </tbody>
@@ -603,11 +802,10 @@
         </div>
       {/if}
       <p class="param-hint panel-note">
-        The green adjustment is added to the coordinated through phase at every boundary
-        signal, which is what Example Problem 5 Strategy 1 does with 5 s of split. The
-        saturation flow adjustment multiplies the boundary saturation flow rate. Adaptive
-        signal control enters here as a saturation flow adjustment of 1.156, the value
-        Chapter 37 implies for its default 13.5% delay reduction target.
+        The green adjustment is added to the coordinated through phase at every boundary signal, which is what Example
+        Problem 5 Strategy 1 does with 5 s of split. The saturation flow adjustment multiplies the boundary saturation
+        flow rate. Adaptive signal control enters here as a saturation flow adjustment of 1.156, the value Chapter 37
+        implies for its default 13.5% delay reduction target.
       </p>
     </section>
 
@@ -620,134 +818,267 @@
             <h2 class="panel-title">Segment {i + 1}</h2>
             <p class="panel-sub">Signalized Chapter 18 segment, ordered upstream to downstream.</p>
           </div>
-          <button class="btn btn-ghost btn-sm" type="button" onclick={() => removeSegment(i)} disabled={segments.length <= 1}>Remove</button>
+          <button
+            class="btn btn-ghost btn-sm"
+            type="button"
+            onclick={() => removeSegment(i)}
+            disabled={segments.length <= 1}>Remove</button
+          >
         </div>
         <div class="param-grid">
           <div class="param-field">
-            <label for={"LEN_input_" + i}>Segment Length</label>
+            <label for={'LEN_input_' + i}>Segment Length</label>
             <div class="cell-field">
-              <input id={"LEN_input_" + i} type="number" min="1" class="input input-bordered input-sm" bind:value={seg.segment_length} placeholder="2640" required />
+              <input
+                id={'LEN_input_' + i}
+                type="number"
+                min="1"
+                class="input input-bordered input-sm"
+                bind:value={seg.segment_length}
+                placeholder="2640"
+                required
+              />
               <span class="unit">ft</span>
             </div>
           </div>
 
           <div class="param-field">
-            <label for={"NTH_input_" + i}>Through Lanes</label>
+            <label for={'NTH_input_' + i}>Through Lanes</label>
             <div class="cell-field">
-              <input id={"NTH_input_" + i} type="number" min="1" max="6" class="input input-bordered input-sm" bind:value={seg.n_through_lanes} required />
+              <input
+                id={'NTH_input_' + i}
+                type="number"
+                min="1"
+                max="6"
+                class="input input-bordered input-sm"
+                bind:value={seg.n_through_lanes}
+                required
+              />
               <span class="unit">ln</span>
             </div>
           </div>
 
           <div class="param-field">
-            <label for={"SPL_input_" + i}>Posted Speed Limit</label>
+            <label for={'SPL_input_' + i}>Posted Speed Limit</label>
             <div class="cell-field">
-              <input id={"SPL_input_" + i} type="number" min="1" class="input input-bordered input-sm" bind:value={seg.speed_limit} placeholder="35" required />
+              <input
+                id={'SPL_input_' + i}
+                type="number"
+                min="1"
+                class="input input-bordered input-sm"
+                bind:value={seg.speed_limit}
+                placeholder="35"
+                required
+              />
               <span class="unit">mph</span>
             </div>
           </div>
 
           <div class="param-field">
-            <label for={"DEM_input_" + i}>Through Demand Flow Rate</label>
+            <label for={'DEM_input_' + i}>Through Demand Flow Rate</label>
             <div class="cell-field">
-              <input id={"DEM_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.through_demand} placeholder="1000" required />
+              <input
+                id={'DEM_input_' + i}
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={seg.through_demand}
+                placeholder="1000"
+                required
+              />
               <span class="unit">veh/h</span>
             </div>
             <p class="param-hint">Demand of the base traffic count. Scenario demands are scaled from it.</p>
           </div>
 
           <div class="param-field">
-            <label for={"CYC_input_" + i}>Cycle Length</label>
+            <label for={'CYC_input_' + i}>Cycle Length</label>
             <div class="cell-field">
-              <input id={"CYC_input_" + i} type="number" min="1" class="input input-bordered input-sm" bind:value={seg.cycle_length} placeholder="100" required />
+              <input
+                id={'CYC_input_' + i}
+                type="number"
+                min="1"
+                class="input input-bordered input-sm"
+                bind:value={seg.cycle_length}
+                placeholder="100"
+                required
+              />
               <span class="unit">s</span>
             </div>
           </div>
 
           <div class="param-field">
-            <label for={"GRN_input_" + i}>Effective Green Time</label>
+            <label for={'GRN_input_' + i}>Effective Green Time</label>
             <div class="cell-field">
-              <input id={"GRN_input_" + i} type="number" min="1" class="input input-bordered input-sm" bind:value={seg.effective_green} placeholder="45" required />
+              <input
+                id={'GRN_input_' + i}
+                type="number"
+                min="1"
+                class="input input-bordered input-sm"
+                bind:value={seg.effective_green}
+                placeholder="45"
+                required
+              />
               <span class="unit">s</span>
             </div>
           </div>
 
           <div class="param-field">
-            <label for={"SAT_input_" + i}>Adjusted Saturation Flow Rate</label>
+            <label for={'SAT_input_' + i}>Adjusted Saturation Flow Rate</label>
             <div class="cell-field">
-              <input id={"SAT_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.sat_flow} placeholder="1800" />
+              <input
+                id={'SAT_input_' + i}
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={seg.sat_flow}
+                placeholder="1800"
+              />
               <span class="unit">veh/h/ln</span>
             </div>
           </div>
 
           <div class="param-field">
-            <label for={"PR_input_" + i}>Platoon Ratio (optional)</label>
+            <label for={'PR_input_' + i}>Platoon Ratio (optional)</label>
             <div class="cell-field">
-              <input id={"PR_input_" + i} type="number" step="0.001" min="0" class="input input-bordered input-sm" bind:value={seg.platoon_ratio} placeholder="1.000" />
+              <input
+                id={'PR_input_' + i}
+                type="number"
+                step="0.001"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={seg.platoon_ratio}
+                placeholder="1.000"
+              />
             </div>
           </div>
 
           <div class="param-field">
-            <label for={"APS_input_" + i}>Access Points (subject side)</label>
+            <label for={'APS_input_' + i}>Access Points (subject side)</label>
             <div class="cell-field">
-              <input id={"APS_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.access_points_subject} placeholder="2" required />
+              <input
+                id={'APS_input_' + i}
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={seg.access_points_subject}
+                placeholder="2"
+                required
+              />
               <span class="unit">pts</span>
             </div>
           </div>
 
           <div class="param-field">
-            <label for={"APO_input_" + i}>Access Points (opposing side)</label>
+            <label for={'APO_input_' + i}>Access Points (opposing side)</label>
             <div class="cell-field">
-              <input id={"APO_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.access_points_opposing} placeholder="2" required />
+              <input
+                id={'APO_input_' + i}
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={seg.access_points_opposing}
+                placeholder="2"
+                required
+              />
               <span class="unit">pts</span>
             </div>
           </div>
 
           <div class="param-field">
-            <label for={"STP_input_" + i}>Full Stop Rate (optional)</label>
+            <label for={'STP_input_' + i}>Full Stop Rate (optional)</label>
             <div class="cell-field">
-              <input id={"STP_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" bind:value={seg.stop_rate_override} placeholder="0.5" />
+              <input
+                id={'STP_input_' + i}
+                type="number"
+                step="0.01"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={seg.stop_rate_override}
+                placeholder="0.5"
+              />
               <span class="unit">stops/veh</span>
             </div>
           </div>
 
           <div class="param-field">
-            <label for={"SCF_input_" + i}>Segment Crash Frequency</label>
+            <label for={'SCF_input_' + i}>Segment Crash Frequency</label>
             <div class="cell-field">
-              <input id={"SCF_input_" + i} type="number" step="0.1" min="0" class="input input-bordered input-sm" bind:value={seg.segment_crashes} placeholder="15" required />
+              <input
+                id={'SCF_input_' + i}
+                type="number"
+                step="0.1"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={seg.segment_crashes}
+                placeholder="15"
+                required
+              />
               <span class="unit">crashes/yr</span>
             </div>
           </div>
 
           <div class="param-field">
-            <label for={"ICF_input_" + i}>Downstream Intersection Crash Frequency</label>
+            <label for={'ICF_input_' + i}>Downstream Intersection Crash Frequency</label>
             <div class="cell-field">
-              <input id={"ICF_input_" + i} type="number" step="0.1" min="0" class="input input-bordered input-sm" bind:value={seg.intersection_crashes} placeholder="33" required />
+              <input
+                id={'ICF_input_' + i}
+                type="number"
+                step="0.1"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={seg.intersection_crashes}
+                placeholder="33"
+                required
+              />
               <span class="unit">crashes/yr</span>
             </div>
           </div>
 
           <div class="param-field">
-            <label for={"APL_input_" + i}>Downstream Approach Lanes</label>
+            <label for={'APL_input_' + i}>Downstream Approach Lanes</label>
             <div class="cell-field">
-              <input id={"APL_input_" + i} type="number" min="1" class="input input-bordered input-sm" bind:value={seg.approach_lanes} placeholder="4" />
+              <input
+                id={'APL_input_' + i}
+                type="number"
+                min="1"
+                class="input input-bordered input-sm"
+                bind:value={seg.approach_lanes}
+                placeholder="4"
+              />
               <span class="unit">ln</span>
             </div>
             <p class="param-hint">All lanes on the boundary signal's approach, used by the incident generator.</p>
           </div>
 
           <div class="param-field">
-            <label for={"KF_input_" + i}>k Factor</label>
+            <label for={'KF_input_' + i}>k Factor</label>
             <div class="cell-field">
-              <input id={"KF_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" bind:value={seg.k_factor} placeholder="0.5" />
+              <input
+                id={'KF_input_' + i}
+                type="number"
+                step="0.01"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={seg.k_factor}
+                placeholder="0.5"
+              />
             </div>
             <p class="param-hint">Share of the daily crash count exposed during the study period.</p>
           </div>
 
           <div class="param-field">
-            <label for={"IF_input_" + i}>I Factor</label>
+            <label for={'IF_input_' + i}>I Factor</label>
             <div class="cell-field">
-              <input id={"IF_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" bind:value={seg.i_factor} placeholder="1.0" />
+              <input
+                id={'IF_input_' + i}
+                type="number"
+                step="0.01"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={seg.i_factor}
+                placeholder="1.0"
+              />
             </div>
             <p class="param-hint">Local adjustment on the crash-to-incident conversion.</p>
           </div>
@@ -759,7 +1090,9 @@
     <div class="action-bar">
       <button class="btn btn-ghost" onclick={addSegment} type="button">Add Segment</button>
       <button class="btn btn-ghost" onclick={resetParams} type="button">Reset Params</button>
-      <button class="btn btn-primary" type="submit" disabled={!ready || running}>{running ? 'Running...' : 'Calculate'}</button>
+      <button class="btn btn-primary" type="submit" disabled={!ready || running}
+        >{running ? 'Running...' : 'Calculate'}</button
+      >
     </div>
     <p class="param-hint">The run evaluates roughly three thousand scenarios and can take a few seconds.</p>
   </form>
@@ -792,7 +1125,10 @@
             <td>{results ? results.num_incidents : ''}</td>
           </tr>
           <tr>
-            <th title="Scenarios in which a boundary through movement ran over capacity (v/c > 1) or started with a residual queue carried in from the previous analysis period.">Oversaturated Scenarios:</th>
+            <th
+              title="Scenarios in which a boundary through movement ran over capacity (v/c > 1) or started with a residual queue carried in from the previous analysis period."
+              >Oversaturated Scenarios:</th
+            >
             <td>{results ? results.num_oversaturated_scenarios : ''}</td>
           </tr>
           <tr>
@@ -839,7 +1175,9 @@
               <span class="tti-value">{fmt(bar.value, 3)}</span>
             </div>
           {/each}
-          <p class="param-hint">Bars run from a travel time index of 1.0, the base free-flow travel time, to the planning time index.</p>
+          <p class="param-hint">
+            Bars run from a travel time index of 1.0, the base free-flow travel time, to the planning time index.
+          </p>
         </figure>
       {/if}
       <div class="facility-summary">
@@ -856,18 +1194,56 @@
 <style>
   /* .param-hint is sized for the 16rem column of a single field; a note that
      runs the width of a table needs the room. */
-  .panel-note { max-width: 46rem; }
+  .panel-note {
+    max-width: 46rem;
+  }
 
   /* Selection sync with the facility strip: the picked segment's card takes
      the same accent as the diagram deck. */
-  .seg-panel { cursor: pointer; }
-  .seg-panel.seg-selected { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .seg-panel {
+    cursor: pointer;
+  }
+  .seg-panel.seg-selected {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 
-  .tti-strip { margin: 1rem 0 0; }
-  .tti-strip figcaption { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; margin-bottom: 0.4rem; }
-  .tti-row { display: grid; grid-template-columns: 5.5rem 1fr 3.5rem; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; }
-  .tti-label { font-size: 0.75rem; opacity: 0.75; }
-  .tti-track { height: 0.6rem; border-radius: 3px; background: color-mix(in srgb, currentColor 10%, transparent); overflow: hidden; }
-  .tti-fill { display: block; height: 100%; border-radius: 3px; background: color-mix(in srgb, currentColor 55%, transparent); }
-  .tti-value { font-size: 0.75rem; font-variant-numeric: tabular-nums; text-align: right; }
+  .tti-strip {
+    margin: 1rem 0 0;
+  }
+  .tti-strip figcaption {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.6;
+    margin-bottom: 0.4rem;
+  }
+  .tti-row {
+    display: grid;
+    grid-template-columns: 5.5rem 1fr 3.5rem;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
+  }
+  .tti-label {
+    font-size: 0.75rem;
+    opacity: 0.75;
+  }
+  .tti-track {
+    height: 0.6rem;
+    border-radius: 3px;
+    background: color-mix(in srgb, currentColor 10%, transparent);
+    overflow: hidden;
+  }
+  .tti-fill {
+    display: block;
+    height: 100%;
+    border-radius: 3px;
+    background: color-mix(in srgb, currentColor 55%, transparent);
+  }
+  .tti-value {
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
 </style>

@@ -1,22 +1,22 @@
-<svelte:head>
-  <title>Off-Street Pedestrian and Bicycle Facilities · HCM Calculator</title>
-</svelte:head>
-
 <script>
   import { preventDefault } from 'svelte/legacy';
 
   import LosScale from '$lib/LosScale.svelte';
   import LosBadge from '$lib/LosBadge.svelte';
-  import init, { WasmExclusivePedestrianFacility, WasmSharedUsePathPedestrian, WasmOffStreetBicycleFacility } from "HCM-middleware";
+  import init, {
+    WasmExclusivePedestrianFacility,
+    WasmSharedUsePathPedestrian,
+    WasmOffStreetBicycleFacility,
+  } from 'HCM-middleware';
   import PathDiagram from '$lib/PathDiagram.svelte';
   import { setReport } from '$lib/report';
   import { discussion } from './discussion.js';
   import Discussion from '$lib/Discussion.svelte';
-  import { onMount } from "svelte";
+  import { onMount } from 'svelte';
 
   let ready = $state(false);
 
-  onMount(async() => {
+  onMount(async () => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
     ready = true;
   });
@@ -69,11 +69,11 @@
           Number(ped_total_width),
           Number(ped_object_width),
           Number(ped_demand),
-          null,                     // peak 15-min volume (field measurement)
+          null, // peak 15-min volume (field measurement)
           Number(ped_phf),
           Number(ped_speed),
           ped_facility_type,
-          ped_flow_type
+          ped_flow_type,
         );
         const los = fac.analyze();
         const r = fac.results_to_js_value();
@@ -85,7 +85,7 @@
           Number(sup_phf),
           Number(sup_ped_speed),
           Number(sup_bike_speed),
-          sup_one_way === 'yes'
+          sup_one_way === 'yes',
         );
         const los = path.analyze();
         const r = path.results_to_js_value();
@@ -100,16 +100,20 @@
           Number(bike_phf),
           bike_one_way === 'yes',
           bike_exclusive === 'yes',
-          null,                     // mode splits (Exhibit 24-6 defaults)
-          null,                     // mode speeds
-          null                      // mode speed standard deviations
+          null, // mode splits (Exhibit 24-6 defaults)
+          null, // mode speeds
+          null, // mode speed standard deviations
         );
         const los = fac.analyze();
         const r = fac.results_to_js_value();
         results = { kind: 'bicycle', los, ...r };
       }
 
-      const kindLabel = { pedestrian: 'Exclusive pedestrian facility', shared_path: 'Shared-use path (pedestrian LOS)', bicycle: 'Off-street bicycle facility (BLOS)' }[results.kind];
+      const kindLabel = {
+        pedestrian: 'Exclusive pedestrian facility',
+        shared_path: 'Shared-use path (pedestrian LOS)',
+        bicycle: 'Off-street bicycle facility (BLOS)',
+      }[results.kind];
       // Generated once, off the run that produced these numbers, and carried on the result so the
       // page and the printable report can never drift apart or restate a since-edited input.
       results.discussion = discussion(results, {
@@ -119,51 +123,64 @@
         oneWay: sup_one_way === 'yes',
         pathWidth: bike_path_width,
         centerline: bike_centerline === 'yes',
-        segmentLength: bike_segment_length
+        segmentLength: bike_segment_length,
       });
-      const inputs = results.kind === 'pedestrian' ? [
-        { label: 'Facility', value: kindLabel },
-        { label: 'Total width', value: `${ped_total_width} ft` },
-        { label: 'Fixed-object width', value: `${ped_object_width} ft` },
-        { label: 'Hourly demand', value: `${ped_demand} p/h` },
-        { label: 'Peak hour factor', value: ped_phf },
-        { label: 'Walking speed', value: `${ped_speed} ft/min` },
-        { label: 'Facility type / flow', value: `${ped_facility_type}, ${ped_flow_type}` },
-      ] : results.kind === 'shared_path' ? [
-        { label: 'Facility', value: kindLabel },
-        { label: 'Bicycles same direction / opposing', value: `${sup_bike_same} / ${sup_bike_opposing} bikes/h` },
-        { label: 'Peak hour factor', value: sup_phf },
-        { label: 'Pedestrian / bicycle speed', value: `${sup_ped_speed} / ${sup_bike_speed} mi/h` },
-        { label: 'One-way', value: sup_one_way },
-      ] : [
-        { label: 'Facility', value: kindLabel },
-        { label: 'Path width', value: `${bike_path_width} ft` },
-        { label: 'Segment length', value: `${bike_segment_length} mi` },
-        { label: 'Centerline', value: bike_centerline },
-        { label: 'Two-way demand', value: `${bike_two_way_demand} users/h` },
-        { label: 'Directional split', value: bike_dir_split },
-        { label: 'Peak hour factor', value: bike_phf },
-        { label: 'Mode split and speeds', value: 'Exhibit 24-6 defaults' },
-      ];
-      const rows = results.kind === 'pedestrian' ? [
-        ['Effective width', `${results.effective_width?.toFixed(1)} ft`],
-        ['Unit flow rate', `${results.unit_flow_rate?.toFixed(2)} p/ft/min`],
-        ['Pedestrian space', `${results.pedestrian_space?.toFixed(0)} ft²/p`],
-        ['LOS (Exhibit 24-1/24-2)', results.los],
-      ] : results.kind === 'shared_path' ? [
-        ['Passing events', `${results.passing_events?.toFixed(0)} events/h`],
-        ['Meeting events', `${results.meeting_events?.toFixed(0)} events/h`],
-        ['Total weighted events', `${results.total_events?.toFixed(0)} events/h`],
-        ['LOS (Exhibit 24-4)', results.los],
-      ] : [
-        ['Active passings', `${results.active_passings_per_minute?.toFixed(2)} /min`],
-        ['Meetings', `${results.meetings_per_minute?.toFixed(2)} /min`],
-        ['Effective lanes', `${results.effective_lanes}`],
-        ['Probability of delayed passing', `${(results.probability_delayed_passing * 100)?.toFixed(1)} %`],
-        ['Delayed passings', `${results.delayed_passings_per_minute?.toFixed(2)} /min`],
-        ['BLOS score', `${results.blos_score?.toFixed(2)}`],
-        ['LOS (Exhibit 24-5)', results.los],
-      ];
+      const inputs =
+        results.kind === 'pedestrian'
+          ? [
+              { label: 'Facility', value: kindLabel },
+              { label: 'Total width', value: `${ped_total_width} ft` },
+              { label: 'Fixed-object width', value: `${ped_object_width} ft` },
+              { label: 'Hourly demand', value: `${ped_demand} p/h` },
+              { label: 'Peak hour factor', value: ped_phf },
+              { label: 'Walking speed', value: `${ped_speed} ft/min` },
+              { label: 'Facility type / flow', value: `${ped_facility_type}, ${ped_flow_type}` },
+            ]
+          : results.kind === 'shared_path'
+            ? [
+                { label: 'Facility', value: kindLabel },
+                {
+                  label: 'Bicycles same direction / opposing',
+                  value: `${sup_bike_same} / ${sup_bike_opposing} bikes/h`,
+                },
+                { label: 'Peak hour factor', value: sup_phf },
+                { label: 'Pedestrian / bicycle speed', value: `${sup_ped_speed} / ${sup_bike_speed} mi/h` },
+                { label: 'One-way', value: sup_one_way },
+              ]
+            : [
+                { label: 'Facility', value: kindLabel },
+                { label: 'Path width', value: `${bike_path_width} ft` },
+                { label: 'Segment length', value: `${bike_segment_length} mi` },
+                { label: 'Centerline', value: bike_centerline },
+                { label: 'Two-way demand', value: `${bike_two_way_demand} users/h` },
+                { label: 'Directional split', value: bike_dir_split },
+                { label: 'Peak hour factor', value: bike_phf },
+                { label: 'Mode split and speeds', value: 'Exhibit 24-6 defaults' },
+              ];
+      const rows =
+        results.kind === 'pedestrian'
+          ? [
+              ['Effective width', `${results.effective_width?.toFixed(1)} ft`],
+              ['Unit flow rate', `${results.unit_flow_rate?.toFixed(2)} p/ft/min`],
+              ['Pedestrian space', `${results.pedestrian_space?.toFixed(0)} ft²/p`],
+              ['LOS (Exhibit 24-1/24-2)', results.los],
+            ]
+          : results.kind === 'shared_path'
+            ? [
+                ['Passing events', `${results.passing_events?.toFixed(0)} events/h`],
+                ['Meeting events', `${results.meeting_events?.toFixed(0)} events/h`],
+                ['Total weighted events', `${results.total_events?.toFixed(0)} events/h`],
+                ['LOS (Exhibit 24-4)', results.los],
+              ]
+            : [
+                ['Active passings', `${results.active_passings_per_minute?.toFixed(2)} /min`],
+                ['Meetings', `${results.meetings_per_minute?.toFixed(2)} /min`],
+                ['Effective lanes', `${results.effective_lanes}`],
+                ['Probability of delayed passing', `${(results.probability_delayed_passing * 100)?.toFixed(1)} %`],
+                ['Delayed passings', `${results.delayed_passings_per_minute?.toFixed(2)} /min`],
+                ['BLOS score', `${results.blos_score?.toFixed(2)}`],
+                ['LOS (Exhibit 24-5)', results.los],
+              ];
       setReport({
         chapter: 'Off-Street Pedestrian and Bicycle Facilities',
         chapterRef: 'HCM Chapter 24',
@@ -181,7 +198,25 @@
               ? 'Shared-use path pedestrian method: bicycle passing and meeting events against the average pedestrian (Equations 24-8 through 24-10), weighted total events, and LOS per Exhibit 24-4.'
               : 'Off-street bicycle BLOS: directional mode flows from the Exhibit 24-6 splits and speeds, active passings and meetings, effective lanes (Exhibit 24-14), delayed passing probability, and the BLOS score of Equation 24-35 with LOS per Exhibit 24-5.',
         ],
-        diagram: { kind: 'path', props: { kind: results.kind, widthFt: results.kind === 'bicycle' ? bike_path_width : results.kind === 'pedestrian' ? ped_total_width : 10, objectWidthFt: results.kind === 'pedestrian' ? ped_object_width : 0, centerline: bike_centerline === 'yes', oneWay: false, demandA: results.kind === 'shared_path' ? sup_bike_same : results.kind === 'pedestrian' ? ped_demand : bike_two_way_demand, demandB: results.kind === 'shared_path' ? sup_bike_opposing : 0, losLetter: results.los } },
+        diagram: {
+          kind: 'path',
+          props: {
+            kind: results.kind,
+            widthFt:
+              results.kind === 'bicycle' ? bike_path_width : results.kind === 'pedestrian' ? ped_total_width : 10,
+            objectWidthFt: results.kind === 'pedestrian' ? ped_object_width : 0,
+            centerline: bike_centerline === 'yes',
+            oneWay: false,
+            demandA:
+              results.kind === 'shared_path'
+                ? sup_bike_same
+                : results.kind === 'pedestrian'
+                  ? ped_demand
+                  : bike_two_way_demand,
+            demandB: results.kind === 'shared_path' ? sup_bike_opposing : 0,
+            losLetter: results.los,
+          },
+        },
       });
     } catch (err) {
       console.error('Chapter 24 analysis failed:', err);
@@ -217,22 +252,29 @@
   }
 </script>
 
+<svelte:head>
+  <title>Off-Street Pedestrian and Bicycle Facilities · HCM Calculator</title>
+</svelte:head>
+
 <div class="hcm-page">
   <header class="page-header">
     <span class="badge badge-outline page-badge">HCM Chapter 24</span>
     <h1 class="page-title">Off-Street Pedestrian and Bicycle Facilities</h1>
     <p class="page-sub">
-      Estimate level of service for exclusive pedestrian facilities, for
-      pedestrians on shared-use paths, and for bicyclists on off-street paths.
+      Estimate level of service for exclusive pedestrian facilities, for pedestrians on shared-use paths, and for
+      bicyclists on off-street paths.
     </p>
   </header>
 
   <div class="alert alert-info shadow-sm mb-6 beta-note" role="note">
     <span>
-      The compute engine reproduces the published HCM worked examples for this
-      chapter: the shared-use path pedestrian events, the exclusive-facility
-      pedestrian space, and the bicycle BLOS score. Verify results
-      independently before relying on them in engineering work, and please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      The compute engine reproduces the published HCM worked examples for this chapter: the shared-use path pedestrian
+      events, the exclusive-facility pedestrian space, and the bicycle BLOS score. Verify results independently before
+      relying on them in engineering work, and please <a
+        href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues"
+        target="_blank"
+        rel="noreferrer">report discrepancies on GitHub</a
+      >.
     </span>
   </div>
 
@@ -254,24 +296,48 @@
       <div class="param-grid">
         <div class="param-field">
           <label for="KIND_input">Facility Type</label>
-          <select id="KIND_input" class="select select-bordered select-sm" bind:value={facility_kind} onchange={() => { results = null; }}>
+          <select
+            id="KIND_input"
+            class="select select-bordered select-sm"
+            bind:value={facility_kind}
+            onchange={() => {
+              results = null;
+            }}
+          >
             <option value="pedestrian">Exclusive Pedestrian</option>
             <option value="shared_path">Shared-Use Path (pedestrian LOS)</option>
             <option value="bicycle">Off-Street Bicycle (BLOS)</option>
           </select>
         </div>
       </div>
-    
+
       <div class="diagram-block">
         {#if facility_kind === 'pedestrian'}
-          <PathDiagram kind="pedestrian" widthFt={ped_total_width} objectWidthFt={ped_object_width}
-                       bind:demandA={ped_demand} losLetter={losForDiagram} />
+          <PathDiagram
+            kind="pedestrian"
+            widthFt={ped_total_width}
+            objectWidthFt={ped_object_width}
+            bind:demandA={ped_demand}
+            losLetter={losForDiagram}
+          />
         {:else if facility_kind === 'shared_path'}
-          <PathDiagram kind="shared_path" widthFt={10} oneWay={sup_one_way === 'yes'}
-                       bind:demandA={sup_bike_same} bind:demandB={sup_bike_opposing} losLetter={losForDiagram} />
+          <PathDiagram
+            kind="shared_path"
+            widthFt={10}
+            oneWay={sup_one_way === 'yes'}
+            bind:demandA={sup_bike_same}
+            bind:demandB={sup_bike_opposing}
+            losLetter={losForDiagram}
+          />
         {:else}
-          <PathDiagram kind="bicycle" widthFt={bike_path_width} centerline={bike_centerline === 'yes'}
-                       oneWay={bike_one_way === 'yes'} bind:demandA={bike_two_way_demand} losLetter={losForDiagram} />
+          <PathDiagram
+            kind="bicycle"
+            widthFt={bike_path_width}
+            centerline={bike_centerline === 'yes'}
+            oneWay={bike_one_way === 'yes'}
+            bind:demandA={bike_two_way_demand}
+            losLetter={losForDiagram}
+          />
         {/if}
       </div>
     </section>
@@ -281,14 +347,26 @@
         <div class="panel-head">
           <div>
             <h2 class="panel-title">Exclusive Pedestrian Facility</h2>
-            <p class="panel-sub">Walkways, cross-flow areas, and stairways. The service measure is average pedestrian space. For stairways, supply the ascending flow.</p>
+            <p class="panel-sub">
+              Walkways, cross-flow areas, and stairways. The service measure is average pedestrian space. For stairways,
+              supply the ascending flow.
+            </p>
           </div>
         </div>
         <div class="param-grid">
           <div class="param-field">
             <label for="PWT_input">Total Walkway Width</label>
             <div class="cell-field">
-              <input id="PWT_input" type="number" step="0.1" min="1" class="input input-bordered input-sm" bind:value={ped_total_width} placeholder="10" required />
+              <input
+                id="PWT_input"
+                type="number"
+                step="0.1"
+                min="1"
+                class="input input-bordered input-sm"
+                bind:value={ped_total_width}
+                placeholder="10"
+                required
+              />
               <span class="unit">ft</span>
             </div>
           </div>
@@ -296,7 +374,16 @@
           <div class="param-field">
             <label for="PWO_input">Fixed-Object Width</label>
             <div class="cell-field">
-              <input id="PWO_input" type="number" step="0.1" min="0" class="input input-bordered input-sm" bind:value={ped_object_width} placeholder="0" required />
+              <input
+                id="PWO_input"
+                type="number"
+                step="0.1"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={ped_object_width}
+                placeholder="0"
+                required
+              />
               <span class="unit">ft</span>
             </div>
             <p class="param-hint">Sum of fixed-object effective widths and shy distances.</p>
@@ -305,7 +392,15 @@
           <div class="param-field">
             <label for="PD_input">Pedestrian Demand</label>
             <div class="cell-field">
-              <input id="PD_input" type="number" min="0" class="input input-bordered input-sm" bind:value={ped_demand} placeholder="1000" required />
+              <input
+                id="PD_input"
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={ped_demand}
+                placeholder="1000"
+                required
+              />
               <span class="unit">p/h</span>
             </div>
           </div>
@@ -313,14 +408,32 @@
           <div class="param-field">
             <label for="PPHF_input">Peak Hour Factor</label>
             <div class="cell-field">
-              <input id="PPHF_input" type="number" step="0.01" min="0.25" max="1" class="input input-bordered input-sm" bind:value={ped_phf} placeholder="0.85" required />
+              <input
+                id="PPHF_input"
+                type="number"
+                step="0.01"
+                min="0.25"
+                max="1"
+                class="input input-bordered input-sm"
+                bind:value={ped_phf}
+                placeholder="0.85"
+                required
+              />
             </div>
           </div>
 
           <div class="param-field">
             <label for="PS_input">Pedestrian Speed</label>
             <div class="cell-field">
-              <input id="PS_input" type="number" min="50" class="input input-bordered input-sm" bind:value={ped_speed} placeholder="300" required />
+              <input
+                id="PS_input"
+                type="number"
+                min="50"
+                class="input input-bordered input-sm"
+                bind:value={ped_speed}
+                placeholder="300"
+                required
+              />
               <span class="unit">ft/min</span>
             </div>
           </div>
@@ -348,14 +461,24 @@
         <div class="panel-head">
           <div>
             <h2 class="panel-title">Shared-Use Path (Pedestrian LOS)</h2>
-            <p class="panel-sub">Pedestrian LOS is based on the weighted number of bicycle passing and meeting events per hour.</p>
+            <p class="panel-sub">
+              Pedestrian LOS is based on the weighted number of bicycle passing and meeting events per hour.
+            </p>
           </div>
         </div>
         <div class="param-grid">
           <div class="param-field">
             <label for="SBS_input">Bicycle Demand, Same Direction</label>
             <div class="cell-field">
-              <input id="SBS_input" type="number" min="0" class="input input-bordered input-sm" bind:value={sup_bike_same} placeholder="100" required />
+              <input
+                id="SBS_input"
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={sup_bike_same}
+                placeholder="100"
+                required
+              />
               <span class="unit">bicycles/h</span>
             </div>
           </div>
@@ -363,7 +486,15 @@
           <div class="param-field">
             <label for="SBO_input">Bicycle Demand, Opposing</label>
             <div class="cell-field">
-              <input id="SBO_input" type="number" min="0" class="input input-bordered input-sm" bind:value={sup_bike_opposing} placeholder="100" required />
+              <input
+                id="SBO_input"
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={sup_bike_opposing}
+                placeholder="100"
+                required
+              />
               <span class="unit">bicycles/h</span>
             </div>
           </div>
@@ -371,14 +502,33 @@
           <div class="param-field">
             <label for="SPHF_input">Peak Hour Factor</label>
             <div class="cell-field">
-              <input id="SPHF_input" type="number" step="0.01" min="0.25" max="1" class="input input-bordered input-sm" bind:value={sup_phf} placeholder="0.85" required />
+              <input
+                id="SPHF_input"
+                type="number"
+                step="0.01"
+                min="0.25"
+                max="1"
+                class="input input-bordered input-sm"
+                bind:value={sup_phf}
+                placeholder="0.85"
+                required
+              />
             </div>
           </div>
 
           <div class="param-field">
             <label for="SPS_input">Pedestrian Speed</label>
             <div class="cell-field">
-              <input id="SPS_input" type="number" step="0.1" min="0.5" class="input input-bordered input-sm" bind:value={sup_ped_speed} placeholder="3.4" required />
+              <input
+                id="SPS_input"
+                type="number"
+                step="0.1"
+                min="0.5"
+                class="input input-bordered input-sm"
+                bind:value={sup_ped_speed}
+                placeholder="3.4"
+                required
+              />
               <span class="unit">mph</span>
             </div>
           </div>
@@ -386,7 +536,16 @@
           <div class="param-field">
             <label for="SBSP_input">Bicycle Speed</label>
             <div class="cell-field">
-              <input id="SBSP_input" type="number" step="0.1" min="1" class="input input-bordered input-sm" bind:value={sup_bike_speed} placeholder="12.8" required />
+              <input
+                id="SBSP_input"
+                type="number"
+                step="0.1"
+                min="1"
+                class="input input-bordered input-sm"
+                bind:value={sup_bike_speed}
+                placeholder="12.8"
+                required
+              />
               <span class="unit">mph</span>
             </div>
           </div>
@@ -406,14 +565,27 @@
         <div class="panel-head">
           <div>
             <h2 class="panel-title">Off-Street Bicycle Facility (BLOS)</h2>
-            <p class="panel-sub">Bicycle LOS on shared-use and exclusive paths up to 20 ft wide. Mode splits and speeds default to HCM Exhibit 24-6.</p>
+            <p class="panel-sub">
+              Bicycle LOS on shared-use and exclusive paths up to 20 ft wide. Mode splits and speeds default to HCM
+              Exhibit 24-6.
+            </p>
           </div>
         </div>
         <div class="param-grid">
           <div class="param-field">
             <label for="BPW_input">Path Width</label>
             <div class="cell-field">
-              <input id="BPW_input" type="number" step="0.5" min="4" max="20" class="input input-bordered input-sm" bind:value={bike_path_width} placeholder="10" required />
+              <input
+                id="BPW_input"
+                type="number"
+                step="0.5"
+                min="4"
+                max="20"
+                class="input input-bordered input-sm"
+                bind:value={bike_path_width}
+                placeholder="10"
+                required
+              />
               <span class="unit">ft</span>
             </div>
           </div>
@@ -421,7 +593,16 @@
           <div class="param-field">
             <label for="BSL_input">Segment Length</label>
             <div class="cell-field">
-              <input id="BSL_input" type="number" step="0.05" min="0.1" class="input input-bordered input-sm" bind:value={bike_segment_length} placeholder="1" required />
+              <input
+                id="BSL_input"
+                type="number"
+                step="0.05"
+                min="0.1"
+                class="input input-bordered input-sm"
+                bind:value={bike_segment_length}
+                placeholder="1"
+                required
+              />
               <span class="unit">mi</span>
             </div>
           </div>
@@ -437,7 +618,15 @@
           <div class="param-field">
             <label for="BTD_input">Two-Way Path Demand</label>
             <div class="cell-field">
-              <input id="BTD_input" type="number" min="0" class="input input-bordered input-sm" bind:value={bike_two_way_demand} placeholder="200" required />
+              <input
+                id="BTD_input"
+                type="number"
+                min="0"
+                class="input input-bordered input-sm"
+                bind:value={bike_two_way_demand}
+                placeholder="200"
+                required
+              />
               <span class="unit">users/h</span>
             </div>
           </div>
@@ -445,7 +634,17 @@
           <div class="param-field">
             <label for="BDS_input">Directional Split</label>
             <div class="cell-field">
-              <input id="BDS_input" type="number" step="0.05" min="0" max="1" class="input input-bordered input-sm" bind:value={bike_dir_split} placeholder="0.5" required />
+              <input
+                id="BDS_input"
+                type="number"
+                step="0.05"
+                min="0"
+                max="1"
+                class="input input-bordered input-sm"
+                bind:value={bike_dir_split}
+                placeholder="0.5"
+                required
+              />
             </div>
             <p class="param-hint">Share of demand traveling in the analysis direction.</p>
           </div>
@@ -453,7 +652,17 @@
           <div class="param-field">
             <label for="BPHF_input">Peak Hour Factor</label>
             <div class="cell-field">
-              <input id="BPHF_input" type="number" step="0.01" min="0.25" max="1" class="input input-bordered input-sm" bind:value={bike_phf} placeholder="0.85" required />
+              <input
+                id="BPHF_input"
+                type="number"
+                step="0.01"
+                min="0.25"
+                max="1"
+                class="input input-bordered input-sm"
+                bind:value={bike_phf}
+                placeholder="0.85"
+                required
+              />
             </div>
           </div>
 
@@ -585,9 +794,9 @@
               />
             {:else}
               <p class="result-summary-note">
-                This mode is scored on average pedestrian space and event frequency rather than a
-                single perception score, so the figures above are the service measures. See the
-                table for the values the letter was read from.
+                This mode is scored on average pedestrian space and event frequency rather than a single perception
+                score, so the figures above are the service measures. See the table for the values the letter was read
+                from.
               </p>
             {/if}
           </div>

@@ -74,8 +74,12 @@ function od(ods, mv, label) {
   for (const [mv, g] of greens) {
     const lg = group(groups, mv, 'EP1');
     approx(lg.effective_green_s, g, 1e-9, `EP1 g ${mv}`);
-    approx((lg.downstream_queue_lost_time_s ?? 0) +
-      (lg.demand_starvation_lost_time_s ?? 0), 0.0, 1e-9, `EP1 lost time ${mv}`);
+    approx(
+      (lg.downstream_queue_lost_time_s ?? 0) + (lg.demand_starvation_lost_time_s ?? 0),
+      0.0,
+      1e-9,
+      `EP1 lost time ${mv}`,
+    );
   }
 
   // Movement control delays, Exhibits 34-14/34-15 (+-1.0 s/veh). Column 1 is
@@ -178,18 +182,17 @@ function od(ods, mv, label) {
     ['WbExtThrough', 21.0], // M2: published 20 (VERIFY-HCM: 25+5-9)
     ['EbIntThrough', 35.0], // M1
     ['WbIntThrough', 25.0], // M5
-    ['NbRampLeft', 24.5],   // M3: published 24
-    ['NbRampRight', 20.1],  // M4: published 20
-    ['SbRampLeft', 14.5],   // M7: published 14
-    ['SbRampRight', 30.1],  // M8: published 30
+    ['NbRampLeft', 24.5], // M3: published 24
+    ['NbRampRight', 20.1], // M4: published 20
+    ['SbRampLeft', 14.5], // M7: published 14
+    ['SbRampRight', 30.1], // M8: published 30
   ];
   for (const [mv, g] of greens) {
     approx(group(groups, mv, 'EP5').effective_green_s, g, 0.1, `EP5 g ${mv}`);
   }
 
   // DDIs have no demand starvation lost time (Chapter 23 Step 4).
-  approx(group(groups, 'EbIntThrough', 'EP5').demand_starvation_lost_time_s,
-    0.0, 1e-12, 'EP5 M1 L_DS');
+  approx(group(groups, 'EbIntThrough', 'EP5').demand_starvation_lost_time_s, 0.0, 1e-12, 'EP5 M1 L_DS');
 
   // O-D ETT (equation-based expectations, +-0.5 s/veh) and LOS, with the
   // published Exhibit 34-65 values inline. The published movement delays of
@@ -207,8 +210,8 @@ function od(ods, mv, label) {
     ['C', 12.1, 'A'], // published 11.4 A
     ['D', 64.8, 'D'], // published 76.3 D
     ['E', 24.7, 'B'], // published 24.7 B
-    ['F', 0.0, 'A'],  // free-flow bypass
-    ['G', 0.0, 'A'],  // free-flow bypass
+    ['F', 0.0, 'A'], // free-flow bypass
+    ['G', 0.0, 'A'], // free-flow bypass
     ['H', 31.5, 'C'], // published 50.3 C
     ['I', 37.0, 'C'], // published 45.5 C
     ['J', 48.3, 'C'], // published 66.4 D
@@ -294,14 +297,14 @@ function od(ods, mv, label) {
   // f_HVg and f_v to three decimals being worth 0.2% of the saturation flow
   // there.
   const rows = [
-    ['EbExtThrough', 3786.0, 2407.0, 0.44, 1.00, 13.5],
-    ['EbExtLeft', 1798.0, 308.0, 1.02, 1.00, 115.7],
-    ['WbExtThrough', 3310.0, 2222.0, 0.56, 1.00, 13.2],
-    ['WbExtLeft', 1733.0, 297.0, 0.58, 1.00, 61.6],
-    ['NbRampLeft', 1674.0, 407.0, 0.56, 1.00, 52.1],
-    ['NbRampRight', 1658.0, 403.0, 0.65, 1.00, 55.7],
-    ['SbRampLeft', 1701.0, 474.0, 0.61, 1.00, 49.7],
-    ['SbRampRight', 1617.0, 450.0, 0.28, 1.00, 41.1],
+    ['EbExtThrough', 3786.0, 2407.0, 0.44, 1.0, 13.5],
+    ['EbExtLeft', 1798.0, 308.0, 1.02, 1.0, 115.7],
+    ['WbExtThrough', 3310.0, 2222.0, 0.56, 1.0, 13.2],
+    ['WbExtLeft', 1733.0, 297.0, 0.58, 1.0, 61.6],
+    ['NbRampLeft', 1674.0, 407.0, 0.56, 1.0, 52.1],
+    ['NbRampRight', 1658.0, 403.0, 0.65, 1.0, 55.7],
+    ['SbRampLeft', 1701.0, 474.0, 0.61, 1.0, 49.7],
+    ['SbRampRight', 1617.0, 450.0, 0.28, 1.0, 41.1],
   ];
   for (const [mv, s, c, x, i, d] of rows) {
     const r = group(groups, mv, 'EP2');
@@ -331,7 +334,7 @@ function od(ods, mv, label) {
   // 0.26 to 0.63 s/veh. The engine values are asserted with the published ones
   // inline.
   const internals = [
-    ['EbIntThroughRight', 4766.5, 21.03, 0.90], // published s 5,253, d 20.3
+    ['EbIntThroughRight', 4766.5, 21.03, 0.9], // published s 5,253, d 20.3
     ['WbIntThroughRight', 4784.1, 26.85, 0.81], // published s 5,271, d 26.8
   ];
   for (const [mv, s, d, i] of internals) {
@@ -391,7 +394,13 @@ function od(ods, mv, label) {
   // deceleration/acceleration term. The published Exhibit 34-29 column is
   // 20.6 / -15.6 / 37.7; the engine runs 0.05 s/veh short throughout because
   // Equation 23-50's printed 1.47 conversion leaves the 15.6 s term at 15.55.
-  for (const [mv, edtt] of [['A', 20.55], ['B', -15.55], ['E', 37.65], ['H', 37.65], ['I', 0.0]]) {
+  for (const [mv, edtt] of [
+    ['A', 20.55],
+    ['B', -15.55],
+    ['E', 37.65],
+    ['H', 37.65],
+    ['I', 0.0],
+  ]) {
     approx(od(ods, mv, 'EP2').edtt_s, edtt, 0.05, `EP2 EDTT ${mv}`);
   }
 
@@ -435,13 +444,24 @@ function od(ods, mv, label) {
   }
   // ... and the lane group each O-D lands on, by the delay they share.
   const odsLaneGroup = [
-    ['A', 'NbRampLeft'], ['B', 'NbRampRight'], ['C', 'SbRampRight'], ['D', 'SbRampLeft'],
-    ['E', 'EbExtLeft'], ['F', 'EbExtRight'], ['G', 'WbExtRight'], ['H', 'WbExtLeft'],
-    ['I', 'EbExtThrough'], ['J', 'WbExtThrough'],
+    ['A', 'NbRampLeft'],
+    ['B', 'NbRampRight'],
+    ['C', 'SbRampRight'],
+    ['D', 'SbRampLeft'],
+    ['E', 'EbExtLeft'],
+    ['F', 'EbExtRight'],
+    ['G', 'WbExtRight'],
+    ['H', 'WbExtLeft'],
+    ['I', 'EbExtThrough'],
+    ['J', 'WbExtThrough'],
   ];
   for (const [mv, lg] of odsLaneGroup) {
-    approx(od(ods, mv, 'EP7').control_delay_s, group(groups, lg, 'EP7').control_delay_s,
-      1e-12, `EP7 O-D ${mv} is ${lg} alone`);
+    approx(
+      od(ods, mv, 'EP7').control_delay_s,
+      group(groups, lg, 'EP7').control_delay_s,
+      1e-12,
+      `EP7 O-D ${mv} is ${lg} alone`,
+    );
   }
 
   // Effective greens, Exhibits 34-78 and 34-79. Total lost time is 4 s on
@@ -451,10 +471,16 @@ function od(ods, mv, label) {
   // which is what Exhibit 34-78 prints for a movement it has already
   // collapsed into one column.
   const greens = [
-    ['EbExtLeft', 48.0], ['EbExtThrough', 32.0], ['EbExtRight', 38.0],
-    ['WbExtLeft', 48.0], ['WbExtThrough', 32.0], ['WbExtRight', 38.0],
-    ['NbRampLeft', 38.0], ['NbRampRight', 16.0],
-    ['SbRampLeft', 38.0], ['SbRampRight', 16.0],
+    ['EbExtLeft', 48.0],
+    ['EbExtThrough', 32.0],
+    ['EbExtRight', 38.0],
+    ['WbExtLeft', 48.0],
+    ['WbExtThrough', 32.0],
+    ['WbExtRight', 38.0],
+    ['NbRampLeft', 38.0],
+    ['NbRampRight', 16.0],
+    ['SbRampLeft', 38.0],
+    ['SbRampRight', 16.0],
   ];
   for (const [mv, g] of greens) {
     approx(group(groups, mv, 'EP7').effective_green_s, g, 1e-9, `EP7 g ${mv}`);
@@ -471,8 +497,11 @@ function od(ods, mv, label) {
   }
   for (const r of groups) {
     if (r.movement === 'EbExtLeft' || r.movement === 'WbExtLeft') continue;
-    exact(r.protected_sat_flow == null && r.permitted_sat_flow == null, true,
-      `EP7 ${r.movement} carries no phase components`);
+    exact(
+      r.protected_sat_flow == null && r.permitted_sat_flow == null,
+      true,
+      `EP7 ${r.movement} carries no phase components`,
+    );
   }
 
   // Recombination is capacity addition (Exhibit 34-78 collapses the pair into
@@ -481,7 +510,10 @@ function od(ods, mv, label) {
   // depends on the components and the identity is what the engine promises.
   const C = ix.get_cycle_length_s();
   approx(C, 110.0, 1e-12, 'EP7 cycle length');
-  for (const [mv, gProt, gPerm, gU] of [['EbExtLeft', 16.0, 32.0, 13.01], ['WbExtLeft', 16.0, 32.0, 11.78]]) {
+  for (const [mv, gProt, gPerm, gU] of [
+    ['EbExtLeft', 16.0, 32.0, 13.01],
+    ['WbExtLeft', 16.0, 32.0, 11.78],
+  ]) {
     const r = group(groups, mv, 'EP7');
     const sum = r.protected_sat_flow * gProt + r.permitted_sat_flow * gU;
     approx(r.capacity, sum / C, 1e-9, `EP7 ${mv} c = component addition`);
@@ -497,8 +529,12 @@ function od(ods, mv, label) {
     ['eastbound', 1560.0, 561.0, 13.01, 672.0],
     ['westbound', 1561.0, 573.0, 11.78, 661.0],
   ]) {
-    approx(Math.round((sProt * 16.0 + sPerm * gU) / 48.0), published, 0,
-      `EP7 published ${label} components recombine to Exhibit 34-78`);
+    approx(
+      Math.round((sProt * 16.0 + sPerm * gU) / 48.0),
+      published,
+      0,
+      `EP7 published ${label} components recombine to Exhibit 34-78`,
+    );
   }
 
   // Saturation flow, capacity, v/c, and queue storage ratio. Column 1 is the
@@ -522,16 +558,16 @@ function od(ods, mv, label) {
   // movement at a single demand, which the equation cannot do.
   const rows = [
     // movement,          s,      c,     X,      R_Q      published s / c / X / R_Q
-    ['EbExtLeft',     714.5,  311.8, 0.5672, 0.500], //   672 /  293 / 0.60 / 0.61
+    ['EbExtLeft', 714.5, 311.8, 0.5672, 0.5], //   672 /  293 / 0.60 / 0.61
     ['EbExtThrough', 3468.5, 1009.0, 0.9024, 0.561], // 3,352 /  975 / 0.93 / 0.69
-    ['EbExtRight',   1552.6,  536.3, 0.1570, 0.067], // 1,659 /  573 / 0.15 / 0.08
-    ['WbExtLeft',     697.5,  304.4, 0.6364, 0.584], //   661 /  288 / 0.67 / 0.71
+    ['EbExtRight', 1552.6, 536.3, 0.157, 0.067], // 1,659 /  573 / 0.15 / 0.08
+    ['WbExtLeft', 697.5, 304.4, 0.6364, 0.584], //   661 /  288 / 0.67 / 0.71
     ['WbExtThrough', 3460.9, 1006.8, 0.8751, 0.527], // 3,346 /  973 / 0.91 / 0.64
-    ['WbExtRight',   1583.0,  546.9, 0.4042, 0.198], // 1,673 /  578 / 0.38 / 0.23
-    ['NbRampLeft',   1658.4,  572.9, 0.3032, 0.149], // 1,597 /  552 / 0.31
-    ['NbRampRight',  1571.0,  228.5, 0.7370, 0.238], // 1,580 /  230 / 0.73
-    ['SbRampLeft',   1791.2,  618.8, 0.8846, 0.694], // 1,724 /  596 / 0.92
-    ['SbRampRight',  1561.7,  227.2, 0.5561, 0.161], // 1,571 /  228 / 0.55
+    ['WbExtRight', 1583.0, 546.9, 0.4042, 0.198], // 1,673 /  578 / 0.38 / 0.23
+    ['NbRampLeft', 1658.4, 572.9, 0.3032, 0.149], // 1,597 /  552 / 0.31
+    ['NbRampRight', 1571.0, 228.5, 0.737, 0.238], // 1,580 /  230 / 0.73
+    ['SbRampLeft', 1791.2, 618.8, 0.8846, 0.694], // 1,724 /  596 / 0.92
+    ['SbRampRight', 1561.7, 227.2, 0.5561, 0.161], // 1,571 /  228 / 0.55
   ];
   for (const [mv, s, c, x, rq] of rows) {
     const r = group(groups, mv, 'EP7');
@@ -550,16 +586,16 @@ function od(ods, mv, label) {
   // closest to an Exhibit 23-10 band edge, D running 5.2 s/veh short of the
   // 55 s C/D line and E 1.8 s/veh short of the 30 s B/C line.
   const odExpected = [
-    ['A', 174.0, 27.68, 'B'],   // published 27.9  B
-    ['B', 168.0, 64.01, 'D'],   // published 63.6  D
-    ['C', 126.0, 53.17, 'C'],   // published 53.0  C
-    ['D', 547.0, 50.77, null],  // published 56.0  D; engine C
-    ['E', 177.0, 29.18, null],  // published 31.0  C; engine B
-    ['F',  84.0, 25.54, 'B'],   // published 25.4  B
-    ['G', 221.0, 29.60, 'B'],   // published 29.1  B
-    ['H', 194.0, 32.33, 'C'],   // published 34.6  C
-    ['I', 911.0, 50.27, 'C'],   // published 54.6  C
-    ['J', 881.0, 47.64, 'C'],   // published 51.0  C
+    ['A', 174.0, 27.68, 'B'], // published 27.9  B
+    ['B', 168.0, 64.01, 'D'], // published 63.6  D
+    ['C', 126.0, 53.17, 'C'], // published 53.0  C
+    ['D', 547.0, 50.77, null], // published 56.0  D; engine C
+    ['E', 177.0, 29.18, null], // published 31.0  C; engine B
+    ['F', 84.0, 25.54, 'B'], // published 25.4  B
+    ['G', 221.0, 29.6, 'B'], // published 29.1  B
+    ['H', 194.0, 32.33, 'C'], // published 34.6  C
+    ['I', 911.0, 50.27, 'C'], // published 54.6  C
+    ['J', 881.0, 47.64, 'C'], // published 51.0  C
   ];
   for (const [mv, demand, ett, los] of odExpected) {
     const r = od(ods, mv, 'EP7');
@@ -584,8 +620,7 @@ function od(ods, mv, label) {
   const dlt = loadCase('AlternativeIntersections', 'case4.json').dlt;
   const flows = dlt.cells.map((c) => c.flow_veh_h);
   const delaysS = dlt.cells.map((c) => c.control_delay_s);
-  const w = new m.WasmDisplacedLeftTurn(
-    flows, delaysS, dlt.total_od_demand_veh_h, false);
+  const w = new m.WasmDisplacedLeftTurn(flows, delaysS, dlt.total_od_demand_veh_h, false);
   approx(w.get_intersection_ett_s(), 28.5, 0.1, 'EP16 DLT ETT');
   exact(w.get_los(), 'C', 'EP16 DLT LOS');
 }
@@ -621,7 +656,11 @@ function od(ods, mv, label) {
   approx(edttLeft, 55.4, 0.05, 'EP12 EDTT minor left (Equation 23-58, a = 10)');
   approx(edttThrough, 60.4, 0.05, 'EP12 EDTT minor through (Equation 23-58, a = 15)');
   const mv = (label, approach, demand, junctions, ed) => ({
-    label, approach, demand_veh_h: Math.round(demand / phf), edtt_s: ed, junctions,
+    label,
+    approach,
+    demand_veh_h: Math.round(demand / phf),
+    edtt_s: ed,
+    junctions,
   });
   const ix = new m.WasmAlternativeIntersection({
     form: 'RcutFourLeg',
@@ -642,12 +681,18 @@ function od(ods, mv, label) {
   });
   const rows = ix.movement_results_to_js_value();
   const expected = [
-    ['EB L', 11.2, 'B'], ['WB L', 15.0, 'B'],
-    ['EB T', 0.0, 'A'], ['WB T', 0.0, 'A'],
-    ['EB R', 0.0, 'A'], ['WB R', 0.0, 'A'],
-    ['NB L', 55.4, 'E'], ['SB L', 55.4, 'E'],
-    ['NB T', 60.4, 'E'], ['SB T', 60.4, 'E'],
-    ['NB R', 0.0, 'A'], ['SB R', 0.0, 'A'],
+    ['EB L', 11.2, 'B'],
+    ['WB L', 15.0, 'B'],
+    ['EB T', 0.0, 'A'],
+    ['WB T', 0.0, 'A'],
+    ['EB R', 0.0, 'A'],
+    ['WB R', 0.0, 'A'],
+    ['NB L', 55.4, 'E'],
+    ['SB L', 55.4, 'E'],
+    ['NB T', 60.4, 'E'],
+    ['SB T', 60.4, 'E'],
+    ['NB R', 0.0, 'A'],
+    ['SB R', 0.0, 'A'],
   ];
   for (const [label, ett, los] of expected) {
     const r = rows.find((x) => x.label === label);
@@ -670,20 +715,27 @@ function od(ods, mv, label) {
 // within 0.1 s/veh of the book (which rounds intermediate capacities).
 {
   const stop = (flow, vc, tc, tf, storage = null) => ({
-    type: 'stop', flow_veh_h: flow, conflicting_flow_veh_h: vc,
-    critical_headway_s: tc, followup_headway_s: tf, storage_ft: storage,
+    type: 'stop',
+    flow_veh_h: flow,
+    conflicting_flow_veh_h: vc,
+    critical_headway_s: tc,
+    followup_headway_s: tf,
+    storage_ft: storage,
   });
   const edtt = m.edtt_stop_or_signal(700, 700, 60);
   approx(edtt, 15.9, 0.1, 'EP13 EDTT (Equation 23-59)');
   const ix = new m.WasmAlternativeIntersection({
     form: 'RcutThreeLeg',
     movements: [
-      { label: 'EB L', approach: 'Eb', demand_veh_h: 167, edtt_s: edtt,
-        junctions: [stop(344, 444, 7.22, 3.36), stop(167, 1189, 4.4, 2.6, 400)] },
-      { label: 'EB R', approach: 'Eb', demand_veh_h: 178, edtt_s: 0,
-        junctions: [stop(344, 444, 7.22, 3.36)] },
-      { label: 'NB L', approach: 'Nb', demand_veh_h: 189, edtt_s: 0,
-        junctions: [stop(189, 1044, 4.22, 2.26, 400)] },
+      {
+        label: 'EB L',
+        approach: 'Eb',
+        demand_veh_h: 167,
+        edtt_s: edtt,
+        junctions: [stop(344, 444, 7.22, 3.36), stop(167, 1189, 4.4, 2.6, 400)],
+      },
+      { label: 'EB R', approach: 'Eb', demand_veh_h: 178, edtt_s: 0, junctions: [stop(344, 444, 7.22, 3.36)] },
+      { label: 'NB L', approach: 'Nb', demand_veh_h: 189, edtt_s: 0, junctions: [stop(189, 1044, 4.22, 2.26, 400)] },
       { label: 'NB T', approach: 'Nb', demand_veh_h: 1000, edtt_s: 0, junctions: [] },
       { label: 'SB T', approach: 'Sb', demand_veh_h: 889, edtt_s: 0, junctions: [] },
       { label: 'SB R', approach: 'Sb', demand_veh_h: 156, edtt_s: 0, junctions: [] },
@@ -714,7 +766,11 @@ function od(ods, mv, label) {
   const edtt = m.edtt_stop_or_signal(600, 600, 40);
   approx(edtt, 20.4, 0.1, 'EP15 EDTT (Equation 23-59)');
   const mv = (label, approach, demand, delays, ed) => ({
-    label, approach, demand_veh_h: demand, edtt_s: ed, junctions: delays.map(prov),
+    label,
+    approach,
+    demand_veh_h: demand,
+    edtt_s: ed,
+    junctions: delays.map(prov),
   });
   const ix = new m.WasmAlternativeIntersection({
     form: 'MutFourLeg',
@@ -735,12 +791,18 @@ function od(ods, mv, label) {
   });
   const rows = ix.movement_results_to_js_value();
   const expected = [
-    ['NB L', 78.0, 'E'], ['SB L', 56.1, 'E'],
-    ['NB T', 9.3, 'A'], ['SB T', 12.3, 'B'],
-    ['NB R', 9.4, 'A'], ['SB R', 13.7, 'B'],
-    ['EB L', 67.4, 'E'], ['WB L', 87.5, 'F'],
-    ['EB T', 25.1, 'C'], ['WB T', 22.2, 'C'],
-    ['EB R', 23.7, 'C'], ['WB R', 20.2, 'C'],
+    ['NB L', 78.0, 'E'],
+    ['SB L', 56.1, 'E'],
+    ['NB T', 9.3, 'A'],
+    ['SB T', 12.3, 'B'],
+    ['NB R', 9.4, 'A'],
+    ['SB R', 13.7, 'B'],
+    ['EB L', 67.4, 'E'],
+    ['WB L', 87.5, 'F'],
+    ['EB T', 25.1, 'C'],
+    ['WB T', 22.2, 'C'],
+    ['EB R', 23.7, 'C'],
+    ['WB R', 20.2, 'C'],
   ];
   for (const [label, ett, los] of expected) {
     const r = rows.find((x) => x.label === label);
@@ -767,7 +829,11 @@ function od(ods, mv, label) {
   const edtt = m.edtt_stop_or_signal(800, 800, 50);
   const phf = 0.93;
   const mv = (label, approach, demand, delays, ed) => ({
-    label, approach, demand_veh_h: Math.round(demand / phf), edtt_s: ed, junctions: delays.map(prov),
+    label,
+    approach,
+    demand_veh_h: Math.round(demand / phf),
+    edtt_s: ed,
+    junctions: delays.map(prov),
   });
   const ix = new m.WasmAlternativeIntersection({
     form: 'RcutFourLeg',
@@ -788,12 +854,18 @@ function od(ods, mv, label) {
   });
   const rows = ix.movement_results_to_js_value();
   const expected = [
-    ['NB L', 37.3, 'D'], ['SB L', 18.4, 'B'],
-    ['NB T', 10.5, 'B'], ['SB T', 13.0, 'B'],
-    ['NB R', 13.2, 'B'], ['SB R', 7.9, 'A'],
-    ['EB L', 79.4, 'E'], ['WB L', 72.9, 'E'],
-    ['EB T', 82.1, 'F'], ['WB T', 67.8, 'E'],
-    ['EB R', 35.1, 'D'], ['WB R', 12.4, 'B'],
+    ['NB L', 37.3, 'D'],
+    ['SB L', 18.4, 'B'],
+    ['NB T', 10.5, 'B'],
+    ['SB T', 13.0, 'B'],
+    ['NB R', 13.2, 'B'],
+    ['SB R', 7.9, 'A'],
+    ['EB L', 79.4, 'E'],
+    ['WB L', 72.9, 'E'],
+    ['EB T', 82.1, 'F'],
+    ['WB T', 67.8, 'E'],
+    ['EB R', 35.1, 'D'],
+    ['WB R', 12.4, 'B'],
   ];
   for (const [label, ett, los] of expected) {
     const r = rows.find((x) => x.label === label);

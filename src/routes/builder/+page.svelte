@@ -28,7 +28,7 @@
     WasmUrbanReliability,
     WasmSegment,
     WasmSubSegment,
-    WasmTwoLaneHighways
+    WasmTwoLaneHighways,
   } from 'HCM-middleware';
 
   import BuilderStrip from '$lib/builder/BuilderStrip.svelte';
@@ -41,7 +41,15 @@
   import TwoLaneFeatureEditor from '$lib/builder/TwoLaneFeatureEditor.svelte';
   import TwoLaneResultStrip from '$lib/builder/TwoLaneResultStrip.svelte';
   import Discussion from '$lib/Discussion.svelte';
-  import { emptyDocument, makeFeature, migrate, setPeriods, FT_PER_MI, isRamp, defaultAccessApproach } from '$lib/builder/document.js';
+  import {
+    emptyDocument,
+    makeFeature,
+    migrate,
+    setPeriods,
+    FT_PER_MI,
+    isRamp,
+    defaultAccessApproach,
+  } from '$lib/builder/document.js';
   import { deriveRows } from '$lib/builder/derive.js';
   import { validateFacility } from '$lib/builder/validate.js';
   import {
@@ -51,7 +59,7 @@
     toFixture,
     UNCARRIED_FIELDS,
     URBAN_UNCARRIED_FIELDS,
-    TWOLANE_UNCARRIED_FIELDS
+    TWOLANE_UNCARRIED_FIELDS,
   } from '$lib/builder/fixture.js';
   import { TEMPLATES, applyTemplate } from '$lib/builder/templates.js';
   import { EXAMPLES, loadExample } from '$lib/builder/examples.js';
@@ -68,7 +76,7 @@
     analyzeUrbanReliability,
     defaultUrbanReliabilityInputs,
     defaultUrbanWeather,
-    urbanHandoffNotes
+    urbanHandoffNotes,
   } from '$lib/builder/urbanReliability.js';
   import { discussion, reliabilityDiscussion } from '$lib/builder/discussion.js';
   import { urbanDiscussion, urbanReliabilityDiscussion } from '$lib/builder/urbanDiscussion.js';
@@ -143,9 +151,7 @@
 
   // Everything below the document is derived, which is what makes undo a
   // one-liner: restoring a snapshot restores the whole view.
-  let derivation = $derived(
-    api ? deriveRows(doc, api) : { rows: [], sections: [], errors: [] }
-  );
+  let derivation = $derived(api ? deriveRows(doc, api) : { rows: [], sections: [], errors: [] });
   let rows = $derived(derivation.rows);
   let flags = $derived(api ? validateFacility(doc, rows, derivation.errors) : []);
   let errors = $derived(flags.filter((f) => f.level === 'error'));
@@ -155,13 +161,11 @@
   // Shown before the reliability run as well as after it, because "this facility
   // carries something the reliability path cannot express" is worth knowing
   // before pressing the button rather than after reading the answer.
-  let relNotes = $derived(
-    !api || isTwoLane ? [] : isUrban ? urbanHandoffNotes(doc, rows) : handoffNotes(doc, rows)
-  );
+  let relNotes = $derived(!api || isTwoLane ? [] : isUrban ? urbanHandoffNotes(doc, rows) : handoffNotes(doc, rows));
 
   // "Why this segment?" lights the features that produced the selected row.
   let highlightIds = $derived(
-    selectedKey ? (rows.find((r) => r.key === selectedKey)?.sourceIds ?? []) : selectedFeature ? [selectedFeature] : []
+    selectedKey ? (rows.find((r) => r.key === selectedKey)?.sourceIds ?? []) : selectedFeature ? [selectedFeature] : [],
   );
 
   onMount(async () => {
@@ -318,7 +322,7 @@
   function addFeature(kind) {
     commit((d) => {
       const station = d.features.length
-        ? Math.min(d.mainline.lengthFt, Math.max(...d.features.map((f) => f.stationFt)) + 2 * FT_PER_MI / 2)
+        ? Math.min(d.mainline.lengthFt, Math.max(...d.features.map((f) => f.stationFt)) + (2 * FT_PER_MI) / 2)
         : Math.round(d.mainline.lengthFt / 2);
       // Placing a feature ends the segments-only state an import arrives in:
       // from here the segments follow the features, so the imported list would
@@ -525,7 +529,7 @@
       'A freeway fixture stores segments and not the ramps that produced them, so it arrived as segments with no feature layer and is edited through the table below.',
     urban: 'The boundary signals were recovered from the segment lengths, so it is editable as features.',
     twolane:
-      'The passing features, grades, demand changes and horizontal curves were recovered from the segment table, so it is editable as features.'
+      'The passing features, grades, demand changes and horizontal curves were recovered from the segment table, so it is editable as features.',
   };
 
   function downloadDocument() {
@@ -555,7 +559,7 @@
         // produced, all per segment. So every feature comes back.
         replaceDoc(
           fromTwoLaneFixture(raw, file.name),
-          `Imported ${file.name} as a two-lane highway. The passing features, grades, demand changes and horizontal curves were all recovered from the segment table, so it is editable as features.`
+          `Imported ${file.name} as a two-lane highway. The passing features, grades, demand changes and horizontal curves were all recovered from the segment table, so it is editable as features.`,
         );
       } else if (isUrbanFixture(raw)) {
         // An urban fixture is invertible, unlike a freeway one, so this import
@@ -564,10 +568,13 @@
         // and the difference is not something to discover by poking at it.
         replaceDoc(
           fromUrbanFixture(raw, file.name),
-          `Imported ${file.name} as an urban street. The boundary signals were recovered from the segment lengths, so it is editable as features.`
+          `Imported ${file.name} as an urban street. The boundary signals were recovered from the segment lengths, so it is editable as features.`,
         );
       } else {
-        replaceDoc(fromFixture(raw, file.name), `Imported ${file.name} as a fixture. It arrived as segments with no feature layer.`);
+        replaceDoc(
+          fromFixture(raw, file.name),
+          `Imported ${file.name} as a fixture. It arrived as segments with no feature layer.`,
+        );
       }
     } catch (err) {
       error = String(err.message ?? err);
@@ -581,7 +588,7 @@
         ? 'Started an empty urban street. Place a boundary signal at each end, because a Chapter 18 segment runs between two of them.'
         : type === 'twolane'
           ? 'Started an empty two-lane highway. It is already one Passing Constrained segment and already analyzes, because that is what a two-lane highway with no passing feature on it is. Place grades, passing features and curves where they are.'
-          : 'Started an empty facility.'
+          : 'Started an empty facility.',
     );
   }
 
@@ -589,7 +596,7 @@
     if (isUrban) {
       replaceDoc(
         loadUrbanExample(id),
-        `Loaded ${URBAN_EXAMPLES.find((e) => e.id === id).name} as placed boundary signals, not as a segment table.`
+        `Loaded ${URBAN_EXAMPLES.find((e) => e.id === id).name} as placed boundary signals, not as a segment table.`,
       );
       return;
     }
@@ -597,11 +604,14 @@
       const ex = TWOLANE_EXAMPLES.find((e) => e.id === id);
       replaceDoc(
         loadTwoLaneExample(id),
-        `Loaded ${ex.name} as placed grades, passing features and curves, not as a segment table.${ex.build().features.length === 0 ? ' This one places no features at all, because a level Passing Constrained highway is exactly a highway and nothing else.' : ''}`
+        `Loaded ${ex.name} as placed grades, passing features and curves, not as a segment table.${ex.build().features.length === 0 ? ' This one places no features at all, because a level Passing Constrained highway is exactly a highway and nothing else.' : ''}`,
       );
       return;
     }
-    replaceDoc(loadExample(id), `Loaded ${EXAMPLES.find((e) => e.id === id).name} as placed ramps, not as a segment table.`);
+    replaceDoc(
+      loadExample(id),
+      `Loaded ${EXAMPLES.find((e) => e.id === id).name} as placed ramps, not as a segment table.`,
+    );
   }
 
   // ── Analysis ────────────────────────────────────────────────────
@@ -617,7 +627,7 @@
     // twoLaneAnalyze rebuilds them per run rather than holding any.
     WasmSegment,
     WasmSubSegment,
-    WasmTwoLaneHighways
+    WasmTwoLaneHighways,
   };
 
   /** Which schema a dropped JSON file is. The two fixture shapes are told apart
@@ -716,7 +726,7 @@
       generatedAt: new Date().toLocaleString(),
       headline: {
         label: 'Facility LOS (poorest period)',
-        value: run.perPeriod.reduce((w, p) => (p.los > w ? p.los : w), 'A')
+        value: run.perPeriod.reduce((w, p) => (p.los > w ? p.los : w), 'A'),
       },
       discussion: [...discussionLines, ...relDiscussion],
       inputs: [
@@ -733,13 +743,13 @@
         { label: 'Mainline entry demand', value: `${doc.mainline.demand.join(', ')} veh/h` },
         {
           label: 'Derived segments (upstream to downstream)',
-          value: run.segments.map((s) => `${s.segType} ${Math.round(s.lengthFt)} ft x${s.lanes}`).join(', ')
+          value: run.segments.map((s) => `${s.segType} ${Math.round(s.lengthFt)} ft x${s.lanes}`).join(', '),
         },
-        ...(wzSegs.length ? [{ label: 'Work zone segments', value: wzSegs.join(', ') }] : [])
+        ...(wzSegs.length ? [{ label: 'Work zone segments', value: wzSegs.join(', ') }] : []),
       ],
       resultTable: {
         columns: ['Period', 'Space mean speed (mi/h)', 'Average density (veh/mi/ln)', 'Facility LOS'],
-        rows: run.perPeriod.map((p, i) => [`${i + 1}`, p.speed.toFixed(1), p.density.toFixed(1), p.los])
+        rows: run.perPeriod.map((p, i) => [`${i + 1}`, p.speed.toFixed(1), p.density.toFixed(1), p.los]),
       },
       // The heatmap as a table of letters. A fill does not survive a print
       // reliably and a greyscale ramp is unreadable at cell size, so the
@@ -749,34 +759,40 @@
         columns: ['Period', ...run.segments.map((s) => `${s.index + 1} ${s.segType}${s.workZone ? ' (WZ)' : ''}`)],
         rows: run.perPeriod.map((_, p) => [`${p + 1}`, ...run.segments.map((s) => run.matrices.los[s.index][p])]),
         caption:
-          'Segments across, analysis periods down (Exhibit 10-10). Letters rather than colours, so the table reads the same in print and in greyscale.'
+          'Segments across, analysis periods down (Exhibit 10-10). Letters rather than colours, so the table reads the same in print and in greyscale.',
       },
       summary: [
         { label: 'Overall space mean speed', value: `${run.overallSpeed.toFixed(1)} mi/h` },
         { label: 'Overall density', value: `${run.overallDensity.toFixed(1)} veh/mi/ln` },
         {
           label: 'Oversaturated',
-          value: run.oversaturated ? `Yes, demand first exceeds capacity in period ${run.firstOversatPeriod + 1}` : 'No'
+          value: run.oversaturated
+            ? `Yes, demand first exceeds capacity in period ${run.firstOversatPeriod + 1}`
+            : 'No',
         },
         ...(reliability
           ? [
               { label: 'Mean travel time index', value: reliability.ttiMean.toFixed(3) },
               { label: 'Median travel time index', value: reliability.tti50.toFixed(3) },
               { label: 'Planning time index (95th percentile)', value: reliability.tti95.toFixed(3) },
-              { label: 'Reliability rating', value: `${reliability.reliabilityRating.toFixed(1)} %` }
+              { label: 'Reliability rating', value: `${reliability.reliabilityRating.toFixed(1)} %` },
             ]
-          : [])
+          : []),
       ],
       methodology: [
         'HCM Chapter 10 core methodology, run on the segment table the Chapter 10 Section 2 segmentation rules derived from the placed features. Each segment is analyzed per its own chapter (12, 13, 14) per 15-min period, with oversaturated periods handled by the Chapter 25 queue-tracking procedure over the time-space domain.',
         'On an oversaturated facility the placement of a queue among upstream segments can differ from the published engine while the facility totals agree.',
         ...(wzSegs.length
-          ? ['Work zone segments carry the Chapter 10 Section 4 adjustments (Equations 10-7 through 10-12). The capacity reported for a work zone segment is the post-CAF value.']
+          ? [
+              'Work zone segments carry the Chapter 10 Section 4 adjustments (Equations 10-7 through 10-12). The capacity reported for a work zone segment is the post-CAF value.',
+            ]
           : []),
         ...(reliability
-          ? [`HCM Chapter 11 reliability run on the same facility as its seed file, over ${reliability.numScenarios} scenarios. Weather, the incident frequency, severity and duration overrides, the demand multiplier table and the reliability reporting period all take the engine defaults here; the Chapter 11 page has a panel for each.`]
-          : [])
-      ]
+          ? [
+              `HCM Chapter 11 reliability run on the same facility as its seed file, over ${reliability.numScenarios} scenarios. Weather, the incident frequency, severity and duration overrides, the demand multiplier table and the reliability reporting period all take the engine defaults here; the Chapter 11 page has a panel for each.`,
+            ]
+          : []),
+      ],
     });
   }
 
@@ -816,15 +832,23 @@
           value:
             run.mode === 'measures'
               ? 'Published Chapter 18 measures, aggregated by Chapter 16 (Exhibit 16-7 "HCM method output")'
-              : 'Chapter 18 inputs, evaluated per segment and then aggregated'
+              : 'Chapter 18 inputs, evaluated per segment and then aggregated',
         },
         {
           label: 'Derived segments (upstream to downstream)',
-          value: run.segments.map((s) => `${Math.round(s.lengthFt)} ft x${s.lanes}`).join(', ')
-        }
+          value: run.segments.map((s) => `${Math.round(s.lengthFt)} ft x${s.lanes}`).join(', '),
+        },
       ],
       resultTable: {
-        columns: ['Segment', 'Length (ft)', 'Base FFS (mi/h)', 'Travel speed (mi/h)', 'Stop rate (stops/mi)', 'Through v/c', 'LOS'],
+        columns: [
+          'Segment',
+          'Length (ft)',
+          'Base FFS (mi/h)',
+          'Travel speed (mi/h)',
+          'Stop rate (stops/mi)',
+          'Through v/c',
+          'LOS',
+        ],
         rows: run.segments.map((s) => [
           `${s.index + 1}`,
           `${Math.round(s.lengthFt)}`,
@@ -832,8 +856,8 @@
           n2(s.travelSpeed),
           n2(s.spatialStopRate),
           n3(s.vcRatio),
-          s.los ?? '–'
-        ])
+          s.los ?? '–',
+        ]),
       },
       summary: [
         { label: 'Facility LOS', value: run.los },
@@ -848,26 +872,22 @@
               { label: 'Mean travel time index', value: n3(reliability.ttiMean) },
               { label: 'Median travel time index', value: n3(reliability.tti50) },
               { label: 'Planning time index (95th percentile)', value: n3(reliability.tti95) },
-              { label: 'Reliability rating', value: `${n1(reliability.reliabilityRating)} %` }
+              { label: 'Reliability rating', value: `${n1(reliability.reliabilityRating)} %` },
             ]
-          : [])
+          : []),
       ],
       methodology: [
         run.mode === 'measures'
           ? 'HCM Chapter 16 Steps 1 through 4, aggregating published Chapter 18 performance measures over the segments the boundary signals derived. This is the Exhibit 16-7 "HCM method output" path, which the published example problems take. The Chapter 18 engine is not re-run, because there are no Chapter 18 inputs behind the supplied measures to recompute from.'
           : 'HCM Chapter 18 evaluated per segment and then aggregated by Chapter 16 (Equations 16-2 through 16-4 and the Exhibit 16-3 level of service), over the segment table the Chapter 18 segment definition derived from the placed boundary signals. Each segment runs from one boundary intersection to the next and takes its through control delay, cycle length and effective green from the intersection at its downstream end.',
         'The Chapter 16 and 18 methods are single-period. There is one value per segment rather than a time-space domain, and the reliability run below is where variation over time is described.',
-        ...(run.mode === 'inputs'
-          ? [
-              `Access-point delay (Equation 18-7) came from ${describeApSources(run)}.`
-            ]
-          : []),
+        ...(run.mode === 'inputs' ? [`Access-point delay (Equation 18-7) came from ${describeApSources(run)}.`] : []),
         ...(reliability
           ? [
-              `HCM Chapter 17 reliability run over ${reliability.numScenarios.toLocaleString('en-US')} scenarios. The reliability engine takes a strict subset of what a Chapter 18 segment holds, so the capacity, control delay, cross-section geometry and access-point delay of the facility above do not cross into it; the handoff panel on the builder names each one.`
+              `HCM Chapter 17 reliability run over ${reliability.numScenarios.toLocaleString('en-US')} scenarios. The reliability engine takes a strict subset of what a Chapter 18 segment holds, so the capacity, control delay, cross-section geometry and access-point delay of the facility above do not cross into it; the handoff panel on the builder names each one.`,
             ]
-          : [])
-      ]
+          : []),
+      ],
     });
   }
 
@@ -906,17 +926,17 @@
         { label: 'Heavy vehicles', value: `${m.heavyVehiclePct} %` },
         {
           label: 'Derived segments (in the analysis direction)',
-          value: run.segments.map((sg) => `${sg.segType} ${sg.lengthMi.toFixed(2)} mi`).join(', ')
+          value: run.segments.map((sg) => `${sg.segType} ${sg.lengthMi.toFixed(2)} mi`).join(', '),
         },
         ...(pl.length ? [{ label: 'Passing lane segments', value: pl.join(', ') }] : []),
         ...(curved.length
           ? [
               {
                 label: 'Horizontal curves',
-                value: `${curved.reduce((a, sg) => a + sg.curveCount, 0)} in segments ${curved.map((sg) => sg.index + 1).join(', ')}, as Step 5d subsegments`
-              }
+                value: `${curved.reduce((a, sg) => a + sg.curveCount, 0)} in segments ${curved.map((sg) => sg.index + 1).join(', ')}, as Step 5d subsegments`,
+              },
             ]
-          : [])
+          : []),
       ],
       resultTable: {
         columns: [
@@ -927,7 +947,7 @@
           'Average speed (mi/h)',
           'Percent followers (%)',
           'Follower density (followers/mi)',
-          'LOS'
+          'LOS',
         ],
         rows: run.segments.map((sg) => [
           `${sg.index + 1}`,
@@ -937,30 +957,30 @@
           n1(sg.avgSpeed),
           n1(sg.percentFollowers),
           n2(sg.followerDensity),
-          sg.los ?? '–'
-        ])
+          sg.los ?? '–',
+        ]),
       },
       summary: [
         { label: 'Facility LOS', value: run.los },
         { label: 'Facility follower density', value: `${n3(run.facilityFd)} followers/mi` },
-        { label: 'Length-weighted posted speed limit', value: `${n1(run.weightedSpl)} mi/h` }
+        { label: 'Length-weighted posted speed limit', value: `${n1(run.weightedSpl)} mi/h` },
       ],
       methodology: [
         'HCM 7th Edition Chapter 15 (Two-Lane Highways), Steps 1 through 11, run on the segment table the Chapter 15 Section 2 segmentation rules derived from the placed grade, passing and demand features. A segment runs between the stations where the ability to pass, the grade, the demand or the posted speed limit changes.',
-        'Service measure: follower density (followers/mi). The facility value is length-weighted across the segments by Equation 15-39, taking each segment\'s adjusted follower density where it has one and a passing lane\'s midpoint value.',
+        "Service measure: follower density (followers/mi). The facility value is length-weighted across the segments by Equation 15-39, taking each segment's adjusted follower density where it has one and a passing lane's midpoint value.",
         'Level of service comes from Exhibit 15-6, whose bands differ above and below a 50 mi/h POSTED speed limit. The facility letter is read against the length-weighted posted limit rather than against the speed achieved.',
         ...(curved.length
           ? [
-              'Horizontal curves are subsegments of the segment containing them rather than segments of their own (Step 5d), and their lengths are in feet where a segment length is in miles. Each subsegment speed is weighted by its share of the segment.'
+              'Horizontal curves are subsegments of the segment containing them rather than segments of their own (Step 5d), and their lengths are in feet where a segment length is in miles. Each subsegment speed is weighted by its share of the segment.',
             ]
           : []),
         ...(pl.length
           ? [
-              'A passing lane segment reports its midpoint follower density, and the segments downstream of it carry the Step 9 adjusted follower density for as far as the passing lane\'s effective length reaches. Only the closest upstream passing lane is considered.'
+              "A passing lane segment reports its midpoint follower density, and the segments downstream of it carry the Step 9 adjusted follower density for as far as the passing lane's effective length reaches. Only the closest upstream passing lane is considered.",
             ]
           : []),
-        'Chapter 15 has no travel time reliability methodology, so unlike a Chapter 10 freeway facility or a Chapter 16 urban street facility there is no reliability run to report beside this one.'
-      ]
+        'Chapter 15 has no travel time reliability methodology, so unlike a Chapter 10 freeway facility or a Chapter 16 urban street facility there is no reliability run to report beside this one.',
+      ],
     });
   }
 
@@ -969,7 +989,7 @@
     const LABEL = {
       published: 'per-point delays supplied on the access points',
       computed: 'the Chapter 30 Section 4 computed procedure',
-      planning: 'the Exhibit 18-13 planning estimate'
+      planning: 'the Exhibit 18-13 planning estimate',
     };
     return [...set].map((s) => LABEL[s] ?? s).join(', ');
   }
@@ -977,7 +997,11 @@
   const n2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : '–');
   const n3 = (v) => (Number.isFinite(v) ? v.toFixed(3) : '–');
 
-  const slug = (s) => (s || 'facility').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const slug = (s) =>
+    (s || 'facility')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
   const LEVEL_LABEL = { error: 'Blocks analysis', warn: 'Check this', note: 'Note' };
   const n1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : '–');
 
@@ -996,7 +1020,10 @@
   const urbanSummary = (f) => {
     if (f.kind === 'signal') {
       const c = f.config ?? {};
-      const timing = c.control === 'Signalized' ? `C ${c.cycle_length_s ?? '–'} s · g ${c.effective_green_s ?? '–'} s` : String(c.control ?? '');
+      const timing =
+        c.control === 'Signalized'
+          ? `C ${c.cycle_length_s ?? '–'} s · g ${c.effective_green_s ?? '–'} s`
+          : String(c.control ?? '');
       return `${timing}${c.speed_limit_mph ? ` · ${c.speed_limit_mph} mi/h` : ''}${f.inferred ? ' · timing inferred on import' : ''}`;
     }
     if (f.side === 'opposing') return 'Opposing side, counted for f_A only';
@@ -1013,7 +1040,7 @@
     passing: (f) => (f.passingType === 2 ? 'PL' : 'PZ'),
     grade: (f) => (f.gradePct < 0 ? 'Down' : 'Up'),
     curve: () => 'Curve',
-    demand: () => 'Demand'
+    demand: () => 'Demand',
   };
 
   const twoLaneSummary = (f) => {
@@ -1022,7 +1049,8 @@
       const short = f.passingType === 2 && lengthMi < 0.5 - 1e-9;
       return `${f.passingType === 2 ? 'Passing lane' : 'Passing zone'}, ${lengthMi.toFixed(2)} mi${short ? ' \u00b7 under the 0.5 mi Exhibit 15-10 minimum, so analyzed as Passing Constrained' : ''}`;
     }
-    if (f.kind === 'grade') return `${f.gradePct > 0 ? '+' : ''}${f.gradePct}% \u00b7 vertical class ${f.verticalClass}`;
+    if (f.kind === 'grade')
+      return `${f.gradePct > 0 ? '+' : ''}${f.gradePct}% \u00b7 vertical class ${f.verticalClass}`;
     if (f.kind === 'curve') {
       return `${Math.round(f.endFt - f.stationFt)} ft \u00b7 R ${Math.round(f.designRadiusFt)} ft \u00b7 e ${f.superelevationPct}% \u00b7 a subsegment, not a segment`;
     }
@@ -1038,7 +1066,10 @@
 
 <svelte:head>
   <title>Facility Builder — HCM Calculator</title>
-  <meta name="description" content="Build an HCM freeway, urban street or two-lane highway facility by placing the features an engineer knows, and let each chapter's own segmentation rules derive the segment table." />
+  <meta
+    name="description"
+    content="Build an HCM freeway, urban street or two-lane highway facility by placing the features an engineer knows, and let each chapter's own segmentation rules derive the segment table."
+  />
 </svelte:head>
 
 <svelte:window on:keydown={onKey} />
@@ -1049,11 +1080,19 @@
       <h1>Facility Builder</h1>
       <p class="bd-lede">
         {#if isUrban}
-          Place boundary signals along a street and the Chapter 18 segment definition derives the analysis segments: a segment runs from one boundary intersection to the next, and reads its timing from the one at its downstream end. Access points attach to the segment that contains them.
+          Place boundary signals along a street and the Chapter 18 segment definition derives the analysis segments: a
+          segment runs from one boundary intersection to the next, and reads its timing from the one at its downstream
+          end. Access points attach to the segment that contains them.
         {:else if isTwoLane}
-          Place grades, passing lanes and zones, horizontal curves and demand changes along a highway and the Chapter 15 segmentation rules derive the analysis segments. A segment breaks where the ability to pass, the grade, the demand or the posted limit changes, all of which Section 2 asks to be homogeneous within one. A curve is the exception and breaks nothing: Step 1 sends varying curvature to the Step 5d subsegment adjustment inside a single segment.
+          Place grades, passing lanes and zones, horizontal curves and demand changes along a highway and the Chapter 15
+          segmentation rules derive the analysis segments. A segment breaks where the ability to pass, the grade, the
+          demand or the posted limit changes, all of which Section 2 asks to be homogeneous within one. A curve is the
+          exception and breaks nothing: Step 1 sends varying curvature to the Step 5d subsegment adjustment inside a
+          single segment.
         {:else}
-          Place ramps along a mainline and the HCM Chapter 10 segmentation rules derive the analysis segments. The derivation calls the library's own <code>segment_ramp_section</code>, so the table here and the table the engines analyze cannot disagree.
+          Place ramps along a mainline and the HCM Chapter 10 segmentation rules derive the analysis segments. The
+          derivation calls the library's own <code>segment_ramp_section</code>, so the table here and the table the
+          engines analyze cannot disagree.
         {/if}
       </p>
     </div>
@@ -1075,8 +1114,12 @@
              so a conversion would silently drop most of the document. The
              selector says "new" for that reason, and undo still reaches back
              past it. -->
-        <select value={doc.facilityType} disabled={!ready} data-testid="facility-type"
-                onchange={(e) => newFacility(e.currentTarget.value)}>
+        <select
+          value={doc.facilityType}
+          disabled={!ready}
+          data-testid="facility-type"
+          onchange={(e) => newFacility(e.currentTarget.value)}
+        >
           <option value="freeway">Freeway (Ch 10/11)</option>
           <option value="urban">Urban street (Ch 16/17/18)</option>
           <option value="twolane">Two-lane highway (Ch 15)</option>
@@ -1090,37 +1133,86 @@
       <div class="bd-group">
         <span class="bd-group-label">Add</span>
         {#if isUrban}
-          <button type="button" class="btn btn-sm" onclick={() => addFeature('signal')} data-testid="add-signal">Boundary signal</button>
-          <button type="button" class="btn btn-sm" onclick={() => addFeature('access_point')} data-testid="add-access-point">Access point</button>
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('signal')} data-testid="add-signal"
+            >Boundary signal</button
+          >
+          <button
+            type="button"
+            class="btn btn-sm"
+            onclick={() => addFeature('access_point')}
+            data-testid="add-access-point">Access point</button
+          >
         {:else if isTwoLane}
-          <button type="button" class="btn btn-sm" onclick={() => addFeature('grade')} data-testid="add-grade">Grade</button>
-          <button type="button" class="btn btn-sm" onclick={() => addFeature('passing')} data-testid="add-passing">Passing lane or zone</button>
-          <button type="button" class="btn btn-sm" onclick={() => addFeature('curve')} data-testid="add-curve">Horizontal curve</button>
-          <button type="button" class="btn btn-sm" onclick={() => addFeature('demand')} data-testid="add-demand">Demand change</button>
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('grade')} data-testid="add-grade"
+            >Grade</button
+          >
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('passing')} data-testid="add-passing"
+            >Passing lane or zone</button
+          >
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('curve')} data-testid="add-curve"
+            >Horizontal curve</button
+          >
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('demand')} data-testid="add-demand"
+            >Demand change</button
+          >
         {:else}
-          <button type="button" class="btn btn-sm" onclick={() => addFeature('on_ramp')} data-testid="add-on-ramp">On-ramp</button>
-          <button type="button" class="btn btn-sm" onclick={() => addFeature('off_ramp')} data-testid="add-off-ramp">Off-ramp</button>
-          <button type="button" class="btn btn-sm" onclick={() => addFeature('lane_change')} data-testid="add-lane-change">Lane change</button>
-          <button type="button" class="btn btn-sm" onclick={() => addFeature('work_zone')} data-testid="add-work-zone">Work zone</button>
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('on_ramp')} data-testid="add-on-ramp"
+            >On-ramp</button
+          >
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('off_ramp')} data-testid="add-off-ramp"
+            >Off-ramp</button
+          >
+          <button
+            type="button"
+            class="btn btn-sm"
+            onclick={() => addFeature('lane_change')}
+            data-testid="add-lane-change">Lane change</button
+          >
+          <button type="button" class="btn btn-sm" onclick={() => addFeature('work_zone')} data-testid="add-work-zone"
+            >Work zone</button
+          >
           {#each TEMPLATES as t}
-            <button type="button" class="btn btn-sm" title={t.summary}
-                    onclick={() => dropTemplate(t.id)} data-testid="template-{t.id}">{t.name}</button>
+            <button
+              type="button"
+              class="btn btn-sm"
+              title={t.summary}
+              onclick={() => dropTemplate(t.id)}
+              data-testid="template-{t.id}">{t.name}</button
+            >
           {/each}
         {/if}
       </div>
       <div class="bd-group">
         <span class="bd-group-label">Load</span>
         {#each examples as ex}
-          <button type="button" class="btn btn-sm" title={ex.summary}
-                  onclick={() => openExample(ex.id)} data-testid="example-{ex.id}">{ex.name}</button>
+          <button
+            type="button"
+            class="btn btn-sm"
+            title={ex.summary}
+            onclick={() => openExample(ex.id)}
+            data-testid="example-{ex.id}">{ex.name}</button
+          >
         {/each}
-        <button type="button" class="btn btn-sm" onclick={() => fileInput?.click()} data-testid="import-file">Open file…</button>
-        <input bind:this={fileInput} type="file" accept="application/json,.json" onchange={onFile} class="bd-file" aria-label="Open a builder document or a facility fixture" />
+        <button type="button" class="btn btn-sm" onclick={() => fileInput?.click()} data-testid="import-file"
+          >Open file…</button
+        >
+        <input
+          bind:this={fileInput}
+          type="file"
+          accept="application/json,.json"
+          onchange={onFile}
+          class="bd-file"
+          aria-label="Open a builder document or a facility fixture"
+        />
       </div>
       <div class="bd-group">
         <span class="bd-group-label">Save</span>
-        <button type="button" class="btn btn-sm" onclick={downloadDocument} data-testid="download-document">Document</button>
-        <button type="button" class="btn btn-sm" onclick={downloadFixture} data-testid="download-fixture">Fixture</button>
+        <button type="button" class="btn btn-sm" onclick={downloadDocument} data-testid="download-document"
+          >Document</button
+        >
+        <button type="button" class="btn btn-sm" onclick={downloadFixture} data-testid="download-fixture"
+          >Fixture</button
+        >
       </div>
     </section>
 
@@ -1134,52 +1226,264 @@
       <h2>{isUrban ? 'Street' : isTwoLane ? 'Highway' : 'Mainline'}</h2>
       {#if isTwoLane}
         <div class="bd-fields">
-          <label>Name <input type="text" value={doc.meta.name} onchange={(e) => commit((d) => (d.meta.name = e.target.value))} data-testid="facility-name" /></label>
-          <label>Length (mi) <input type="number" min="0.1" step="0.05" value={(doc.mainline.lengthFt / FT_PER_MI).toFixed(2)} onchange={(e) => setLengthMi(e.currentTarget.value)} data-testid="facility-length" /></label>
-          <label>Direction
-            <select value={doc.mainline.direction} onchange={(e) => setMainline('direction', e.currentTarget.value)} data-testid="facility-direction">
+          <label
+            >Name <input
+              type="text"
+              value={doc.meta.name}
+              onchange={(e) => commit((d) => (d.meta.name = e.target.value))}
+              data-testid="facility-name"
+            /></label
+          >
+          <label
+            >Length (mi) <input
+              type="number"
+              min="0.1"
+              step="0.05"
+              value={(doc.mainline.lengthFt / FT_PER_MI).toFixed(2)}
+              onchange={(e) => setLengthMi(e.currentTarget.value)}
+              data-testid="facility-length"
+            /></label
+          >
+          <label
+            >Direction
+            <select
+              value={doc.mainline.direction}
+              onchange={(e) => setMainline('direction', e.currentTarget.value)}
+              data-testid="facility-direction"
+            >
               <option>Northbound</option><option>Southbound</option><option>Eastbound</option><option>Westbound</option>
             </select>
           </label>
-          <label>Posted speed limit (mi/h) <input type="number" min="20" max="70" step="5" value={doc.mainline.speedLimitMph} onchange={(e) => setMainline('speedLimitMph', e.currentTarget.value)} data-testid="facility-spl" /></label>
-          <label>Lane width (ft) <input type="number" min="9" max="12" step="0.5" value={doc.mainline.laneWidthFt} onchange={(e) => setMainline('laneWidthFt', e.currentTarget.value)} data-testid="facility-lane-width" /></label>
-          <label>Shoulder width (ft) <input type="number" min="0" max="6" step="0.5" value={doc.mainline.shoulderWidthFt} onchange={(e) => setMainline('shoulderWidthFt', e.currentTarget.value)} data-testid="facility-shoulder-width" /></label>
-          <label>Access point density (/mi) <input type="number" min="0" step="1" value={doc.mainline.accessPointDensity} onchange={(e) => setMainline('accessPointDensity', e.currentTarget.value)} data-testid="facility-apd" /></label>
-          <label>Heavy vehicles in passing lane (%) <input type="number" min="0" max="100" step="0.1" value={doc.mainline.pctHeavyVehInPassingLane} onchange={(e) => setMainline('pctHeavyVehInPassingLane', e.currentTarget.value)} data-testid="facility-pmhvfl" /></label>
-          <label>Entering demand (veh/h) <input type="number" min="0" step="5" value={doc.mainline.demand[0]} onchange={(e) => commit((d) => (d.mainline.demand = [Number(e.target.value)]))} data-testid="facility-demand" /></label>
-          <label>Opposing demand (veh/h) <input type="number" min="0" step="5" value={doc.mainline.opposingDemand} onchange={(e) => setMainline('opposingDemand', e.currentTarget.value)} data-testid="facility-opposing" /></label>
-          <label>Peak hour factor <input type="number" min="0.1" max="1" step="0.005" value={doc.mainline.phf} onchange={(e) => setMainline('phf', e.currentTarget.value)} data-testid="facility-phf" /></label>
-          <label>Heavy vehicles (%) <input type="number" min="0" max="100" step="0.5" value={doc.mainline.heavyVehiclePct} onchange={(e) => setMainline('heavyVehiclePct', e.currentTarget.value)} data-testid="facility-phv" /></label>
+          <label
+            >Posted speed limit (mi/h) <input
+              type="number"
+              min="20"
+              max="70"
+              step="5"
+              value={doc.mainline.speedLimitMph}
+              onchange={(e) => setMainline('speedLimitMph', e.currentTarget.value)}
+              data-testid="facility-spl"
+            /></label
+          >
+          <label
+            >Lane width (ft) <input
+              type="number"
+              min="9"
+              max="12"
+              step="0.5"
+              value={doc.mainline.laneWidthFt}
+              onchange={(e) => setMainline('laneWidthFt', e.currentTarget.value)}
+              data-testid="facility-lane-width"
+            /></label
+          >
+          <label
+            >Shoulder width (ft) <input
+              type="number"
+              min="0"
+              max="6"
+              step="0.5"
+              value={doc.mainline.shoulderWidthFt}
+              onchange={(e) => setMainline('shoulderWidthFt', e.currentTarget.value)}
+              data-testid="facility-shoulder-width"
+            /></label
+          >
+          <label
+            >Access point density (/mi) <input
+              type="number"
+              min="0"
+              step="1"
+              value={doc.mainline.accessPointDensity}
+              onchange={(e) => setMainline('accessPointDensity', e.currentTarget.value)}
+              data-testid="facility-apd"
+            /></label
+          >
+          <label
+            >Heavy vehicles in passing lane (%) <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              value={doc.mainline.pctHeavyVehInPassingLane}
+              onchange={(e) => setMainline('pctHeavyVehInPassingLane', e.currentTarget.value)}
+              data-testid="facility-pmhvfl"
+            /></label
+          >
+          <label
+            >Entering demand (veh/h) <input
+              type="number"
+              min="0"
+              step="5"
+              value={doc.mainline.demand[0]}
+              onchange={(e) => commit((d) => (d.mainline.demand = [Number(e.target.value)]))}
+              data-testid="facility-demand"
+            /></label
+          >
+          <label
+            >Opposing demand (veh/h) <input
+              type="number"
+              min="0"
+              step="5"
+              value={doc.mainline.opposingDemand}
+              onchange={(e) => setMainline('opposingDemand', e.currentTarget.value)}
+              data-testid="facility-opposing"
+            /></label
+          >
+          <label
+            >Peak hour factor <input
+              type="number"
+              min="0.1"
+              max="1"
+              step="0.005"
+              value={doc.mainline.phf}
+              onchange={(e) => setMainline('phf', e.currentTarget.value)}
+              data-testid="facility-phf"
+            /></label
+          >
+          <label
+            >Heavy vehicles (%) <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.5"
+              value={doc.mainline.heavyVehiclePct}
+              onchange={(e) => setMainline('heavyVehiclePct', e.currentTarget.value)}
+              data-testid="facility-phv"
+            /></label
+          >
         </div>
         <p class="bd-sub">
-          The posted speed limit is the POSTED limit and not a free-flow speed. Chapter 15 derives the base free-flow speed as 1.14 times it, so a free-flow speed entered here inflates every speed downstream of it and nothing errors. Heavy vehicles is a PERCENT, so 5% is 5 rather than 0.05, and a fraction lands in the lowest lookup bucket and still analyzes. The four values above them are the facility-wide arguments Chapter 15 takes; the demand, factors and posted limit are what a stretch with no demand change on it inherits.
+          The posted speed limit is the POSTED limit and not a free-flow speed. Chapter 15 derives the base free-flow
+          speed as 1.14 times it, so a free-flow speed entered here inflates every speed downstream of it and nothing
+          errors. Heavy vehicles is a PERCENT, so 5% is 5 rather than 0.05, and a fraction lands in the lowest lookup
+          bucket and still analyzes. The four values above them are the facility-wide arguments Chapter 15 takes; the
+          demand, factors and posted limit are what a stretch with no demand change on it inherits.
         </p>
         <p class="bd-sub" data-testid="twolane-direction-note">
-          A two-lane highway is segmented separately for each direction, because passing zones and grades start and end in different places depending on which way you are going (Chapter 15, Section 2). This document describes the {doc.mainline.direction.toLowerCase()} direction; the other one is a second document.
+          A two-lane highway is segmented separately for each direction, because passing zones and grades start and end
+          in different places depending on which way you are going (Chapter 15, Section 2). This document describes the {doc.mainline.direction.toLowerCase()}
+          direction; the other one is a second document.
         </p>
       {:else if isUrban}
         <div class="bd-fields">
-          <label>Name <input type="text" value={doc.meta.name} onchange={(e) => commit((d) => (d.meta.name = e.target.value))} data-testid="facility-name" /></label>
-          <label>Length (mi) <input type="number" min="0.05" step="0.05" value={(doc.mainline.lengthFt / FT_PER_MI).toFixed(2)} onchange={(e) => setLengthMi(e.currentTarget.value)} data-testid="facility-length" /></label>
-          <label>Direction
-            <select value={doc.mainline.direction} onchange={(e) => setMainline('direction', e.currentTarget.value)} data-testid="facility-direction">
+          <label
+            >Name <input
+              type="text"
+              value={doc.meta.name}
+              onchange={(e) => commit((d) => (d.meta.name = e.target.value))}
+              data-testid="facility-name"
+            /></label
+          >
+          <label
+            >Length (mi) <input
+              type="number"
+              min="0.05"
+              step="0.05"
+              value={(doc.mainline.lengthFt / FT_PER_MI).toFixed(2)}
+              onchange={(e) => setLengthMi(e.currentTarget.value)}
+              data-testid="facility-length"
+            /></label
+          >
+          <label
+            >Direction
+            <select
+              value={doc.mainline.direction}
+              onchange={(e) => setMainline('direction', e.currentTarget.value)}
+              data-testid="facility-direction"
+            >
               <option>Eastbound</option><option>Westbound</option><option>Northbound</option><option>Southbound</option>
             </select>
           </label>
-          <label>Through lanes <input type="number" min="1" max="6" step="1" value={doc.mainline.lanes} onchange={(e) => setMainline('lanes', e.currentTarget.value)} data-testid="facility-lanes" /></label>
-          <label>Speed limit (mi/h) <input type="number" min="20" max="60" step="1" value={doc.mainline.speedLimitMph} onchange={(e) => setMainline('speedLimitMph', e.currentTarget.value)} data-testid="facility-speed-limit" /></label>
-          <label>Left-turn lane proportion <input type="number" min="0" max="1" step="0.01" value={doc.mainline.propLeftTurnLanes} onchange={(e) => setMainline('propLeftTurnLanes', e.currentTarget.value)} data-testid="facility-pltl" /></label>
-          <label>Proportion with curb <input type="number" min="0" max="1" step="0.05" value={doc.mainline.proportionWithCurb} onchange={(e) => setMainline('proportionWithCurb', e.currentTarget.value)} data-testid="facility-curb" /></label>
-          <label>On-street parking <input type="number" min="0" max="1" step="0.05" value={doc.mainline.proportionOnStreetParking} onchange={(e) => setMainline('proportionOnStreetParking', e.currentTarget.value)} data-testid="facility-parking" /></label>
-          <label>Restrictive median (ft) <input type="number" min="0" step="10" value={doc.mainline.restrictiveMedianLengthFt} onchange={(e) => setMainline('restrictiveMedianLengthFt', e.currentTarget.value)} data-testid="facility-median" /></label>
-          <label>Analysis period (h) <input type="number" min="0.05" max="1" step="0.05" value={doc.mainline.analysisPeriodH} onchange={(e) => setMainline('analysisPeriodH', e.currentTarget.value)} data-testid="facility-period-h" /></label>
+          <label
+            >Through lanes <input
+              type="number"
+              min="1"
+              max="6"
+              step="1"
+              value={doc.mainline.lanes}
+              onchange={(e) => setMainline('lanes', e.currentTarget.value)}
+              data-testid="facility-lanes"
+            /></label
+          >
+          <label
+            >Speed limit (mi/h) <input
+              type="number"
+              min="20"
+              max="60"
+              step="1"
+              value={doc.mainline.speedLimitMph}
+              onchange={(e) => setMainline('speedLimitMph', e.currentTarget.value)}
+              data-testid="facility-speed-limit"
+            /></label
+          >
+          <label
+            >Left-turn lane proportion <input
+              type="number"
+              min="0"
+              max="1"
+              step="0.01"
+              value={doc.mainline.propLeftTurnLanes}
+              onchange={(e) => setMainline('propLeftTurnLanes', e.currentTarget.value)}
+              data-testid="facility-pltl"
+            /></label
+          >
+          <label
+            >Proportion with curb <input
+              type="number"
+              min="0"
+              max="1"
+              step="0.05"
+              value={doc.mainline.proportionWithCurb}
+              onchange={(e) => setMainline('proportionWithCurb', e.currentTarget.value)}
+              data-testid="facility-curb"
+            /></label
+          >
+          <label
+            >On-street parking <input
+              type="number"
+              min="0"
+              max="1"
+              step="0.05"
+              value={doc.mainline.proportionOnStreetParking}
+              onchange={(e) => setMainline('proportionOnStreetParking', e.currentTarget.value)}
+              data-testid="facility-parking"
+            /></label
+          >
+          <label
+            >Restrictive median (ft) <input
+              type="number"
+              min="0"
+              step="10"
+              value={doc.mainline.restrictiveMedianLengthFt}
+              onchange={(e) => setMainline('restrictiveMedianLengthFt', e.currentTarget.value)}
+              data-testid="facility-median"
+            /></label
+          >
+          <label
+            >Analysis period (h) <input
+              type="number"
+              min="0.05"
+              max="1"
+              step="0.05"
+              value={doc.mainline.analysisPeriodH}
+              onchange={(e) => setMainline('analysisPeriodH', e.currentTarget.value)}
+              data-testid="facility-period-h"
+            /></label
+          >
         </div>
         <p class="bd-sub">
-          Chapter 18 has no area-type input. What an area type would imply is the cross section, so the curb proportion, the on-street parking and the restrictive median are the fields that carry it into the free-flow speed chain (Equations 18-3 through 18-6). The analysis period length is read only by the computed Chapter 30 Section 4 access-point procedure, which a segment enters only when its access points carry approaches.
+          Chapter 18 has no area-type input. What an area type would imply is the cross section, so the curb proportion,
+          the on-street parking and the restrictive median are the fields that carry it into the free-flow speed chain
+          (Equations 18-3 through 18-6). The analysis period length is read only by the computed Chapter 30 Section 4
+          access-point procedure, which a segment enters only when its access points carry approaches.
         </p>
         <div class="bd-fields bd-mode">
-          <label>Segments described by
-            <select value={doc.analysisMode} onchange={(e) => setAnalysisMode(e.currentTarget.value)} data-testid="analysis-mode">
+          <label
+            >Segments described by
+            <select
+              value={doc.analysisMode}
+              onchange={(e) => setAnalysisMode(e.currentTarget.value)}
+              data-testid="analysis-mode"
+            >
               <option value="inputs">Chapter 18 inputs</option>
               <option value="measures">Published Chapter 18 measures</option>
             </select>
@@ -1187,32 +1491,110 @@
         </div>
         <p class="bd-sub" data-testid="mode-note">
           {#if doc.analysisMode === 'measures'}
-            Each segment carries its published base free-flow speed, travel speed, stop rate, v/c and LOS, and only the Chapter 16 aggregation runs over them. That is the Exhibit 16-7 "HCM method output" path and the one the published example problems take, because Chapter 29 publishes per-segment outputs rather than the geometry behind them. The engine refuses to re-run Chapter 18 on these segments, since there are no inputs behind them to recompute from.
+            Each segment carries its published base free-flow speed, travel speed, stop rate, v/c and LOS, and only the
+            Chapter 16 aggregation runs over them. That is the Exhibit 16-7 "HCM method output" path and the one the
+            published example problems take, because Chapter 29 publishes per-segment outputs rather than the geometry
+            behind them. The engine refuses to re-run Chapter 18 on these segments, since there are no inputs behind
+            them to recompute from.
           {:else}
-            Each segment carries its Chapter 18 inputs and the full pipeline runs: the Chapter 18 engine per segment, then the Chapter 16 aggregation. One kind per run, because the engine would accept a facility mixing the two but a per-segment switch doubles every editor for a case no published example exercises.
+            Each segment carries its Chapter 18 inputs and the full pipeline runs: the Chapter 18 engine per segment,
+            then the Chapter 16 aggregation. One kind per run, because the engine would accept a facility mixing the two
+            but a per-segment switch doubles every editor for a case no published example exercises.
           {/if}
         </p>
       {:else}
-      <div class="bd-fields">
-        <label>Name <input type="text" value={doc.meta.name} onchange={(e) => commit((d) => (d.meta.name = e.target.value))} data-testid="facility-name" /></label>
-        <label>Length (mi) <input type="number" min="0.1" step="0.1" value={(doc.mainline.lengthFt / FT_PER_MI).toFixed(2)} onchange={(e) => setLengthMi(e.currentTarget.value)} data-testid="facility-length" /></label>
-        <label>Lanes <input type="number" min="2" max="8" step="1" value={doc.mainline.lanes} onchange={(e) => setMainline('lanes', e.currentTarget.value)} data-testid="facility-lanes" /></label>
-        <label>FFS (mi/h) <input type="number" min="45" max="80" step="1" value={doc.mainline.ffs} onchange={(e) => setMainline('ffs', e.currentTarget.value)} data-testid="facility-ffs" /></label>
-        <label>Terrain
-          <select value={doc.mainline.terrain} onchange={(e) => setMainline('terrain', e.currentTarget.value)}>
-            <option>Level</option><option>Rolling</option><option>Mountainous</option>
-          </select>
-        </label>
-        <label>Area
-          <select value={doc.mainline.cityType} onchange={(e) => setMainline('cityType', e.currentTarget.value)}>
-            <option>Urban</option><option>Rural</option>
-          </select>
-        </label>
-        <label>PHF <input type="number" min="0.5" max="1" step="0.01" value={doc.mainline.phf} onchange={(e) => setMainline('phf', e.currentTarget.value)} /></label>
-        <label>Heavy vehicles (decimal) <input type="number" min="0" max="1" step="0.0005" value={doc.mainline.heavyVehiclePct} onchange={(e) => setMainline('heavyVehiclePct', e.currentTarget.value)} /></label>
-        <label>Ramp density (ramps/mi) <input type="number" min="0" step="0.1" value={doc.mainline.totalRampDensity} onchange={(e) => setMainline('totalRampDensity', e.currentTarget.value)} /></label>
-        <label>Interchange density (int/mi) <input type="number" min="0" step="0.1" value={doc.mainline.interchangeDensity} onchange={(e) => setMainline('interchangeDensity', e.currentTarget.value)} /></label>
-      </div>
+        <div class="bd-fields">
+          <label
+            >Name <input
+              type="text"
+              value={doc.meta.name}
+              onchange={(e) => commit((d) => (d.meta.name = e.target.value))}
+              data-testid="facility-name"
+            /></label
+          >
+          <label
+            >Length (mi) <input
+              type="number"
+              min="0.1"
+              step="0.1"
+              value={(doc.mainline.lengthFt / FT_PER_MI).toFixed(2)}
+              onchange={(e) => setLengthMi(e.currentTarget.value)}
+              data-testid="facility-length"
+            /></label
+          >
+          <label
+            >Lanes <input
+              type="number"
+              min="2"
+              max="8"
+              step="1"
+              value={doc.mainline.lanes}
+              onchange={(e) => setMainline('lanes', e.currentTarget.value)}
+              data-testid="facility-lanes"
+            /></label
+          >
+          <label
+            >FFS (mi/h) <input
+              type="number"
+              min="45"
+              max="80"
+              step="1"
+              value={doc.mainline.ffs}
+              onchange={(e) => setMainline('ffs', e.currentTarget.value)}
+              data-testid="facility-ffs"
+            /></label
+          >
+          <label
+            >Terrain
+            <select value={doc.mainline.terrain} onchange={(e) => setMainline('terrain', e.currentTarget.value)}>
+              <option>Level</option><option>Rolling</option><option>Mountainous</option>
+            </select>
+          </label>
+          <label
+            >Area
+            <select value={doc.mainline.cityType} onchange={(e) => setMainline('cityType', e.currentTarget.value)}>
+              <option>Urban</option><option>Rural</option>
+            </select>
+          </label>
+          <label
+            >PHF <input
+              type="number"
+              min="0.5"
+              max="1"
+              step="0.01"
+              value={doc.mainline.phf}
+              onchange={(e) => setMainline('phf', e.currentTarget.value)}
+            /></label
+          >
+          <label
+            >Heavy vehicles (decimal) <input
+              type="number"
+              min="0"
+              max="1"
+              step="0.0005"
+              value={doc.mainline.heavyVehiclePct}
+              onchange={(e) => setMainline('heavyVehiclePct', e.currentTarget.value)}
+            /></label
+          >
+          <label
+            >Ramp density (ramps/mi) <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={doc.mainline.totalRampDensity}
+              onchange={(e) => setMainline('totalRampDensity', e.currentTarget.value)}
+            /></label
+          >
+          <label
+            >Interchange density (int/mi) <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={doc.mainline.interchangeDensity}
+              onchange={(e) => setMainline('interchangeDensity', e.currentTarget.value)}
+            /></label
+          >
+        </div>
       {/if}
     </section>
 
@@ -1223,231 +1605,358 @@
     <div class="bd-editor" class:maximized data-testid="builder-editor" data-maximized={maximized}>
       <div class="bd-editor-bar">
         <span class="bd-editor-title">Editor</span>
-        <button type="button" class="btn btn-sm" bind:this={maximizeBtn}
-                onclick={() => setMaximized(!maximized)}
-                aria-pressed={maximized} data-testid="maximize-editor">
+        <button
+          type="button"
+          class="btn btn-sm"
+          bind:this={maximizeBtn}
+          onclick={() => setMaximized(!maximized)}
+          aria-pressed={maximized}
+          data-testid="maximize-editor"
+        >
           {maximized ? 'Restore editor (Esc)' : 'Maximize editor'}
         </button>
       </div>
 
-    <section class="bd-strip-wrap" aria-label="Facility strip">
-      <BuilderStrip {doc} {rows} {selectedKey} {highlightIds} interactive={ready}
-                    mode={stripMode}
-                    onselectrow={(k) => { selectedKey = selectedKey === k ? null : k; selectedFeature = null; }}
-                    onselectfeature={(id) => { selectedFeature = id; selectedKey = null; }}
-                    onrevealfeature={revealFeature}
-                    onmovefeature={moveFeature} />
-    </section>
+      <section class="bd-strip-wrap" aria-label="Facility strip">
+        <BuilderStrip
+          {doc}
+          {rows}
+          {selectedKey}
+          {highlightIds}
+          interactive={ready}
+          mode={stripMode}
+          onselectrow={(k) => {
+            selectedKey = selectedKey === k ? null : k;
+            selectedFeature = null;
+          }}
+          onselectfeature={(id) => {
+            selectedFeature = id;
+            selectedKey = null;
+          }}
+          onrevealfeature={revealFeature}
+          onmovefeature={moveFeature}
+        />
+      </section>
 
-    {#if isUrban}
-      {#each [['signal', 'Boundary signals', 'A Chapter 18 segment runs from one boundary intersection to the next, so the signals are what derive the segment table. Each segment reads its through control delay, cycle length and effective green from the signal at its downstream end, and a row opens that whole signal including the Chapter 17 inputs that reach only the reliability run.'], ['access_point', 'Access points', 'Access points do not bound a segment. They sit inside one and feed two things: the count Exhibit 18-11 note c reads for the free-flow speed adjustment, and the Equation 18-7 access-point delay term, from whichever of its three sources the point carries.']] as [kind, heading, blurb]}
-        {@const list = [...doc.features].filter((f) => f.kind === kind).sort((a, b) => a.stationFt - b.stationFt)}
-        {#if list.length}
-          <section class="bd-features" aria-label={heading}>
-            <h2>{heading}</h2>
-            <p class="bd-sub">{blurb}</p>
-            <div class="bd-scroll">
-              <table class="bd-table" data-testid="urban-{kind}-table">
-                <thead>
-                  <tr>
-                    <th scope="col">{kind === 'signal' ? 'Signal' : 'Access point'}</th>
-                    <th scope="col">Station (mi)</th>
-                    <th scope="col">{kind === 'signal' ? 'Timing' : 'Delay source'}</th>
-                    <th scope="col"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each list as f (f.id)}
-                    {@const open = selectedFeature === f.id}
-                    <tr class:selected={open} data-testid="urban-feature-row" data-feature-id={f.id}
-                        data-kind={f.kind} data-expanded={open}>
-                      <th scope="row">
-                        <button type="button" class="bd-disclose" onclick={() => toggleFeature(f.id)}
-                                aria-expanded={open} aria-controls="fe-{f.id}" data-testid="expand-{f.id}">
-                          <span class="bd-caret" class:open aria-hidden="true">▸</span>
-                          <span class="bd-kind" class:on={f.kind === 'signal'}>{f.kind === 'signal' ? 'Sig' : f.side === 'opposing' ? 'Opp' : 'AP'}</span>
-                          <span class="bd-feat-name">{f.label || f.id}</span>
-                        </button>
-                      </th>
-                      <td class="bd-num">{mi2(f.stationFt)}</td>
-                      <td class="bd-summary">{urbanSummary(f)}</td>
-                      <td><button type="button" class="bd-remove" onclick={() => removeFeature(f.id)} data-testid="remove-{f.id}">remove</button></td>
+      {#if isUrban}
+        {#each [['signal', 'Boundary signals', 'A Chapter 18 segment runs from one boundary intersection to the next, so the signals are what derive the segment table. Each segment reads its through control delay, cycle length and effective green from the signal at its downstream end, and a row opens that whole signal including the Chapter 17 inputs that reach only the reliability run.'], ['access_point', 'Access points', 'Access points do not bound a segment. They sit inside one and feed two things: the count Exhibit 18-11 note c reads for the free-flow speed adjustment, and the Equation 18-7 access-point delay term, from whichever of its three sources the point carries.']] as [kind, heading, blurb]}
+          {@const list = [...doc.features].filter((f) => f.kind === kind).sort((a, b) => a.stationFt - b.stationFt)}
+          {#if list.length}
+            <section class="bd-features" aria-label={heading}>
+              <h2>{heading}</h2>
+              <p class="bd-sub">{blurb}</p>
+              <div class="bd-scroll">
+                <table class="bd-table" data-testid="urban-{kind}-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">{kind === 'signal' ? 'Signal' : 'Access point'}</th>
+                      <th scope="col">Station (mi)</th>
+                      <th scope="col">{kind === 'signal' ? 'Timing' : 'Delay source'}</th>
+                      <th scope="col"></th>
                     </tr>
-                    {#if open}
-                      <tr class="bd-detail" data-testid="feature-detail" data-feature-id={f.id}>
-                        <td colspan="4" id="fe-{f.id}">
-                          <UrbanFeatureEditor feature={f} {doc} interactive={ready}
-                                              onfield={setUrbanFeature}
-                                              onsignalconfig={setSignalConfig}
-                                              onmeasure={setMeasure}
-                                              onapproach={setApproach} />
-                        </td>
+                  </thead>
+                  <tbody>
+                    {#each list as f (f.id)}
+                      {@const open = selectedFeature === f.id}
+                      <tr
+                        class:selected={open}
+                        data-testid="urban-feature-row"
+                        data-feature-id={f.id}
+                        data-kind={f.kind}
+                        data-expanded={open}
+                      >
+                        <th scope="row">
+                          <button
+                            type="button"
+                            class="bd-disclose"
+                            onclick={() => toggleFeature(f.id)}
+                            aria-expanded={open}
+                            aria-controls="fe-{f.id}"
+                            data-testid="expand-{f.id}"
+                          >
+                            <span class="bd-caret" class:open aria-hidden="true">▸</span>
+                            <span class="bd-kind" class:on={f.kind === 'signal'}
+                              >{f.kind === 'signal' ? 'Sig' : f.side === 'opposing' ? 'Opp' : 'AP'}</span
+                            >
+                            <span class="bd-feat-name">{f.label || f.id}</span>
+                          </button>
+                        </th>
+                        <td class="bd-num">{mi2(f.stationFt)}</td>
+                        <td class="bd-summary">{urbanSummary(f)}</td>
+                        <td
+                          ><button
+                            type="button"
+                            class="bd-remove"
+                            onclick={() => removeFeature(f.id)}
+                            data-testid="remove-{f.id}">remove</button
+                          ></td
+                        >
                       </tr>
-                    {/if}
-                  {/each}
-                </tbody>
-              </table>
-            </div>
+                      {#if open}
+                        <tr class="bd-detail" data-testid="feature-detail" data-feature-id={f.id}>
+                          <td colspan="4" id="fe-{f.id}">
+                            <UrbanFeatureEditor
+                              feature={f}
+                              {doc}
+                              interactive={ready}
+                              onfield={setUrbanFeature}
+                              onsignalconfig={setSignalConfig}
+                              onmeasure={setMeasure}
+                              onapproach={setApproach}
+                            />
+                          </td>
+                        </tr>
+                      {/if}
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          {/if}
+        {/each}
+      {/if}
+
+      {#if isTwoLane}
+        {#each [['passing', 'Passing lanes and zones', 'A stretch no passing feature covers is Passing Constrained, so these are the opportunities placed on a constrained road rather than a classification of all of it. Both ends of one are segment boundaries. A passing lane shorter than the 0.5 mi Exhibit 15-10 minimum is analyzed as Passing Constrained and the row says so.'], ['grade', 'Grades', 'Grade is one of the properties Chapter 15 Section 2 asks to be homogeneous within a segment, so both ends of a grade are segment boundaries. The vertical class entered here is a real Step 2 input even though Step 3 recomputes it.'], ['curve', 'Horizontal curves', 'A curve is the one feature here that does NOT start a segment. Chapter 15 Step 1 sends varying curvature to the Step 5d subsegment adjustment inside one segment, so a curve becomes a subsegment of whichever segment contains it, and its length is in FEET where a segment length is in miles.'], ['demand', 'Demand changes', "Traffic demand and posted speed limit are both homogeneity properties, so a change in either starts a segment. The values on one hold from its station until the next change, and a stretch upstream of the first one takes the highway's own."]] as [kind, heading, blurb]}
+          {@const list = [...doc.features].filter((f) => f.kind === kind).sort((a, b) => a.stationFt - b.stationFt)}
+          {#if list.length}
+            <section class="bd-features" aria-label={heading}>
+              <h2>{heading}</h2>
+              <p class="bd-sub">{blurb}</p>
+              <div class="bd-scroll">
+                <table class="bd-table" data-testid="twolane-{kind}-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">{heading.replace(/s$/, '')}</th>
+                      <th scope="col">{kind === 'demand' ? 'Station (mi)' : 'Extent (mi)'}</th>
+                      <th scope="col">Configuration</th>
+                      <th scope="col"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each list as f (f.id)}
+                      {@const open = selectedFeature === f.id}
+                      <tr
+                        class:selected={open}
+                        data-testid="twolane-feature-row"
+                        data-feature-id={f.id}
+                        data-kind={f.kind}
+                        data-expanded={open}
+                      >
+                        <th scope="row">
+                          <button
+                            type="button"
+                            class="bd-disclose"
+                            onclick={() => toggleFeature(f.id)}
+                            aria-expanded={open}
+                            aria-controls="fe-{f.id}"
+                            data-testid="expand-{f.id}"
+                          >
+                            <span class="bd-caret" class:open aria-hidden="true">&#9656;</span>
+                            <span class="bd-kind" class:on={f.kind === 'passing' && f.passingType === 2}
+                              >{TL_KIND_CHIP[f.kind](f)}</span
+                            >
+                            <span class="bd-feat-name">{f.label || f.id}</span>
+                          </button>
+                        </th>
+                        <td class="bd-num">{mi2(f.stationFt)}{f.endFt != null ? ` \u2013 ${mi2(f.endFt)}` : ''}</td>
+                        <td class="bd-summary">{twoLaneSummary(f)}</td>
+                        <td
+                          ><button
+                            type="button"
+                            class="bd-remove"
+                            onclick={() => removeFeature(f.id)}
+                            data-testid="remove-{f.id}">remove</button
+                          ></td
+                        >
+                      </tr>
+                      {#if open}
+                        <tr class="bd-detail" data-testid="feature-detail" data-feature-id={f.id}>
+                          <td colspan="4" id="fe-{f.id}">
+                            <TwoLaneFeatureEditor
+                              feature={f}
+                              {doc}
+                              interactive={ready}
+                              onfield={setFeature}
+                              onmove={moveFeature}
+                              ondemandconfig={setDemandConfig}
+                            />
+                          </td>
+                        </tr>
+                      {/if}
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          {/if}
+        {/each}
+        {#if doc.features.length === 0}
+          <section class="bd-features" aria-label="No features">
+            <p class="bd-sub" data-testid="twolane-empty-note">
+              No features placed, so the whole highway is one Passing Constrained segment at the values above. That is a
+              complete Chapter 15 facility and it analyzes: Example Problem 1 is exactly this.
+            </p>
           </section>
         {/if}
-      {/each}
-    {/if}
+      {/if}
 
-    {#if isTwoLane}
-      {#each [['passing', 'Passing lanes and zones', 'A stretch no passing feature covers is Passing Constrained, so these are the opportunities placed on a constrained road rather than a classification of all of it. Both ends of one are segment boundaries. A passing lane shorter than the 0.5 mi Exhibit 15-10 minimum is analyzed as Passing Constrained and the row says so.'], ['grade', 'Grades', 'Grade is one of the properties Chapter 15 Section 2 asks to be homogeneous within a segment, so both ends of a grade are segment boundaries. The vertical class entered here is a real Step 2 input even though Step 3 recomputes it.'], ['curve', 'Horizontal curves', 'A curve is the one feature here that does NOT start a segment. Chapter 15 Step 1 sends varying curvature to the Step 5d subsegment adjustment inside one segment, so a curve becomes a subsegment of whichever segment contains it, and its length is in FEET where a segment length is in miles.'], ['demand', 'Demand changes', 'Traffic demand and posted speed limit are both homogeneity properties, so a change in either starts a segment. The values on one hold from its station until the next change, and a stretch upstream of the first one takes the highway\'s own.']] as [kind, heading, blurb]}
-        {@const list = [...doc.features].filter((f) => f.kind === kind).sort((a, b) => a.stationFt - b.stationFt)}
-        {#if list.length}
-          <section class="bd-features" aria-label={heading}>
-            <h2>{heading}</h2>
-            <p class="bd-sub">{blurb}</p>
-            <div class="bd-scroll">
-              <table class="bd-table" data-testid="twolane-{kind}-table">
-                <thead>
-                  <tr>
-                    <th scope="col">{heading.replace(/s$/, '')}</th>
-                    <th scope="col">{kind === 'demand' ? 'Station (mi)' : 'Extent (mi)'}</th>
-                    <th scope="col">Configuration</th>
-                    <th scope="col"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each list as f (f.id)}
-                    {@const open = selectedFeature === f.id}
-                    <tr class:selected={open} data-testid="twolane-feature-row" data-feature-id={f.id}
-                        data-kind={f.kind} data-expanded={open}>
-                      <th scope="row">
-                        <button type="button" class="bd-disclose" onclick={() => toggleFeature(f.id)}
-                                aria-expanded={open} aria-controls="fe-{f.id}" data-testid="expand-{f.id}">
-                          <span class="bd-caret" class:open aria-hidden="true">&#9656;</span>
-                          <span class="bd-kind" class:on={f.kind === 'passing' && f.passingType === 2}>{TL_KIND_CHIP[f.kind](f)}</span>
-                          <span class="bd-feat-name">{f.label || f.id}</span>
-                        </button>
-                      </th>
-                      <td class="bd-num">{mi2(f.stationFt)}{f.endFt != null ? ` \u2013 ${mi2(f.endFt)}` : ''}</td>
-                      <td class="bd-summary">{twoLaneSummary(f)}</td>
-                      <td><button type="button" class="bd-remove" onclick={() => removeFeature(f.id)} data-testid="remove-{f.id}">remove</button></td>
-                    </tr>
-                    {#if open}
-                      <tr class="bd-detail" data-testid="feature-detail" data-feature-id={f.id}>
-                        <td colspan="4" id="fe-{f.id}">
-                          <TwoLaneFeatureEditor feature={f} {doc} interactive={ready}
-                                                onfield={setFeature}
-                                                onmove={moveFeature}
-                                                ondemandconfig={setDemandConfig} />
-                        </td>
-                      </tr>
-                    {/if}
-                  {/each}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        {/if}
-      {/each}
-      {#if doc.features.length === 0}
-        <section class="bd-features" aria-label="No features">
-          <p class="bd-sub" data-testid="twolane-empty-note">
-            No features placed, so the whole highway is one Passing Constrained segment at the values above. That is a complete Chapter 15 facility and it analyzes: Example Problem 1 is exactly this.
+      {#if !isUrban && !isTwoLane && doc.features.some(isRamp)}
+        <section class="bd-features" aria-label="Ramps">
+          <h2>Ramps</h2>
+          <p class="bd-sub">
+            A row opens the whole feature, including the fields no table column fits: the weaving geometry an auxiliary
+            lane brings into play and the ramp's own demand by period. Clicking a marker on the strip opens the same
+            editor.
           </p>
+          <div class="bd-scroll">
+            <table class="bd-table" data-testid="feature-table">
+              <thead>
+                <tr>
+                  <th scope="col">Ramp</th><th scope="col">Station (mi)</th><th scope="col">Geometry</th>
+                  <th scope="col">Peak demand</th><th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each [...doc.features].filter(isRamp).sort((a, b) => a.stationFt - b.stationFt) as f (f.id)}
+                  {@const open = selectedFeature === f.id}
+                  <tr class:selected={open} data-testid="feature-row" data-feature-id={f.id} data-expanded={open}>
+                    <th scope="row">
+                      <button
+                        type="button"
+                        class="bd-disclose"
+                        onclick={() => toggleFeature(f.id)}
+                        aria-expanded={open}
+                        aria-controls="fe-{f.id}"
+                        data-testid="expand-{f.id}"
+                      >
+                        <span class="bd-caret" class:open aria-hidden="true">▸</span>
+                        <span class="bd-kind" class:on={f.kind === 'on_ramp'}
+                          >{f.kind === 'on_ramp' ? 'On' : 'Off'}</span
+                        >
+                        <span class="bd-feat-name">{f.label || f.id}</span>
+                      </button>
+                    </th>
+                    <td class="bd-num">{mi2(f.stationFt)}</td>
+                    <td class="bd-summary">{rampSummary(f)}</td>
+                    <td class="bd-num">{peak(f.demand)}</td>
+                    <td
+                      ><button
+                        type="button"
+                        class="bd-remove"
+                        onclick={() => removeFeature(f.id)}
+                        data-testid="remove-{f.id}">remove</button
+                      ></td
+                    >
+                  </tr>
+                  {#if open}
+                    <tr class="bd-detail" data-testid="feature-detail" data-feature-id={f.id}>
+                      <td colspan="5" id="fe-{f.id}">
+                        <FeatureEditor
+                          feature={f}
+                          {doc}
+                          interactive={ready}
+                          onfield={setFeature}
+                          onworkzone={setWorkZone}
+                          ondemand={editDemand}
+                        />
+                      </td>
+                    </tr>
+                  {/if}
+                {/each}
+              </tbody>
+            </table>
+          </div>
         </section>
       {/if}
-    {/if}
 
-    {#if !isUrban && !isTwoLane && doc.features.some(isRamp)}
-      <section class="bd-features" aria-label="Ramps">
-        <h2>Ramps</h2>
-        <p class="bd-sub">
-          A row opens the whole feature, including the fields no table column fits: the weaving geometry an auxiliary lane brings into play and the ramp's own demand by period. Clicking a marker on the strip opens the same editor.
-        </p>
-        <div class="bd-scroll">
-          <table class="bd-table" data-testid="feature-table">
-            <thead>
-              <tr>
-                <th scope="col">Ramp</th><th scope="col">Station (mi)</th><th scope="col">Geometry</th>
-                <th scope="col">Peak demand</th><th scope="col"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each [...doc.features].filter(isRamp).sort((a, b) => a.stationFt - b.stationFt) as f (f.id)}
-                {@const open = selectedFeature === f.id}
-                <tr class:selected={open} data-testid="feature-row" data-feature-id={f.id} data-expanded={open}>
-                  <th scope="row">
-                    <button type="button" class="bd-disclose" onclick={() => toggleFeature(f.id)}
-                            aria-expanded={open} aria-controls="fe-{f.id}" data-testid="expand-{f.id}">
-                      <span class="bd-caret" class:open aria-hidden="true">▸</span>
-                      <span class="bd-kind" class:on={f.kind === 'on_ramp'}>{f.kind === 'on_ramp' ? 'On' : 'Off'}</span>
-                      <span class="bd-feat-name">{f.label || f.id}</span>
-                    </button>
-                  </th>
-                  <td class="bd-num">{mi2(f.stationFt)}</td>
-                  <td class="bd-summary">{rampSummary(f)}</td>
-                  <td class="bd-num">{peak(f.demand)}</td>
-                  <td><button type="button" class="bd-remove" onclick={() => removeFeature(f.id)} data-testid="remove-{f.id}">remove</button></td>
+      {#if !isUrban && !isTwoLane && doc.features.some((f) => !isRamp(f))}
+        <section class="bd-features" aria-label="Mainline changes">
+          <h2>Mainline changes</h2>
+          <p class="bd-sub">
+            A lane change and a work zone are both places where capacity changes, so each one starts a new segment
+            (Chapter 10 Section 2). A work zone is coded with the lanes that stay open, which is what the engine
+            analyzes; the lanes it closes feed the severity index instead.
+          </p>
+          <div class="bd-scroll">
+            <table class="bd-table" data-testid="mainline-feature-table">
+              <thead>
+                <tr>
+                  <th scope="col">Feature</th><th scope="col">Extent (mi)</th><th scope="col">Configuration</th><th
+                    scope="col"
+                  ></th>
                 </tr>
-                {#if open}
-                  <tr class="bd-detail" data-testid="feature-detail" data-feature-id={f.id}>
-                    <td colspan="5" id="fe-{f.id}">
-                      <FeatureEditor feature={f} {doc} interactive={ready}
-                                     onfield={setFeature} onworkzone={setWorkZone} ondemand={editDemand} />
-                    </td>
+              </thead>
+              <tbody>
+                {#each [...doc.features]
+                  .filter((f) => !isRamp(f))
+                  .sort((a, b) => a.stationFt - b.stationFt) as f (f.id)}
+                  {@const open = selectedFeature === f.id}
+                  <tr
+                    class:selected={open}
+                    data-testid="mainline-feature-row"
+                    data-feature-id={f.id}
+                    data-kind={f.kind}
+                    data-expanded={open}
+                  >
+                    <th scope="row">
+                      <button
+                        type="button"
+                        class="bd-disclose"
+                        onclick={() => toggleFeature(f.id)}
+                        aria-expanded={open}
+                        aria-controls="fe-{f.id}"
+                        data-testid="expand-{f.id}"
+                      >
+                        <span class="bd-caret" class:open aria-hidden="true">▸</span>
+                        <span class="bd-kind">{f.kind === 'lane_change' ? 'Lanes' : 'WZ'}</span>
+                        <span class="bd-feat-name">{f.label || f.id}</span>
+                      </button>
+                    </th>
+                    <td class="bd-num">{mi2(f.stationFt)}{f.endFt != null ? ` – ${mi2(f.endFt)}` : ''}</td>
+                    <td class="bd-summary">{changeSummary(f)}</td>
+                    <td
+                      ><button
+                        type="button"
+                        class="bd-remove"
+                        onclick={() => removeFeature(f.id)}
+                        data-testid="remove-{f.id}">remove</button
+                      ></td
+                    >
                   </tr>
-                {/if}
-              {/each}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    {/if}
+                  {#if open}
+                    <tr class="bd-detail" data-testid="feature-detail" data-feature-id={f.id}>
+                      <td colspan="4" id="fe-{f.id}">
+                        <FeatureEditor
+                          feature={f}
+                          {doc}
+                          interactive={ready}
+                          onfield={setFeature}
+                          onworkzone={setWorkZone}
+                          ondemand={editDemand}
+                        />
+                      </td>
+                    </tr>
+                  {/if}
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {/if}
 
-    {#if !isUrban && !isTwoLane && doc.features.some((f) => !isRamp(f))}
-      <section class="bd-features" aria-label="Mainline changes">
-        <h2>Mainline changes</h2>
-        <p class="bd-sub">
-          A lane change and a work zone are both places where capacity changes, so each one starts a new segment (Chapter 10 Section 2). A work zone is coded with the lanes that stay open, which is what the engine analyzes; the lanes it closes feed the severity index instead.
-        </p>
-        <div class="bd-scroll">
-          <table class="bd-table" data-testid="mainline-feature-table">
-            <thead>
-              <tr>
-                <th scope="col">Feature</th><th scope="col">Extent (mi)</th><th scope="col">Configuration</th><th scope="col"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each [...doc.features].filter((f) => !isRamp(f)).sort((a, b) => a.stationFt - b.stationFt) as f (f.id)}
-                {@const open = selectedFeature === f.id}
-                <tr class:selected={open} data-testid="mainline-feature-row" data-feature-id={f.id}
-                    data-kind={f.kind} data-expanded={open}>
-                  <th scope="row">
-                    <button type="button" class="bd-disclose" onclick={() => toggleFeature(f.id)}
-                            aria-expanded={open} aria-controls="fe-{f.id}" data-testid="expand-{f.id}">
-                      <span class="bd-caret" class:open aria-hidden="true">▸</span>
-                      <span class="bd-kind">{f.kind === 'lane_change' ? 'Lanes' : 'WZ'}</span>
-                      <span class="bd-feat-name">{f.label || f.id}</span>
-                    </button>
-                  </th>
-                  <td class="bd-num">{mi2(f.stationFt)}{f.endFt != null ? ` – ${mi2(f.endFt)}` : ''}</td>
-                  <td class="bd-summary">{changeSummary(f)}</td>
-                  <td><button type="button" class="bd-remove" onclick={() => removeFeature(f.id)} data-testid="remove-{f.id}">remove</button></td>
-                </tr>
-                {#if open}
-                  <tr class="bd-detail" data-testid="feature-detail" data-feature-id={f.id}>
-                    <td colspan="4" id="fe-{f.id}">
-                      <FeatureEditor feature={f} {doc} interactive={ready}
-                                     onfield={setFeature} onworkzone={setWorkZone} ondemand={editDemand} />
-                    </td>
-                  </tr>
-                {/if}
-              {/each}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    {/if}
-
-    <SegmentTable {rows} {doc} {selectedKey} interactive={ready}
-                  onselect={(k) => { selectedKey = selectedKey === k ? null : k; selectedFeature = null; }}
-                  onoverride={setOverride}
-                  onclearoverride={clearOverride} />
+      <SegmentTable
+        {rows}
+        {doc}
+        {selectedKey}
+        interactive={ready}
+        onselect={(k) => {
+          selectedKey = selectedKey === k ? null : k;
+          selectedFeature = null;
+        }}
+        onoverride={setOverride}
+        onclearoverride={clearOverride}
+      />
     </div>
 
     <!-- The demand grid is a period axis, and the urban engines do not have
@@ -1474,18 +1983,25 @@
         </ul>
       {/if}
       <p class="bd-uncarried" data-testid="uncarried-note">
-        Exporting to the fixture schema carries the facility parameters above and every per-segment field this editor shows.
+        Exporting to the fixture schema carries the facility parameters above and every per-segment field this editor
+        shows.
         {#if uncarried.length}
-          It does not carry {uncarried.join(', ')}, which have no editor here. A fixture that was imported keeps those fields verbatim through a round trip{#if isUrban}, and a key the fixture never wrote stays absent unless it has been changed here, so an untouched import re-exports to the file it came from{/if}.
+          It does not carry {uncarried.join(', ')}, which have no editor here. A fixture that was imported keeps those
+          fields verbatim through a round trip{#if isUrban}, and a key the fixture never wrote stays absent unless it
+            has been changed here, so an untouched import re-exports to the file it came from{/if}.
         {:else}
-          There is nothing it does not carry: the Chapter 15 segment schema is twenty keys wide and the derivation fills every one of them, so an export from here is the whole schema rather than a subset and an untouched import re-exports to the file it came from.
+          There is nothing it does not carry: the Chapter 15 segment schema is twenty keys wide and the derivation fills
+          every one of them, so an export from here is the whole schema rather than a subset and an untouched import
+          re-exports to the file it came from.
         {/if}
       </p>
       {#if doc.handoff}
         <p class="bd-uncarried" data-testid="handoff-note">
           This facility came from {doc.handoff.label}.
           {#if doc.handoff.dropped.length}
-            That page also holds {doc.handoff.dropped.join('; ')}, so {doc.handoff.dropped.length === 1 ? 'it did' : 'they did'} not come across.
+            That page also holds {doc.handoff.dropped.join('; ')}, so {doc.handoff.dropped.length === 1
+              ? 'it did'
+              : 'they did'} not come across.
           {:else}
             Everything that page holds came across.
           {/if}
@@ -1495,8 +2011,13 @@
 
     <section class="bd-run" aria-label="Analysis">
       <div class="bd-run-bar">
-        <button type="button" class="btn btn-primary" onclick={runAnalysis}
-                disabled={errors.length > 0} data-testid="analyze">Analyze</button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          onclick={runAnalysis}
+          disabled={errors.length > 0}
+          data-testid="analyze">Analyze</button
+        >
         <span class="bd-run-note">
           {#if errors.length}
             {errors.length} check{errors.length === 1 ? '' : 's'} above block the analysis. Warnings and notes do not.
@@ -1519,7 +2040,8 @@
       {/if}
       {#if stale}
         <p class="bd-stale" data-testid="results-stale">
-          The facility has been edited since this run. What follows is what the engine produced then, not what it would produce now. Press Analyze again to refresh it.
+          The facility has been edited since this run. What follows is what the engine produced then, not what it would
+          produce now. Press Analyze again to refresh it.
         </p>
       {/if}
     </section>
@@ -1564,9 +2086,11 @@
         </div>
         <p class="bd-undersat" data-testid="urban-mode-readout">
           {#if results.mode === 'measures'}
-            Aggregated from published Chapter 18 measures by Chapter 16 Steps 1 through 4. The Chapter 18 engine was not run, because there are no inputs behind these measures to recompute from.
+            Aggregated from published Chapter 18 measures by Chapter 16 Steps 1 through 4. The Chapter 18 engine was not
+            run, because there are no inputs behind these measures to recompute from.
           {:else}
-            Every segment evaluated by the Chapter 18 engine, then aggregated by Chapter 16 (Equations 16-2 through 16-4, Exhibit 16-3).
+            Every segment evaluated by the Chapter 18 engine, then aggregated by Chapter 16 (Equations 16-2 through
+            16-4, Exhibit 16-3).
           {/if}
         </p>
       </section>
@@ -1578,52 +2102,112 @@
       <section class="bd-rel" aria-label="Reliability" data-testid="urban-reliability-panel">
         <h2>Reliability</h2>
         <p class="bd-sub">
-          Hands this street to the HCM Chapter 17 methodology. The handoff is a re-statement rather than a re-use: the reliability engine takes sixteen scalars per segment, which is a strict subset of what a Chapter 18 segment holds, so the notes below name every field that reaches the run above and not this one.
+          Hands this street to the HCM Chapter 17 methodology. The handoff is a re-statement rather than a re-use: the
+          reliability engine takes sixteen scalars per segment, which is a strict subset of what a Chapter 18 segment
+          holds, so the notes below name every field that reaches the run above and not this one.
         </p>
         <div class="bd-fields">
-          <label>Study period start hour
-            <input type="number" min="0" max="23" step="1" value={urbanRelInputs.studyPeriodStartHour}
-                   data-testid="urel-start-hour"
-                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, studyPeriodStartHour: Number(e.currentTarget.value) })} />
+          <label
+            >Study period start hour
+            <input
+              type="number"
+              min="0"
+              max="23"
+              step="1"
+              value={urbanRelInputs.studyPeriodStartHour}
+              data-testid="urel-start-hour"
+              onchange={(e) =>
+                (urbanRelInputs = { ...urbanRelInputs, studyPeriodStartHour: Number(e.currentTarget.value) })}
+            />
           </label>
-          <label>Analysis periods per day
-            <input type="number" min="1" max="96" step="1" value={urbanRelInputs.analysisPeriodsPerDay}
-                   data-testid="urel-periods"
-                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, analysisPeriodsPerDay: Number(e.currentTarget.value) })} />
+          <label
+            >Analysis periods per day
+            <input
+              type="number"
+              min="1"
+              max="96"
+              step="1"
+              value={urbanRelInputs.analysisPeriodsPerDay}
+              data-testid="urel-periods"
+              onchange={(e) =>
+                (urbanRelInputs = { ...urbanRelInputs, analysisPeriodsPerDay: Number(e.currentTarget.value) })}
+            />
           </label>
-          <label>Entry intersection crashes
-            <input type="number" min="0" step="1" value={urbanRelInputs.entryIntersectionCrashes}
-                   data-testid="urel-entry-crashes"
-                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, entryIntersectionCrashes: Number(e.currentTarget.value) })} />
+          <label
+            >Entry intersection crashes
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={urbanRelInputs.entryIntersectionCrashes}
+              data-testid="urel-entry-crashes"
+              onchange={(e) =>
+                (urbanRelInputs = { ...urbanRelInputs, entryIntersectionCrashes: Number(e.currentTarget.value) })}
+            />
           </label>
-          <label>Minor leg volume (veh/h)
-            <input type="number" min="0" step="10" value={urbanRelInputs.minorLegVolume}
-                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, minorLegVolume: Number(e.currentTarget.value) })} />
+          <label
+            >Minor leg volume (veh/h)
+            <input
+              type="number"
+              min="0"
+              step="10"
+              value={urbanRelInputs.minorLegVolume}
+              onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, minorLegVolume: Number(e.currentTarget.value) })}
+            />
           </label>
-          <label>Weather seed
-            <input type="number" min="0" step="1" value={urbanRelInputs.weatherSeed}
-                   data-testid="urel-weather-seed"
-                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, weatherSeed: Number(e.currentTarget.value) })} />
+          <label
+            >Weather seed
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={urbanRelInputs.weatherSeed}
+              data-testid="urel-weather-seed"
+              onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, weatherSeed: Number(e.currentTarget.value) })}
+            />
           </label>
-          <label>Demand seed
-            <input type="number" min="0" step="1" value={urbanRelInputs.demandSeed}
-                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, demandSeed: Number(e.currentTarget.value) })} />
+          <label
+            >Demand seed
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={urbanRelInputs.demandSeed}
+              onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, demandSeed: Number(e.currentTarget.value) })}
+            />
           </label>
-          <label>Incident seed
-            <input type="number" min="0" step="1" value={urbanRelInputs.incidentSeed}
-                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, incidentSeed: Number(e.currentTarget.value) })} />
+          <label
+            >Incident seed
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={urbanRelInputs.incidentSeed}
+              onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, incidentSeed: Number(e.currentTarget.value) })}
+            />
           </label>
-          <label class="bd-check-field">Shoulder present
-            <input type="checkbox" checked={urbanRelInputs.shoulderPresent}
-                   onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, shoulderPresent: e.currentTarget.checked })} />
+          <label class="bd-check-field"
+            >Shoulder present
+            <input
+              type="checkbox"
+              checked={urbanRelInputs.shoulderPresent}
+              onchange={(e) => (urbanRelInputs = { ...urbanRelInputs, shoulderPresent: e.currentTarget.checked })}
+            />
           </label>
         </div>
         <div class="bd-run-bar">
-          <button type="button" class="btn btn-sm" onclick={runReliability}
-                  disabled={reliabilityRunning} data-testid="run-reliability">
+          <button
+            type="button"
+            class="btn btn-sm"
+            onclick={runReliability}
+            disabled={reliabilityRunning}
+            data-testid="run-reliability"
+          >
             {reliabilityRunning ? 'Running…' : 'Run reliability'}
           </button>
-          <span class="bd-run-note">Scenario generation plus one evaluation per scenario, over the Lincoln weather of Exhibit 29-65.</span>
+          <span class="bd-run-note"
+            >Scenario generation plus one evaluation per scenario, over the Lincoln weather of Exhibit 29-65.</span
+          >
         </div>
 
         {#if reliabilityError}
@@ -1651,11 +2235,16 @@
             </div>
             <div class="bd-fig">
               <span class="bd-fig-label">Scenarios</span>
-              <span class="bd-fig-value" data-testid="urel-scenarios">{reliability.numScenarios.toLocaleString('en-US')}</span>
+              <span class="bd-fig-value" data-testid="urel-scenarios"
+                >{reliability.numScenarios.toLocaleString('en-US')}</span
+              >
             </div>
           </div>
           <p class="bd-rel-meta">
-            {reliability.numOversaturatedScenarios} of them ran oversaturated, with {reliability.numWeatherEvents} weather events and {reliability.numIncidents} incidents generated. Base free-flow travel time {n1(reliability.baseFreeFlowTravelTime)} s.
+            {reliability.numOversaturatedScenarios} of them ran oversaturated, with {reliability.numWeatherEvents} weather
+            events and {reliability.numIncidents} incidents generated. Base free-flow travel time {n1(
+              reliability.baseFreeFlowTravelTime,
+            )} s.
           </p>
           <Discussion sentences={relDiscussion} />
         {/if}
@@ -1665,7 +2254,8 @@
             <li class="bd-rel-note {note.level}" data-note-id={note.id}>{note.text}</li>
           {/each}
           <li class="bd-rel-note note">
-            <a href="/hcm17">The Chapter 17 calculator</a> has a panel for the weather table and the ATDM strategies, and takes the same street.
+            <a href="/hcm17">The Chapter 17 calculator</a> has a panel for the weather table and the ATDM strategies, and
+            takes the same street.
           </li>
         </ul>
       </section>
@@ -1698,7 +2288,14 @@
           </div>
         </div>
         <p class="bd-undersat" data-testid="twolane-basis">
-          Follower density from Equation 15-39, length-weighted over {results.segments.length} segment{results.segments.length === 1 ? '' : 's'}, taking each segment's adjusted density where it has one and a passing lane's midpoint value. The letter comes from Exhibit 15-6 against the length-weighted POSTED speed limit above, which is the {results.weightedSpl >= 50 ? '50 mi/h and above' : 'below 50 mi/h'} column, and not against the speed the highway achieves.
+          Follower density from Equation 15-39, length-weighted over {results.segments.length} segment{results.segments
+            .length === 1
+            ? ''
+            : 's'}, taking each segment's adjusted density where it has one and a passing lane's midpoint value. The
+          letter comes from Exhibit 15-6 against the length-weighted POSTED speed limit above, which is the {results.weightedSpl >=
+          50
+            ? '50 mi/h and above'
+            : 'below 50 mi/h'} column, and not against the speed the highway achieves.
         </p>
       </section>
 
@@ -1712,7 +2309,10 @@
       <section class="bd-rel" aria-label="Reliability" data-testid="twolane-reliability-panel">
         <h2>Reliability</h2>
         <p class="bd-sub" data-testid="twolane-no-reliability">
-          There is none. The HCM provides a travel time reliability methodology for freeway facilities in Chapter 11 and for urban street facilities in Chapter 17, and there is no two-lane highway counterpart, so this highway has no distribution to be handed to and no scenarios to generate. A freeway or urban street built here does have one, and this panel is where it appears.
+          There is none. The HCM provides a travel time reliability methodology for freeway facilities in Chapter 11 and
+          for urban street facilities in Chapter 17, and there is no two-lane highway counterpart, so this highway has
+          no distribution to be handed to and no scenarios to generate. A freeway or urban street built here does have
+          one, and this panel is where it appears.
         </p>
       </section>
     {/if}
@@ -1773,15 +2373,19 @@
                than as an engine output. -->
           <p class="bd-oversat" data-testid="oversaturated-flag">
             Oversaturated. Demand first exceeds capacity in
-            <strong data-testid="first-oversat-period">period {results.firstOversatPeriod + 1}</strong>,
-            so the Chapter 25 queue-tracking procedure carried queues into upstream segments and later periods.
+            <strong data-testid="first-oversat-period">period {results.firstOversatPeriod + 1}</strong>, so the Chapter
+            25 queue-tracking procedure carried queues into upstream segments and later periods.
             {#if results.firstQueuedPeriod != null}
-              A queue stands at the end of period {results.firstQueuedPeriod + 1}{results.lastQueuedPeriod !== results.firstQueuedPeriod ? ` through period ${results.lastQueuedPeriod + 1}` : ''}.
+              A queue stands at the end of period {results.firstQueuedPeriod + 1}{results.lastQueuedPeriod !==
+              results.firstQueuedPeriod
+                ? ` through period ${results.lastQueuedPeriod + 1}`
+                : ''}.
             {/if}
           </p>
         {:else}
           <p class="bd-undersat" data-testid="oversaturated-flag">
-            Undersaturated. No cell of the time-space domain exceeds its capacity, so every period was analyzed on its own.
+            Undersaturated. No cell of the time-space domain exceeds its capacity, so every period was analyzed on its
+            own.
           </p>
         {/if}
       </section>
@@ -1793,50 +2397,101 @@
       <section class="bd-rel" aria-label="Reliability" data-testid="reliability-panel">
         <h2>Reliability</h2>
         <p class="bd-sub">
-          Hands this same facility to the HCM Chapter 11 methodology as its seed file. The reliability engine builds its internal Chapter 10 facility from these same segments, so the derived segmentation, the overrides and any work zone are what the scenarios are generated against.
+          Hands this same facility to the HCM Chapter 11 methodology as its seed file. The reliability engine builds its
+          internal Chapter 10 facility from these same segments, so the derived segmentation, the overrides and any work
+          zone are what the scenarios are generated against.
         </p>
         <div class="bd-fields">
-          <label>Replications
-            <input type="number" min="1" max="20" step="1" value={relInputs.replications}
-                   data-testid="rel-replications"
-                   onchange={(e) => setRelInput('replications', Number(e.currentTarget.value))} />
+          <label
+            >Replications
+            <input
+              type="number"
+              min="1"
+              max="20"
+              step="1"
+              value={relInputs.replications}
+              data-testid="rel-replications"
+              onchange={(e) => setRelInput('replications', Number(e.currentTarget.value))}
+            />
           </label>
-          <label>Seed month
-            <input type="number" min="1" max="12" step="1" value={relInputs.seedMonth}
-                   onchange={(e) => setRelInput('seedMonth', Number(e.currentTarget.value))} />
+          <label
+            >Seed month
+            <input
+              type="number"
+              min="1"
+              max="12"
+              step="1"
+              value={relInputs.seedMonth}
+              onchange={(e) => setRelInput('seedMonth', Number(e.currentTarget.value))}
+            />
           </label>
-          <label>Seed weekday
+          <label
+            >Seed weekday
             <select value={relInputs.seedWeekday} onchange={(e) => setRelInput('seedWeekday', e.currentTarget.value)}>
               <option>monday</option><option>tuesday</option><option>wednesday</option>
               <option>thursday</option><option>friday</option><option>saturday</option><option>sunday</option>
             </select>
           </label>
-          <label>Random seed
-            <input type="number" min="0" step="1" value={relInputs.rngSeed}
-                   onchange={(e) => setRelInput('rngSeed', Number(e.currentTarget.value))} />
+          <label
+            >Random seed
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={relInputs.rngSeed}
+              onchange={(e) => setRelInput('rngSeed', Number(e.currentTarget.value))}
+            />
           </label>
-          <label>Target speed (mi/h)
-            <input type="number" min="10" max="70" step="1" value={relInputs.targetSpeed}
-                   onchange={(e) => setRelInput('targetSpeed', Number(e.currentTarget.value))} />
+          <label
+            >Target speed (mi/h)
+            <input
+              type="number"
+              min="10"
+              max="70"
+              step="1"
+              value={relInputs.targetSpeed}
+              onchange={(e) => setRelInput('targetSpeed', Number(e.currentTarget.value))}
+            />
           </label>
-          <label class="bd-check-field">Incidents
-            <input type="checkbox" checked={relInputs.includeIncidents}
-                   onchange={(e) => setRelInput('includeIncidents', e.currentTarget.checked)} />
+          <label class="bd-check-field"
+            >Incidents
+            <input
+              type="checkbox"
+              checked={relInputs.includeIncidents}
+              onchange={(e) => setRelInput('includeIncidents', e.currentTarget.checked)}
+            />
           </label>
           {#if relInputs.includeIncidents}
-            <label>Crash rate (per 100M VMT)
-              <input type="number" min="0" step="1" value={relInputs.crashRate}
-                     onchange={(e) => setRelInput('crashRate', Number(e.currentTarget.value))} />
+            <label
+              >Crash rate (per 100M VMT)
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={relInputs.crashRate}
+                onchange={(e) => setRelInput('crashRate', Number(e.currentTarget.value))}
+              />
             </label>
-            <label>Incident-to-crash ratio
-              <input type="number" min="1" step="0.1" value={relInputs.incidentCrashRatio}
-                     onchange={(e) => setRelInput('incidentCrashRatio', Number(e.currentTarget.value))} />
+            <label
+              >Incident-to-crash ratio
+              <input
+                type="number"
+                min="1"
+                step="0.1"
+                value={relInputs.incidentCrashRatio}
+                onchange={(e) => setRelInput('incidentCrashRatio', Number(e.currentTarget.value))}
+              />
             </label>
           {/if}
         </div>
         <div class="bd-run-bar">
-          <button type="button" class="btn btn-sm" onclick={runReliability}
-                  disabled={reliabilityRunning} data-testid="run-reliability">
+          <button
+            type="button"
+            class="btn btn-sm"
+            onclick={runReliability}
+            disabled={reliabilityRunning}
+            data-testid="run-reliability"
+          >
             {reliabilityRunning ? 'Running…' : 'Run reliability'}
           </button>
           <span class="bd-run-note">Scenario generation plus one Chapter 10 evaluation per scenario.</span>
@@ -1867,7 +2522,9 @@
             </div>
           </div>
           <p class="bd-rel-meta">
-            {reliability.numScenarios} scenarios over {reliability.numObservations} observations, free-flow travel time {reliability.fftt.toFixed(2)} min. {reliability.pctBelowTarget.toFixed(1)}% of travel runs below {reliability.targetSpeed} mi/h.
+            {reliability.numScenarios} scenarios over {reliability.numObservations} observations, free-flow travel time {reliability.fftt.toFixed(
+              2,
+            )} min. {reliability.pctBelowTarget.toFixed(1)}% of travel runs below {reliability.targetSpeed} mi/h.
           </p>
           <Discussion sentences={relDiscussion} />
         {/if}
@@ -1886,34 +2543,155 @@
 </div>
 
 <style>
-  .builder { max-width: 1100px; margin: 0 auto; padding: 1rem 1rem 3rem; color: var(--text); }
-  .bd-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
-  .bd-head h1 { margin: 0 0 0.3rem; font-size: 1.5rem; }
-  .bd-lede { margin: 0; font-size: 0.86rem; color: var(--text-secondary); max-width: 62ch; line-height: 1.5; }
-  .bd-loading { font-size: 0.78rem; color: var(--text-muted); }
+  .builder {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1rem 1rem 3rem;
+    color: var(--text);
+  }
+  .bd-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .bd-head h1 {
+    margin: 0 0 0.3rem;
+    font-size: 1.5rem;
+  }
+  .bd-lede {
+    margin: 0;
+    font-size: 0.86rem;
+    color: var(--text-secondary);
+    max-width: 62ch;
+    line-height: 1.5;
+  }
+  .bd-loading {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
 
-  .bd-bar { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; margin: 1rem 0 0.5rem; padding: 0.5rem 0.6rem; background: var(--surface-subtle); border: 1px solid var(--border); border-radius: 6px; }
-  .bd-group { display: inline-flex; gap: 0.3rem; align-items: center; flex-wrap: wrap; }
-  .bd-group-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
-  .btn.btn-sm { font-size: 0.76rem; padding: 0.18rem 0.55rem; border: 1px solid var(--border-strong); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; }
-  .btn.btn-sm:disabled { opacity: 0.45; cursor: default; }
-  .bd-file { display: none; }
+  .bd-bar {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 1rem 0 0.5rem;
+    padding: 0.5rem 0.6rem;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  .bd-group {
+    display: inline-flex;
+    gap: 0.3rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .bd-group-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .btn.btn-sm {
+    font-size: 0.76rem;
+    padding: 0.18rem 0.55rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .btn.btn-sm:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+  .bd-file {
+    display: none;
+  }
 
-  .bd-error { font-size: 0.8rem; color: var(--warn-text); background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 4px; padding: 0.35rem 0.5rem; margin: 0.4rem 0; }
-  .bd-message { font-size: 0.8rem; color: var(--ok-text); background: var(--ok-bg); border: 1px solid var(--ok-border); border-radius: 4px; padding: 0.35rem 0.5rem; margin: 0.4rem 0; }
+  .bd-error {
+    font-size: 0.8rem;
+    color: var(--warn-text);
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    margin: 0.4rem 0;
+  }
+  .bd-message {
+    font-size: 0.8rem;
+    color: var(--ok-text);
+    background: var(--ok-bg);
+    border: 1px solid var(--ok-border);
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    margin: 0.4rem 0;
+  }
 
-  .bd-mainline h2, .bd-features h2 { font-size: 1rem; margin: 1rem 0 0.35rem; }
-  .bd-sub { font-size: 0.76rem; color: var(--text-muted); margin: 0 0 0.35rem; max-width: 82ch; line-height: 1.5; }
-  .bd-inline { font-size: 0.7rem; color: var(--text-muted); display: inline-flex; flex-direction: column; gap: 0.08rem; margin-right: 0.45rem; }
-  .bd-inline.bd-check { flex-direction: row; align-items: center; gap: 0.2rem; }
-  .bd-fields { display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; }
-  .bd-fields label { font-size: 0.75rem; color: var(--text-secondary); display: inline-flex; flex-direction: column; gap: 0.12rem; }
+  .bd-mainline h2,
+  .bd-features h2 {
+    font-size: 1rem;
+    margin: 1rem 0 0.35rem;
+  }
+  .bd-sub {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    margin: 0 0 0.35rem;
+    max-width: 82ch;
+    line-height: 1.5;
+  }
+  .bd-inline {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.08rem;
+    margin-right: 0.45rem;
+  }
+  .bd-inline.bd-check {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.2rem;
+  }
+  .bd-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.9rem;
+  }
+  .bd-fields label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.12rem;
+  }
 
-  .bd-strip-wrap { margin-top: 0.75rem; overflow-x: auto; }
-  .bd-mode { margin-top: 0.4rem; }
+  .bd-strip-wrap {
+    margin-top: 0.75rem;
+    overflow-x: auto;
+  }
+  .bd-mode {
+    margin-top: 0.4rem;
+  }
 
-  .bd-editor-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-top: 1rem; }
-  .bd-editor-title { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  .bd-editor-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-top: 1rem;
+  }
+  .bd-editor-title {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
   /* Maximized is an overlay rather than a layout change, so the page underneath
      keeps its scroll position and the results are where they were when the
      editor is restored. It paints its own background because the page's is on
@@ -1926,87 +2704,344 @@
     padding: 0.75rem 1.25rem 2rem;
     background: var(--surface-page);
   }
-  .bd-editor.maximized .bd-editor-bar { margin-top: 0; position: sticky; top: 0; background: inherit; padding: 0.4rem 0; z-index: 1; }
+  .bd-editor.maximized .bd-editor-bar {
+    margin-top: 0;
+    position: sticky;
+    top: 0;
+    background: inherit;
+    padding: 0.4rem 0;
+    z-index: 1;
+  }
 
   .bd-disclose {
-    display: inline-flex; align-items: center; gap: 0.3rem;
-    background: none; border: none; padding: 0.1rem 0; margin: 0;
-    color: var(--text); font: inherit; font-size: 0.8rem; cursor: pointer; text-align: left;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: none;
+    border: none;
+    padding: 0.1rem 0;
+    margin: 0;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-align: left;
   }
-  .bd-caret { display: inline-block; font-size: 0.7rem; color: var(--text-muted); transition: transform 120ms ease; }
-  .bd-caret.open { transform: rotate(90deg); }
-  .bd-feat-name { font-weight: 600; }
-  .bd-summary { color: var(--text-secondary); white-space: normal; }
-  .bd-num { font-variant-numeric: tabular-nums; }
+  .bd-caret {
+    display: inline-block;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    transition: transform 120ms ease;
+  }
+  .bd-caret.open {
+    transform: rotate(90deg);
+  }
+  .bd-feat-name {
+    font-weight: 600;
+  }
+  .bd-summary {
+    color: var(--text-secondary);
+    white-space: normal;
+  }
+  .bd-num {
+    font-variant-numeric: tabular-nums;
+  }
   /* The detail row carries its own left rule from the editor component, so the
      cell adds only room; a border here would double it. */
 
-  .bd-scroll { overflow-x: auto; }
-  .bd-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-  .bd-table th, .bd-table td { padding: 0.2rem 0.4rem; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
-  .bd-table thead th { color: var(--text-muted); font-weight: 600; font-size: 0.72rem; }
-  .bd-table tr.selected > * { background: var(--accent-soft); }
+  .bd-scroll {
+    overflow-x: auto;
+  }
+  .bd-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+  .bd-table th,
+  .bd-table td {
+    padding: 0.2rem 0.4rem;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    white-space: nowrap;
+  }
+  .bd-table thead th {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.72rem;
+  }
+  .bd-table tr.selected > * {
+    background: var(--accent-soft);
+  }
   /* Table cells are nowrap so a row stays one line. The panel is prose and
      fields, so it wraps: without this its explanatory line sets the table's
      width and the sentence runs off the right edge of the scroll box. */
-  .bd-detail > td { padding: 0 0 0 0.2rem; border-bottom: 1px solid var(--border); white-space: normal; }
-  .bd-kind { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); border: 1px solid var(--border-strong); border-radius: 3px; padding: 0 0.25rem; margin-right: 0.3rem; }
-  .bd-kind.on { color: var(--accent); border-color: var(--accent); }
-  .bd-label-input { width: 10ch; }
-  .bd-dash { color: var(--text-faint); }
-  .bd-remove { background: none; border: none; color: var(--accent); font-size: 0.72rem; cursor: pointer; text-decoration: underline; padding: 0; }
+  .bd-detail > td {
+    padding: 0 0 0 0.2rem;
+    border-bottom: 1px solid var(--border);
+    white-space: normal;
+  }
+  .bd-kind {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+    padding: 0 0.25rem;
+    margin-right: 0.3rem;
+  }
+  .bd-kind.on {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .bd-label-input {
+    width: 10ch;
+  }
+  .bd-dash {
+    color: var(--text-faint);
+  }
+  .bd-remove {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 0.72rem;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+  }
 
-  input, select { font-size: 0.78rem; padding: 0.08rem 0.25rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 3px; }
-  input[type='number'] { width: 8ch; }
-  input[type='text'] { width: 18ch; }
+  input,
+  select {
+    font-size: 0.78rem;
+    padding: 0.08rem 0.25rem;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+  }
+  input[type='number'] {
+    width: 8ch;
+  }
+  input[type='text'] {
+    width: 18ch;
+  }
 
-  .bd-checks { margin-top: 1.25rem; }
-  .bd-checks h3 { font-size: 1rem; margin: 0 0 0.35rem; }
-  .bd-clean { font-size: 0.8rem; color: var(--text-muted); margin: 0; }
-  .bd-flags { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.3rem; }
-  .bd-flag { font-size: 0.78rem; line-height: 1.45; padding: 0.3rem 0.5rem; border-radius: 4px; border: 1px solid var(--border); background: var(--surface-subtle); }
-  .bd-flag.error { border-color: var(--warn-border); background: var(--warn-bg); }
-  .bd-flag.warn { border-color: var(--warn-border); }
-  .bd-flag-level { display: inline-block; font-weight: 700; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); margin-right: 0.4rem; }
-  .bd-flag.error .bd-flag-level, .bd-flag.warn .bd-flag-level { color: var(--warn-text); }
-  .bd-flag-msg { color: var(--text); }
-  .bd-flag-cite { display: block; color: var(--text-faint); font-size: 0.7rem; margin-top: 0.1rem; }
-  .bd-uncarried { font-size: 0.74rem; color: var(--text-muted); margin: 0.75rem 0 0; line-height: 1.5; }
+  .bd-checks {
+    margin-top: 1.25rem;
+  }
+  .bd-checks h3 {
+    font-size: 1rem;
+    margin: 0 0 0.35rem;
+  }
+  .bd-clean {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  .bd-flags {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .bd-flag {
+    font-size: 0.78rem;
+    line-height: 1.45;
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface-subtle);
+  }
+  .bd-flag.error {
+    border-color: var(--warn-border);
+    background: var(--warn-bg);
+  }
+  .bd-flag.warn {
+    border-color: var(--warn-border);
+  }
+  .bd-flag-level {
+    display: inline-block;
+    font-weight: 700;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+    margin-right: 0.4rem;
+  }
+  .bd-flag.error .bd-flag-level,
+  .bd-flag.warn .bd-flag-level {
+    color: var(--warn-text);
+  }
+  .bd-flag-msg {
+    color: var(--text);
+  }
+  .bd-flag-cite {
+    display: block;
+    color: var(--text-faint);
+    font-size: 0.7rem;
+    margin-top: 0.1rem;
+  }
+  .bd-uncarried {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    margin: 0.75rem 0 0;
+    line-height: 1.5;
+  }
 
-  .bd-run { margin-top: 1.25rem; padding-top: 0.9rem; border-top: 1px solid var(--border); }
-  .bd-run-bar { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
-  .bd-run-note { font-size: 0.74rem; color: var(--text-muted); }
-  .btn.btn-primary { font-size: 0.84rem; font-weight: 600; padding: 0.3rem 0.9rem; border: 1px solid var(--accent-strong); border-radius: 4px; background: var(--accent); color: #fff; cursor: pointer; }
-  .btn.btn-primary:disabled { opacity: 0.45; cursor: default; }
-  .bd-stale { font-size: 0.78rem; color: var(--warn-text); background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 4px; padding: 0.35rem 0.5rem; margin: 0.5rem 0 0; line-height: 1.45; max-width: 84ch; }
+  .bd-run {
+    margin-top: 1.25rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--border);
+  }
+  .bd-run-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .bd-run-note {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+  }
+  .btn.btn-primary {
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 0.3rem 0.9rem;
+    border: 1px solid var(--accent-strong);
+    border-radius: 4px;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+  }
+  .btn.btn-primary:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+  .bd-stale {
+    font-size: 0.78rem;
+    color: var(--warn-text);
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    margin: 0.5rem 0 0;
+    line-height: 1.45;
+    max-width: 84ch;
+  }
 
-  .bd-summary { margin-top: 1.25rem; }
-  .bd-summary h2, .bd-rel h2 { font-size: 1rem; margin: 0 0 0.35rem; }
-  .bd-figures { display: flex; flex-wrap: wrap; gap: 0.4rem 1.6rem; margin: 0.5rem 0 0.7rem; }
-  .bd-fig { display: flex; flex-direction: column; gap: 0.05rem; }
-  .bd-fig-label { font-size: 0.68rem; color: var(--text-muted); }
-  .bd-fig-value { font-size: 1.3rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
-  .bd-fig-unit { font-size: 0.68rem; color: var(--text-muted); }
+  .bd-summary {
+    margin-top: 1.25rem;
+  }
+  .bd-summary h2,
+  .bd-rel h2 {
+    font-size: 1rem;
+    margin: 0 0 0.35rem;
+  }
+  .bd-figures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.6rem;
+    margin: 0.5rem 0 0.7rem;
+  }
+  .bd-fig {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+  }
+  .bd-fig-label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+  }
+  .bd-fig-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .bd-fig-unit {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+  }
   /* Sized to its content rather than to the page: at 100% the five period
      columns were pushed to the far right, away from the labels they belong to. */
-  .bd-perperiod { width: auto; }
-  .bd-perperiod th[scope='col']:not(:first-child), .bd-perperiod td { min-width: 4.5rem; text-align: right; }
-  .bd-perperiod td { font-variant-numeric: tabular-nums; }
-  .bd-perperiod td.bd-los { font-weight: 700; }
-  .bd-oversat, .bd-undersat { font-size: 0.8rem; line-height: 1.5; margin: 0.6rem 0 0; max-width: 88ch; }
-  .bd-oversat { color: var(--warn-text); }
-  .bd-undersat { color: var(--text-secondary); }
+  .bd-perperiod {
+    width: auto;
+  }
+  .bd-perperiod th[scope='col']:not(:first-child),
+  .bd-perperiod td {
+    min-width: 4.5rem;
+    text-align: right;
+  }
+  .bd-perperiod td {
+    font-variant-numeric: tabular-nums;
+  }
+  .bd-perperiod td.bd-los {
+    font-weight: 700;
+  }
+  .bd-oversat,
+  .bd-undersat {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    margin: 0.6rem 0 0;
+    max-width: 88ch;
+  }
+  .bd-oversat {
+    color: var(--warn-text);
+  }
+  .bd-undersat {
+    color: var(--text-secondary);
+  }
 
-  .bd-discussion { margin-top: 1rem; }
+  .bd-discussion {
+    margin-top: 1rem;
+  }
 
-  .bd-rel { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
-  .bd-check-field { flex-direction: row !important; align-items: center; gap: 0.3rem !important; }
-  .bd-rel-meta { font-size: 0.78rem; color: var(--text-secondary); margin: 0 0 0.5rem; line-height: 1.5; }
-  .bd-rel-notes { list-style: none; padding: 0; margin: 0.75rem 0 0; display: flex; flex-direction: column; gap: 0.3rem; }
-  .bd-rel-note { font-size: 0.76rem; line-height: 1.5; color: var(--text-muted); border-left: 2px solid var(--border-strong); padding-left: 0.5rem; max-width: 92ch; }
-  .bd-rel-note.warn { color: var(--warn-text); border-left-color: var(--warn-border); }
-  .bd-rel-note.ok { color: var(--text-secondary); border-left-color: var(--ok-border); }
+  .bd-rel {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+  .bd-check-field {
+    flex-direction: row !important;
+    align-items: center;
+    gap: 0.3rem !important;
+  }
+  .bd-rel-meta {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin: 0 0 0.5rem;
+    line-height: 1.5;
+  }
+  .bd-rel-notes {
+    list-style: none;
+    padding: 0;
+    margin: 0.75rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .bd-rel-note {
+    font-size: 0.76rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    border-left: 2px solid var(--border-strong);
+    padding-left: 0.5rem;
+    max-width: 92ch;
+  }
+  .bd-rel-note.warn {
+    color: var(--warn-text);
+    border-left-color: var(--warn-border);
+  }
+  .bd-rel-note.ok {
+    color: var(--text-secondary);
+    border-left-color: var(--ok-border);
+  }
   /* The global anchor rules give a bare link a heading size, which made this
      one read as a section title rather than as part of the sentence. */
-  .bd-rel-note a { color: var(--accent); font-size: inherit; font-weight: inherit; }
+  .bd-rel-note a {
+    color: var(--accent);
+    font-size: inherit;
+    font-weight: inherit;
+  }
 </style>

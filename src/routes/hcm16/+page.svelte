@@ -1,11 +1,7 @@
-<svelte:head>
-  <title>Urban Street Facilities · HCM Calculator</title>
-</svelte:head>
-
 <script>
   import { preventDefault } from 'svelte/legacy';
 
-  import init, { WasmUrbanFacility } from "HCM-middleware";
+  import init, { WasmUrbanFacility } from 'HCM-middleware';
   import UrbanFacilityDiagram from '$lib/UrbanFacilityDiagram.svelte';
   import UrbanFacilityDiagram3D from '$lib/UrbanFacilityDiagram3D.svelte';
   import ViewToggle from '$lib/ViewToggle.svelte';
@@ -14,14 +10,14 @@
   import Discussion from '$lib/Discussion.svelte';
   import OpenInBuilder from '$lib/OpenInBuilder.svelte';
   import { urbanFacilityHandoff, SUMMARY_MODE_MISSING } from '$lib/builder/handoff.js';
-  import { onMount } from "svelte";
+  import { onMount } from 'svelte';
 
   let diagramMode = $state('2d');
   let selectedSeg = $state(-1);
 
   let ready = $state(false);
 
-  onMount(async() => {
+  onMount(async () => {
     await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
     ready = true;
   });
@@ -78,7 +74,7 @@
       platoon_ratio: '',
       sat_flow: '',
       stop_rate_override: 0.547,
-      ap_delays: '0.193, 0.194'
+      ap_delays: '0.193, 0.194',
     };
   }
 
@@ -97,7 +93,7 @@
       { segment_length: 1320, base_ffs: 40.9, travel_speed: 24.2, stop_rate: 1.72, vc_ratio: 0.85, los: 'C' },
       { segment_length: 1320, base_ffs: 40.9, travel_speed: 24.2, stop_rate: 1.72, vc_ratio: 0.85, los: 'C' },
       { segment_length: 660, base_ffs: 37.9, travel_speed: 17.6, stop_rate: 2.63, vc_ratio: 0.9, los: 'D' },
-      { segment_length: 660, base_ffs: 37.9, travel_speed: 17.6, stop_rate: 2.63, vc_ratio: 0.9, los: 'D' }
+      { segment_length: 660, base_ffs: 37.9, travel_speed: 17.6, stop_rate: 2.63, vc_ratio: 0.9, los: 'D' },
     ];
   }
 
@@ -115,7 +111,7 @@
   let measures_pct_left_turn_lanes = $state(100);
 
   let results = $state(null);
-  let resultMode = $state('inputs');   // the mode the displayed results came from
+  let resultMode = $state('inputs'); // the mode the displayed results came from
   let hasError = $state(false);
   let errMessage = $state('');
 
@@ -124,7 +120,7 @@
     allwaystop: 'All-Way STOP',
     yield: 'YIELD controlled',
     roundabout: 'Roundabout',
-    uncontrolled: 'Uncontrolled'
+    uncontrolled: 'Uncontrolled',
   };
 
   // Blank optional inputs become undefined so the engine applies its defaults.
@@ -134,8 +130,10 @@
 
   // Comma- or space-separated per-point delays, one per active access point.
   function parseDelays(text) {
-    const parts = String(text ?? '').split(/[,\s]+/).filter((s) => s !== '');
-    if (!parts.length) return undefined;           // blank falls back to Exhibit 18-13
+    const parts = String(text ?? '')
+      .split(/[,\s]+/)
+      .filter((s) => s !== '');
+    if (!parts.length) return undefined; // blank falls back to Exhibit 18-13
     const nums = parts.map(Number);
     if (nums.some((n) => !Number.isFinite(n) || n < 0)) return null;
     return Float64Array.from(nums);
@@ -192,12 +190,12 @@
             opt(seg.stop_rate_override),
             opt(seg.upstream_width),
             opt(seg.restrictive_median_length),
-            seg.pct_curb === '' ? undefined : Number(seg.pct_curb) / 100.0,       // UI takes percent, the engine takes a decimal
+            seg.pct_curb === '' ? undefined : Number(seg.pct_curb) / 100.0, // UI takes percent, the engine takes a decimal
             seg.pct_parking === '' ? undefined : Number(seg.pct_parking) / 100.0,
             seg.pct_opposing_left_accessible === '' ? undefined : Number(seg.pct_opposing_left_accessible) / 100.0,
             opt(seg.signal_spacing),
             opt(seg.ffs_override),
-            delays
+            delays,
           );
         }
 
@@ -213,7 +211,7 @@
             Number(seg.travel_speed),
             opt(seg.stop_rate),
             opt(seg.vc_ratio),
-            seg.los === '' ? undefined : seg.los
+            seg.los === '' ? undefined : seg.los,
           );
         }
 
@@ -237,30 +235,46 @@
 
   function publishReport() {
     const perSegment = results.segments ?? [];
-    const inputRows = mode === 'inputs'
-      ? [
-          { label: 'Segment source', value: 'Chapter 18 inputs, evaluated then aggregated' },
-          { label: 'Segments', value: inputSegments.length },
-          { label: 'Intersections with left-turn lanes', value: `${inputs_pct_left_turn_lanes}%` },
-          ...inputSegments.flatMap((s, i) => [
-            { label: `Segment ${i + 1} length`, value: `${s.segment_length} ft` },
-            { label: `Segment ${i + 1} through lanes / speed limit`, value: `${s.n_through_lanes} ln / ${s.speed_limit} mi/h` },
-            { label: `Segment ${i + 1} through demand / midsegment flow`, value: `${s.through_demand} / ${s.midsegment_flow === '' ? 'through demand' : s.midsegment_flow} veh/h` },
-            { label: `Segment ${i + 1} boundary control`, value: CONTROL_LABEL[s.control] },
-            { label: `Segment ${i + 1} through delay / capacity`, value: `${s.control === 'uncontrolled' ? 'not applicable' : `${s.through_delay} s/veh`} / ${s.through_capacity === '' ? 'not supplied' : `${s.through_capacity} veh/h`}` },
-            { label: `Segment ${i + 1} access points, subject / opposing`, value: `${s.access_points_subject} / ${s.access_points_opposing}` },
-            { label: `Segment ${i + 1} access-point delays`, value: s.ap_delays === '' ? 'Exhibit 18-13 planning estimate' : `${s.ap_delays} s/veh` },
-          ]),
-        ]
-      : [
-          { label: 'Segment source', value: 'Published Chapter 18 performance measures (Exhibit 16-7)' },
-          { label: 'Segments', value: measureSegments.length },
-          { label: 'Intersections with left-turn lanes', value: `${measures_pct_left_turn_lanes}%` },
-          ...measureSegments.map((s, i) => ({
-            label: `Segment ${i + 1}`,
-            value: `${s.segment_length} ft · base FFS ${s.base_ffs} mi/h · travel speed ${s.travel_speed} mi/h · ${s.stop_rate === '' ? 'no stop rate' : `${s.stop_rate} stops/mi`} · v/c ${s.vc_ratio === '' ? 'not supplied' : s.vc_ratio} · LOS ${s.los || 'not supplied'}`
-          })),
-        ];
+    const inputRows =
+      mode === 'inputs'
+        ? [
+            { label: 'Segment source', value: 'Chapter 18 inputs, evaluated then aggregated' },
+            { label: 'Segments', value: inputSegments.length },
+            { label: 'Intersections with left-turn lanes', value: `${inputs_pct_left_turn_lanes}%` },
+            ...inputSegments.flatMap((s, i) => [
+              { label: `Segment ${i + 1} length`, value: `${s.segment_length} ft` },
+              {
+                label: `Segment ${i + 1} through lanes / speed limit`,
+                value: `${s.n_through_lanes} ln / ${s.speed_limit} mi/h`,
+              },
+              {
+                label: `Segment ${i + 1} through demand / midsegment flow`,
+                value: `${s.through_demand} / ${s.midsegment_flow === '' ? 'through demand' : s.midsegment_flow} veh/h`,
+              },
+              { label: `Segment ${i + 1} boundary control`, value: CONTROL_LABEL[s.control] },
+              {
+                label: `Segment ${i + 1} through delay / capacity`,
+                value: `${s.control === 'uncontrolled' ? 'not applicable' : `${s.through_delay} s/veh`} / ${s.through_capacity === '' ? 'not supplied' : `${s.through_capacity} veh/h`}`,
+              },
+              {
+                label: `Segment ${i + 1} access points, subject / opposing`,
+                value: `${s.access_points_subject} / ${s.access_points_opposing}`,
+              },
+              {
+                label: `Segment ${i + 1} access-point delays`,
+                value: s.ap_delays === '' ? 'Exhibit 18-13 planning estimate' : `${s.ap_delays} s/veh`,
+              },
+            ]),
+          ]
+        : [
+            { label: 'Segment source', value: 'Published Chapter 18 performance measures (Exhibit 16-7)' },
+            { label: 'Segments', value: measureSegments.length },
+            { label: 'Intersections with left-turn lanes', value: `${measures_pct_left_turn_lanes}%` },
+            ...measureSegments.map((s, i) => ({
+              label: `Segment ${i + 1}`,
+              value: `${s.segment_length} ft · base FFS ${s.base_ffs} mi/h · travel speed ${s.travel_speed} mi/h · ${s.stop_rate === '' ? 'no stop rate' : `${s.stop_rate} stops/mi`} · v/c ${s.vc_ratio === '' ? 'not supplied' : s.vc_ratio} · LOS ${s.los || 'not supplied'}`,
+            })),
+          ];
 
     setReport({
       chapter: 'Urban Street Facilities',
@@ -271,7 +285,15 @@
       discussion: results.discussion,
       inputs: inputRows,
       resultTable: {
-        columns: ['Segment', 'Length (ft)', 'Base FFS (mi/h)', 'Travel speed (mi/h)', 'Stop rate (stops/mi)', 'v/c', 'LOS'],
+        columns: [
+          'Segment',
+          'Length (ft)',
+          'Base FFS (mi/h)',
+          'Travel speed (mi/h)',
+          'Stop rate (stops/mi)',
+          'v/c',
+          'LOS',
+        ],
         rows: perSegment.map((s, i) => [
           String(i + 1),
           fmt(s.length_ft, 0),
@@ -279,7 +301,7 @@
           fmt(s.travel_speed, 2),
           fmt(s.spatial_stop_rate, 2),
           fmt(s.vc_ratio, 2),
-          s.los || ''
+          s.los || '',
         ]),
       },
       summary: [
@@ -302,7 +324,7 @@
       ],
       diagram: {
         kind: 'urban-facility',
-        props: { segments: diagramSegments }
+        props: { segments: diagramSegments },
       },
     });
   }
@@ -335,52 +357,58 @@
         lanes: Number(s.n_through_lanes) || 2,
         accessPoints: Number(s.access_points_subject) || 0,
         control: s.control,
-        los: scored && scored[i] ? scored[i].los : null
+        los: scored && scored[i] ? scored[i].los : null,
       }));
     }
     return measureSegments.map((s, i) => ({
       length_ft: Number(s.segment_length) || 0,
       control: 'signalized',
-      los: scored && scored[i] ? scored[i].los : (s.los || null)
+      los: scored && scored[i] ? scored[i].los : s.los || null,
     }));
   });
 
   let diagramNote = $derived(
     mode === 'inputs'
       ? 'Segment chain, upstream to downstream, separated by its boundary intersections. Widths follow segment length, depth the through-lane count, and the ticks below each link are its subject-side access points. Click a segment to highlight its card.'
-      : 'Segment chain, upstream to downstream. Widths follow segment length. The published-measures path carries no cross-section, so lane counts are drawn indicatively and no access points are shown. Click a segment to highlight its row.'
+      : 'Segment chain, upstream to downstream. Widths follow segment length. The published-measures path carries no cross-section, so lane counts are drawn indicatively and no access points are shown. Click a segment to highlight its row.',
   );
 </script>
+
+<svelte:head>
+  <title>Urban Street Facilities · HCM Calculator</title>
+</svelte:head>
 
 <div class="hcm-page">
   <header class="page-header">
     <span class="badge badge-outline page-badge">HCM Chapter 16</span>
     <h1 class="page-title">Urban Street Facilities</h1>
     <p class="page-sub">
-      Aggregate urban street segments into facility travel speed, spatial stop
-      rate, and level of service for one direction of travel.
+      Aggregate urban street segments into facility travel speed, spatial stop rate, and level of service for one
+      direction of travel.
     </p>
     {#if mode === 'measures'}
       <p class="oib-unavailable">
-        Summary mode does not open in the facility builder. It holds each segment's length and
-        its published measures and no cross-section, and a segment in the library schema needs
-        {SUMMARY_MODE_MISSING}. Those would have to be invented, so switch to segment inputs to
-        carry a facility across.
+        Summary mode does not open in the facility builder. It holds each segment's length and its published measures
+        and no cross-section, and a segment in the library schema needs
+        {SUMMARY_MODE_MISSING}. Those would have to be invented, so switch to segment inputs to carry a facility across.
       </p>
     {:else}
-      <OpenInBuilder build={handoff}
-        note="Takes this form to the facility builder as a Chapter 16 fixture. The builder recovers a boundary signal at each segment end, so the facility arrives editable as placed features." />
+      <OpenInBuilder
+        build={handoff}
+        note="Takes this form to the facility builder as a Chapter 16 fixture. The builder recovers a boundary signal at each segment end, so the facility arrives editable as placed features."
+      />
     {/if}
   </header>
 
   <div class="alert alert-warning shadow-sm mb-6 beta-note" role="note">
     <span>
-      <strong>Scope.</strong> The compute engine is boundary-validated against HCM
-      Chapter 30, Example Problem 1 aggregated to facility level and against
-      Chapter 29, Example Problem 1 in both directions, which the two modes'
-      defaults reproduce. The page itself is in beta pending final inspection.
-      Verify results independently before relying on them in engineering work, and
-      please <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer">report discrepancies on GitHub</a>.
+      <strong>Scope.</strong> The compute engine is boundary-validated against HCM Chapter 30, Example Problem 1
+      aggregated to facility level and against Chapter 29, Example Problem 1 in both directions, which the two modes'
+      defaults reproduce. The page itself is in beta pending final inspection. Verify results independently before
+      relying on them in engineering work, and please
+      <a href="https://github.com/crosstraffic/cross-traffic-web-calculator/issues" target="_blank" rel="noreferrer"
+        >report discrepancies on GitHub</a
+      >.
     </span>
   </div>
 
@@ -396,7 +424,9 @@
       <div class="panel-head">
         <div>
           <h2 class="panel-title">Facility</h2>
-          <p class="panel-sub">How the segments are described, and the facility-wide inputs for the subject direction of travel.</p>
+          <p class="panel-sub">
+            How the segments are described, and the facility-wide inputs for the subject direction of travel.
+          </p>
         </div>
         <div class="panel-actions">
           <ViewToggle bind:mode={diagramMode} label="Facility view mode" />
@@ -407,19 +437,26 @@
         <UrbanFacilityDiagram3D
           segments={diagramSegments}
           selected={selectedSeg}
-          onselect={(i) => (selectedSeg = selectedSeg === i ? -1 : i)} />
+          onselect={(i) => (selectedSeg = selectedSeg === i ? -1 : i)}
+        />
       {:else}
         <UrbanFacilityDiagram
           segments={diagramSegments}
           selected={selectedSeg}
           onselect={(i) => (selectedSeg = selectedSeg === i ? -1 : i)}
-          note={diagramNote} />
+          note={diagramNote}
+        />
       {/if}
 
       <div class="param-grid">
         <div class="param-field">
           <label for="MODE_input">Analysis Mode</label>
-          <select id="MODE_input" class="select select-bordered select-sm" bind:value={mode} onchange={() => (selectedSeg = -1)}>
+          <select
+            id="MODE_input"
+            class="select select-bordered select-sm"
+            bind:value={mode}
+            onchange={() => (selectedSeg = -1)}
+          >
             <option value="inputs">Chapter 18 inputs</option>
             <option value="measures">Published segment measures</option>
           </select>
@@ -427,7 +464,8 @@
             {#if mode === 'inputs'}
               Each segment is described by its Chapter 18 inputs and evaluated before the facility aggregation runs.
             {:else}
-              Each segment is described by its already-known Chapter 18 performance measures, the Exhibit 16-7 HCM method output case.
+              Each segment is described by its already-known Chapter 18 performance measures, the Exhibit 16-7 HCM
+              method output case.
             {/if}
           </p>
         </div>
@@ -436,7 +474,16 @@
           <div class="param-field">
             <label for="PLTL_input">Intersections with Left-Turn Lanes</label>
             <div class="cell-field">
-              <input id="PLTL_input" type="number" min="0" max="100" class="input input-bordered input-sm" bind:value={inputs_pct_left_turn_lanes} placeholder="33" required />
+              <input
+                id="PLTL_input"
+                type="number"
+                min="0"
+                max="100"
+                class="input input-bordered input-sm"
+                bind:value={inputs_pct_left_turn_lanes}
+                placeholder="33"
+                required
+              />
               <span class="unit">%</span>
             </div>
             <p class="param-hint">Used by the facility traveler perception score.</p>
@@ -445,7 +492,16 @@
           <div class="param-field">
             <label for="PLTLM_input">Intersections with Left-Turn Lanes</label>
             <div class="cell-field">
-              <input id="PLTLM_input" type="number" min="0" max="100" class="input input-bordered input-sm" bind:value={measures_pct_left_turn_lanes} placeholder="100" required />
+              <input
+                id="PLTLM_input"
+                type="number"
+                min="0"
+                max="100"
+                class="input input-bordered input-sm"
+                bind:value={measures_pct_left_turn_lanes}
+                placeholder="100"
+                required
+              />
               <span class="unit">%</span>
             </div>
             <p class="param-hint">Used by the facility traveler perception score.</p>
@@ -464,135 +520,264 @@
               <h2 class="panel-title">Segment {i + 1}</h2>
               <p class="panel-sub">Chapter 18 inputs, ordered upstream to downstream.</p>
             </div>
-            <button class="btn btn-ghost btn-sm" type="button" onclick={() => removeSegment(i)} disabled={inputSegments.length <= 1}>Remove</button>
+            <button
+              class="btn btn-ghost btn-sm"
+              type="button"
+              onclick={() => removeSegment(i)}
+              disabled={inputSegments.length <= 1}>Remove</button
+            >
           </div>
           <div class="param-grid">
             <div class="param-field">
-              <label for={"LEN_input_" + i}>Segment Length</label>
+              <label for={'LEN_input_' + i}>Segment Length</label>
               <div class="cell-field">
-                <input id={"LEN_input_" + i} type="number" min="1" class="input input-bordered input-sm" bind:value={seg.segment_length} placeholder="1800" required />
+                <input
+                  id={'LEN_input_' + i}
+                  type="number"
+                  min="1"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.segment_length}
+                  placeholder="1800"
+                  required
+                />
                 <span class="unit">ft</span>
               </div>
               <p class="param-hint">Stop line to stop line.</p>
             </div>
 
             <div class="param-field">
-              <label for={"NTH_input_" + i}>Through Lanes</label>
+              <label for={'NTH_input_' + i}>Through Lanes</label>
               <div class="cell-field">
-                <input id={"NTH_input_" + i} type="number" min="1" max="6" class="input input-bordered input-sm" bind:value={seg.n_through_lanes} required />
+                <input
+                  id={'NTH_input_' + i}
+                  type="number"
+                  min="1"
+                  max="6"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.n_through_lanes}
+                  required
+                />
                 <span class="unit">ln</span>
               </div>
             </div>
 
             <div class="param-field">
-              <label for={"SPL_input_" + i}>Posted Speed Limit</label>
+              <label for={'SPL_input_' + i}>Posted Speed Limit</label>
               <div class="cell-field">
-                <input id={"SPL_input_" + i} type="number" min="1" class="input input-bordered input-sm" bind:value={seg.speed_limit} placeholder="35" required />
+                <input
+                  id={'SPL_input_' + i}
+                  type="number"
+                  min="1"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.speed_limit}
+                  placeholder="35"
+                  required
+                />
                 <span class="unit">mph</span>
               </div>
             </div>
 
             <div class="param-field">
-              <label for={"DEM_input_" + i}>Through Demand Flow Rate</label>
+              <label for={'DEM_input_' + i}>Through Demand Flow Rate</label>
               <div class="cell-field">
-                <input id={"DEM_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.through_demand} placeholder="968" required />
+                <input
+                  id={'DEM_input_' + i}
+                  type="number"
+                  min="0"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.through_demand}
+                  placeholder="968"
+                  required
+                />
                 <span class="unit">veh/h</span>
               </div>
             </div>
 
             <div class="param-field">
-              <label for={"MID_input_" + i}>Midsegment Flow Rate (optional)</label>
+              <label for={'MID_input_' + i}>Midsegment Flow Rate (optional)</label>
               <div class="cell-field">
-                <input id={"MID_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.midsegment_flow} placeholder="through demand" />
+                <input
+                  id={'MID_input_' + i}
+                  type="number"
+                  min="0"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.midsegment_flow}
+                  placeholder="through demand"
+                />
                 <span class="unit">veh/h</span>
               </div>
             </div>
 
             <div class="param-field">
-              <label for={"UPW_input_" + i}>Upstream Intersection Width</label>
+              <label for={'UPW_input_' + i}>Upstream Intersection Width</label>
               <div class="cell-field">
-                <input id={"UPW_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.upstream_width} placeholder="50" required />
+                <input
+                  id={'UPW_input_' + i}
+                  type="number"
+                  min="0"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.upstream_width}
+                  placeholder="50"
+                  required
+                />
                 <span class="unit">ft</span>
               </div>
             </div>
 
             <div class="param-field">
-              <label for={"RML_input_" + i}>Restrictive Median Length</label>
+              <label for={'RML_input_' + i}>Restrictive Median Length</label>
               <div class="cell-field">
-                <input id={"RML_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.restrictive_median_length} placeholder="0" required />
+                <input
+                  id={'RML_input_' + i}
+                  type="number"
+                  min="0"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.restrictive_median_length}
+                  placeholder="0"
+                  required
+                />
                 <span class="unit">ft</span>
               </div>
             </div>
 
             <div class="param-field">
-              <label for={"CURB_input_" + i}>Link Length with Curb</label>
+              <label for={'CURB_input_' + i}>Link Length with Curb</label>
               <div class="cell-field">
-                <input id={"CURB_input_" + i} type="number" min="0" max="100" class="input input-bordered input-sm" bind:value={seg.pct_curb} placeholder="70" required />
+                <input
+                  id={'CURB_input_' + i}
+                  type="number"
+                  min="0"
+                  max="100"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.pct_curb}
+                  placeholder="70"
+                  required
+                />
                 <span class="unit">%</span>
               </div>
             </div>
 
             <div class="param-field">
-              <label for={"PARK_input_" + i}>Link Length with On-Street Parking</label>
+              <label for={'PARK_input_' + i}>Link Length with On-Street Parking</label>
               <div class="cell-field">
-                <input id={"PARK_input_" + i} type="number" min="0" max="100" class="input input-bordered input-sm" bind:value={seg.pct_parking} placeholder="0" required />
+                <input
+                  id={'PARK_input_' + i}
+                  type="number"
+                  min="0"
+                  max="100"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.pct_parking}
+                  placeholder="0"
+                  required
+                />
                 <span class="unit">%</span>
               </div>
             </div>
 
             <div class="param-field">
-              <label for={"APS_input_" + i}>Access Points (subject side)</label>
+              <label for={'APS_input_' + i}>Access Points (subject side)</label>
               <div class="cell-field">
-                <input id={"APS_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.access_points_subject} placeholder="4" required />
+                <input
+                  id={'APS_input_' + i}
+                  type="number"
+                  min="0"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.access_points_subject}
+                  placeholder="4"
+                  required
+                />
                 <span class="unit">pts</span>
               </div>
             </div>
 
             <div class="param-field">
-              <label for={"APO_input_" + i}>Access Points (opposing side)</label>
+              <label for={'APO_input_' + i}>Access Points (opposing side)</label>
               <div class="cell-field">
-                <input id={"APO_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.access_points_opposing} placeholder="4" required />
+                <input
+                  id={'APO_input_' + i}
+                  type="number"
+                  min="0"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.access_points_opposing}
+                  placeholder="4"
+                  required
+                />
                 <span class="unit">pts</span>
               </div>
             </div>
 
             <div class="param-field">
-              <label for={"POL_input_" + i}>Opposing Points Reachable by Left Turn (optional)</label>
+              <label for={'POL_input_' + i}>Opposing Points Reachable by Left Turn (optional)</label>
               <div class="cell-field">
-                <input id={"POL_input_" + i} type="number" min="0" max="100" class="input input-bordered input-sm" bind:value={seg.pct_opposing_left_accessible} placeholder="HCM default" />
+                <input
+                  id={'POL_input_' + i}
+                  type="number"
+                  min="0"
+                  max="100"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.pct_opposing_left_accessible}
+                  placeholder="HCM default"
+                />
                 <span class="unit">%</span>
               </div>
               <p class="param-hint">Use 0 for a full restrictive median with no openings.</p>
             </div>
 
             <div class="param-field">
-              <label for={"SSP_input_" + i}>Signal Spacing (optional)</label>
+              <label for={'SSP_input_' + i}>Signal Spacing (optional)</label>
               <div class="cell-field">
-                <input id={"SSP_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.signal_spacing} placeholder="segment length" />
+                <input
+                  id={'SSP_input_' + i}
+                  type="number"
+                  min="0"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.signal_spacing}
+                  placeholder="segment length"
+                />
                 <span class="unit">ft</span>
               </div>
             </div>
 
             <div class="param-field">
-              <label for={"FFO_input_" + i}>Measured Free-Flow Speed (optional)</label>
+              <label for={'FFO_input_' + i}>Measured Free-Flow Speed (optional)</label>
               <div class="cell-field">
-                <input id={"FFO_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.ffs_override} placeholder="predicted" />
+                <input
+                  id={'FFO_input_' + i}
+                  type="number"
+                  min="0"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.ffs_override}
+                  placeholder="predicted"
+                />
                 <span class="unit">mph</span>
               </div>
             </div>
 
             <div class="param-field">
-              <label for={"APD_input_" + i}>Access-Point Delays (optional)</label>
+              <label for={'APD_input_' + i}>Access-Point Delays (optional)</label>
               <div class="cell-field">
-                <input id={"APD_input_" + i} type="text" class="input input-bordered input-sm" bind:value={seg.ap_delays} placeholder="Exhibit 18-13 estimate" />
+                <input
+                  id={'APD_input_' + i}
+                  type="text"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.ap_delays}
+                  placeholder="Exhibit 18-13 estimate"
+                />
                 <span class="unit">s/veh</span>
               </div>
-              <p class="param-hint">The Σ d_ap,i term of Equation 18-7, one measured or published value per active access point, comma separated. The defaults are the Exhibit 30-35 values for Example Problem 1. Blank falls back to the Exhibit 18-13 planning estimate. The third source, the Chapter 30 Section 4 computed procedure, takes per-approach geometry and turn volumes that this table has no room for; the <a href="/hcm18">Chapter 18 page</a> offers it for a single segment.</p>
+              <p class="param-hint">
+                The Σ d_ap,i term of Equation 18-7, one measured or published value per active access point, comma
+                separated. The defaults are the Exhibit 30-35 values for Example Problem 1. Blank falls back to the
+                Exhibit 18-13 planning estimate. The third source, the Chapter 30 Section 4 computed procedure, takes
+                per-approach geometry and turn volumes that this table has no room for; the <a href="/hcm18"
+                  >Chapter 18 page</a
+                > offers it for a single segment.
+              </p>
             </div>
 
             <div class="param-field">
-              <label for={"CTRL_input_" + i}>Boundary Control Type</label>
-              <select id={"CTRL_input_" + i} class="select select-bordered select-sm" bind:value={seg.control}>
+              <label for={'CTRL_input_' + i}>Boundary Control Type</label>
+              <select id={'CTRL_input_' + i} class="select select-bordered select-sm" bind:value={seg.control}>
                 <option value="signalized">Signalized</option>
                 <option value="allwaystop">All-Way STOP</option>
                 <option value="yield">YIELD Controlled</option>
@@ -604,9 +789,18 @@
 
             {#if seg.control !== 'uncontrolled'}
               <div class="param-field">
-                <label for={"DEL_input_" + i}>Through Control Delay</label>
+                <label for={'DEL_input_' + i}>Through Control Delay</label>
                 <div class="cell-field">
-                  <input id={"DEL_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" bind:value={seg.through_delay} placeholder="18.31" required />
+                  <input
+                    id={'DEL_input_' + i}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="input input-bordered input-sm"
+                    bind:value={seg.through_delay}
+                    placeholder="18.31"
+                    required
+                  />
                   <span class="unit">s/veh</span>
                 </div>
                 <p class="param-hint">From the Chapter 19, 20, 21, or 22 analysis of the intersection.</p>
@@ -614,9 +808,16 @@
             {/if}
 
             <div class="param-field">
-              <label for={"CAP_input_" + i}>Through Capacity (optional)</label>
+              <label for={'CAP_input_' + i}>Through Capacity (optional)</label>
               <div class="cell-field">
-                <input id={"CAP_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.through_capacity} placeholder="1848" />
+                <input
+                  id={'CAP_input_' + i}
+                  type="number"
+                  min="0"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.through_capacity}
+                  placeholder="1848"
+                />
                 <span class="unit">veh/h</span>
               </div>
               <p class="param-hint">Needed for the critical v/c ratio and the Exhibit 16-3 LOS F check.</p>
@@ -624,42 +825,80 @@
 
             {#if seg.control === 'signalized'}
               <div class="param-field">
-                <label for={"CYC_input_" + i}>Cycle Length</label>
+                <label for={'CYC_input_' + i}>Cycle Length</label>
                 <div class="cell-field">
-                  <input id={"CYC_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.cycle_length} placeholder="100" />
+                  <input
+                    id={'CYC_input_' + i}
+                    type="number"
+                    min="0"
+                    class="input input-bordered input-sm"
+                    bind:value={seg.cycle_length}
+                    placeholder="100"
+                  />
                   <span class="unit">s</span>
                 </div>
               </div>
 
               <div class="param-field">
-                <label for={"GRN_input_" + i}>Effective Green Time</label>
+                <label for={'GRN_input_' + i}>Effective Green Time</label>
                 <div class="cell-field">
-                  <input id={"GRN_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" bind:value={seg.effective_green} placeholder="48.63" />
+                  <input
+                    id={'GRN_input_' + i}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="input input-bordered input-sm"
+                    bind:value={seg.effective_green}
+                    placeholder="48.63"
+                  />
                   <span class="unit">s</span>
                 </div>
               </div>
 
               <div class="param-field">
-                <label for={"PR_input_" + i}>Platoon Ratio (optional)</label>
+                <label for={'PR_input_' + i}>Platoon Ratio (optional)</label>
                 <div class="cell-field">
-                  <input id={"PR_input_" + i} type="number" step="0.001" min="0" class="input input-bordered input-sm" bind:value={seg.platoon_ratio} placeholder="uniform arrivals" />
+                  <input
+                    id={'PR_input_' + i}
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    class="input input-bordered input-sm"
+                    bind:value={seg.platoon_ratio}
+                    placeholder="uniform arrivals"
+                  />
                 </div>
                 <p class="param-hint">Blank gives uniform arrivals, P = g/C.</p>
               </div>
 
               <div class="param-field">
-                <label for={"SAT_input_" + i}>Adjusted Saturation Flow Rate (optional)</label>
+                <label for={'SAT_input_' + i}>Adjusted Saturation Flow Rate (optional)</label>
                 <div class="cell-field">
-                  <input id={"SAT_input_" + i} type="number" min="0" class="input input-bordered input-sm" bind:value={seg.sat_flow} placeholder="HCM default" />
+                  <input
+                    id={'SAT_input_' + i}
+                    type="number"
+                    min="0"
+                    class="input input-bordered input-sm"
+                    bind:value={seg.sat_flow}
+                    placeholder="HCM default"
+                  />
                   <span class="unit">veh/h/ln</span>
                 </div>
               </div>
             {/if}
 
             <div class="param-field">
-              <label for={"STP_input_" + i}>Full Stop Rate (optional)</label>
+              <label for={'STP_input_' + i}>Full Stop Rate (optional)</label>
               <div class="cell-field">
-                <input id={"STP_input_" + i} type="number" step="0.001" min="0" class="input input-bordered input-sm" bind:value={seg.stop_rate_override} placeholder="0.547" />
+                <input
+                  id={'STP_input_' + i}
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  class="input input-bordered input-sm"
+                  bind:value={seg.stop_rate_override}
+                  placeholder="0.547"
+                />
                 <span class="unit">stops/veh</span>
               </div>
               <p class="param-hint">Needed for the facility stop rate and perception score at signalized boundaries.</p>
@@ -673,7 +912,10 @@
         <div class="panel-head">
           <div>
             <h2 class="panel-title">Published Segment Measures</h2>
-            <p class="panel-sub">One row per segment, ordered upstream to downstream. These are the Chapter 18 outputs the facility aggregation consumes, not inputs it recomputes.</p>
+            <p class="panel-sub">
+              One row per segment, ordered upstream to downstream. These are the Chapter 18 outputs the facility
+              aggregation consumes, not inputs it recomputes.
+            </p>
           </div>
         </div>
         <div class="overflow-x-auto">
@@ -695,13 +937,70 @@
                 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
                 <tr class:seg-selected={selectedSeg === i} onclick={() => (selectedSeg = i)}>
                   <td>{i + 1}</td>
-                  <td><input id={"MLEN_input_" + i} type="number" min="1" class="input input-bordered input-sm" aria-label={"Segment " + (i + 1) + " length"} bind:value={seg.segment_length} required /></td>
-                  <td><input id={"MFFS_input_" + i} type="number" step="0.1" min="0" class="input input-bordered input-sm" aria-label={"Segment " + (i + 1) + " base free-flow speed"} bind:value={seg.base_ffs} required /></td>
-                  <td><input id={"MTS_input_" + i} type="number" step="0.1" min="0" class="input input-bordered input-sm" aria-label={"Segment " + (i + 1) + " travel speed"} bind:value={seg.travel_speed} required /></td>
-                  <td><input id={"MSR_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" aria-label={"Segment " + (i + 1) + " spatial stop rate"} bind:value={seg.stop_rate} /></td>
-                  <td><input id={"MVC_input_" + i} type="number" step="0.01" min="0" class="input input-bordered input-sm" aria-label={"Segment " + (i + 1) + " volume to capacity ratio"} bind:value={seg.vc_ratio} /></td>
+                  <td
+                    ><input
+                      id={'MLEN_input_' + i}
+                      type="number"
+                      min="1"
+                      class="input input-bordered input-sm"
+                      aria-label={'Segment ' + (i + 1) + ' length'}
+                      bind:value={seg.segment_length}
+                      required
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'MFFS_input_' + i}
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      class="input input-bordered input-sm"
+                      aria-label={'Segment ' + (i + 1) + ' base free-flow speed'}
+                      bind:value={seg.base_ffs}
+                      required
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'MTS_input_' + i}
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      class="input input-bordered input-sm"
+                      aria-label={'Segment ' + (i + 1) + ' travel speed'}
+                      bind:value={seg.travel_speed}
+                      required
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'MSR_input_' + i}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input input-bordered input-sm"
+                      aria-label={'Segment ' + (i + 1) + ' spatial stop rate'}
+                      bind:value={seg.stop_rate}
+                    /></td
+                  >
+                  <td
+                    ><input
+                      id={'MVC_input_' + i}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="input input-bordered input-sm"
+                      aria-label={'Segment ' + (i + 1) + ' volume to capacity ratio'}
+                      bind:value={seg.vc_ratio}
+                    /></td
+                  >
                   <td>
-                    <select id={"MLOS_input_" + i} class="select select-bordered select-sm" aria-label={"Segment " + (i + 1) + " level of service"} bind:value={seg.los}>
+                    <select
+                      id={'MLOS_input_' + i}
+                      class="select select-bordered select-sm"
+                      aria-label={'Segment ' + (i + 1) + ' level of service'}
+                      bind:value={seg.los}
+                    >
                       <option value="A">A</option>
                       <option value="B">B</option>
                       <option value="C">C</option>
@@ -710,14 +1009,24 @@
                       <option value="F">F</option>
                     </select>
                   </td>
-                  <td><button class="btn btn-ghost btn-xs" type="button" onclick={() => removeSegment(i)} disabled={measureSegments.length <= 1}>Remove</button></td>
+                  <td
+                    ><button
+                      class="btn btn-ghost btn-xs"
+                      type="button"
+                      onclick={() => removeSegment(i)}
+                      disabled={measureSegments.length <= 1}>Remove</button
+                    ></td
+                  >
                 </tr>
               {/each}
             </tbody>
           </table>
         </div>
         <p class="param-hint">
-          Omit the stop rate on any segment and the Equation 16-4 facility stop rate, and the perception score built on it, are reported as blank rather than aggregated from a partial set. The v/c ratio is the through movement's at the segment's downstream boundary intersection; the largest becomes the critical ratio of the Exhibit 16-3 footnote.
+          Omit the stop rate on any segment and the Equation 16-4 facility stop rate, and the perception score built on
+          it, are reported as blank rather than aggregated from a partial set. The v/c ratio is the through movement's
+          at the segment's downstream boundary intersection; the largest becomes the critical ratio of the Exhibit 16-3
+          footnote.
         </p>
       </section>
     {/if}
@@ -815,7 +1124,11 @@
 
       {#if results && resultMode === 'measures'}
         <p class="param-hint fixture-note">
-          The Chapter 29 Example Problem 1 defaults reproduce the published facility base free-flow speed of 40.1 mi/h, facility LOS C, and poorest segment LOS D exactly. The facility travel speed lands on 22.13 mi/h against a published 22.6 mi/h, and the stop rate on 1.95 against a published 1.83, because Chapter 29 publishes per-segment measures only for Segments 1 and 5 and the library fixture copies those into the unpublished Segments 2 through 4. Those two gaps are a property of the fixture, not of the aggregation.
+          The Chapter 29 Example Problem 1 defaults reproduce the published facility base free-flow speed of 40.1 mi/h,
+          facility LOS C, and poorest segment LOS D exactly. The facility travel speed lands on 22.13 mi/h against a
+          published 22.6 mi/h, and the stop rate on 1.95 against a published 1.83, because Chapter 29 publishes
+          per-segment measures only for Segments 1 and 5 and the library fixture copies those into the unpublished
+          Segments 2 through 4. Those two gaps are a property of the fixture, not of the aggregation.
         </p>
       {/if}
 
@@ -829,10 +1142,19 @@
 <style>
   /* Selection sync with the facility diagram: the picked segment's card, and
      its row in either table, take the same accent as the diagram slab. */
-  .seg-panel { cursor: pointer; }
-  .seg-panel.seg-selected { outline: 2px solid var(--accent); outline-offset: 2px; }
-  tr.seg-selected { background: color-mix(in srgb, var(--accent) 12%, transparent); }
-  .fixture-note { margin-top: 0.6rem; }
+  .seg-panel {
+    cursor: pointer;
+  }
+  .seg-panel.seg-selected {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  tr.seg-selected {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+  .fixture-note {
+    margin-top: 0.6rem;
+  }
   .oib-unavailable {
     margin-top: 1rem;
     font-size: 0.78rem;

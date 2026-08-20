@@ -16,7 +16,7 @@
       lanes: Math.max(1, Math.min(6, Math.round(Number(s.through_lanes) || 1))),
       length: Number(s.crossing_length_ft) || 0,
       flow: Number(s.conflicting_flow_veh_h) || 0,
-    }))
+    })),
   );
 
   const W = 320;
@@ -51,25 +51,28 @@
 
   // Built in script rather than in the markup: Svelte trims the leading whitespace inside an
   // {#if} block, which silently swallows the space before each separator.
-  let headline = $derived([
-    twoStage ? `${drawn.length}-stage crossing` : 'One-stage crossing',
-    ...(twoStage ? ['median refuge'] : []),
-    ...(walkSpeed ? [`${Number(walkSpeed).toFixed(1)} ft/s`] : []),
-  ].join(' · '));
+  let headline = $derived(
+    [
+      twoStage ? `${drawn.length}-stage crossing` : 'One-stage crossing',
+      ...(twoStage ? ['median refuge'] : []),
+      ...(walkSpeed ? [`${Number(walkSpeed).toFixed(1)} ft/s`] : []),
+    ].join(' · '),
+  );
 
-  let footline = $derived([
-    ...(totalDelay != null ? [`d_p ${Number(totalDelay).toFixed(1)} s`] : []),
-    ...(los ? [`LOS ${los}`] : []),
-  ].join(' · '));
+  let footline = $derived(
+    [...(totalDelay != null ? [`d_p ${Number(totalDelay).toFixed(1)} s`] : []), ...(los ? [`LOS ${los}`] : [])].join(
+      ' · ',
+    ),
+  );
 
   // The tint is a status encoding on top of the pavement fill, never the only carrier of the
   // result: the letter and the delay are printed under it.
   let tint = $derived(los ? LOS_COLORS[los] : null);
 
   let label = $derived(
-    `${twoStage ? `${drawn.length}-stage` : 'one-stage'} pedestrian crossing of `
-    + drawn.map((s) => `${s.lanes} lane${s.lanes === 1 ? '' : 's'} at ${s.flow} veh/h`).join(' then ')
-    + (los ? `, LOS ${los}` : '')
+    `${twoStage ? `${drawn.length}-stage` : 'one-stage'} pedestrian crossing of ` +
+      drawn.map((s) => `${s.lanes} lane${s.lanes === 1 ? '' : 's'} at ${s.flow} veh/h`).join(' then ') +
+      (los ? `, LOS ${los}` : ''),
   );
 </script>
 
@@ -114,12 +117,18 @@
          the refuge, which is exactly what makes the crossing two stages. -->
     {#each bands.filter((b) => b.kind === 'stage') as b}
       <line x1={WALK_X} y1={b.y + 4} x2={WALK_X} y2={b.y + b.h - 8} class="pedx-walk" />
-      <polygon class="pedx-arrow" points="{WALK_X},{b.y + b.h - 2} {WALK_X - 4},{b.y + b.h - 10} {WALK_X + 4},{b.y + b.h - 10}" />
+      <polygon
+        class="pedx-arrow"
+        points="{WALK_X},{b.y + b.h - 2} {WALK_X - 4},{b.y + b.h - 10} {WALK_X + 4},{b.y + b.h - 10}"
+      />
     {/each}
 
     <!-- Conflicting stream, one arrow per stage on the right, running across the crossing. -->
     {#each bands.filter((b) => b.kind === 'stage') as b}
-      <polygon class="pedx-veh-arrow" points="{W - 14},{b.y + b.h / 2} {W - 30},{b.y + b.h / 2 - 5} {W - 30},{b.y + b.h / 2 + 5}" />
+      <polygon
+        class="pedx-veh-arrow"
+        points="{W - 14},{b.y + b.h / 2} {W - 30},{b.y + b.h / 2 - 5} {W - 30},{b.y + b.h / 2 + 5}"
+      />
     {/each}
 
     {#each bands.filter((b) => b.kind === 'stage') as b}
@@ -139,16 +148,54 @@
 </div>
 
 <style>
-  .pedx-diagram svg { width: 100%; height: auto; display: block; }
-  .pedx-pavement { fill: var(--diag-pavement); }
-  .pedx-pavement-alt { fill: var(--diag-pavement-alt); }
-  .pedx-hatch-line { stroke: var(--diag-edge); stroke-width: 1; opacity: 0.45; }
-  .pedx-edge { stroke: var(--diag-edge); stroke-width: 1.5; }
-  .pedx-lane-line { stroke: var(--diag-lane-line); stroke-width: 1; stroke-dasharray: 9 7; }
-  .pedx-crosswalk { fill: var(--diag-lane-line); opacity: 0.75; }
-  .pedx-walk { stroke: var(--diag-edge); stroke-width: 1.5; stroke-dasharray: 3 3; }
-  .pedx-arrow { fill: var(--diag-edge); }
-  .pedx-veh-arrow { fill: var(--diag-edge); opacity: 0.55; }
-  .pedx-label { font-size: 8px; fill: var(--diag-dim); }
-  .pedx-sub-label { font-size: 7px; fill: var(--diag-dim); opacity: 0.9; }
+  .pedx-diagram svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .pedx-pavement {
+    fill: var(--diag-pavement);
+  }
+  .pedx-pavement-alt {
+    fill: var(--diag-pavement-alt);
+  }
+  .pedx-hatch-line {
+    stroke: var(--diag-edge);
+    stroke-width: 1;
+    opacity: 0.45;
+  }
+  .pedx-edge {
+    stroke: var(--diag-edge);
+    stroke-width: 1.5;
+  }
+  .pedx-lane-line {
+    stroke: var(--diag-lane-line);
+    stroke-width: 1;
+    stroke-dasharray: 9 7;
+  }
+  .pedx-crosswalk {
+    fill: var(--diag-lane-line);
+    opacity: 0.75;
+  }
+  .pedx-walk {
+    stroke: var(--diag-edge);
+    stroke-width: 1.5;
+    stroke-dasharray: 3 3;
+  }
+  .pedx-arrow {
+    fill: var(--diag-edge);
+  }
+  .pedx-veh-arrow {
+    fill: var(--diag-edge);
+    opacity: 0.55;
+  }
+  .pedx-label {
+    font-size: 8px;
+    fill: var(--diag-dim);
+  }
+  .pedx-sub-label {
+    font-size: 7px;
+    fill: var(--diag-dim);
+    opacity: 0.9;
+  }
 </style>

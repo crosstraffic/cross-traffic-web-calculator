@@ -13,16 +13,22 @@ const DELAY_TOL = 0.5;
 // that the WASM constructor takes; a leg with no approach becomes an empty
 // array (three-leg intersection).
 function flat(leg) {
-  return Float64Array.from(
-    leg.lanes.flatMap(l => [l.volume_left, l.volume_through, l.volume_right]));
+  return Float64Array.from(leg.lanes.flatMap((l) => [l.volume_left, l.volume_through, l.volume_right]));
 }
 
 function build(c) {
   return new m.WasmAwsc(
-    flat(c.eb), flat(c.wb), flat(c.nb), flat(c.sb),
-    c.eb.heavy_vehicle_pct, c.wb.heavy_vehicle_pct,
-    c.nb.heavy_vehicle_pct, c.sb.heavy_vehicle_pct,
-    c.phf ?? undefined, c.analysis_period_h);
+    flat(c.eb),
+    flat(c.wb),
+    flat(c.nb),
+    flat(c.sb),
+    c.eb.heavy_vehicle_pct,
+    c.wb.heavy_vehicle_pct,
+    c.nb.heavy_vehicle_pct,
+    c.sb.heavy_vehicle_pct,
+    c.phf ?? undefined,
+    c.analysis_period_h,
+  );
 }
 
 // ── HCM Chapter 32, AWSC Example Problem 1 (single-lane, three-leg) ──
@@ -47,7 +53,7 @@ approx(a1.get_departure_headway('WB', 0), 4.74, 0.1, 'EP1 h_d,WB');
 approx(a1.get_lane_delay('WB', 0), 13.5, DELAY_TOL, 'EP1 d_WB');
 exact(a1.get_lane_los('WB', 0), 'B', 'EP1 WB LOS');
 
-approx(a1.get_departure_headway('SB', 0), 5.70, 0.1, 'EP1 h_d,SB');
+approx(a1.get_departure_headway('SB', 0), 5.7, 0.1, 'EP1 h_d,SB');
 approx(a1.get_lane_delay('SB', 0), 10.6, DELAY_TOL, 'EP1 d_SB');
 
 approx(a1.get_intersection_delay(), 12.8, DELAY_TOL, 'EP1 d_I');

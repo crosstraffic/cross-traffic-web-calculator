@@ -49,13 +49,11 @@ export function bandPosition(measureKey, value, { tolerance = 0.1 } = {}) {
   // LOS F no upper one) or infinite (Exhibit 14-3's open LOS E).
   const candidates = [
     { edge: m.edges[i - 1], betterLetter: LOS_LETTERS[i - 1], worseLetter: letter },
-    { edge: m.edges[i], betterLetter: letter, worseLetter: LOS_LETTERS[i + 1] }
+    { edge: m.edges[i], betterLetter: letter, worseLetter: LOS_LETTERS[i + 1] },
   ].filter((c) => Number.isFinite(c.edge) && c.betterLetter && c.worseLetter);
   if (candidates.length === 0) return null;
 
-  const nearest = candidates.reduce((best, c) =>
-    Math.abs(value - c.edge) < Math.abs(value - best.edge) ? c : best
-  );
+  const nearest = candidates.reduce((best, c) => (Math.abs(value - c.edge) < Math.abs(value - best.edge) ? c : best));
   const distance = Math.abs(value - nearest.edge);
 
   return {
@@ -73,7 +71,7 @@ export function bandPosition(measureKey, value, { tolerance = 0.1 } = {}) {
     past: worseHigher ? value > nearest.edge : value < nearest.edge,
     near: value !== 0 && distance / Math.abs(value) <= tolerance,
     label: m.label,
-    unit: m.unit
+    unit: m.unit,
   };
 }
 

@@ -22,9 +22,23 @@ const m = await loadWasm();
 
 function build(c, laneCount) {
   return new m.WasmBasicFreeways(
-    c.bffs, c.lw, laneCount ?? c.lane_count, c.lc_r, c.lc_l, c.trd, c.apd,
-    c.grade, c.terrain_type, c.speed_limit, c.phf, c.p_t, c.demand_flow_i,
-    c.length, c.highway_type, c.city_type);
+    c.bffs,
+    c.lw,
+    laneCount ?? c.lane_count,
+    c.lc_r,
+    c.lc_l,
+    c.trd,
+    c.apd,
+    c.grade,
+    c.terrain_type,
+    c.speed_limit,
+    c.phf,
+    c.p_t,
+    c.demand_flow_i,
+    c.length,
+    c.highway_type,
+    c.city_type,
+  );
 }
 
 // get_demand_volume() is a new binding getter (v_p, pc/h/ln); until the pkg
