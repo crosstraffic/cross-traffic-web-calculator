@@ -462,4 +462,243 @@ const TOL_SV_2 = TOL_SF_2 * EP5_PHF;
   }
 }
 
-report('ch14 merge/diverge (HCM Ch.28 EP1-EP5)');
+// ===========================================================================
+// HCM Edition 7.1
+//
+// Edition 7.1 replaced Chapter 14 outright. Its Chapter 28 keeps the same
+// example problem numbering but the problems themselves and the model behind
+// them are different, so these are new cases rather than the ones above
+// re-run. Expected values and tolerances mirror
+// transportations-library/tests/chapter14_v7_1_integration.rs and cite the
+// page of the Edition 7.1 Chapter 28 extract each number comes from. No
+// fixture files exist for these, so the inputs are literal.
+//
+// version is argument 25, the LAST one. Note that accel_lane_length2 and
+// decel_lane_length2 sit at positions 8 and 10, between the two lengths that
+// are actually used here. build71 does that counting once.
+// heavy_vehicle_pct and ramp_heavy_vehicle_pct are DECIMAL shares.
+// ===========================================================================
+
+function build71(o) {
+  return new m.WasmRampSegment(
+    o.ramp_type, o.ramp_side ?? 'Right', o.ramp_lanes ?? 1, o.freeway_lanes,
+    o.freeway_ffs, o.ramp_ffs,
+    o.accel_lane_length, undefined, o.decel_lane_length, undefined,
+    o.freeway_demand, o.ramp_demand, o.phf, o.heavy_vehicle_pct,
+    o.ramp_heavy_vehicle_pct, o.terrain ?? 'Level',
+    undefined, undefined, undefined, undefined, undefined, undefined,
+    undefined, undefined, o.version ?? '7.1');
+}
+
+// --- Ch.28 EP1 (p. 28-2): isolated one-lane, right-hand on-ramp to a
+// four-lane freeway. The per-lane demand is above the breakpoint, so S_b
+// comes off the curved part of Equation 12-1.
+{
+  const seg = build71({
+    ramp_type: 'OnRamp', freeway_lanes: 2, freeway_ffs: 60.0, ramp_ffs: 45.0,
+    accel_lane_length: 740.0, freeway_demand: 2500.0, ramp_demand: 535.0,
+    phf: 0.90, heavy_vehicle_pct: 0.05,
+  });
+  exact(seg.version, '7.1', 'EP1 7.1 segment reports version 7.1');
+
+  const los = seg.run_analysis();
+  const a = seg.analysis_v7_1();
+
+  approx(a.flow_freeway, 2918.0, 2.0, 'EP1 7.1 v_F (pc/h, p. 28-3)');
+  approx(a.flow_ramp, 624.0, 1.0, 'EP1 7.1 v_R (pc/h, p. 28-3)');
+  approx(a.flow_influence, 3542.0, 3.0, 'EP1 7.1 v (pc/h, p. 28-3)');
+  approx(a.flow_per_lane, 1771.0, 2.0, 'EP1 7.1 v/N (pc/h/ln, p. 28-3)');
+  approx(a.breakpoint_adj, 1600.0, 1e-9, 'EP1 7.1 BP_adj (pc/h/ln, p. 28-4)');
+  approx(a.capacity_basic_adj, 2300.0, 1e-9, 'EP1 7.1 C_b,adj (pc/h/ln, p. 28-4)');
+  approx(a.speed_basic, 59.47, 0.02, 'EP1 7.1 S_b (mi/h, p. 28-4)');
+  approx(a.speed_impedance, 4.37, 0.02, 'EP1 7.1 SIM (mi/h, p. 28-4)');
+  approx(a.speed_avg, 55.10, 0.03, 'EP1 7.1 S_M (mi/h, p. 28-4)');
+  approx(a.capacity_per_lane, 1882.0, 3.0, 'EP1 7.1 C_M (pc/h/ln, p. 28-5)');
+  approx(a.dc_ratio, 0.94, 0.005, 'EP1 7.1 d/c (p. 28-5)');
+  approx(a.capacity_neighboring_freeway, 4600.0, 1e-9, 'EP1 7.1 downstream freeway capacity (pc/h, Exhibit 14-8)');
+  approx(a.capacity_ramp_roadway, 2100.0, 1e-9, 'EP1 7.1 ramp roadway capacity (pc/h, Exhibit 14-10)');
+  exact(a.demand_exceeds_capacity, false, 'EP1 7.1 demand within capacity');
+  approx(a.density, 32.1, 0.1, 'EP1 7.1 D_M (pc/mi/ln, p. 28-6)');
+  exact(los, 'E', 'EP1 7.1 LOS (Exhibit 14-2)');
+
+  // The 7th Edition step methods are refused on a 7.1 segment rather than
+  // answering from a model that no longer applies.
+  let threw = false;
+  try { seg.determine_demand_flow(); } catch { threw = true; }
+  exact(threw, true, 'EP1 7.1 segment refuses the 7th Edition step methods');
+}
+
+// --- Ch.28 EP2, first off-ramp (p. 28-6): one of two adjacent one-lane,
+// right-hand off-ramps on a six-lane freeway. Edition 7.1 analyzes each ramp
+// independently and applies the worse LOS to the overlapping influence area.
+{
+  const seg = build71({
+    ramp_type: 'OffRamp', freeway_lanes: 3, freeway_ffs: 60.0, ramp_ffs: 40.0,
+    decel_lane_length: 500.0, freeway_demand: 4500.0, ramp_demand: 300.0,
+    phf: 0.95, heavy_vehicle_pct: 0.075,
+  });
+  exact(seg.version, '7.1', 'EP2a 7.1 segment reports version 7.1');
+
+  const los = seg.run_analysis();
+  const a = seg.analysis_v7_1();
+
+  approx(a.flow_freeway, 5093.0, 3.0, 'EP2a v_F (pc/h, p. 28-7)');
+  approx(a.flow_ramp, 340.0, 1.0, 'EP2a v_R1 (pc/h, p. 28-7)');
+  // A diverge's influence-area flow is the MAINLINE flow. The exiting
+  // vehicles are already inside it, so v_R is not added: 5,093 and not the
+  // 5,433 a merge-shaped reading would produce.
+  approx(a.flow_influence, 5093.0, 3.0, 'EP2a v_1 is the mainline flow, not v_F + v_R (p. 28-7)');
+  exact(Math.abs(a.flow_influence - 5433.0) > 300.0, true, 'EP2a v_1 is not v_F + v_R');
+  approx(a.flow_per_lane, 1698.0, 2.0, 'EP2a v_1/N (pc/h/ln, p. 28-7)');
+  approx(a.speed_basic, 59.83, 0.02, 'EP2a S_b (mi/h, p. 28-8)');
+  approx(a.speed_impedance, 2.04, 0.02, 'EP2a SID (mi/h, p. 28-8)');
+  approx(a.speed_avg, 57.79, 0.03, 'EP2a S_D (mi/h, p. 28-8)');
+  approx(a.capacity_per_lane, 1940.0, 3.0, 'EP2a C_D (pc/h/ln, p. 28-9)');
+  approx(a.capacity_neighboring_freeway, 6900.0, 1e-9, 'EP2a upstream freeway capacity (pc/h)');
+  approx(a.capacity_ramp_roadway, 2000.0, 1e-9, 'EP2a ramp roadway capacity (pc/h)');
+  exact(a.demand_exceeds_capacity, false, 'EP2a demand within capacity');
+  approx(a.density, 29.4, 0.1, 'EP2a D_D (pc/mi/ln, p. 28-10)');
+  exact(los, 'D', 'EP2a LOS (Exhibit 14-2)');
+}
+
+// --- Ch.28 EP2, second off-ramp (p. 28-9). Its per-lane demand of 1,584
+// pc/h/ln falls just below the 1,600 pc/h/ln breakpoint, so the equivalent
+// basic segment runs at the adjusted FFS.
+{
+  const seg = build71({
+    ramp_type: 'OffRamp', freeway_lanes: 3, freeway_ffs: 60.0, ramp_ffs: 25.0,
+    decel_lane_length: 300.0,
+    // DERIVED, not a stated input: the mainline reaching the second ramp is
+    // the original demand less what left at the first, 4,500 - 300 = 4,200
+    // veh/h. The manual does that subtraction in prose on p. 28-9.
+    freeway_demand: 4200.0, ramp_demand: 500.0,
+    phf: 0.95, heavy_vehicle_pct: 0.075,
+  });
+  exact(seg.version, '7.1', 'EP2b 7.1 segment reports version 7.1');
+
+  const los = seg.run_analysis();
+  const a = seg.analysis_v7_1();
+
+  approx(a.flow_freeway, 4753.0, 3.0, 'EP2b v_2 (pc/h, p. 28-9)');
+  approx(a.flow_ramp, 566.0, 1.0, 'EP2b v_R2 (pc/h, p. 28-9)');
+  approx(a.flow_per_lane, 1584.0, 2.0, 'EP2b v_2/N (pc/h/ln, p. 28-9)');
+  // Below the breakpoint, so the basic segment runs at the adjusted FFS.
+  approx(a.speed_basic, 60.0, 1e-9, 'EP2b S_b (mi/h, p. 28-9)');
+  approx(a.speed_impedance, 4.04, 0.02, 'EP2b SID (mi/h, p. 28-9)');
+  approx(a.speed_avg, 55.96, 0.03, 'EP2b S_D (mi/h, p. 28-9)');
+  approx(a.capacity_per_lane, 1874.0, 3.0, 'EP2b C_D (pc/h/ln, p. 28-10)');
+  approx(a.capacity_ramp_roadway, 1900.0, 1e-9, 'EP2b ramp roadway capacity (pc/h)');
+  exact(a.demand_exceeds_capacity, false, 'EP2b demand within capacity');
+  approx(a.density, 28.3, 0.1, 'EP2b D_D (pc/mi/ln, p. 28-10)');
+  exact(los, 'D', 'EP2b LOS (Exhibit 14-2)');
+}
+
+// --- Ch.28 EP3, first ramp (p. 28-11): a one-lane on-ramp on an eight-lane
+// freeway, 1,300 ft upstream of a one-lane off-ramp. No auxiliary lane joins
+// them, so each is an independent junction. The freeway carries 10% trucks
+// and the on-ramp 5%, which is what ramp_heavy_vehicle_pct is for.
+{
+  const seg = build71({
+    ramp_type: 'OnRamp', freeway_lanes: 4, freeway_ffs: 65.0, ramp_ffs: 30.0,
+    accel_lane_length: 260.0, freeway_demand: 5490.0, ramp_demand: 410.0,
+    phf: 0.94, heavy_vehicle_pct: 0.10, ramp_heavy_vehicle_pct: 0.05,
+  });
+  exact(seg.version, '7.1', 'EP3-merge 7.1 segment reports version 7.1');
+
+  const los = seg.run_analysis();
+  const a = seg.analysis_v7_1();
+
+  approx(a.flow_freeway, 6425.0, 3.0, 'EP3-merge v_F (pc/h, p. 28-12)');
+  approx(a.flow_ramp, 458.0, 1.0, 'EP3-merge v_R1 (pc/h, p. 28-12)');
+  approx(a.flow_influence, 6883.0, 4.0, 'EP3-merge v_1 (pc/h, p. 28-12)');
+  approx(a.flow_per_lane, 1721.0, 1.0, 'EP3-merge v_1/N (pc/h/ln, p. 28-12)');
+  approx(a.breakpoint_adj, 1400.0, 1e-9, 'EP3-merge BP_adj (pc/h/ln, p. 28-13)');
+  approx(a.capacity_basic_adj, 2350.0, 1e-9, 'EP3-merge C_b,adj (pc/h/ln, p. 28-13)');
+  approx(a.speed_basic, 63.54, 0.02, 'EP3-merge S_b (mi/h, p. 28-13)');
+  approx(a.speed_impedance, 8.77, 0.02, 'EP3-merge SIM (mi/h, p. 28-13)');
+  approx(a.speed_avg, 54.77, 0.03, 'EP3-merge S_M (mi/h, p. 28-13)');
+  approx(a.capacity_per_lane, 1841.0, 3.0, 'EP3-merge C_M (pc/h/ln, p. 28-14)');
+  approx(a.capacity_neighboring_freeway, 9400.0, 1e-9, 'EP3-merge downstream freeway capacity (pc/h, p. 28-15)');
+  approx(a.capacity_ramp_roadway, 1900.0, 1e-9, 'EP3-merge ramp roadway capacity (pc/h, p. 28-16)');
+  exact(a.demand_exceeds_capacity, false, 'EP3-merge demand within capacity');
+  approx(a.density, 31.4, 0.1, 'EP3-merge D_M (pc/mi/ln, p. 28-16)');
+  exact(los, 'E', 'EP3-merge LOS (Exhibit 14-2)');
+}
+
+// --- Ch.28 EP3, second ramp (p. 28-13). Its mainline flow is the flow
+// departing the merge influence area, which the manual carries forward as
+// v_2 = 6,883 pc/h. That is already a flow rate under equivalent base
+// conditions, so it is fed in with PHF = 1.00 and no heavy vehicles. It
+// cannot be re-derived in veh/h, because the two upstream demands carry
+// different truck percentages and so cannot be summed.
+{
+  const seg = build71({
+    ramp_type: 'OffRamp', freeway_lanes: 4, freeway_ffs: 65.0, ramp_ffs: 25.0,
+    decel_lane_length: 260.0, freeway_demand: 6883.0, ramp_demand: 702.0,
+    phf: 1.00, heavy_vehicle_pct: 0.0,
+  });
+  exact(seg.version, '7.1', 'EP3-diverge 7.1 segment reports version 7.1');
+
+  const los = seg.run_analysis();
+  const a = seg.analysis_v7_1();
+
+  approx(a.flow_freeway, 6883.0, 1e-9, 'EP3-diverge v_2 (pc/h, p. 28-12)');
+  approx(a.flow_ramp, 702.0, 1e-9, 'EP3-diverge v_R2 (pc/h, p. 28-12)');
+  approx(a.flow_influence, 6883.0, 1e-9, 'EP3-diverge v_2 is the mainline flow, not v_2 + v_R2 (p. 28-12)');
+  approx(a.flow_per_lane, 1721.0, 1.0, 'EP3-diverge v_2/N (pc/h/ln, p. 28-12)');
+  approx(a.speed_basic, 63.54, 0.02, 'EP3-diverge S_b (mi/h, p. 28-13)');
+  approx(a.speed_impedance, 6.09, 0.02, 'EP3-diverge SID (mi/h, p. 28-14)');
+  approx(a.speed_avg, 57.45, 0.03, 'EP3-diverge S_D (mi/h, p. 28-14)');
+  approx(a.capacity_per_lane, 1904.0, 3.0, 'EP3-diverge C_D (pc/h/ln, p. 28-15)');
+  approx(a.capacity_neighboring_freeway, 9400.0, 1e-9, 'EP3-diverge upstream freeway capacity (pc/h, p. 28-15)');
+  approx(a.capacity_ramp_roadway, 1900.0, 1e-9, 'EP3-diverge ramp roadway capacity (pc/h, p. 28-16)');
+  exact(a.demand_exceeds_capacity, false, 'EP3-diverge demand within capacity');
+  approx(a.density, 29.95, 0.05, 'EP3-diverge D_D (pc/mi/ln, p. 28-16)');
+  exact(los, 'D', 'EP3-diverge LOS (Exhibit 14-2)');
+}
+
+// --- Ch.28 EP4 (p. 28-18): a one-lane, LEFT-hand on-ramp on a six-lane
+// freeway. Edition 7.1 makes no computational distinction between left- and
+// right-hand junctions, so this case is here for its published values and to
+// pin that ramp_side does not move them.
+{
+  const seg = build71({
+    ramp_type: 'OnRamp', ramp_side: 'Left', freeway_lanes: 3,
+    freeway_ffs: 65.0, ramp_ffs: 30.0, accel_lane_length: 820.0,
+    freeway_demand: 4000.0, ramp_demand: 490.0,
+    phf: 0.90, heavy_vehicle_pct: 0.075, ramp_heavy_vehicle_pct: 0.03,
+  });
+  exact(seg.version, '7.1', 'EP4 7.1 segment reports version 7.1');
+
+  const los = seg.run_analysis();
+  const a = seg.analysis_v7_1();
+
+  approx(a.flow_freeway, 4779.0, 3.0, 'EP4 v_F (pc/h, p. 28-19)');
+  approx(a.flow_ramp, 561.0, 1.0, 'EP4 v_R (pc/h, p. 28-19)');
+  approx(a.flow_influence, 5340.0, 4.0, 'EP4 v (pc/h, p. 28-19)');
+  approx(a.flow_per_lane, 1780.0, 2.0, 'EP4 v/N (pc/h/ln, p. 28-19)');
+  approx(a.breakpoint_adj, 1400.0, 1e-9, 'EP4 BP_adj (pc/h/ln, p. 28-19)');
+  approx(a.capacity_basic_adj, 2350.0, 1e-9, 'EP4 C_b,adj (pc/h/ln, p. 28-19)');
+  approx(a.speed_basic, 62.96, 0.02, 'EP4 S_b (mi/h, p. 28-19)');
+  approx(a.speed_impedance, 3.57, 0.02, 'EP4 SIM (mi/h, p. 28-20)');
+  approx(a.speed_avg, 59.39, 0.03, 'EP4 S_M (mi/h, p. 28-20)');
+  approx(a.capacity_per_lane, 1970.0, 3.0, 'EP4 C_M (pc/h/ln, p. 28-21)');
+  approx(a.capacity_neighboring_freeway, 7050.0, 1e-9, 'EP4 downstream freeway capacity (pc/h, p. 28-21)');
+  approx(a.capacity_ramp_roadway, 1900.0, 1e-9, 'EP4 ramp roadway capacity (pc/h, p. 28-21)');
+  exact(a.demand_exceeds_capacity, false, 'EP4 demand within capacity');
+  approx(a.density, 29.97, 0.05, 'EP4 D_M (pc/mi/ln, p. 28-21)');
+  exact(los, 'D', 'EP4 LOS (Exhibit 14-2)');
+
+  // Same junction on the right side: identical under Edition 7.1. If a later
+  // edition or a fix gives the side an effect, this check is where it shows.
+  const right = build71({
+    ramp_type: 'OnRamp', ramp_side: 'Right', freeway_lanes: 3,
+    freeway_ffs: 65.0, ramp_ffs: 30.0, accel_lane_length: 820.0,
+    freeway_demand: 4000.0, ramp_demand: 490.0,
+    phf: 0.90, heavy_vehicle_pct: 0.075, ramp_heavy_vehicle_pct: 0.03,
+  });
+  right.run_analysis();
+  approx(right.analysis_v7_1().density, a.density, 1e-9, 'EP4 ramp side does not move the 7.1 density');
+}
+
+report('ch14 merge/diverge (HCM Ch.28 EP1-EP5 7e, EP1-EP4 7.1)');

@@ -1039,10 +1039,22 @@ test.describe('chapter 13 weaving calculator', () => {
     await calculate.click();
 
     await expect(page.getByText(/Edition 7.1 bands.*: C/)).toBeVisible();
-    const table = page.locator('.results-panel table');
-    await expect(table.getByText(/23\.[0-9]/)).toBeVisible(); // D ≈ 23.6
-    await expect(table.getByText(/59\.[0-9]/).first()).toBeVisible(); // S_o ≈ 59.32
-    await expect(page.getByText('Configuration Class:')).toBeVisible();
+
+    // Every printed intermediate, at the string the page actually renders.
+    // Published values from Chapter 27 pp. 27-3 to 27-6 are in the comments.
+    // Where the last digit differs, the page carries full precision through
+    // Equation 14-1 while the manual rounds each component flow to a whole
+    // pc/h before summing; the library integration test allows exactly that
+    // much (+-1 pc/h on the flows, +-0.1 pc/mi/ln on the density).
+    const cell = (label: string) => page.locator('tr', { hasText: label }).first().locator('td');
+    await expect(cell('Configuration Class:')).toHaveText('Complex');
+    await expect(cell('Total Flow Rate (pc/hr):')).toHaveText('5586'); // published v = 5,588
+    await expect(cell('Equivalent Basic Segment Speed (mi/hr):')).toHaveText('65.0'); // S_b, below BP_adj
+    await expect(cell('Speed Impedance (mi/hr):')).toHaveText('5.68'); // SIW = 5.68
+    await expect(cell('Overall Speed (mi/hr):')).toHaveText('59.3'); // S_o = 59.32
+    await expect(cell('Capacity (pc/hr/ln):')).toHaveText('1865'); // published C_W = 1,866
+    await expect(cell('Demand-to-Capacity Ratio:')).toHaveText('0.75'); // d/c = 0.75
+    await expect(cell('Density (pc/mi/ln):')).toHaveText('23.5'); // published D = 23.6
   });
 
   test('the movement diagram follows the inputs and highlights on hover', async ({ page }) => {
@@ -1079,7 +1091,7 @@ test.describe('chapter 13 weaving calculator', () => {
 
 test.describe('chapter 14 merge and diverge calculator', () => {
   test('reproduces the published isolated on-ramp example problem', async ({ page }) => {
-    // HCM Chapter 26, Example Problem 1: one-lane right-hand on-ramp to a
+    // HCM Chapter 28, Example Problem 1: one-lane right-hand on-ramp to a
     // four-lane freeway (2 lanes/direction), FFS 60, L_A 740 ft, 2,500 veh/h
     // freeway demand, 535 veh/h ramp demand, PHF 0.90, 5% trucks, level.
     // Published: D_R = 28.2 pc/mi/ln, LOS D, S_R = 53.0 mi/h (library
@@ -1106,7 +1118,7 @@ test.describe('chapter 14 merge and diverge calculator', () => {
   });
 
   test('the same on-ramp under Edition 7.1 via the picker', async ({ page }) => {
-    // Same Chapter 26 Example Problem 1 inputs under the Edition 7.1 methodology, which
+    // Same Chapter 28 Example Problem 1 inputs under the Edition 7.1 methodology, which
     // replaces the lane-distribution model with an equivalent-basic-segment speed less an
     // impedance. Expected values come from the library's Edition 7.1 implementation for this
     // fixture: density 32.1 pc/mi/ln, influence area speed 55.1 mi/h, d/c 0.94, LOS E under
@@ -1128,10 +1140,23 @@ test.describe('chapter 14 merge and diverge calculator', () => {
     await calculate.click();
 
     await expect(page.getByText(/Edition 7.1 bands.*: E/)).toBeVisible();
-    const table = page.locator('.results-panel table');
-    await expect(table.getByText(/32\.[0-9]/)).toBeVisible(); // density ≈ 32.1
-    await expect(table.getByText(/55\.[0-9]/).first()).toBeVisible(); // S ≈ 55.1
-    await expect(page.getByText('Demand-to-Capacity Ratio:')).toBeVisible();
+
+    // Every printed intermediate, at the string the page actually renders.
+    // Published values from Chapter 28 pp. 28-3 to 28-6 are in the comments;
+    // last-digit differences are the same rounding-order effect as on hcm13.
+    const cell = (label: string) => page.locator('tr', { hasText: label }).first().locator('td');
+    await expect(cell('Freeway Flow Rate (pc/hr):')).toHaveText('2917'); // published v_F = 2,918
+    await expect(cell('Ramp Flow Rate (pc/hr):')).toHaveText('624'); // v_R = 624
+    await expect(cell('Influence Area Flow per Lane (pc/hr/ln):')).toHaveText('1770'); // published v/N = 1,771
+    await expect(cell('Equivalent Basic Segment Speed (mi/hr):')).toHaveText('59.5'); // S_b = 59.47
+    await expect(cell('Speed Impedance (mi/hr):')).toHaveText('4.37'); // SIM = 4.37
+    await expect(cell('Influence Area Speed (mi/hr):')).toHaveText('55.1'); // S_M = 55.10
+    await expect(cell('Influence Area Capacity (pc/hr/ln):')).toHaveText('1883'); // published C_M = 1,882
+    await expect(cell('Demand-to-Capacity Ratio:')).toHaveText('0.94'); // d/c = 0.94
+    await expect(cell('Neighboring Freeway Capacity (pc/hr):')).toHaveText('4600'); // Exhibit 14-8
+    await expect(cell('Ramp Roadway Capacity (pc/hr):')).toHaveText('2100'); // Exhibit 14-10
+    await expect(cell('Demand Exceeds Capacity:')).toHaveText('No');
+    await expect(cell('Influence Area Density (pc/mi/ln):')).toHaveText('32.1'); // D_M = 32.1
   });
 
   test('major merge under capacity says the HCM defines no LOS', async ({ page }) => {
